@@ -26,6 +26,7 @@ import (
 // fakeRepo is an in-memory repo.Repo. Its blocks map iterates in random
 // order, which the archive must not depend on.
 type fakeRepo struct {
+	dupes  bool // list every block twice, as repos 5 to 11 can
 	blocks map[string][]byte
 	pins   []repo.Pin
 	mfs    cid.Cid
@@ -46,6 +47,11 @@ func (f *fakeRepo) ForEachBlock(_ context.Context, fn func(multihash.Multihash, 
 	for k, v := range f.blocks {
 		if err := fn(multihash.Multihash(k), len(v)); err != nil {
 			return err
+		}
+		if f.dupes {
+			if err := fn(multihash.Multihash(k), len(v)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -319,6 +325,17 @@ func TestEditChangesNearbyPieces(t *testing.T) {
 		if old[p.PieceCID] != (p.Snapshot == 0) {
 			t.Errorf("piece %d: snapshot %d", p.Index, p.Snapshot)
 		}
+	}
+}
+
+func TestDuplicateListings(t *testing.T) {
+	a := build(t, sample(t, false), t.TempDir())
+	r := sample(t, false)
+	r.dupes = true
+	b := build(t, r, t.TempDir())
+	check(t, b)
+	if b.Manifest.Root != a.Manifest.Root || b.Manifest.Source != a.Manifest.Source || len(b.Manifest.Roots) != len(a.Manifest.Roots) {
+		t.Fatalf("listing blocks twice changed the archive: %+v vs %+v", b.Manifest.Source, a.Manifest.Source)
 	}
 }
 

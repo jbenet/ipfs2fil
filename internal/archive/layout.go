@@ -178,7 +178,13 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 	// Orphans: blocks nothing above reaches. One orphan linked by another is
 	// not a root of its own.
 	var loose []multihash.Multihash
+	// Repos 5 to 11 can list one multihash twice, stored under two CIDs.
+	listed := map[string]bool{}
 	err = l.r.ForEachBlock(ctx, func(h multihash.Multihash, size int) error {
+		if listed[string(h)] {
+			return nil
+		}
+		listed[string(h)] = true
 		l.repoBlocks++
 		l.repoBytes += int64(size)
 		if _, ok := l.idx[string(h)]; !ok && orphans {
