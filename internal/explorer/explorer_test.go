@@ -21,7 +21,7 @@ var update = flag.Bool("update", false, "rewrite testdata/golden")
 // and an orphan, over three pieces plus one for index/ and explorer/.
 func sample() (*manifest.Manifest, []Entry) {
 	m := &manifest.Manifest{
-		Format: 1, Tool: "ipfs2fil test", Root: "bafyroot", DataRoot: "bafydata",
+		Format: 1, Tool: "ipfs2fil test", DataRoot: "bafydata",
 		Source: manifest.Source{RepoVersion: 18, Blocks: 40, Bytes: 9000},
 		Roots: []manifest.Root{
 			{CID: "bafysite", Kind: manifest.KindPinRecursive, Name: "my site", Path: "pins/recursive/bafysite", Bytes: 5000, Blocks: 20, FirstPiece: 0, LastPiece: 1},

@@ -87,12 +87,13 @@ func Demo(scale int) (*manifest.Manifest, []Entry) {
 	}
 	m.Source = manifest.Source{RepoVersion: 15, Blocks: blocks, Bytes: off}
 	m.DataRoot = fakeCID("data", true, false)
-	m.Root = fakeCID("archive", true, false)
+	// Like pack, the manifest inside the archive leaves the archive root and
+	// the current snapshot's root empty; the pages read the root from the URL.
 
 	pieces := int((off-1)/pieceSize) + 2 // the last one holds index/ and explorer/
 	t0 := time.Date(2026, 6, 12, 9, 30, 0, 0, time.UTC)
 	t1 := time.Date(2026, 10, 21, 14, 5, 0, 0, time.UTC)
-	m.Snapshots = []manifest.Snapshot{{Time: t0, Root: fakeCID("archive-0", true, false)}, {Time: t1, Root: m.Root}}
+	m.Snapshots = []manifest.Snapshot{{Time: t0, Root: fakeCID("archive-0", true, false)}, {Time: t1}}
 	copies := []manifest.Copy{
 		{Provider: "f04", DataSetID: "1745", PieceIDs: map[int]string{}, Service: "foc-fwss"},
 		{Provider: "f09", DataSetID: "1746", PieceIDs: map[int]string{}, Service: "foc-fwss"},

@@ -113,6 +113,12 @@
     const m = location.host.match(/^[^.]+\.ip[fn]s\.(.+)$/);
     return m ? location.protocol + '//' + m[1] + '/ipfs/' : null;
   })();
+  // The archive root: index/manifest.json inside an archive cannot name its own
+  // root, so take it from the gateway URL when there is one.
+  const URLROOT = (() => {
+    const m = location.pathname.match(/^\/ipfs\/([^/]+)\//) || (/^https?:$/.test(location.protocol) && location.host.match(/^([^.]+)\.ipfs\./));
+    return m ? m[1] : '';
+  })();
   const gw = (cid) => (HERE || GATEWAYS[0][1]) + cid;
   const gwLinks = (cid) => `<span class="gw">${HERE ? `<a href="${esc(HERE + cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span>`;
 
@@ -423,7 +429,8 @@
     const snaps = m.snapshots || [], last = snaps[snaps.length - 1];
     const total = m.source.bytes;
     const stored = copies.length ? `stored on Filecoin in ${plural(copies.length, 'copy', 'copies')}` : 'not on Filecoin yet';
-    pageKeys.cid = () => m.root;
+    const root = m.root || URLROOT;
+    pageKeys.cid = () => root;
     const types = KINDS.filter((k) => meta.types[k]).map((k) => [k, meta.types[k][1], KIND[k][1], KIND[k][3]]).sort((a, b) => b[1] - a[1]);
     const partBars = [['pins', sum(isPin)], ['mfs', sum((r) => r.kind === 'mfs')], ['orphans', sum((r) => r.kind === 'orphan')], ['index', indexBytes]].map((p) => [PART[p[0]][0], p[1], PART[p[0]][1]]);
     main().innerHTML = `
@@ -431,8 +438,8 @@
   <div class="eyebrow">Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}</div>
   <h1>${bytes(total)}, ${plural(pins.length, 'pin')}, ${stored}</h1>
   <div class="meta">
-    <span>Archive root <code class="chipcode" title="${esc(m.root)}">${esc(shortCID(m.root))}</code> <button type="button" class="link" data-copy="${esc(m.root)}">Copy</button></span>
-    <span>Data root <code class="mono" title="${esc(m.dataRoot)}">${esc(shortCID(m.dataRoot))}</code> <button type="button" class="link" data-copy="${esc(m.dataRoot)}">Copy</button></span>
+    <span>Archive root ${root ? `<code class="chipcode" title="${esc(root)}">${esc(shortCID(root))}</code> <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>
+    ${m.dataRoot ? `<span>Data root <code class="mono" title="${esc(m.dataRoot)}">${esc(shortCID(m.dataRoot))}</code> <button type="button" class="link" data-copy="${esc(m.dataRoot)}">Copy</button></span>` : ''}
     ${last ? `<span>Snapshot ${day(last.time)}${snaps.length > 1 ? ` · ${plural(snaps.length - 1, 'earlier snapshot')}` : ''}</span>` : ''}
   </div>
 </section>
