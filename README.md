@@ -13,6 +13,7 @@ serve the files and show what is where.
     ipfs2fil push              # upload what is not stored yet
     ipfs2fil status            # copies, funding, proofs
     ipfs2fil explore --serve   # browse the archive locally
+    ipfs2fil explore --demo    # preview the explorer on a made-up archive
 
 The repo is only ever read. Running again after the repo changes uploads only
 the pieces that changed.
