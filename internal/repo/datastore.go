@@ -198,6 +198,10 @@ func openSpecs(repoPath string, v Version, ms []mountSpec) (kv, error) {
 			d, err = openFlatfs(p, v)
 		case "levelds":
 			d, err = openLevelDB(p)
+		case "badgerds":
+			d, err = openBadger(p)
+		case "pebbleds":
+			d, err = openPebble(p)
 		default:
 			err = fmt.Errorf("datastore type %q is not supported yet", m.spec.str("type"))
 		}

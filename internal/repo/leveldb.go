@@ -47,10 +47,10 @@ func openLevelDB(dir string) (*levelDB, error) {
 	return &levelDB{db: db, temp: tmp}, nil
 }
 
-// snapshotDir copies the files of dir, except the lock file, into a new temp
-// dir.
+// snapshotDir copies the files of a leveldb, badger or pebble directory,
+// except the lock file, into a new temp dir.
 func snapshotDir(dir string) (string, error) {
-	tmp, err := os.MkdirTemp("", "ipfs2fil-leveldb-")
+	tmp, err := os.MkdirTemp("", "ipfs2fil-snapshot-")
 	if err != nil {
 		return "", err
 	}
