@@ -53,7 +53,8 @@ type Repo interface {
 	Version() Version
 
 	// ForEachBlock calls fn once for every block in the blockstore, in no
-	// particular order. It stops at the first error fn returns.
+	// particular order. It stops at the first error fn returns. Repos 5..11
+	// key blocks by CID, so a block stored under two CIDs comes twice.
 	ForEachBlock(ctx context.Context, fn func(mh multihash.Multihash, size int) error) error
 	// Get returns a block's bytes by multihash. It returns ErrNotFound for a
 	// block the repo does not hold. Callers verify the hash; Get does not.
@@ -82,20 +83,19 @@ func Open(path string) (Repo, error) {
 	return openVersion(path, v)
 }
 
-// openVersion picks the block and pin layout for v. The readers land per
-// layout family: leveldb blocks (0-1), old flatfs keys (2-3), base32 flatfs (4),
-// sharded flatfs with CID keys (5-11), sharded flatfs with multihash keys (12+);
-// pins as datastore key lists (0-2), the pin DAG (3-10), dspinner (11+).
-var openVersion = func(path string, v Version) (Repo, error) {
-	return nil, ErrUnsupported
-}
+// openVersion picks the block and pin layout for v. Layout families: leveldb
+// blocks (0-1), old flatfs keys (2-3), base32 flatfs (4), sharded flatfs with
+// CID keys (5-11), sharded flatfs with multihash keys (12+); pins as datastore
+// key lists (0-2), the pin DAG (3-10), dspinner (11+). Repos 6 and later can
+// put any of this on other datastores through config's Datastore.Spec.
+var openVersion = openFS
 
 // Discover finds the repo to use: the explicit path if given, then $IPFS_PATH,
-// then ~/.ipfs.
+// then ~/.ipfs, then ~/.go-ipfs (repos 0 and 1).
 func Discover(explicit string) (string, error) {
 	cands := []string{explicit, os.Getenv("IPFS_PATH")}
 	if home, err := os.UserHomeDir(); err == nil {
-		cands = append(cands, filepath.Join(home, ".ipfs"))
+		cands = append(cands, filepath.Join(home, ".ipfs"), filepath.Join(home, ".go-ipfs"))
 	}
 	for _, c := range cands {
 		if c == "" {
