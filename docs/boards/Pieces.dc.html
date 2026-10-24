@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pieces on Filecoin</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#1B5FD6;text-decoration:none}a:hover{color:#0F3F96;text-decoration:underline}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F5F7; color: #15171C; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5; display: flex; flex-direction: column">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #15171C; font-weight: 600; text-decoration: none">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>
+<span>ipfs2fil</span>
+</a>
+<nav aria-label="Explorer" style="display: flex; gap: 22px; font-size: 14px">
+<a href="Main.dc.html" style="color: #4B5260">Overview</a>
+<a href="Browse.dc.html" style="color: #4B5260">Browse</a>
+<a href="Pieces.dc.html" style="color: #15171C; font-weight: 600; border-bottom: 2px solid #1B5FD6; padding-bottom: 2px">Pieces</a>
+</nav>
+<form action="Search.dc.html" style="margin-left: auto; position: relative; flex: 0 1 340px; min-width: 220px">
+<label for="q" style="position: absolute; left: -9999px">Search names and CIDs</label>
+<input id="q" name="q" type="search" placeholder="Search names and CIDs" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 40px 0 12px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 14px; background: #FFFFFF; color: #15171C">
+<kbd style="position: absolute; right: 10px; top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; color: #4B5260; background: #FFFFFF">/</kbd>
+</form>
+</div>
+</header>
+
+<main style="flex: 1; width: 100%; max-width: 1200px; box-sizing: border-box; margin: 0 auto; padding: 32px 24px 40px; display: flex; flex-direction: column; gap: 22px">
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 600">431 pieces, 3 copies each, on 3 providers</h1>
+<p style="margin: 0; font-size: 15px; color: #4B5260; max-width: 760px">A piece is one CAR file of about 1 GiB that a provider stores and proves on chain. Pieces are cut at content-defined points, so the same repo always makes the same pieces, and a new snapshot reuses every piece that didn't change.</p>
+</section>
+
+<section aria-label="Providers" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 2px"><div style="font-weight: 600">Provider f04</div><div style="font-size: 14px; color: #4B5260">Data set 1745 · 431 pieces · 412 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 2px"><div style="font-weight: 600">Provider f09</div><div style="font-size: 14px; color: #4B5260">Data set 1746 · 431 pieces · 412 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 2px"><div style="font-weight: 600">Provider f032</div><div style="font-size: 14px; color: #4B5260">Data set 1748 · 431 pieces · 412 GiB</div></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 12px 8px 14px; display: flex; flex-direction: column; gap: 0">
+<div style="display: flex; align-items: baseline; gap: 12px; padding: 0 8px 10px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Every piece</h2><a href="Pieces.dc.html" style="margin-left: auto; font-size: 14px">manifest.json</a></div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 4px 8px 10px; border-bottom: 1px solid #E1E4E9"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px"><div style="position: relative; flex: 0 1 300px; min-width: 200px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5B6270" stroke-width="1.6" aria-hidden="true" style="position: absolute; left: 10px; top: 10px"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" value="{{q}}" onChange="{{onQuery}}" autocomplete="off" placeholder="Filter by PieceCID or contents" aria-label="Filter by PieceCID or contents" style="width: 100%; box-sizing: border-box; height: 34px; padding: 0 36px 0 30px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 13px; background: #FFFFFF; color: #15171C"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF; position: absolute; right: 8px; top: 7px; color: #4B5260">f</kbd></div><div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px"><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4B5260">Holds<select value="{{holdsSel}}" onChange="{{onHolds}}" style="height: 34px; padding: 0 8px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C"><option value="any">Anything</option><option value="pins">Pins</option><option value="mfs">MFS</option><option value="orphans">Orphans</option><option value="index">Index and explorer</option></select></label><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4B5260">Size<select value="{{sizeSel}}" onChange="{{onSize}}" style="height: 34px; padding: 0 8px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C"><option value="any">Any</option><option value="full">Full, 1 GiB</option><option value="part">Under 1 GiB</option></select></label><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4B5260">Sort<select value="{{sortSel}}" onChange="{{onSort}}" style="height: 34px; padding: 0 8px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C"><option value="n">Number</option><option value="size">Size</option><option value="blocks">Blocks</option><option value="holds">Holds</option><option value="snap">Snapshot</option></select></label><button type="button" onClick="{{flip}}" aria-label="Reverse the order" style="height: 34px; min-width: 34px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C; cursor: pointer">{{dirLabel}}</button></div></div><div role="group" aria-label="Filter by kind" style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{chips}}" as="k" hint-placeholder-count="6"><button type="button" aria-pressed="{{k.on}}" onClick="{{k.pick}}" style="height: 30px; padding: 0 11px; border-radius: 15px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: #15171C; font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px">{{k.label}} <span style="color: #4B5260">{{k.count}}</span></button></sc-for></div></div>
+<div tabIndex="0" onKeyDown="{{onKey}}" aria-label="Pieces. J and K move, Enter opens." style="overflow-x: auto; outline: none">
+<table style="width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: fixed">
+<colgroup><col style="width: 7%"><col style="width: 24%"><col style="width: 10%"><col style="width: 10%"><col style="width: 33%"><col style="width: 16%"></colgroup>
+<thead><tr style="text-align: left; color: #4B5260; font-size: 12.5px"><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap"><button type="button" onClick="{{sort_n}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer"># {{arrow_n}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9">PieceCID</th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap; text-align: right"><button type="button" onClick="{{sort_size}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Size {{arrow_size}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap; text-align: right"><button type="button" onClick="{{sort_blocks}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Blocks {{arrow_blocks}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap"><button type="button" onClick="{{sort_holds}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Holds {{arrow_holds}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap"><button type="button" onClick="{{sort_snap}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Snapshot {{arrow_snap}}</button></th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="40">
+<tr onClick="{{r.pick}}" aria-selected="{{r.sel}}" style="background: {{r.bg}}">
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; font-variant-numeric: tabular-nums; color: #4B5260">{{r.n}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #4B5260; white-space: nowrap">{{r.cid}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; text-align: right; font-variant-numeric: tabular-nums">{{r.sizeLabel}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; text-align: right; font-variant-numeric: tabular-nums">{{r.blocksLabel}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><span style="display: inline-flex; align-items: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{r.iconColor}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="{{r.icon}}"></path></svg><a href="{{r.href}}">{{r.holds}}</a></span></td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; color: {{r.snapColor}}; white-space: nowrap">{{r.snap}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 8px 0; font-size: 13px; color: #4B5260"><span>{{footnote}}</span><sc-if value="{{hasMore}}"><button type="button" onClick="{{more}}" style="margin-left: auto; height: 34px; padding: 0 14px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C; cursor: pointer">Load {{step}} more</button></sc-if></div>
+</section>
+</main>
+
+<footer style="position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 13px; color: #4B5260">
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">J</kbd><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">K</kbd> move</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">↵</kbd> what it holds</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">F</kbd> filter</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">S</kbd> sort by</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">R</kbd> reverse</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">Y</kbd> copy PieceCID</span>
+<a href="Shortcuts.dc.html" style="display: inline-flex; gap: 4px; align-items: center; color: #4B5260"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">?</kbd> all shortcuts</a>
+<span style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px">{{status}}</span>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":6600}}'>
+class Component extends DCLogic {
+
+entries() {
+if (this._e) return this._e;
+
+const IC = {
+folder: ['M1.5 4.5h4l1.5 1.5h7.5v7.5h-13z', '#1B5FD6', 'Folder'],
+image: ['M2 2.5h12v11h-12z M2 11l3.5-3.5 3 3 2-2 3.5 3.5', '#2F6FB0', 'Photo'],
+video: ['M1.5 3.5h9v9h-9z M10.5 7l4-2.5v7l-4-2.5', '#0B3B8C', 'Video'],
+audio: ['M6 12V3.5l7-1.5v8.5 M6 12a2 2 0 1 1-4 0a2 2 0 0 1 4 0z M13 10.5a2 2 0 1 1-4 0a2 2 0 0 1 4 0z', '#6D28D9', 'Audio'],
+doc: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M5.5 9h5', '#B91C1C', 'Document'],
+page: ['M1.5 2.5h13v11h-13z M1.5 5.5h13', '#4B5260', 'Web page'],
+text: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M6 8.5h4 M6 11h4', '#9A3412', 'Text'],
+code: ['M5.5 4.5l-3.5 3.5 3.5 3.5 M10.5 4.5l3.5 3.5-3.5 3.5', '#B45309', 'Code'],
+archive: ['M3 1.5h10v13h-10z M8 1.5v1.5 M8 4.5v1.5 M7 7.5h2v2.5h-2z', '#047857', 'Archive'],
+disk: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 0 0 0-3z', '#0E7490', 'Disk image'],
+other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other']
+};
+const fmt = (mb) => mb >= 1024 ? (mb / 1024).toFixed(1) + ' GiB' : mb >= 1 ? mb.toFixed(1) + ' MiB' : Math.max(1, Math.round(mb * 1024)) + ' KiB';
+const SIZE = { any: () => true, small: (e) => e.mb < 1, mid: (e) => e.mb >= 1 && e.mb <= 100, big: (e) => e.mb > 100 };
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+const cidOf = (pre, i) => { let s = pre; for (let k = 0; k < 4; k++) s += B32.charAt((i * 7 + k * 13 + i * k) % 32); s += '…'; for (let k = 4; k < 8; k++) s += B32.charAt((i * 11 + k * 5 + i * k) % 32); return s; };
+
+this.IC = IC;
+const H = [
+[1, 'index/ and explorer/', 'index', 'code', 'Browse.dc.html'],
+[6, 'ubuntu-24.04-desktop-amd64.iso', 'pins', 'disk', 'Root.dc.html'],
+[150, 'wikipedia-en-2021-snapshot/A/', 'pins', 'page', 'Root.dc.html'],
+[110, 'wikipedia-en-2021-snapshot/I/', 'pins', 'image', 'Root.dc.html'],
+[14, 'wikipedia-en-2021-snapshot/M/', 'pins', 'page', 'Root.dc.html'],
+[61, 'pins/recursive (61 small roots)', 'pins', 'folder', 'Browse.dc.html'],
+[50, 'mfs/videos/', 'mfs', 'video', 'Browse.dc.html'],
+[24, 'mfs/photos/2019/', 'mfs', 'image', 'Browse.dc.html'],
+[12, 'mfs/photos/beach-2018/', 'mfs', 'image', 'Browse.dc.html'],
+[3, 'orphans/ (318 roots)', 'orphans', 'other', 'Browse.dc.html']
+];
+const out = [];
+let n = 0;
+H.forEach((h) => { for (let j = 0; j < h[0]; j++, n++) {
+const isNew = n % 47 === 13 || n >= 428;
+const gib = j === h[0] - 1 ? 0.52 + ((n * 37) % 45) / 100 : 1;
+out.push({ n, cid: cidOf('bafkzcib', n), mb: gib * 1024, sizeLabel: gib.toFixed(2) + ' GiB', blocks: 2000 + ((n * 7919) % 11000), holds: h[1] + (h[0] > 1 ? ' · part ' + (j + 1) + ' of ' + h[0] : ''), where: h[2], type: h[3], href: h[4], isNew, snap: isNew ? '21 Oct 2026' : '12 Jun 2026', snapColor: isNew ? '#9A3412' : '#4B5260', icon: IC[h[3]][0], iconColor: IC[h[3]][1] });
+} });
+this._e = out;
+return out;
+}
+
+listVals(all, opts) {
+const s = this.state || {};
+const q = s.q != null ? s.q : (opts.q0 || '');
+const kind = s.kind || 'all';
+const sortKey = s.sortKey || opts.sort0;
+const dir = s.dir || opts.dir0 || 1;
+const limit = s.limit || opts.step;
+const ql = q.trim().toLowerCase();
+const passQ = (e) => !ql || opts.text(e).toLowerCase().indexOf(ql) >= 0;
+const passOther = (e) => opts.extra ? opts.extra(e, s) : true;
+const base = all.filter((e) => passQ(e) && passOther(e));
+const counts = {};
+base.forEach((e) => { const k = opts.kindOf(e); counts[k] = (counts[k] || 0) + 1; });
+const chips = [{ k: 'all', label: 'All', count: base.length }].concat(opts.kinds.filter((k) => counts[k[0]]).map((k) => ({ k: k[0], label: k[1], count: counts[k[0]] })))
+.map((c) => ({ ...c, count: c.count.toLocaleString('en-US'), on: c.k === kind, bg: c.k === kind ? '#E8EEFB' : '#FFFFFF', border: c.k === kind ? '#1B5FD6' : '#CDD2DA', pick: () => this.setState({ kind: c.k, cur: 0, limit: opts.step }) }));
+const shown = base.filter((e) => kind === 'all' || opts.kindOf(e) === kind);
+const key = opts.keys[sortKey];
+shown.sort((a, b) => { const g = opts.group ? opts.group(a) - opts.group(b) : 0; if (g) return g; const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : 0; });
+const page = shown.slice(0, limit);
+const c = Math.min(s.cur || 0, Math.max(0, page.length - 1));
+const v = { q, chips, sortSel: sortKey, dirLabel: dir > 0 ? '▲' : '▼', step: opts.step, hasMore: shown.length > page.length,
+footnote: shown.length > page.length ? 'Showing ' + page.length.toLocaleString('en-US') + ' of ' + shown.length.toLocaleString('en-US') + '. More load as you scroll down.' : 'Showing all ' + shown.length.toLocaleString('en-US') + '.',
+onQuery: (e) => this.setState({ q: e.target.value, cur: 0, limit: opts.step }),
+onSort: (e) => this.setState({ sortKey: e.target.value, cur: 0 }),
+flip: () => this.setState({ dir: -dir }),
+more: () => this.setState({ limit: limit + opts.step }),
+onKey: (e) => {
+if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.min(page.length - 1, c + 1); this.setState(n >= page.length - 5 && v.hasMore ? { cur: n, limit: limit + opts.step } : { cur: n }); }
+if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); this.setState({ cur: Math.max(0, c - 1) }); }
+if (e.key === 's') { e.preventDefault(); const ks = Object.keys(opts.keys); this.setState({ sortKey: ks[(ks.indexOf(sortKey) + 1) % ks.length] }); }
+if (e.key === 'r') { e.preventDefault(); this.setState({ dir: -dir }); }
+}
+};
+Object.keys(opts.keys).forEach((k) => { v['arrow_' + k] = k === sortKey ? (dir > 0 ? '▲' : '▼') : ''; v['sort_' + k] = () => this.setState({ sortKey: k, dir: k === sortKey ? -dir : 1 }); });
+v.rows = page.map((e, i) => ({ ...e, sel: i === c, bg: i === c ? '#E8EEFB' : 'transparent', pick: () => this.setState({ cur: i }) }));
+v.cur = c; v.total = shown.length; v.base = base;
+return v;
+}
+
+renderVals() {
+const all = this.entries();
+const s = this.state || {};
+const holdsSel = s.holds || 'any', sizeSel = s.size || 'any';
+const v = this.listVals(all, {
+step: 200, sort0: 'n',
+text: (e) => e.cid + ' ' + e.holds,
+kindOf: (e) => (e.isNew ? 'new' : 'reused'), kinds: [['new', 'New in this snapshot'], ['reused', 'Reused']],
+extra: (e) => (holdsSel === 'any' || e.where === holdsSel) && (sizeSel === 'any' || (sizeSel === 'full') === (e.mb >= 1024)),
+keys: { n: (e) => e.n, size: (e) => e.mb, blocks: (e) => e.blocks, holds: (e) => e.holds, snap: (e) => e.snap }
+});
+v.rows = v.rows.map((r) => ({ ...r, blocksLabel: r.blocks.toLocaleString('en-US') }));
+const cur = v.rows[v.cur];
+return {
+...v, holdsSel, sizeSel,
+onHolds: (e) => this.setState({ holds: e.target.value, cur: 0, limit: 200 }),
+onSize: (e) => this.setState({ size: e.target.value, cur: 0, limit: 200 }),
+status: cur ? 'piece ' + cur.n + ' · ' + (v.cur + 1) + ' of ' + v.total + ' shown · ' + cur.holds : 'nothing matches'
+};
+}
+}
+</script>
+</body>
+</html>

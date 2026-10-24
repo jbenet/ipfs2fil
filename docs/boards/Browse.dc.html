@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Browse a directory</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#1B5FD6;text-decoration:none}a:hover{color:#0F3F96;text-decoration:underline}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F5F7; color: #15171C; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5; display: flex; flex-direction: column">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #15171C; font-weight: 600; text-decoration: none">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>
+<span>ipfs2fil</span>
+</a>
+<nav aria-label="Explorer" style="display: flex; gap: 22px; font-size: 14px">
+<a href="Main.dc.html" style="color: #4B5260">Overview</a>
+<a href="Browse.dc.html" style="color: #15171C; font-weight: 600; border-bottom: 2px solid #1B5FD6; padding-bottom: 2px">Browse</a>
+<a href="Pieces.dc.html" style="color: #4B5260">Pieces</a>
+</nav>
+<form action="Search.dc.html" style="margin-left: auto; position: relative; flex: 0 1 340px; min-width: 220px">
+<label for="q" style="position: absolute; left: -9999px">Search names and CIDs</label>
+<input id="q" name="q" type="search" placeholder="Search names and CIDs" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 40px 0 12px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 14px; background: #FFFFFF; color: #15171C">
+<kbd style="position: absolute; right: 10px; top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; color: #4B5260; background: #FFFFFF">/</kbd>
+</form>
+</div>
+</header>
+
+<main style="flex: 1; width: 100%; max-width: 1200px; box-sizing: border-box; margin: 0 auto; padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 20px">
+<nav aria-label="Path" style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; color: #5B6270">
+<a href="Main.dc.html">archive</a><span aria-hidden="true">/</span><a href="Browse.dc.html">data</a><span aria-hidden="true">/</span><a href="Browse.dc.html">mfs</a><span aria-hidden="true">/</span><a href="Browse.dc.html">photos</a><span aria-hidden="true">/</span><span style="color: #15171C; font-weight: 500">2019</span>
+</nav>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 24px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 600">2019</h1>
+<div style="font-size: 14px; color: #4B5260">4,212 entries · 9.8 GiB · MFS directory (sharded)</div>
+</div>
+<div style="margin-left: auto; display: flex; gap: 8px">
+<a href="https://ipfs.io/ipfs/bafybeigx2rkd7m5q4gq3u7ns2y4cxgk6m3v4e6o2l7n5x2d3e4f5g6h7i" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; color: #15171C; font-size: 14px">Open in gateway ↗ <kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF; color: #4B5260">o</kbd></a>
+<a href="Browse.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 6px; background: #1B5FD6; color: #FFFFFF; font-size: 14px; font-weight: 500">Download as CAR</a>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 10px 8px 14px">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 4px 8px 10px; border-bottom: 1px solid #E1E4E9"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px"><div style="position: relative; flex: 0 1 300px; min-width: 200px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5B6270" stroke-width="1.6" aria-hidden="true" style="position: absolute; left: 10px; top: 10px"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" value="{{q}}" onChange="{{onQuery}}" autocomplete="off" placeholder="Filter this folder" aria-label="Filter this folder" style="width: 100%; box-sizing: border-box; height: 34px; padding: 0 36px 0 30px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 13px; background: #FFFFFF; color: #15171C"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF; position: absolute; right: 8px; top: 7px; color: #4B5260">f</kbd></div><div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px"><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4B5260">Size<select value="{{sizeSel}}" onChange="{{onSize}}" style="height: 34px; padding: 0 8px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C"><option value="any">Any</option><option value="small">Under 1 MiB</option><option value="mid">1 to 100 MiB</option><option value="big">Over 100 MiB</option></select></label><label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4B5260">Sort<select value="{{sortSel}}" onChange="{{onSort}}" style="height: 34px; padding: 0 8px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C"><option value="name">Name</option><option value="kind">Kind</option><option value="size">Size</option><option value="piece">Piece</option></select></label><button type="button" onClick="{{flip}}" aria-label="Reverse the order" style="height: 34px; min-width: 34px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C; cursor: pointer">{{dirLabel}}</button></div></div><div role="group" aria-label="Filter by kind" style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{chips}}" as="k" hint-placeholder-count="6"><button type="button" aria-pressed="{{k.on}}" onClick="{{k.pick}}" style="height: 30px; padding: 0 11px; border-radius: 15px; border: 1px solid {{k.border}}; background: {{k.bg}}; color: #15171C; font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px">{{k.label}} <span style="color: #4B5260">{{k.count}}</span></button></sc-for></div></div>
+<div tabIndex="0" onKeyDown="{{onKey}}" aria-label="Directory entries. J and K move, Enter opens." style="overflow-x: auto; outline: none">
+<table style="width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: fixed">
+<colgroup><col style="width: 42%"><col style="width: 14%"><col style="width: 12%"><col style="width: 24%"><col style="width: 8%"></colgroup>
+<thead><tr style="text-align: left; color: #4B5260; font-size: 12.5px"><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap"><button type="button" onClick="{{sort_name}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Name {{arrow_name}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap"><button type="button" onClick="{{sort_kind}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Kind {{arrow_kind}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap; text-align: right"><button type="button" onClick="{{sort_size}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Size {{arrow_size}}</button></th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9">CID</th><th style="padding: 8px 8px 6px; font-weight: 500; border-bottom: 1px solid #E1E4E9; white-space: nowrap; text-align: right"><button type="button" onClick="{{sort_piece}}" style="border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer">Piece {{arrow_piece}}</button></th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="40">
+<tr onClick="{{r.pick}}" aria-selected="{{r.sel}}" style="background: {{r.bg}}">
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><span style="display: inline-flex; align-items: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{r.iconColor}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="{{r.icon}}"></path></svg><a href="{{r.href}}" style="color: #15171C">{{r.name}}</a></span></td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; color: #4B5260; white-space: nowrap">{{r.kindLabel}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap">{{r.sizeLabel}}</td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #4B5260; white-space: nowrap">{{r.cid}}<a href="{{r.gw}}" target="_blank" rel="noopener" title="Open in an IPFS gateway" aria-label="Open {{r.name}} in an IPFS gateway" style="margin-left: 6px; font-family: 'IBM Plex Sans', sans-serif">↗</a></td>
+<td style="padding: 3px 8px; border-bottom: 1px solid #F0F2F5; text-align: right; font-variant-numeric: tabular-nums"><a href="Pieces.dc.html">{{r.piece}}</a></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 8px 0; font-size: 13px; color: #4B5260"><span>{{footnote}}</span><sc-if value="{{hasMore}}"><button type="button" onClick="{{more}}" style="margin-left: auto; height: 34px; padding: 0 14px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C; cursor: pointer">Load {{step}} more</button></sc-if></div>
+</section>
+
+<aside style="flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px">
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">This directory</h2>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="color: #5B6270; font-size: 13px">CID</span><code style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; word-break: break-all">bafybeigx2rkd7m5q4gq3u7ns2y4cxgk6m3v4e6o2l7n5x2d3e4f5g6h7i</code>
+<span style="display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px"><a href="https://ipfs.io/ipfs/bafybeigx2rkd7m5q4gq3u7ns2y4cxgk6m3v4e6o2l7n5x2d3e4f5g6h7i" target="_blank" rel="noopener">ipfs.io ↗</a><a href="https://dweb.link/ipfs/bafybeigx2rkd7m5q4gq3u7ns2y4cxgk6m3v4e6o2l7n5x2d3e4f5g6h7i" target="_blank" rel="noopener">dweb.link ↗</a><a href="http://127.0.0.1:8080/ipfs/bafybeigx2rkd7m5q4gq3u7ns2y4cxgk6m3v4e6o2l7n5x2d3e4f5g6h7i" target="_blank" rel="noopener">your node ↗</a></span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #5B6270">Kind</span><span>UnixFS HAMT directory</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #5B6270">Files</span><span>4,180</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #5B6270">Folders</span><span>32</span></div>
+<div style="display: flex; justify-content: space-between"><span style="color: #5B6270">Spread over</span><a href="Pieces.dc.html">pieces 203 to 213</a></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">By file type</h2>
+<div role="img" aria-label="{{typeSummary}}" style="display: flex; height: 12px; border-radius: 3px; overflow: hidden; gap: 2px"><sc-for list="{{types}}" as="t"><div style="flex: {{t.flex}} 1 0; background: {{t.color}}"></div></sc-for></div>
+<sc-for list="{{types}}" as="t" hint-placeholder-count="9"><button type="button" onClick="{{t.pick}}" style="display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 14px; color: #15171C; cursor: pointer; text-align: left"><span style="width: 10px; height: 10px; border-radius: 2px; background: {{t.color}}; flex: none"></span><span style="flex: 1">{{t.label}}</span><span style="color: #4B5260; font-variant-numeric: tabular-nums">{{t.count}} · {{t.size}}</span></button></sc-for>
+<span style="font-size: 12.5px; color: #5B6270">Click a type to filter the list.</span>
+</section>
+</aside>
+</div>
+</main>
+
+<footer style="position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 13px; color: #4B5260">
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">J</kbd><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">K</kbd> move</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">↵</kbd> open</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">U</kbd> up a level</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">F</kbd> filter</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">S</kbd> sort by</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">R</kbd> reverse</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">O</kbd> open in gateway</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">Y</kbd> copy CID</span>
+<a href="Shortcuts.dc.html" style="display: inline-flex; gap: 4px; align-items: center; color: #4B5260"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">?</kbd> all shortcuts</a>
+<span style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px">{{status}}</span>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":6600}}'>
+class Component extends DCLogic {
+
+entries() {
+if (this._e) return this._e;
+
+const IC = {
+folder: ['M1.5 4.5h4l1.5 1.5h7.5v7.5h-13z', '#1B5FD6', 'Folder'],
+image: ['M2 2.5h12v11h-12z M2 11l3.5-3.5 3 3 2-2 3.5 3.5', '#2F6FB0', 'Photo'],
+video: ['M1.5 3.5h9v9h-9z M10.5 7l4-2.5v7l-4-2.5', '#0B3B8C', 'Video'],
+audio: ['M6 12V3.5l7-1.5v8.5 M6 12a2 2 0 1 1-4 0a2 2 0 0 1 4 0z M13 10.5a2 2 0 1 1-4 0a2 2 0 0 1 4 0z', '#6D28D9', 'Audio'],
+doc: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M5.5 9h5', '#B91C1C', 'Document'],
+page: ['M1.5 2.5h13v11h-13z M1.5 5.5h13', '#4B5260', 'Web page'],
+text: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M6 8.5h4 M6 11h4', '#9A3412', 'Text'],
+code: ['M5.5 4.5l-3.5 3.5 3.5 3.5 M10.5 4.5l3.5 3.5-3.5 3.5', '#B45309', 'Code'],
+archive: ['M3 1.5h10v13h-10z M8 1.5v1.5 M8 4.5v1.5 M7 7.5h2v2.5h-2z', '#047857', 'Archive'],
+disk: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 0 0 0-3z', '#0E7490', 'Disk image'],
+other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other']
+};
+const fmt = (mb) => mb >= 1024 ? (mb / 1024).toFixed(1) + ' GiB' : mb >= 1 ? mb.toFixed(1) + ' MiB' : Math.max(1, Math.round(mb * 1024)) + ' KiB';
+const SIZE = { any: () => true, small: (e) => e.mb < 1, mid: (e) => e.mb >= 1 && e.mb <= 100, big: (e) => e.mb > 100 };
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+const cidOf = (pre, i) => { let s = pre; for (let k = 0; k < 4; k++) s += B32.charAt((i * 7 + k * 13 + i * k) % 32); s += '…'; for (let k = 4; k < 8; k++) s += B32.charAt((i * 11 + k * 5 + i * k) % 32); return s; };
+
+this.IC = IC; this.fmt = fmt; this.SIZE = SIZE;
+const out = [];
+const add = (name, type, mb, piece, i) => out.push({ name, type, mb, piece, cid: cidOf(type === 'folder' ? 'bafybei' : 'bafkrei', i), icon: IC[type][0], iconColor: IC[type][1], kindLabel: IC[type][2] });
+const folders = ['01-january', '02-february', '03-march', '04-april', '05-may', '06-june', '07-july', '08-august', '09-september', '10-october', '11-november', '12-december', 'screenshots', 'raw', 'edits', 'exports', 'panoramas', 'scans', 'trip-lisbon', 'trip-kyoto', 'trip-oaxaca', 'wedding', 'graduation', 'garden', 'recipes', 'receipts', 'voice-memos', 'drone', 'timelapse', 'backups', 'scripts', 'misc'];
+folders.forEach((f, i) => add(f + '/', 'folder', 40 + ((i * 97) % 900), 203 + (i % 4), i));
+for (let i = 0; i < 4180; i++) {
+const r = (i * 37) % 100, n = 4000 + i;
+let t, name, mb;
+if (r < 74) { t = 'image'; name = (i % 5 === 0 ? 'IMG_' + n + '.jpg' : 'IMG_' + n + '.HEIC'); mb = 1.4 + ((i * 13) % 70) / 10; }
+else if (r < 78) { t = 'video'; name = 'VID_' + n + '.mp4'; mb = 30 + ((i * 29) % 380); }
+else if (r < 81) { t = 'audio'; name = 'memo-' + n + '.m4a'; mb = 0.8 + ((i * 7) % 110) / 10; }
+else if (r < 85) { t = 'doc'; name = (i % 2 ? 'receipt-' : 'scan-') + n + '.pdf'; mb = 0.2 + ((i * 3) % 48) / 10; }
+else if (r < 89) { t = 'text'; name = (i % 2 ? 'notes-' + n + '.txt' : 'caption-' + n + '.md'); mb = 0.001 + ((i * 3) % 40) / 1000; }
+else if (r < 92) { t = 'code'; name = ['resize-', 'dedupe-', 'exif-dump-'][i % 3] + n + (i % 2 ? '.py' : '.sh'); mb = 0.002 + ((i * 5) % 90) / 1000; }
+else if (r < 94) { t = 'archive'; name = 'album-' + n + '.zip'; mb = 12 + ((i * 41) % 290); }
+else { t = 'other'; name = 'IMG_' + n + '.xmp'; mb = 0.004 + ((i * 3) % 9) / 1000; }
+add(name, t, mb, 206 + Math.floor(i / 600), i + 32);
+}
+this._e = out;
+return out;
+}
+
+listVals(all, opts) {
+const s = this.state || {};
+const q = s.q != null ? s.q : (opts.q0 || '');
+const kind = s.kind || 'all';
+const sortKey = s.sortKey || opts.sort0;
+const dir = s.dir || opts.dir0 || 1;
+const limit = s.limit || opts.step;
+const ql = q.trim().toLowerCase();
+const passQ = (e) => !ql || opts.text(e).toLowerCase().indexOf(ql) >= 0;
+const passOther = (e) => opts.extra ? opts.extra(e, s) : true;
+const base = all.filter((e) => passQ(e) && passOther(e));
+const counts = {};
+base.forEach((e) => { const k = opts.kindOf(e); counts[k] = (counts[k] || 0) + 1; });
+const chips = [{ k: 'all', label: 'All', count: base.length }].concat(opts.kinds.filter((k) => counts[k[0]]).map((k) => ({ k: k[0], label: k[1], count: counts[k[0]] })))
+.map((c) => ({ ...c, count: c.count.toLocaleString('en-US'), on: c.k === kind, bg: c.k === kind ? '#E8EEFB' : '#FFFFFF', border: c.k === kind ? '#1B5FD6' : '#CDD2DA', pick: () => this.setState({ kind: c.k, cur: 0, limit: opts.step }) }));
+const shown = base.filter((e) => kind === 'all' || opts.kindOf(e) === kind);
+const key = opts.keys[sortKey];
+shown.sort((a, b) => { const g = opts.group ? opts.group(a) - opts.group(b) : 0; if (g) return g; const x = key(a), y = key(b); return x < y ? -dir : x > y ? dir : 0; });
+const page = shown.slice(0, limit);
+const c = Math.min(s.cur || 0, Math.max(0, page.length - 1));
+const v = { q, chips, sortSel: sortKey, dirLabel: dir > 0 ? '▲' : '▼', step: opts.step, hasMore: shown.length > page.length,
+footnote: shown.length > page.length ? 'Showing ' + page.length.toLocaleString('en-US') + ' of ' + shown.length.toLocaleString('en-US') + '. More load as you scroll down.' : 'Showing all ' + shown.length.toLocaleString('en-US') + '.',
+onQuery: (e) => this.setState({ q: e.target.value, cur: 0, limit: opts.step }),
+onSort: (e) => this.setState({ sortKey: e.target.value, cur: 0 }),
+flip: () => this.setState({ dir: -dir }),
+more: () => this.setState({ limit: limit + opts.step }),
+onKey: (e) => {
+if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); const n = Math.min(page.length - 1, c + 1); this.setState(n >= page.length - 5 && v.hasMore ? { cur: n, limit: limit + opts.step } : { cur: n }); }
+if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); this.setState({ cur: Math.max(0, c - 1) }); }
+if (e.key === 's') { e.preventDefault(); const ks = Object.keys(opts.keys); this.setState({ sortKey: ks[(ks.indexOf(sortKey) + 1) % ks.length] }); }
+if (e.key === 'r') { e.preventDefault(); this.setState({ dir: -dir }); }
+}
+};
+Object.keys(opts.keys).forEach((k) => { v['arrow_' + k] = k === sortKey ? (dir > 0 ? '▲' : '▼') : ''; v['sort_' + k] = () => this.setState({ sortKey: k, dir: k === sortKey ? -dir : 1 }); });
+v.rows = page.map((e, i) => ({ ...e, sel: i === c, bg: i === c ? '#E8EEFB' : 'transparent', pick: () => this.setState({ cur: i }) }));
+v.cur = c; v.total = shown.length; v.base = base;
+return v;
+}
+
+renderVals() {
+const all = this.entries();
+const IC = this.IC, fmt = this.fmt, SIZE = this.SIZE;
+const s = this.state || {};
+const sizeSel = s.size || 'any';
+const KINDS = [['folder', 'Folders'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['doc', 'Documents'], ['text', 'Text'], ['code', 'Code'], ['archive', 'Archives'], ['other', 'Other']];
+const v = this.listVals(all, {
+step: 200, sort0: 'name',
+text: (e) => e.name + ' ' + e.cid,
+kindOf: (e) => e.type, kinds: KINDS,
+extra: (e) => SIZE[sizeSel](e),
+group: (e) => (e.type === 'folder' ? 0 : 1),
+keys: { name: (e) => e.name.toLowerCase(), kind: (e) => e.kindLabel, size: (e) => e.mb, piece: (e) => e.piece }
+});
+v.rows = v.rows.map((r) => ({ ...r, sizeLabel: r.type === 'folder' ? '' : fmt(r.mb), href: r.type === 'folder' ? 'Browse.dc.html' : 'Root.dc.html', gw: 'https://ipfs.io/ipfs/' + r.cid.replace('…', '') }));
+const tally = {};
+all.forEach((e) => { if (e.type === 'folder') return; const t = tally[e.type] || (tally[e.type] = { n: 0, mb: 0 }); t.n++; t.mb += e.mb; });
+const types = KINDS.filter((k) => tally[k[0]]).map((k) => ({ label: k[1], count: tally[k[0]].n.toLocaleString('en-US'), size: fmt(tally[k[0]].mb), flex: Math.max(1, Math.round(tally[k[0]].mb)), color: IC[k[0]][1], pick: () => this.setState({ kind: k[0], cur: 0, limit: 200 }) }));
+const cur = v.rows[v.cur];
+return {
+...v, types, sizeSel,
+typeSummary: types.map((t) => t.label + ' ' + t.size).join(', '),
+onSize: (e) => this.setState({ size: e.target.value, cur: 0, limit: 200 }),
+status: cur ? 'row ' + (v.cur + 1) + ' of ' + v.total.toLocaleString('en-US') + ' · ' + cur.name : 'nothing matches'
+};
+}
+}
+</script>
+</body>
+</html>

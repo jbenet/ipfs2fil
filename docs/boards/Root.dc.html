@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A pinned root</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#1B5FD6;text-decoration:none}a:hover{color:#0F3F96;text-decoration:underline}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F5F7; color: #15171C; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; color: #15171C; font-weight: 600; text-decoration: none">
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>
+<span>ipfs2fil</span>
+</a>
+<nav aria-label="Explorer" style="display: flex; gap: 22px; font-size: 14px">
+<a href="Main.dc.html" style="color: #4B5260">Overview</a>
+<a href="Browse.dc.html" style="color: #15171C; font-weight: 600; border-bottom: 2px solid #1B5FD6; padding-bottom: 2px">Browse</a>
+<a href="Pieces.dc.html" style="color: #4B5260">Pieces</a>
+</nav>
+<form action="Search.dc.html" style="margin-left: auto; position: relative; flex: 0 1 340px; min-width: 220px">
+<label for="q" style="position: absolute; left: -9999px">Search names and CIDs</label>
+<input id="q" name="q" type="search" placeholder="Search names and CIDs" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 40px 0 12px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 14px; background: #FFFFFF; color: #15171C">
+<kbd style="position: absolute; right: 10px; top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; color: #4B5260; background: #FFFFFF">/</kbd>
+</form>
+</div>
+</header>
+
+<main style="max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; display: flex; flex-direction: column; gap: 20px">
+<nav aria-label="Path" style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; color: #5B6270">
+<a href="Main.dc.html">archive</a><span aria-hidden="true">/</span><a href="Browse.dc.html">data</a><span aria-hidden="true">/</span><a href="Browse.dc.html">pins</a><span aria-hidden="true">/</span><a href="Browse.dc.html">recursive</a><span aria-hidden="true">/</span><span style="color: #15171C; font-weight: 500">bafybeiaysi…4ihfe</span>
+</nav>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 600; color: #0F3F96; background: #E8EEFB; border-radius: 4px; padding: 2px 8px">Recursive pin</span>
+<span style="font-size: 12px; font-weight: 600; color: #1F6B3A; background: #E4F3E8; border-radius: 4px; padding: 2px 8px">In 196 pieces, 3 copies each</span>
+</div>
+<h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 600">wikipedia-en-2021-snapshot</h1>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<code style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 4px; padding: 4px 8px; word-break: break-all">bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze4ihfe</code>
+<button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #CDD2DA; border-radius: 6px; background: #FFFFFF; font: inherit; font-size: 13px; color: #15171C; cursor: pointer">Copy CID</button>
+</div>
+<p style="margin: 0; font-size: 14px; color: #4B5260">The name comes from the directory's index page title. Pins have no names in kubo, so the explorer guesses one and keeps the CID as the real identity.</p>
+</section>
+
+<section aria-label="Facts" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 16px"><div style="font-size: 13px; color: #5B6270">Size</div><div style="font-size: 22px; font-weight: 600">188 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 16px"><div style="font-size: 13px; color: #5B6270">Blocks</div><div style="font-size: 22px; font-weight: 600">1.42 M</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 16px"><div style="font-size: 13px; color: #5B6270">Kind</div><div style="font-size: 22px; font-weight: 600">UnixFS directory</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 16px"><div style="font-size: 13px; color: #5B6270">Pieces</div><div style="font-size: 22px; font-weight: 600">12 to 207</div></div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section style="flex: 999 1 600px; min-width: 0; background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">Where it's stored</h2>
+<div style="overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 14px">
+<thead><tr style="text-align: left; color: #5B6270; font-size: 13px"><th style="padding: 8px 8px 8px 0; font-weight: 500; border-bottom: 1px solid #E1E4E9">Piece</th><th style="padding: 8px; font-weight: 500; border-bottom: 1px solid #E1E4E9">PieceCID</th><th style="padding: 8px; font-weight: 500; border-bottom: 1px solid #E1E4E9; text-align: right">Size</th><th style="padding: 8px 0 8px 8px; font-weight: 500; border-bottom: 1px solid #E1E4E9">Copies</th></tr></thead>
+<tbody>
+<sc-for list="{{pieces}}" as="p" hint-placeholder-count="5">
+<tr>
+<td style="padding: 9px 8px 9px 0; border-bottom: 1px solid #EEF0F3"><a href="Pieces.dc.html">#{{p.n}}</a></td>
+<td style="padding: 9px 8px; border-bottom: 1px solid #EEF0F3; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #4B5260">{{p.cid}}</td>
+<td style="padding: 9px 8px; border-bottom: 1px solid #EEF0F3; text-align: right">{{p.size}}</td>
+<td style="padding: 9px 0 9px 8px; border-bottom: 1px solid #EEF0F3"><span style="display: inline-flex; gap: 6px; flex-wrap: wrap"><span style="font-size: 12px; border: 1px solid #CDD2DA; border-radius: 4px; padding: 1px 6px">f04</span><span style="font-size: 12px; border: 1px solid #CDD2DA; border-radius: 4px; padding: 1px 6px">f09</span><span style="font-size: 12px; border: 1px solid #CDD2DA; border-radius: 4px; padding: 1px 6px">f032</span></span></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<a href="Pieces.dc.html" style="font-size: 14px">All 196 pieces of this pin</a>
+</section>
+
+<aside style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Open it</h2>
+<a href="Browse.dc.html" style="display: flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 6px; background: #1B5FD6; color: #FFFFFF; font-weight: 500">Browse its files</a>
+<a href="Root.dc.html">Through this gateway</a>
+<a href="Root.dc.html">Through dweb.link</a>
+<a href="Root.dc.html">Straight from provider f032</a>
+<div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px"><span style="color: #5B6270; font-size: 13px">With kubo</span><code style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: #F4F5F7; border-radius: 4px; padding: 8px; word-break: break-all">ipfs get bafybeiaysi…4ihfe</code></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Top level</h2>
+<a href="Browse.dc.html">A/ <span style="color: #5B6270">· 41 GiB</span></a>
+<a href="Browse.dc.html">I/ <span style="color: #5B6270">· 132 GiB</span></a>
+<a href="Browse.dc.html">M/ <span style="color: #5B6270">· 15 GiB</span></a>
+<a href="Root.dc.html">index.html <span style="color: #5B6270">· 38 KiB</span></a>
+</section>
+</aside>
+</div>
+</main>
+
+<footer style="position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #E1E4E9">
+<div style="max-width: 1200px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; font-size: 13px; color: #4B5260">
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">J</kbd><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">K</kbd> move in pieces</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">↵</kbd> open piece</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">B</kbd> browse files</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">Y</kbd> copy CID</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">O</kbd> open in gateway</span>
+<span style="display: inline-flex; gap: 4px; align-items: center"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">U</kbd> up to pins</span>
+<a href="Shortcuts.dc.html" style="display: inline-flex; gap: 4px; align-items: center; color: #4B5260"><kbd style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 18px; padding: 0 6px; border: 1px solid #CDD2DA; border-bottom-width: 2px; border-radius: 4px; background: #FFFFFF">?</kbd> all shortcuts</a>
+<span style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px">pin 1 of 1,204</span>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+return { pieces: [
+{ n: 12, cid: 'bafkzcibd7q…3mzta', size: '1.00 GiB' },
+{ n: 13, cid: 'bafkzcibe2c…tczea', size: '0.81 GiB' },
+{ n: 14, cid: 'bafkzcibf4x…ka9wq', size: '0.97 GiB' },
+{ n: 15, cid: 'bafkzcibcq1…lp2dm', size: '0.62 GiB' },
+{ n: 16, cid: 'bafkzcibeh8…r7vxa', size: '1.00 GiB' }
+] };
+}
+}
+</script>
+</body>
+</html>

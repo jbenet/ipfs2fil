@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Archive overview on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#1B5FD6;text-decoration:none}a:hover{color:#0F3F96;text-decoration:underline}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #15171C; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5; display: flex; flex-direction: column">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E1E4E9; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 10px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; color: #15171C; font-weight: 600">
+<svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>
+<span>ipfs2fil</span>
+</a>
+<nav aria-label="Explorer" style="margin-left: auto; display: flex; gap: 16px; font-size: 14px">
+<a href="Main.dc.html" style="color: #15171C; font-weight: 600">Overview</a>
+<a href="Browse.dc.html" style="color: #4B5260">Browse</a>
+<a href="Pieces.dc.html" style="color: #4B5260">Pieces</a>
+</nav>
+</div>
+<form action="Search.dc.html">
+<label for="mq" style="position: absolute; left: -9999px">Search names and CIDs</label>
+<input id="mq" type="search" placeholder="Search names and CIDs" style="width: 100%; box-sizing: border-box; height: 44px; padding: 0 12px; border: 1px solid #CDD2DA; border-radius: 6px; font: inherit; font-size: 15px; background: #FFFFFF; color: #15171C">
+</form>
+</header>
+<main style="padding: 20px 16px; display: flex; flex-direction: column; gap: 16px">
+<div style="font-size: 12px; color: #5B6270; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase">Kubo repo · fs-repo 15</div>
+<h1 style="margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600">412 GiB, 1,204 pins, on Filecoin in 3 copies</h1>
+<div style="font-size: 13px; color: #4B5260">Archive root <code style="font-family: 'IBM Plex Mono', monospace; color: #15171C">bafybeih2k…q7x4m</code></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 12px 14px"><div style="font-size: 12px; color: #5B6270">Pinned</div><div style="font-size: 20px; font-weight: 600">371 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 12px 14px"><div style="font-size: 12px; color: #5B6270">MFS</div><div style="font-size: 20px; font-weight: 600">38 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 12px 14px"><div style="font-size: 12px; color: #5B6270">Orphans</div><div style="font-size: 20px; font-weight: 600">2.4 GiB</div></div>
+<div style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 12px 14px"><div style="font-size: 12px; color: #5B6270">Pieces</div><div style="font-size: 20px; font-weight: 600">431</div></div>
+</div>
+<section style="background: #FFFFFF; border: 1px solid #E1E4E9; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Largest roots</h2>
+<a href="Root.dc.html" style="display: flex; justify-content: space-between; gap: 12px; min-height: 44px; align-items: center; border-bottom: 1px solid #EEF0F3"><span>wikipedia-en-2021-snapshot/</span><span style="color: #4B5260">188 GiB</span></a>
+<a href="Browse.dc.html" style="display: flex; justify-content: space-between; gap: 12px; min-height: 44px; align-items: center; border-bottom: 1px solid #EEF0F3"><span>mfs/photos/</span><span style="color: #4B5260">31 GiB</span></a>
+<a href="Root.dc.html" style="display: flex; justify-content: space-between; gap: 12px; min-height: 44px; align-items: center"><span>ubuntu-24.04-desktop-amd64.iso</span><span style="color: #4B5260">5.7 GiB</span></a>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

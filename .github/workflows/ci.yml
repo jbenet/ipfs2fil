@@ -1,0 +1,48 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+  # Every platform kubo ships for (dist.ipfs.tech/kubo).
+  cross:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - darwin/amd64
+          - darwin/arm64
+          - freebsd/386
+          - freebsd/amd64
+          - freebsd/arm
+          - linux/386
+          - linux/amd64
+          - linux/arm
+          - linux/arm64
+          - linux/riscv64
+          - openbsd/386
+          - openbsd/amd64
+          - openbsd/arm
+          - windows/386
+          - windows/amd64
+          - windows/arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build ${{ matrix.target }}
+        run: |
+          export GOOS=${TARGET%/*} GOARCH=${TARGET#*/} CGO_ENABLED=0
+          go build -o /dev/null ./cmd/ipfs2fil
+        env:
+          TARGET: ${{ matrix.target }}

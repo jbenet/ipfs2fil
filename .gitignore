@@ -1,0 +1,4 @@
+/ipfs2fil
+/dist/
+*.car
+/testdata/fixtures/*/
