@@ -280,3 +280,23 @@ func decode(t *testing.T, b []byte, v any) {
 }
 
 func itoa(i int) string { b, _ := json.Marshal(i); return string(b) }
+
+func TestKindOf(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		dir  bool
+		want string
+	}{
+		{"photos", true, "folder"}, {"IMG_1.HEIC", false, "image"}, {"talk.mp4", false, "video"},
+		{"memo.m4a", false, "audio"}, {"scan.PDF", false, "doc"}, {"index.html", false, "page"},
+		{"notes.txt", false, "text"}, {"main.go", false, "code"}, {"backup.tar.gz", false, "archive"},
+		{"ubuntu.iso", false, "disk"}, {"README", false, "other"}, {"x.unknownext", false, "other"},
+	} {
+		if got := KindOf(c.name, c.dir); got != c.want {
+			t.Errorf("KindOf(%q, %v) = %q, want %q", c.name, c.dir, got, c.want)
+		}
+		if !strings.Contains(strings.Join(Kinds, " "), KindOf(c.name, c.dir)) {
+			t.Errorf("KindOf(%q) not in Kinds", c.name)
+		}
+	}
+}
