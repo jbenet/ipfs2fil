@@ -11,6 +11,7 @@ package foc
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -49,9 +50,11 @@ type backend interface {
 	// Prepare prices storing pieces of these sizes in every data set listed
 	// and on every new provider, and says what funding is missing.
 	Prepare(ctx context.Context, dataSetIDs, newProviders []string, meta map[string]string, sizes []int64) (*Funding, error)
-	// RunwayDays is how long the deposit lasts at today's rate, -1 when
-	// nothing is being charged.
+	// RunwayDays is how long the deposit pays for storage at today's rate,
+	// counting funds locked up for the rails; -1 when nothing is charged.
 	RunwayDays(ctx context.Context) (int, error)
+	// ProviderURL is where a provider serves pieces.
+	ProviderURL(ctx context.Context, provider string) (string, error)
 }
 
 type dataSet struct {
@@ -218,19 +221,31 @@ func (s *Store) DataSets(ctx context.Context, archive string, copies int) ([]sto
 		}
 		next = append(next, more...)
 	}
-	for _, p := range next {
-		if len(have) == copies {
-			break
-		}
-		d, err := s.b.Create(ctx, p, dataSetMeta(archive))
-		if err != nil {
-			return nil, fmt.Errorf("creating a data set on provider %s: %w", p, err)
-		}
-		s.mu.Lock()
-		s.pieces[d.ID] = map[string]string{}
-		s.mu.Unlock()
-		have = append(have, d)
+	// Each creation waits for the provider to land it on chain, a few
+	// minutes, so the data sets are created in parallel.
+	next = next[:min(len(next), copies-len(have))]
+	made := make([]dataSet, len(next))
+	errs := make([]error, len(next))
+	var wg sync.WaitGroup
+	for i, p := range next {
+		wg.Go(func() {
+			made[i], errs[i] = s.b.Create(ctx, p, dataSetMeta(archive))
+			if errs[i] != nil {
+				errs[i] = fmt.Errorf("creating a data set on provider %s: %w", p, errs[i])
+			}
+		})
 	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	for _, d := range made {
+		s.pieces[d.ID] = map[string]string{}
+	}
+	s.mu.Unlock()
+	slices.SortFunc(made, func(a, b dataSet) int { return cmpID(a.ID, b.ID) })
+	have = append(have, made...)
 	if len(have) < copies {
 		return nil, fmt.Errorf("asked for %d copies but only %d providers are available; try --copies %d",
 			copies, len(have), len(have))
@@ -323,6 +338,11 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 		epoch, at, err := s.b.Proofs(ctx, d.ID)
 		if err != nil {
 			return st, fmt.Errorf("reading proofs of data set %s: %w", d.ID, err)
+		}
+		if d.URL == "" {
+			if d.URL, err = s.b.ProviderURL(ctx, d.Provider); err != nil {
+				return st, fmt.Errorf("looking up provider %s: %w", d.Provider, err)
+			}
 		}
 		last := "never"
 		if epoch > 0 {

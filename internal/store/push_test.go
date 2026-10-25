@@ -88,7 +88,7 @@ func (r *recorder) count(f func(store.PushEvent) bool) int {
 	return n
 }
 
-func final(e store.PushEvent) bool { return e.Err == nil && e.Done == e.Total }
+func final(e store.PushEvent) bool { return e.Final && e.Err == nil }
 
 func TestPushSkipsOnRerun(t *testing.T) {
 	ctx := context.Background()
@@ -183,7 +183,7 @@ func TestVerify(t *testing.T) {
 	if err := store.Verify(ctx, s, m, func(e store.VerifyEvent) {
 		mu.Lock()
 		defer mu.Unlock()
-		if e.Err == nil && e.Done == e.Total {
+		if e.Final && e.Err == nil {
 			done++
 		}
 	}); err != nil || done != 6 {
@@ -206,5 +206,18 @@ func TestCheckCARTruncated(t *testing.T) {
 	car := carOf("x", "y")
 	if _, err := store.CheckCAR(bytes.NewReader(car[:len(car)-1])); err == nil || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestPushReportsBytes(t *testing.T) {
+	// A small piece still reports its bytes before the final event.
+	s := memstore.New(1)
+	m, pieces := fixture(t, 1)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 1, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.events) != 2 || r.events[0].Final || r.events[0].Done != pieces[0].CARBytes || !r.events[1].Final {
+		t.Fatalf("events %+v", r.events)
 	}
 }

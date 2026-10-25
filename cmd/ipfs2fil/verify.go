@@ -63,7 +63,7 @@ func runVerify(ctx context.Context, o *opts, _ []string) error {
 		switch {
 		case ev.Err != nil:
 			bad++
-		case ev.Done == ev.Total:
+		case ev.Final:
 			good++
 		}
 	})

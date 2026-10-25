@@ -26,11 +26,14 @@ type PushEvent struct {
 	Copy     int    // index into the data sets, 0..copies-1
 	Provider string // the copy's provider
 	Piece    int    // manifest piece index
-	// Done and Total are CAR bytes sent so far and in all. A final event has
-	// Done == Total, or Skipped, or Err.
+	// Done and Total are CAR bytes sent so far and in all. Done reaches
+	// Total when the bytes are sent, before the piece is committed.
 	Done, Total int64
-	Skipped     bool  // the copy already held this piece
-	Err         error // this copy stopped at this piece
+	// Final marks the last event for this piece in this copy: it is stored
+	// (or Skipped), or Err says why not.
+	Final   bool
+	Skipped bool  // the copy already held this piece
+	Err     error // this copy stopped at this piece
 }
 
 // Push stores every piece in copies data sets. Pieces a data set already
@@ -83,7 +86,7 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 					progress(ev)
 				})
 				if err != nil {
-					ev.Err = err
+					ev.Err, ev.Final = err, true
 					progress(ev)
 					errs[i] = fmt.Errorf("copy %d on provider %s: %w", i+1, ds.Provider, err)
 					return
@@ -100,7 +103,7 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 					errs[i] = fmt.Errorf("saving the manifest: %w", err)
 					return
 				}
-				ev.Done, ev.Skipped = p.CARBytes, skipped
+				ev.Done, ev.Skipped, ev.Final = p.CARBytes, skipped, true
 				progress(ev)
 			}
 		})
@@ -145,7 +148,7 @@ func pushOne(ctx context.Context, s Store, ds DataSet, p archive.Piece, meta map
 	return has, ref.PieceID, nil
 }
 
-// counter reports bytes read, at most once per 4 MiB.
+// counter reports bytes read every 256 KiB, and once more at EOF.
 type counter struct {
 	r      io.Reader
 	n, at  int64
@@ -155,7 +158,7 @@ type counter struct {
 func (c *counter) Read(b []byte) (int, error) {
 	n, err := c.r.Read(b)
 	c.n += int64(n)
-	if c.n-c.at >= 4<<20 {
+	if c.n-c.at >= 256<<10 || (err == io.EOF && c.n > c.at) {
 		c.at = c.n
 		c.report(c.n)
 	}

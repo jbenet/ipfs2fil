@@ -116,7 +116,7 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		case ev.Skipped:
 			skipped++
 			final[k] = true
-		case ev.Done == ev.Total:
+		case ev.Final:
 			sent++
 			final[k] = true
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d stored", ev.Copy+1, ev.Provider, ev.Piece))

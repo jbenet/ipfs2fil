@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 
 // fake is an in-memory FOC: providers 1..n, data sets with ids from 100.
 type fake struct {
+	mu        sync.Mutex // Create runs concurrently
 	providers []string
 	sets      []dataSet
 	pieces    map[string]map[string]string // data set -> PieceCID -> piece id
@@ -54,6 +56,8 @@ func (f *fake) Providers(_ context.Context, n int, exclude []string, _ map[strin
 }
 
 func (f *fake) Create(_ context.Context, p string, meta map[string]string) (dataSet, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	d := dataSet{ID: strconv.Itoa(f.nextID), Provider: p, Metadata: meta}
 	f.nextID++
 	f.sets = append(f.sets, d)
@@ -104,6 +108,34 @@ func (f *fake) Prepare(_ context.Context, ids, fresh []string, _ map[string]stri
 }
 
 func (f *fake) RunwayDays(context.Context) (int, error) { return 30, nil }
+
+func (f *fake) ProviderURL(_ context.Context, p string) (string, error) {
+	return "https://sp" + p + ".example", nil
+}
+
+func TestFundedDays(t *testing.T) {
+	usdfc := func(f float64) *big.Int {
+		v, _ := new(big.Float).Mul(big.NewFloat(f), big.NewFloat(1e18)).Int(nil)
+		return v
+	}
+	// 0.36 USDFC a month; a month is 30 days of 2880 epochs.
+	rate := new(big.Int).Div(usdfc(0.36), big.NewInt(30*2880))
+	for _, c := range []struct {
+		funds, fixed float64
+		want         int
+	}{
+		{1.8747, 0, 156}, // the live run: was reported as 0
+		{1.8747, 0.18, 141},
+		{0.1, 0.2, 0},
+	} {
+		if got := fundedDays(usdfc(c.funds), usdfc(c.fixed), rate); got != c.want {
+			t.Errorf("fundedDays(%v, %v) = %d, want %d", c.funds, c.fixed, got, c.want)
+		}
+	}
+	if got := fundedDays(usdfc(1), nil, new(big.Int)); got != -1 {
+		t.Errorf("no charges: %d", got)
+	}
+}
 
 func push(t *testing.T, s *Store, archive string, copies int, pieces map[string]string) []store.DataSet {
 	t.Helper()
@@ -204,10 +236,13 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []string{"1", "2", "3"} {
-		if sets[i].Provider != want {
-			t.Errorf("copy %d on provider %s, want the planned %s", i, sets[i].Provider, want)
-		}
+	var got []string
+	for _, d := range sets {
+		got = append(got, d.Provider)
+	}
+	slices.Sort(got)
+	if fmt.Sprint(got) != "[1 2 3]" {
+		t.Errorf("copies on providers %v, want the planned [1 2 3]", got)
 	}
 	fd, err = s.Plan(ctx, "bafyA", 3, []int64{1000})
 	if err != nil || !fd.Ready() {
@@ -227,6 +262,9 @@ func TestStatusAndFetch(t *testing.T) {
 	}
 	if got := st.DataSets[0].LastProven; got != "epoch 42 (2026-10-24 12:00 UTC)" {
 		t.Errorf("last proven %q", got)
+	}
+	if got := st.DataSets[0].URL; !strings.HasPrefix(got, "https://sp") {
+		t.Errorf("URL %q", got)
 	}
 	if got := st.DataSets[1].LastProven; got != "never" {
 		t.Errorf("last proven %q", got)
