@@ -46,3 +46,13 @@ jobs:
           go build -o /dev/null ./cmd/ipfs2fil
         env:
           TARGET: ${{ matrix.target }}
+  release-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
+      - run: sh -n install.sh

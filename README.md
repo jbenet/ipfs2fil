@@ -22,3 +22,16 @@ Status: under construction. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 - Plan: https://claude.ai/artifact/KfFPmyzZdSsVRbRD2mN2gE
 - Explorer designs: https://claude.ai/artifact/XpKa96RnjJz32GJ5eqTQGK (sources in docs/boards)
+
+## Install
+
+```sh
+curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh
+```
+
+or `go install github.com/jbenet/ipfs2fil/cmd/ipfs2fil@latest`, or download a
+binary for your platform from [releases](https://github.com/jbenet/ipfs2fil/releases).
+Each release lists SHA-256 checksums and signed build provenance
+(`gh attestation verify <file> --repo jbenet/ipfs2fil`).
+
+To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
