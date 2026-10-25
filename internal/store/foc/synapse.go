@@ -391,12 +391,12 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 	return f, nil
 }
 
-func (b *synapseBackend) RunwayDays(ctx context.Context) (int, error) {
+func (b *synapseBackend) Runway(ctx context.Context) (int, *big.Int, error) {
 	s, err := b.c.Payments().AccountSummary(ctx, b.payer)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return fundedDays(s.Funds, s.TotalFixedLockup, s.LockupRatePerEpoch), nil
+	return fundedDays(s.Funds, s.TotalFixedLockup, s.LockupRatePerEpoch), s.TotalFixedLockup, nil
 }
 
 // fundedDays is how many days funds pay for at rate per epoch. Rate lockup

@@ -181,7 +181,7 @@ func TestCalibration(t *testing.T) {
 	for _, d := range st.DataSets {
 		t.Logf("data set %s on provider %s: %d pieces, last proven %s", d.ID, d.Provider, d.Pieces, d.LastProven)
 	}
-	t.Logf("funded days: %d", st.FundedDays)
+	t.Logf("funded days: %d, reserve %s USDFC across %d data sets", st.FundedDays, st.Reserve, st.ReserveDataSets)
 	if len(st.DataSets) != 3 {
 		t.Errorf("status shows %d data sets, want 3", len(st.DataSets))
 	}

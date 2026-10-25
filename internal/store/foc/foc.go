@@ -50,9 +50,10 @@ type backend interface {
 	// Prepare prices storing pieces of these sizes in every data set listed
 	// and on every new provider, and says what funding is missing.
 	Prepare(ctx context.Context, dataSetIDs, newProviders []string, meta map[string]string, sizes []int64) (*Funding, error)
-	// RunwayDays is how long the deposit pays for storage at today's rate,
+	// Runway is how long the deposit pays for storage at today's rate, and
+	// the fixed lockup it holds back as data set reserves,
 	// counting funds locked up for the rails; -1 when nothing is charged.
-	RunwayDays(ctx context.Context) (int, error)
+	Runway(ctx context.Context) (days int, reserve *big.Int, err error)
 	// ProviderURL is where a provider serves pieces.
 	ProviderURL(ctx context.Context, provider string) (string, error)
 }
@@ -350,9 +351,15 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 		}
 		st.DataSets = append(st.DataSets, store.DataSetStatus{DataSet: d.public(), Pieces: len(p), LastProven: last})
 	}
-	if st.FundedDays, err = s.b.RunwayDays(ctx); err != nil {
+	days, reserve, err := s.b.Runway(ctx)
+	if err != nil {
 		return st, fmt.Errorf("reading your Filecoin Pay account: %w", err)
 	}
+	all, err := s.b.DataSets(ctx)
+	if err != nil {
+		return st, err
+	}
+	st.FundedDays, st.Reserve, st.ReserveDataSets = days, USDFC(reserve), len(all)
 	return st, nil
 }
 

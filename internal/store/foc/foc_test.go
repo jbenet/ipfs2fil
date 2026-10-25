@@ -107,7 +107,9 @@ func (f *fake) Prepare(_ context.Context, ids, fresh []string, _ map[string]stri
 	return fd, nil
 }
 
-func (f *fake) RunwayDays(context.Context) (int, error) { return 30, nil }
+func (f *fake) Runway(context.Context) (int, *big.Int, error) {
+	return 30, new(big.Int).Mul(big.NewInt(15), big.NewInt(1e17)), nil
+}
 
 func (f *fake) ProviderURL(_ context.Context, p string) (string, error) {
 	return "https://sp" + p + ".example", nil
@@ -253,11 +255,16 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 func TestStatusAndFetch(t *testing.T) {
 	f := newFake(3)
 	sets := push(t, newStore(f), "bafyA", 2, map[string]string{"p1": "one", "p2": "two"})
+	push(t, newStore(f), "bafyB", 1, map[string]string{"p3": "three"})
 	st, err := newStore(f).Status(context.Background(), "bafyA")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(st.DataSets) != 2 || st.DataSets[0].Pieces != 2 || st.FundedDays != 30 {
+		t.Fatalf("status %+v", st)
+	}
+	// The reserve is the whole account's, so it counts bafyB's data set too.
+	if st.Reserve != "1.5" || st.ReserveDataSets != 3 {
 		t.Fatalf("status %+v", st)
 	}
 	if got := st.DataSets[0].LastProven; got != "epoch 42 (2026-10-24 12:00 UTC)" {
