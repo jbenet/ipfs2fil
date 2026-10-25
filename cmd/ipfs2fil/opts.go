@@ -25,6 +25,12 @@ func repoFlag(fs *flag.FlagSet, o *opts) {
 	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read (default $IPFS_PATH, else ~/.ipfs)")
 }
 
+// repoOnlyFlag accepts --repo on commands that work from --out alone, so the
+// same flags work for every step.
+func repoOnlyFlag(fs *flag.FlagSet, o *opts) {
+	fs.StringVar(&o.repo, "repo", "", "accepted for symmetry with pack; this command reads the archive in --out")
+}
+
 func outFlag(fs *flag.FlagSet, o *opts) {
 	fs.StringVar(&o.out, "out", "ipfs2fil-archive", "directory for the archive, its pieces and resume state")
 }

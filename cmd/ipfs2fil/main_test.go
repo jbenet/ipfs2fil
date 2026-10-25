@@ -93,6 +93,12 @@ func TestHelp(t *testing.T) {
 			t.Errorf("help %s: %v %q", n, err, out)
 		}
 	}
+	for n := range commands {
+		out, _, _ := ipfs2fil(t, "help", n)
+		if n != "version" && !strings.Contains(out, "-repo") {
+			t.Errorf("%s does not take --repo", n)
+		}
+	}
 	out, _, _ = ipfs2fil(t, "scan", "-h")
 	if !strings.Contains(out, "-json") {
 		t.Errorf("scan -h lacks flags: %q", out)
