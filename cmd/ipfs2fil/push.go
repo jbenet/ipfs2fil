@@ -75,10 +75,13 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 	}
 
 	// Before the first piece event, Push finds or creates a data set per
-	// copy; on chain that takes minutes, so say so instead of a frozen bar.
+	// copy; creating one on chain takes minutes, so say so instead of a
+	// frozen bar.
 	_, onChain := s.(funder)
+	newSets := max(0, o.copies-len(m.Copies))
+	onChain = onChain && newSets > 0
 	if onChain {
-		fmt.Fprintf(o.stderr, "setting up %d data sets with the providers (a few minutes on chain)...\n", o.copies)
+		fmt.Fprintf(o.stderr, "setting up %d new %s with the providers (a few minutes on chain)...\n", newSets, plural(newSets, "data set", "data sets"))
 	}
 	start := time.Now()
 	var bar *progress

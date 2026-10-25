@@ -185,3 +185,10 @@ func confirm(o *opts, in io.Reader, question string) (bool, error) {
 
 // stdin is where confirm reads answers. Tests replace it.
 var stdin io.Reader = os.Stdin
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
