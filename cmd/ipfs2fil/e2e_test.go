@@ -151,6 +151,11 @@ func TestPushAsksFirst(t *testing.T) {
 	if err != nil || ms.Uploads() != 0 || !strings.Contains(stderr, "USDFC/month") {
 		t.Errorf("push answered no: %v, %d uploads\n%s", err, ms.Uploads(), stderr)
 	}
+	stdin = strings.NewReader("") // closed stdin, like /dev/null
+	_, _, err = ipfs2fil(t, "push", "--out", out)
+	if err == nil || !strings.Contains(err.Error(), "--yes") || ms.Uploads() != 0 {
+		t.Errorf("push with no answer: %v, %d uploads", err, ms.Uploads())
+	}
 	stdin = strings.NewReader("y\n")
 	_, stderr, err = ipfs2fil(t, "push", "--out", out)
 	if err != nil || ms.Uploads() == 0 {
