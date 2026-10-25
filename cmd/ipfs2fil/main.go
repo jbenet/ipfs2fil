@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/jbenet/ipfs2fil/internal/repo"
+	"github.com/multiformats/go-multihash"
 )
 
 var version = "dev" // set by the release build
@@ -68,5 +69,43 @@ func run(ctx context.Context, cmd string, args []string) error {
 		return err
 	}
 	fmt.Printf("repo %s (fs-repo %d)\n", path, v)
+	if cmd == "scan" {
+		return scan(ctx, path)
+	}
 	return errors.New(cmd + " is not implemented yet")
+}
+
+// scan prints what the repo holds. Archive contents and costs come later.
+func scan(ctx context.Context, path string) error {
+	r, err := repo.Open(path)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	var n, size int
+	err = r.ForEachBlock(ctx, func(_ multihash.Multihash, s int) error {
+		n++
+		size += s
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	pins, err := r.Pins(ctx)
+	if err != nil {
+		return err
+	}
+	var rec int
+	for _, p := range pins {
+		if p.Mode == repo.Recursive {
+			rec++
+		}
+	}
+	fmt.Printf("%d blocks, %d bytes\n%d pins (%d recursive, %d direct)\n", n, size, len(pins), rec, len(pins)-rec)
+	if c, ok, err := r.MFSRoot(ctx); err != nil {
+		return err
+	} else if ok {
+		fmt.Printf("MFS root %s\n", c)
+	}
+	return nil
 }
