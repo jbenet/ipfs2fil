@@ -62,6 +62,18 @@ func (p *progress) Set(done, total int64) {
 	}
 }
 
+// Log prints a line above the bar, then redraws the bar.
+func (p *progress) Log(line string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.tty {
+		fmt.Fprintf(p.w, "\r\033[K%s\n", line)
+		p.draw(false)
+		return
+	}
+	fmt.Fprintln(p.w, line)
+}
+
 // Done draws the final line.
 func (p *progress) Done() {
 	p.mu.Lock()
