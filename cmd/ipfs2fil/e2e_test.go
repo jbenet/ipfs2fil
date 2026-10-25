@@ -94,6 +94,10 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil || !strings.Contains(stdout, "copies   3") {
 		t.Errorf("status: %v\n%s", err, stdout)
 	}
+	stdout, _, err = ipfs2fil(t, "status", "--out", out, "--json")
+	if err != nil || !strings.Contains(stdout, `"dataSets": [`) || !strings.Contains(stdout, `"provider": `) || strings.Contains(stdout, `"Provider"`) {
+		t.Errorf("status --json: %v\n%s", err, stdout)
+	}
 	stdout, _, err = ipfs2fil(t, "verify", "--out", out)
 	if err != nil || !strings.Contains(stdout, " 0 bad") {
 		t.Errorf("verify: %v\n%s", err, stdout)
