@@ -107,7 +107,9 @@ func (f *fake) Prepare(_ context.Context, ids, fresh []string, _ map[string]stri
 	return fd, nil
 }
 
-func (f *fake) RunwayDays(context.Context) (int, error) { return 30, nil }
+func (f *fake) Runway(context.Context) (int, *big.Int, error) {
+	return 30, new(big.Int).Mul(big.NewInt(15), big.NewInt(1e17)), nil
+}
 
 func (f *fake) ProviderURL(_ context.Context, p string) (string, error) {
 	return "https://sp" + p + ".example", nil
@@ -253,11 +255,16 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 func TestStatusAndFetch(t *testing.T) {
 	f := newFake(3)
 	sets := push(t, newStore(f), "bafyA", 2, map[string]string{"p1": "one", "p2": "two"})
+	push(t, newStore(f), "bafyB", 1, map[string]string{"p3": "three"})
 	st, err := newStore(f).Status(context.Background(), "bafyA")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(st.DataSets) != 2 || st.DataSets[0].Pieces != 2 || st.FundedDays != 30 {
+		t.Fatalf("status %+v", st)
+	}
+	// The reserve is the whole account's, so it counts bafyB's data set too.
+	if st.Reserve != "1.5" || st.ReserveDataSets != 3 {
 		t.Fatalf("status %+v", st)
 	}
 	if got := st.DataSets[0].LastProven; got != "epoch 42 (2026-10-24 12:00 UTC)" {
@@ -266,7 +273,7 @@ func TestStatusAndFetch(t *testing.T) {
 	if got := st.DataSets[0].URL; !strings.HasPrefix(got, "https://sp") {
 		t.Errorf("URL %q", got)
 	}
-	if got := st.DataSets[1].LastProven; got != "never" {
+	if got := st.DataSets[1].LastProven; got != "not yet" {
 		t.Errorf("last proven %q", got)
 	}
 	r, err := newStore(f).Fetch(context.Background(), sets[1], "p2")
@@ -343,8 +350,26 @@ func TestPDPVerifierABI(t *testing.T) {
 	if got, _ := cid.Cast(pieces[0].Data); got != c || v[1].([]*big.Int)[0].Int64() != 9 || v[2].(bool) {
 		t.Fatalf("decoded %v", v)
 	}
-	if _, err := a.Pack("getDataSetLastProvenEpoch", big.NewInt(1)); err != nil {
-		t.Fatal(err)
+	for _, m := range []string{"getDataSetLastProvenEpoch", "provingActivationEpoch"} {
+		if _, err := a.Pack(m, big.NewInt(1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestProven(t *testing.T) {
+	for _, c := range []struct {
+		last, activation int64
+		want             bool
+	}{
+		{0, 0, false},
+		{4187356, 0, false},       // pieces added, proving not started
+		{4187356, 4187356, false}, // proving started, nothing proven yet
+		{4187500, 4187356, true},
+	} {
+		if got := proven(big.NewInt(c.last), big.NewInt(c.activation)); got != c.want {
+			t.Errorf("proven(%d, %d) = %v", c.last, c.activation, got)
+		}
 	}
 }
 

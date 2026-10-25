@@ -45,14 +45,15 @@ type backend interface {
 	Pieces(ctx context.Context, dataSetID string) (map[string]string, error)
 	Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (pieceID string, err error)
 	Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error)
-	// Proofs reads when the data set was last proven, zero if never.
+	// Proofs reads when the data set was last proven, zero until the first proof.
 	Proofs(ctx context.Context, dataSetID string) (lastEpoch int64, last time.Time, err error)
 	// Prepare prices storing pieces of these sizes in every data set listed
 	// and on every new provider, and says what funding is missing.
 	Prepare(ctx context.Context, dataSetIDs, newProviders []string, meta map[string]string, sizes []int64) (*Funding, error)
-	// RunwayDays is how long the deposit pays for storage at today's rate,
+	// Runway is how long the deposit pays for storage at today's rate, and
+	// the fixed lockup it holds back as data set reserves,
 	// counting funds locked up for the rails; -1 when nothing is charged.
-	RunwayDays(ctx context.Context) (int, error)
+	Runway(ctx context.Context) (days int, reserve *big.Int, err error)
 	// ProviderURL is where a provider serves pieces.
 	ProviderURL(ctx context.Context, provider string) (string, error)
 }
@@ -344,15 +345,21 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 				return st, fmt.Errorf("looking up provider %s: %w", d.Provider, err)
 			}
 		}
-		last := "never"
+		last := "not yet"
 		if epoch > 0 {
 			last = fmt.Sprintf("epoch %d (%s)", epoch, at.UTC().Format("2006-01-02 15:04 UTC"))
 		}
 		st.DataSets = append(st.DataSets, store.DataSetStatus{DataSet: d.public(), Pieces: len(p), LastProven: last})
 	}
-	if st.FundedDays, err = s.b.RunwayDays(ctx); err != nil {
+	days, reserve, err := s.b.Runway(ctx)
+	if err != nil {
 		return st, fmt.Errorf("reading your Filecoin Pay account: %w", err)
 	}
+	all, err := s.b.DataSets(ctx)
+	if err != nil {
+		return st, err
+	}
+	st.FundedDays, st.Reserve, st.ReserveDataSets = days, USDFC(reserve), len(all)
 	return st, nil
 }
 

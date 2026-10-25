@@ -28,6 +28,13 @@ type Status struct {
 	DataSets []DataSetStatus
 	// Funded is how long the current deposit pays for, at today's rate.
 	FundedDays int
+	// Reserve is the deposit the account's data sets hold back as their
+	// lifecycle reserve, as a USDFC amount such as "3"; it is not counted in
+	// FundedDays and comes back when the data sets end. ReserveDataSets is
+	// how many live data sets the account has, across all archives. Reserve
+	// is empty if the store cannot say.
+	Reserve         string
+	ReserveDataSets int
 }
 
 type DataSetStatus struct {

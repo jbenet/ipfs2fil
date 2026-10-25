@@ -247,14 +247,16 @@ func (b *synapseBackend) Download(ctx context.Context, ds dataSet, pieceCID stri
 	return b.c.Storage().Download(ctx, pc, &storage.DownloadOptions{DataSetID: &id})
 }
 
-// pdpVerifierABI is the part of PDPVerifier that synapse-go reads only
-// internally.
+// pdpVerifierABI is the part of PDPVerifier and the FWSS state view that
+// synapse-go reads only internally.
 const pdpVerifierABI = `[
 {"type":"function","name":"getActivePieces","stateMutability":"view",
  "inputs":[{"name":"setId","type":"uint256"},{"name":"offset","type":"uint256"},{"name":"limit","type":"uint256"}],
  "outputs":[{"name":"pieces","type":"tuple[]","components":[{"name":"data","type":"bytes"}]},{"name":"pieceIds","type":"uint256[]"},{"name":"hasMore","type":"bool"}]},
 {"type":"function","name":"getDataSetLastProvenEpoch","stateMutability":"view",
- "inputs":[{"name":"setId","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]}
+ "inputs":[{"name":"setId","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
+{"type":"function","name":"provingActivationEpoch","stateMutability":"view",
+ "inputs":[{"name":"dataSetId","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]}
 ]`
 
 func (b *synapseBackend) call(ctx context.Context, method string, args ...any) ([]any, error) {
@@ -262,10 +264,13 @@ func (b *synapseBackend) call(ctx context.Context, method string, args ...any) (
 	if err != nil {
 		return nil, err
 	}
-	to := b.c.ResolvedAddresses().PDPVerifier
+	to, name := b.c.ResolvedAddresses().PDPVerifier, "PDPVerifier"
+	if method == "provingActivationEpoch" {
+		to, name = b.c.ResolvedAddresses().ViewContract, "FWSS view"
+	}
 	out, err := b.ec.CallContract(ctx, ethereum.CallMsg{To: &to, Data: data}, nil)
 	if err != nil {
-		return nil, fmt.Errorf("PDPVerifier.%s: %w", method, err)
+		return nil, fmt.Errorf("%s.%s: %w", name, method, err)
 	}
 	return b.pdp.Unpack(method, out)
 }
@@ -312,7 +317,22 @@ func (b *synapseBackend) Proofs(ctx context.Context, dataSetID string) (int64, t
 	if e.Sign() == 0 {
 		return 0, time.Time{}, nil
 	}
+	// The first nextProvingPeriod sets the last proven epoch to the
+	// activation epoch before anything is proven; a real proof comes later,
+	// after the challenge window.
+	v, err = b.call(ctx, "provingActivationEpoch", id)
+	if err != nil {
+		return 0, time.Time{}, err
+	}
+	if !proven(e, v[0].(*big.Int)) {
+		return 0, time.Time{}, nil
+	}
 	return e.Int64(), chain.EpochToTime(b.c.Chain(), e), nil
+}
+
+// proven says whether last is a proof rather than proving's start.
+func proven(last, activation *big.Int) bool {
+	return last.Sign() > 0 && activation.Sign() > 0 && last.Cmp(activation) > 0
 }
 
 func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta map[string]string, sizes []int64) (*Funding, error) {
@@ -371,12 +391,12 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 	return f, nil
 }
 
-func (b *synapseBackend) RunwayDays(ctx context.Context) (int, error) {
+func (b *synapseBackend) Runway(ctx context.Context) (int, *big.Int, error) {
 	s, err := b.c.Payments().AccountSummary(ctx, b.payer)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return fundedDays(s.Funds, s.TotalFixedLockup, s.LockupRatePerEpoch), nil
+	return fundedDays(s.Funds, s.TotalFixedLockup, s.LockupRatePerEpoch), s.TotalFixedLockup, nil
 }
 
 // fundedDays is how many days funds pay for at rate per epoch. Rate lockup
