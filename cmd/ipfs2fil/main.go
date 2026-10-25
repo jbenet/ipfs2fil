@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 
 	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -16,7 +17,31 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
-var version = "dev" // set by the release build
+// Set by the release build (.goreleaser.yaml).
+var (
+	version = "dev"
+	commit  = ""
+)
+
+// versionString is the release version, or for `go install` builds the
+// module version and VCS revision the toolchain recorded.
+func versionString() string {
+	v, c := version, commit
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		if v == "dev" && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+			v = bi.Main.Version
+		}
+		for _, s := range bi.Settings {
+			if s.Key == "vcs.revision" && c == "" && len(s.Value) >= 7 {
+				c = s.Value[:7]
+			}
+		}
+	}
+	if c != "" {
+		return v + " (" + c + ")"
+	}
+	return v
+}
 
 const usage = `ipfs2fil archives an IPFS repo to Filecoin.
 
@@ -52,7 +77,7 @@ func run(ctx context.Context, cmd string, args []string) error {
 	repoPath := fs.String("repo", "", "path to the IPFS repo")
 	switch cmd {
 	case "version", "--version", "-v":
-		fmt.Println("ipfs2fil", version)
+		fmt.Println("ipfs2fil", versionString())
 		return nil
 	case "help", "--help", "-h":
 		fmt.Print(usage)
