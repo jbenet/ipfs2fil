@@ -109,6 +109,34 @@ func (f *fake) Prepare(_ context.Context, ids, fresh []string, _ map[string]stri
 
 func (f *fake) RunwayDays(context.Context) (int, error) { return 30, nil }
 
+func (f *fake) ProviderURL(_ context.Context, p string) (string, error) {
+	return "https://sp" + p + ".example", nil
+}
+
+func TestFundedDays(t *testing.T) {
+	usdfc := func(f float64) *big.Int {
+		v, _ := new(big.Float).Mul(big.NewFloat(f), big.NewFloat(1e18)).Int(nil)
+		return v
+	}
+	// 0.36 USDFC a month; a month is 30 days of 2880 epochs.
+	rate := new(big.Int).Div(usdfc(0.36), big.NewInt(30*2880))
+	for _, c := range []struct {
+		funds, fixed float64
+		want         int
+	}{
+		{1.8747, 0, 156}, // the live run: was reported as 0
+		{1.8747, 0.18, 141},
+		{0.1, 0.2, 0},
+	} {
+		if got := fundedDays(usdfc(c.funds), usdfc(c.fixed), rate); got != c.want {
+			t.Errorf("fundedDays(%v, %v) = %d, want %d", c.funds, c.fixed, got, c.want)
+		}
+	}
+	if got := fundedDays(usdfc(1), nil, new(big.Int)); got != -1 {
+		t.Errorf("no charges: %d", got)
+	}
+}
+
 func push(t *testing.T, s *Store, archive string, copies int, pieces map[string]string) []store.DataSet {
 	t.Helper()
 	ctx := context.Background()
@@ -234,6 +262,9 @@ func TestStatusAndFetch(t *testing.T) {
 	}
 	if got := st.DataSets[0].LastProven; got != "epoch 42 (2026-10-24 12:00 UTC)" {
 		t.Errorf("last proven %q", got)
+	}
+	if got := st.DataSets[0].URL; !strings.HasPrefix(got, "https://sp") {
+		t.Errorf("URL %q", got)
 	}
 	if got := st.DataSets[1].LastProven; got != "never" {
 		t.Errorf("last proven %q", got)

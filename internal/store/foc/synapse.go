@@ -376,14 +376,40 @@ func (b *synapseBackend) RunwayDays(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if s.LockupRatePerEpoch == nil || s.LockupRatePerEpoch.Sign() == 0 {
-		return -1, nil
+	return fundedDays(s.Funds, s.TotalFixedLockup, s.LockupRatePerEpoch), nil
+}
+
+// fundedDays is how many days funds pay for at rate per epoch. Rate lockup
+// is prepaid storage, so it counts; fixed lockup (the data sets' lifecycle
+// reserve) does not. synapse-go's RunwayInEpochs leaves out all lockup, which
+// reads as 0 days right after a deposit sized to the lockup.
+func fundedDays(funds, fixed, rate *big.Int) int {
+	if rate == nil || rate.Sign() == 0 {
+		return -1
 	}
-	days := new(big.Int).Div(s.RunwayInEpochs, big.NewInt(chain.EpochsPerDay))
+	left := new(big.Int)
+	if funds != nil {
+		left.Set(funds)
+	}
+	if fixed != nil {
+		left.Sub(left, fixed)
+	}
+	if left.Sign() <= 0 {
+		return 0
+	}
+	days := left.Div(left, rate).Div(left, big.NewInt(chain.EpochsPerDay))
 	if !days.IsInt64() || days.Int64() > 1<<31-1 {
-		return 1<<31 - 1, nil
+		return 1<<31 - 1
 	}
-	return int(days.Int64()), nil
+	return int(days.Int64())
+}
+
+func (b *synapseBackend) ProviderURL(ctx context.Context, provider string) (string, error) {
+	pc, err := b.providerContext(ctx, provider, nil)
+	if err != nil {
+		return "", err
+	}
+	return pc.ServiceURL(), nil
 }
 
 func bigInts(ss []string) ([]types.BigInt, error) {

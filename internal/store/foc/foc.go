@@ -50,9 +50,11 @@ type backend interface {
 	// Prepare prices storing pieces of these sizes in every data set listed
 	// and on every new provider, and says what funding is missing.
 	Prepare(ctx context.Context, dataSetIDs, newProviders []string, meta map[string]string, sizes []int64) (*Funding, error)
-	// RunwayDays is how long the deposit lasts at today's rate, -1 when
-	// nothing is being charged.
+	// RunwayDays is how long the deposit pays for storage at today's rate,
+	// counting funds locked up for the rails; -1 when nothing is charged.
 	RunwayDays(ctx context.Context) (int, error)
+	// ProviderURL is where a provider serves pieces.
+	ProviderURL(ctx context.Context, provider string) (string, error)
 }
 
 type dataSet struct {
@@ -336,6 +338,11 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 		epoch, at, err := s.b.Proofs(ctx, d.ID)
 		if err != nil {
 			return st, fmt.Errorf("reading proofs of data set %s: %w", d.ID, err)
+		}
+		if d.URL == "" {
+			if d.URL, err = s.b.ProviderURL(ctx, d.Provider); err != nil {
+				return st, fmt.Errorf("looking up provider %s: %w", d.Provider, err)
+			}
 		}
 		last := "never"
 		if epoch > 0 {
