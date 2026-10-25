@@ -27,7 +27,8 @@ func TestFixtures(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer r.Close()
-			a := build(t, r, t.TempDir())
+			dir := t.TempDir()
+			a := build(t, r, dir)
 			check(t, a)
 			if len(a.Missing) != 0 {
 				t.Errorf("missing blocks %v", a.Missing)
@@ -35,7 +36,7 @@ func TestFixtures(t *testing.T) {
 			if len(a.Manifest.Roots) == 0 {
 				t.Error("no roots")
 			}
-			b := build(t, r, t.TempDir())
+			b := build(t, r, dir) // re-pack over the last run
 			if b.Manifest.Root != a.Manifest.Root || len(b.Pieces) != len(a.Pieces) {
 				t.Fatalf("second pack differs: %s vs %s", b.Manifest.Root, a.Manifest.Root)
 			}

@@ -189,7 +189,8 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		}
 		out[i].Piece = m.Pieces[i]
 	}
-	if snap == len(m.Snapshots) {
+	newSnap := snap == len(m.Snapshots)
+	if newSnap {
 		m.Snapshots = append(m.Snapshots, manifest.Snapshot{Time: opts.Now().UTC().Truncate(time.Second), NewPieces: fresh})
 	} else {
 		// the same data again: keep the snapshot, minus the archive's own pieces
@@ -205,7 +206,10 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// index/ and explorer/
 	// The archive cannot name its own root or the pieces it sits in, so
 	// index/ and explorer/ see the manifest without them.
+	// Copies stay out too: a push adds piece ids, and the next pack must not
+	// change because of them (explorer.WriteManifest shows them locally).
 	inner := *m
+	inner.Copies = nil
 	inner.Snapshots = slices.Clone(m.Snapshots)
 	inner.Snapshots[snap].Root = ""
 	idx, err := l.indexDir(ctx, dag, outDir, &inner, dataPieces)
@@ -284,7 +288,11 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		start = end
 	}
 	l.progress("write", planned, planned)
-	m.Snapshots[snap].Root = m.Root
+	// A snapshot's root is set once: Snapshots[0].Root is the key the store
+	// finds the archive's data sets by.
+	if newSnap {
+		m.Snapshots[snap].Root = m.Root
+	}
 	if err := m.Write(filepath.Join(outDir, ManifestFile)); err != nil {
 		return nil, err
 	}

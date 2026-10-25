@@ -327,6 +327,38 @@ func TestRerunIsByteIdentical(t *testing.T) {
 	}
 }
 
+// TestPushThenRepack is pack, push (the store writes Copies into the
+// manifest), pack: the second pack must give the same pieces, so a re-run
+// uploads nothing, and must keep the archive key Snapshots[0].Root.
+func TestPushThenRepack(t *testing.T) {
+	dir := t.TempDir()
+	a := build(t, sample(t, false), dir)
+	m, err := manifest.Read(filepath.Join(dir, ManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[int]string{}
+	for _, p := range m.Pieces {
+		ids[p.Index] = fmt.Sprint(100 + p.Index)
+	}
+	m.Copies = []manifest.Copy{{Provider: "f0123", DataSetID: "7", PieceIDs: ids, Service: "foc-fwss"}}
+	if err := m.Write(filepath.Join(dir, ManifestFile)); err != nil {
+		t.Fatal(err)
+	}
+	b := build(t, sample(t, false), dir)
+	if len(b.Pieces) != len(a.Pieces) {
+		t.Fatalf("%d pieces, then %d", len(a.Pieces), len(b.Pieces))
+	}
+	for i := range a.Pieces {
+		if a.Pieces[i].PieceCID != b.Pieces[i].PieceCID {
+			t.Errorf("piece %d changed after a push", i)
+		}
+	}
+	if s := b.Manifest.Snapshots; len(s) != 1 || s[0].Root != a.Manifest.Root || len(b.Manifest.Copies) != 1 {
+		t.Fatalf("snapshots %+v, copies %d", s, len(b.Manifest.Copies))
+	}
+}
+
 func TestEditChangesNearbyPieces(t *testing.T) {
 	dir := t.TempDir()
 	a := build(t, sample(t, false), dir)
