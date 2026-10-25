@@ -129,9 +129,9 @@ func TestCalibration(t *testing.T) {
 	t.Logf("archive key %s, root %s", key, m.Root)
 
 	s := open(t, ctx)
-	var sizes []int64
+	sizes := map[string]int64{}
 	for _, p := range ps {
-		sizes = append(sizes, p.CARBytes)
+		sizes[p.PieceCID] = p.CARBytes
 	}
 	f, err := s.Plan(ctx, key, 3, sizes)
 	if err != nil {

@@ -91,8 +91,10 @@ func addReadStoreFlags(fs *flag.FlagSet) {
 
 // funder is a store that can say what funding a push needs (FOC can).
 type funder interface {
-	Plan(ctx context.Context, archive string, copies int, sizes []int64) (*foc.Funding, error)
+	Plan(ctx context.Context, archive string, copies int, pieces map[string]int64) (*foc.Funding, error)
 }
+
+var _ funder = (*foc.Store)(nil)
 
 // checkKey fails early, before a long pack, when no wallet key is set. Tests
 // replace it along with openStore.

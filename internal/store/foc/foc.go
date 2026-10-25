@@ -104,12 +104,19 @@ func (f *Funding) Apply(ctx context.Context) error {
 }
 
 // USDFC formats base units (18 decimals) as a decimal amount, e.g. "1.25".
+// Amounts under 0.0001 keep two significant digits rather than show as 0.
 func USDFC(v *big.Int) string {
 	if v == nil {
 		return "0"
 	}
 	r := new(big.Rat).SetFrac(v, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
-	s := r.FloatString(4)
+	prec := 4
+	for ; prec < 18 && v.Sign() != 0 && new(big.Rat).Abs(r).Cmp(big.NewRat(1, pow10(prec))) < 0; prec++ {
+	}
+	if prec > 4 {
+		prec = min(prec+1, 18)
+	}
+	s := r.FloatString(prec)
 	for s[len(s)-1] == '0' {
 		s = s[:len(s)-1]
 	}
@@ -117,6 +124,14 @@ func USDFC(v *big.Int) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func pow10(n int) int64 {
+	p := int64(1)
+	for range n {
+		p *= 10
+	}
+	return p
 }
 
 // Store implements store.Store on FOC.
@@ -160,19 +175,34 @@ func (s *Store) existing(ctx context.Context, archive string) ([]dataSet, error)
 	return out, nil
 }
 
-// Plan says what pushing pieces of these sizes as copies copies would cost
-// and what funding is missing. It picks providers for any data sets that do
-// not exist yet; DataSets then creates them there.
-func (s *Store) Plan(ctx context.Context, archive string, copies int, sizes []int64) (*Funding, error) {
+// Plan says what pushing these pieces (PieceCID to CAR bytes) as copies
+// copies would cost and what funding is missing. Data sets that already hold
+// every piece are not charged again, and the others are priced for the
+// pieces they lack. It picks providers for any data sets that do not exist
+// yet; DataSets then creates them there.
+func (s *Store) Plan(ctx context.Context, archive string, copies int, pieces map[string]int64) (*Funding, error) {
 	have, err := s.existing(ctx, archive)
 	if err != nil {
 		return nil, err
 	}
 	have = have[:min(len(have), copies)]
 	var ids, used []string
+	lacking := map[string]bool{}
 	for _, d := range have {
-		ids = append(ids, d.ID)
 		used = append(used, d.Provider)
+		held, err := s.active(ctx, d.ID)
+		if err != nil {
+			return nil, err
+		}
+		need := false
+		for c := range pieces {
+			if _, ok := held[c]; !ok {
+				lacking[c], need = true, true
+			}
+		}
+		if need {
+			ids = append(ids, d.ID)
+		}
 	}
 	var fresh []string
 	if n := copies - len(have); n > 0 {
@@ -184,9 +214,23 @@ func (s *Store) Plan(ctx context.Context, archive string, copies int, sizes []in
 				copies, len(have)+len(fresh), len(have)+len(fresh))
 		}
 	}
+	// Prepare takes one list of sizes for every data set: new ones need all
+	// pieces, and existing ones are priced for every piece any of them lacks.
+	var sizes []int64
+	for c, n := range pieces {
+		if len(fresh) > 0 || lacking[c] {
+			sizes = append(sizes, n)
+		}
+	}
+	slices.Sort(sizes)
 	f, err := s.b.Prepare(ctx, ids, fresh, dataSetMeta(archive), sizes)
 	if err != nil {
 		return nil, fmt.Errorf("pricing the upload: %w", err)
+	}
+	// Monthly covers the data sets priced; the full ones cost the same per
+	// copy once the push is done.
+	if n := len(ids) + len(fresh); n > 0 && n < copies && f.Monthly != nil {
+		f.Monthly = new(big.Int).Div(new(big.Int).Mul(f.Monthly, big.NewInt(int64(copies))), big.NewInt(int64(n)))
 	}
 	s.mu.Lock()
 	s.chosen[archive] = fresh

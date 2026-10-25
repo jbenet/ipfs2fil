@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -33,6 +34,7 @@ type fake struct {
 	uploads   int
 	reads     int // Pieces calls
 	nextID    int
+	prepared  string // the last Prepare's ids, fresh providers and sizes
 }
 
 func newFake(providers int) *fake {
@@ -100,6 +102,7 @@ func (f *fake) Proofs(_ context.Context, id string) (int64, time.Time, error) {
 }
 
 func (f *fake) Prepare(_ context.Context, ids, fresh []string, _ map[string]string, sizes []int64) (*Funding, error) {
+	f.prepared = fmt.Sprint(ids, fresh, sizes)
 	fd := &Funding{Deposit: big.NewInt(int64(len(fresh)) * 1e18), Monthly: new(big.Int), Fees: new(big.Int), Wallet: big.NewInt(1e18)}
 	if len(fresh) > 0 {
 		fd.apply = func(context.Context) error { return nil }
@@ -212,6 +215,74 @@ func TestMoreCopiesAddsProviders(t *testing.T) {
 	}
 }
 
+func TestPlanPricesOnlyMissingPieces(t *testing.T) {
+	f := newFake(3)
+	push(t, newStore(f), "bafyA", 3, map[string]string{"p1": "one", "p2": "two"})
+	pieces := map[string]int64{"p1": 3, "p2": 300}
+
+	// Every copy is full: nothing to price.
+	if _, err := newStore(f).Plan(context.Background(), "bafyA", 3, pieces); err != nil || f.prepared != "[] [] []" {
+		t.Fatalf("full copies priced as %s (%v)", f.prepared, err)
+	}
+	// One copy lost p2 (say its add failed): only that data set, only p2.
+	delete(f.pieces["101"], "p2")
+	if _, err := newStore(f).Plan(context.Background(), "bafyA", 3, pieces); err != nil || f.prepared != "[101] [] [300]" {
+		t.Fatalf("one short copy priced as %s (%v)", f.prepared, err)
+	}
+	// A new copy needs everything.
+	if _, err := newStore(f).Plan(context.Background(), "bafyA", 4, pieces); err == nil {
+		t.Fatal("4 copies on 3 providers")
+	}
+	f.providers = append(f.providers, "4")
+	if _, err := newStore(f).Plan(context.Background(), "bafyA", 4, pieces); err != nil || f.prepared != "[101] [4] [3 300]" {
+		t.Fatalf("new copy priced as %s (%v)", f.prepared, err)
+	}
+}
+
+func TestTopUp(t *testing.T) {
+	for _, c := range []struct{ need, wallet, want int64 }{
+		{0, 1e18, 0},
+		{12, 1e18, 1e16},   // dust rounds up to 0.01 USDFC
+		{12, 1e15, 12},     // unless the wallet lacks it
+		{2e16, 1e18, 2e16}, // real shortfalls go as they are
+	} {
+		if got := topUp(big.NewInt(c.need), big.NewInt(c.wallet)); got.Int64() != c.want {
+			t.Errorf("topUp(%d, %d) = %s, want %d", c.need, c.wallet, got, c.want)
+		}
+	}
+}
+
+func TestRetryCommit(t *testing.T) {
+	ctx := context.Background()
+	delays := []time.Duration{0, 0, 0}
+	notFound := errors.New(`HTTP 400: failed to validate subPieces: subPiece CID baga... not found`)
+	calls := 0
+	err := retryCommit(ctx, delays, func() (bool, error) {
+		if calls++; calls < 3 {
+			return false, notFound
+		}
+		return true, nil
+	})
+	if err != nil || calls != 3 {
+		t.Fatalf("not found twice: %v after %d calls", err, calls)
+	}
+	calls = 0
+	if err := retryCommit(ctx, delays, func() (bool, error) { calls++; return false, notFound }); err == nil || calls != 4 {
+		t.Fatalf("always not found: %v after %d calls", err, calls)
+	}
+	// Other errors, and anything after the add was submitted, are not retried.
+	for _, submitted := range []bool{false, true} {
+		calls = 0
+		e := notFound
+		if !submitted {
+			e = errors.New("insufficient funds")
+		}
+		if err := retryCommit(ctx, delays, func() (bool, error) { calls++; return submitted, e }); err == nil || calls != 1 {
+			t.Errorf("submitted=%v: %v after %d calls", submitted, err, calls)
+		}
+	}
+}
+
 func TestTooFewProviders(t *testing.T) {
 	_, err := newStore(newFake(2)).DataSets(context.Background(), "bafyA", 3)
 	if err == nil || !strings.Contains(err.Error(), "--copies 2") {
@@ -223,7 +294,7 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 	f := newFake(5)
 	s := newStore(f)
 	ctx := context.Background()
-	fd, err := s.Plan(ctx, "bafyA", 3, []int64{1000})
+	fd, err := s.Plan(ctx, "bafyA", 3, map[string]int64{"p": 1000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +317,7 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 	if fmt.Sprint(got) != "[1 2 3]" {
 		t.Errorf("copies on providers %v, want the planned [1 2 3]", got)
 	}
-	fd, err = s.Plan(ctx, "bafyA", 3, []int64{1000})
+	fd, err = s.Plan(ctx, "bafyA", 3, map[string]int64{"p": 1000})
 	if err != nil || !fd.Ready() {
 		t.Fatalf("existing data sets still need funding: %+v %v", fd, err)
 	}
@@ -286,7 +357,7 @@ func TestStatusAndFetch(t *testing.T) {
 }
 
 func TestUSDFC(t *testing.T) {
-	for in, want := range map[string]string{"0": "0", "1000000000000000000": "1", "1250000000000000000": "1.25", "120000000000000": "0.0001"} {
+	for in, want := range map[string]string{"0": "0", "1000000000000000000": "1", "1250000000000000000": "1.25", "120000000000000": "0.0001", "12345678901234": "0.000012", "1": "0.000000000000000001"} {
 		v, _ := new(big.Int).SetString(in, 10)
 		if got := USDFC(v); got != want {
 			t.Errorf("USDFC(%s) = %s, want %s", in, got, want)

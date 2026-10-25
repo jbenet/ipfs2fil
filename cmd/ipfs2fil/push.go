@@ -61,10 +61,10 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		fmt.Fprintf(o.stdout, "all %d pieces are already stored in %d copies; nothing to upload\n", len(pieces), o.copies)
 		return nil
 	}
-	var sizes []int64
+	sizes := map[string]int64{}
 	var total int64
 	for _, p := range pieces {
-		sizes = append(sizes, p.CARBytes)
+		sizes[p.PieceCID] = p.CARBytes
 		total += p.CARBytes
 	}
 	if ok, err := approveCost(ctx, o, s, key, sizes, total); err != nil || !ok {
@@ -163,7 +163,7 @@ func missing(ctx context.Context, s store.Store, m *manifest.Manifest, pieces []
 
 // approveCost shows what the push costs and asks to go ahead. For FOC it also
 // says what deposit is missing and makes it once confirmed.
-func approveCost(ctx context.Context, o *opts, s store.Store, key string, sizes []int64, total int64) (bool, error) {
+func approveCost(ctx context.Context, o *opts, s store.Store, key string, sizes map[string]int64, total int64) (bool, error) {
 	f, ok := s.(funder)
 	if !ok {
 		c := store.Estimate(total, len(sizes), o.copies)
