@@ -343,8 +343,26 @@ func TestPDPVerifierABI(t *testing.T) {
 	if got, _ := cid.Cast(pieces[0].Data); got != c || v[1].([]*big.Int)[0].Int64() != 9 || v[2].(bool) {
 		t.Fatalf("decoded %v", v)
 	}
-	if _, err := a.Pack("getDataSetLastProvenEpoch", big.NewInt(1)); err != nil {
-		t.Fatal(err)
+	for _, m := range []string{"getDataSetLastProvenEpoch", "provingActivationEpoch"} {
+		if _, err := a.Pack(m, big.NewInt(1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestProven(t *testing.T) {
+	for _, c := range []struct {
+		last, activation int64
+		want             bool
+	}{
+		{0, 0, false},
+		{4187356, 0, false},       // pieces added, proving not started
+		{4187356, 4187356, false}, // proving started, nothing proven yet
+		{4187500, 4187356, true},
+	} {
+		if got := proven(big.NewInt(c.last), big.NewInt(c.activation)); got != c.want {
+			t.Errorf("proven(%d, %d) = %v", c.last, c.activation, got)
+		}
 	}
 }
 

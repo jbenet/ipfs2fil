@@ -45,7 +45,7 @@ type backend interface {
 	Pieces(ctx context.Context, dataSetID string) (map[string]string, error)
 	Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (pieceID string, err error)
 	Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error)
-	// Proofs reads when the data set was last proven, zero if never.
+	// Proofs reads when the data set was last proven, zero until the first proof.
 	Proofs(ctx context.Context, dataSetID string) (lastEpoch int64, last time.Time, err error)
 	// Prepare prices storing pieces of these sizes in every data set listed
 	// and on every new provider, and says what funding is missing.
@@ -344,7 +344,7 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 				return st, fmt.Errorf("looking up provider %s: %w", d.Provider, err)
 			}
 		}
-		last := "never"
+		last := "not yet"
 		if epoch > 0 {
 			last = fmt.Sprintf("epoch %d (%s)", epoch, at.UTC().Format("2006-01-02 15:04 UTC"))
 		}
