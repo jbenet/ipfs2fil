@@ -33,6 +33,8 @@ prototype/          the 2026-10-21 spike, kept for reference (build-ignored)
   Anything that varies (times, providers, piece ids) goes in `index/`.
 - Every block written to a CAR is hash-checked first.
 - Errors say what to do next in plain words.
+- No cgo. synapse-go's BLS signer needs cgo blst, so go.mod replaces blst with
+  a stub in third_party/blst: wallets are secp256k1 (0x / f1) keys only.
 
 ## Workstreams
 
