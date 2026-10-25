@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"errors"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cockroachdb/pebble/v2"
+	"github.com/dgraph-io/badger"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -42,18 +45,29 @@ func TestFixtures(t *testing.T) {
 	}
 }
 
-// TestLockedDatastore opens repos whose leveldb is held by another process,
-// as a running daemon would.
+// TestLockedDatastore opens repos whose datastore is held open by another
+// handle, as a running daemon would.
 func TestLockedDatastore(t *testing.T) {
-	for _, name := range []string{"v00", "v07", "v18"} {
+	for _, name := range []string{"v00", "v07", "v18", "v18-badgerds", "v18-pebbleds"} {
 		t.Run(name, func(t *testing.T) {
 			dir := extractFixture(t, filepath.Join(fixtureDir, name+".tar.gz"))
-			db, err := leveldb.OpenFile(filepath.Join(dir, "repo", "datastore"), nil)
+			repo := filepath.Join(dir, "repo")
+			var closer io.Closer
+			var err error
+			switch {
+			case strings.HasSuffix(name, "-badgerds"):
+				closer, err = badger.Open(badger.DefaultOptions(filepath.Join(repo, "badgerds")).WithLogger(nil))
+			case strings.HasSuffix(name, "-pebbleds"):
+				closer, err = pebble.Open(filepath.Join(repo, "pebbleds"), &pebble.Options{Logger: quietLogger{}})
+			default:
+				closer, err = leveldb.OpenFile(filepath.Join(repo, "datastore"), nil)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
-			checkFixture(t, dir, name, true)
+			defer closer.Close()
+			// The open handle may write (e.g. a new log), so only contents are checked.
+			checkFixture(t, dir, name, !strings.Contains(name, "ds"))
 		})
 	}
 }
@@ -98,7 +112,7 @@ func checkFixture(t *testing.T, dir, name string, unchanged bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want, _ := strconv.Atoi(name[1:3]); int(r.Version()) != want {
+	if want, _ := strconv.Atoi(name[1:3]); int(r.Version()) != want { // v18-pebbleds -> 18
 		t.Errorf("version %d, want %d", r.Version(), want)
 	}
 
@@ -195,6 +209,9 @@ func treeHash(t *testing.T, dir string) string {
 			return nil
 		}
 		data, err := os.ReadFile(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // removed by a live handle on the datastore
+		}
 		if err != nil {
 			return err
 		}

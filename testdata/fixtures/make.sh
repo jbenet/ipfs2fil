@@ -139,13 +139,14 @@ pack() { # pack <name> <dir with repo/ and expected/>
   echo "$1: repo $(cat "$2/repo/version" 2>/dev/null || echo 0), $(wc -l <"$2/expected/refs-local") blocks, $(wc -l <"$2/expected/pins") pins"
 }
 
-make_native() { # make_native <name> <repo version> [init profile]
-  local name=$1 rv=$2 profile=${3:-test} v=${native[$2]} B
+make_native() { # make_native <name> <repo version> [init profile] [release]
+  local name=$1 rv=$2 profile=${3:-test} v=${4:-${native[$2]}} B
   B=$(fetch "$v")
   local dir=$work/$name
   rm -rf "$dir" && mkdir -p "$dir"
   export IPFS_PATH=$dir/repo
   $B init --profile="$profile" >/dev/null 2>&1
+  [ "$profile" = test ] || $B config profile apply test >/dev/null
   [ "$(cat "$IPFS_PATH/version")" = "$rv" ] || { echo "$v made repo $(cat "$IPFS_PATH/version"), want $rv" >&2; exit 1; }
   populate "$v" "$B"
   record "$B" "$dir/expected" "$v"
@@ -224,4 +225,11 @@ for rv in 6 5 4 3 2 1 0; do
 done
 has v08 && make_reverted v08 8 v09
 has v18-custom-spec && custom_spec
+# Other datastores kubo offers: badger v1 (deprecated, still in 0.43) and pebble.
+has v15-badgerds && make_native v15-badgerds 15 badgerds
+has v18-badgerds && make_native v18-badgerds 18 badgerds
+has v16-pebbleds && make_native v16-pebbleds 16 pebbleds v0.32.1
+has v17-pebbleds && make_native v17-pebbleds 17 pebbleds
+has v18-pebbleds && make_native v18-pebbleds 18 pebbleds
+has v18-flatfs-pebbleds && make_native v18-flatfs-pebbleds 18 flatfs-pebbleds
 echo "work dir: $work"
