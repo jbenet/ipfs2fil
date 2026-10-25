@@ -49,6 +49,11 @@ type Options struct {
 	Orphans bool // include blocks no pin or MFS reaches, under data/orphans
 	Tool    string
 	Now     func() time.Time
+
+	// Progress, if set, is called as Build goes: stage "walk" counts blocks
+	// laid out against the repo's block count, "write" counts CAR bytes
+	// written against the bytes planned. total is 0 while unknown.
+	Progress func(stage string, done, total int64)
 }
 
 // DefaultOptions fit synapse-go's 1 GiB*127/128 piece limit.
@@ -93,6 +98,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 
 	l := newLayout(r)
+	if opts.Progress != nil {
+		l.progress = opts.Progress
+	}
 	roots, err := l.walkRoots(ctx, opts.Orphans)
 	if err != nil {
 		return nil, err
@@ -123,6 +131,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err := os.MkdirAll(pieceDir, 0o755); err != nil {
 		return nil, err
 	}
+	var planned, written, finished int64
+	for _, p := range dataPieces {
+		planned += car.HeaderSize(l.tab[p.start].c)
+		for j := p.start; j < p.end; j++ {
+			planned += car.EntrySize(l.tab[j].c, l.tab[j].size)
+		}
+	}
+	l.progress("write", 0, planned)
 	var out []Piece
 	for i, p := range dataPieces {
 		path, sum, err := writePiece(pieceDir, l.tab[p.start].c, func(w *car.Writer) error {
@@ -135,6 +151,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 				if err := w.Put(b.c, data); err != nil {
 					return err
 				}
+				if written += car.EntrySize(b.c, len(data)); j%256 == 0 {
+					l.progress("write", written, planned)
+				}
 			}
 			return nil
 		})
@@ -142,6 +161,8 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 			return nil, err
 		}
 		m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = sum.PieceCID.String(), sum.Bytes
+		finished += sum.Bytes
+		written = finished
 		out = append(out, Piece{Piece: m.Pieces[i], Path: path})
 	}
 
@@ -187,7 +208,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	inner := *m
 	inner.Snapshots = slices.Clone(m.Snapshots)
 	inner.Snapshots[snap].Root = ""
-	idx, err := l.indexDir(ctx, dag, &inner, dataPieces)
+	idx, err := l.indexDir(ctx, dag, outDir, &inner, dataPieces)
 	if err != nil {
 		return nil, err
 	}
@@ -262,6 +283,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		out = append(out, Piece{Piece: p, Path: path})
 		start = end
 	}
+	l.progress("write", planned, planned)
 	m.Snapshots[snap].Root = m.Root
 	if err := m.Write(filepath.Join(outDir, ManifestFile)); err != nil {
 		return nil, err
@@ -378,46 +400,45 @@ func (l *layout) dataDir(ctx context.Context, dag memDAG, roots []root) (format.
 	return mkdir(ctx, dag, top)
 }
 
-// indexDir makes index/: the manifest as known from inside the archive, and
-// one block list per data piece.
-func (l *layout) indexDir(ctx context.Context, dag memDAG, inner *manifest.Manifest, pieces []span) (format.Node, error) {
-	var lists []child
+// indexDir writes index/ into outDir and adds it: the manifest as known from
+// inside the archive, and one block list per data piece.
+func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner *manifest.Manifest, pieces []span) (format.Node, error) {
+	dir := filepath.Join(outDir, "index")
+	if err := os.RemoveAll(dir); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "pieces"), 0o755); err != nil {
+		return nil, err
+	}
 	for i, p := range pieces {
 		var sb strings.Builder
 		for j := p.start; j < p.end; j++ {
 			sb.WriteString(l.tab[j].c.Hash().B58String())
 			sb.WriteByte('\n')
 		}
-		n, err := mkfile(dag, []byte(sb.String()))
-		if err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "pieces", fmt.Sprintf("%04d", i)), []byte(sb.String()), 0o644); err != nil {
 			return nil, err
 		}
-		lists = append(lists, child{fmt.Sprintf("%04d", i), n})
-	}
-	pd, err := mkdir(ctx, dag, lists)
-	if err != nil {
-		return nil, err
 	}
 	b, err := json.MarshalIndent(inner, "", "  ")
 	if err != nil {
 		return nil, err
 	}
-	b = append(b, '\n')
-	mf, err := mkfile(dag, b)
-	if err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), append(b, '\n'), 0o644); err != nil {
 		return nil, err
 	}
-	return mkdir(ctx, dag, []child{{"manifest.json", mf}, {"pieces", pd}})
+	return importDir(ctx, dag, dir)
 }
 
-// explorerDir asks the explorer for its pages, in a scratch directory under
-// outDir, and adds them.
+// explorerDir has the explorer write its pages into outDir and adds them.
 func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, l *layout, roots []root) (format.Node, error) {
-	dir, err := os.MkdirTemp(outDir, ".explorer-*")
-	if err != nil {
+	dir := filepath.Join(outDir, "explorer")
+	if err := os.RemoveAll(dir); err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
 	if err := explorer.Write(dir, m, l.entries(roots, m)); err != nil {
 		return nil, fmt.Errorf("explorer: %w", err)
 	}

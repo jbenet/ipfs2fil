@@ -36,6 +36,7 @@ type root struct {
 // layout places every block reachable from the roots, depth first, once.
 type layout struct {
 	r          repo.Repo
+	progress   func(stage string, done, total int64)
 	tab        []blk
 	idx        map[string]int32 // multihash -> position in tab
 	missing    []string
@@ -45,7 +46,7 @@ type layout struct {
 }
 
 func newLayout(r repo.Repo) *layout {
-	return &layout{r: r, idx: map[string]int32{}}
+	return &layout{r: r, idx: map[string]int32{}, progress: func(string, int64, int64) {}}
 }
 
 // get reads a block and checks its hash.
@@ -89,6 +90,9 @@ func (l *layout) place(ctx context.Context, c cid.Cid) (int32, error) {
 	i := int32(len(l.tab))
 	l.idx[string(c.Hash())] = i
 	l.tab = append(l.tab, blk{c: c, size: len(data)})
+	if i%1024 == 0 {
+		l.progress("walk", int64(i), l.repoBlocks)
+	}
 	ls, err := links(c, data)
 	if err != nil {
 		return -1, fmt.Errorf("block %s: %w", c, err)
@@ -121,6 +125,26 @@ func (l *layout) place(ctx context.Context, c cid.Cid) (int32, error) {
 // walkRoots lays out pins, the MFS root and (if asked) orphans, and returns
 // the roots that are in the repo, in layout order.
 func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
+	// List the blocks first, so progress has a total.
+	// Repos 5 to 11 can list one multihash twice, stored under two CIDs.
+	var all []multihash.Multihash
+	listed := map[string]bool{}
+	err := l.r.ForEachBlock(ctx, func(h multihash.Multihash, size int) error {
+		if listed[string(h)] {
+			return nil
+		}
+		listed[string(h)] = true
+		l.repoBlocks++
+		l.repoBytes += int64(size)
+		all = append(all, h)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing blocks: %w", err)
+	}
+	listed = nil
+	l.progress("walk", 0, l.repoBlocks)
+
 	pins, err := l.r.Pins(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reading pins: %w", err)
@@ -192,22 +216,12 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 	// Orphans: blocks nothing above reaches. One orphan linked by another is
 	// not a root of its own.
 	var loose []multihash.Multihash
-	// Repos 5 to 11 can list one multihash twice, stored under two CIDs.
-	listed := map[string]bool{}
-	err = l.r.ForEachBlock(ctx, func(h multihash.Multihash, size int) error {
-		if listed[string(h)] {
-			return nil
+	if orphans {
+		for _, h := range all {
+			if _, ok := l.idx[string(h)]; !ok {
+				loose = append(loose, h)
+			}
 		}
-		listed[string(h)] = true
-		l.repoBlocks++
-		l.repoBytes += int64(size)
-		if _, ok := l.idx[string(h)]; !ok && orphans {
-			loose = append(loose, h)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing blocks: %w", err)
 	}
 	guessed := make([]cid.Cid, len(loose))
 	linked := map[string]bool{}
@@ -234,6 +248,7 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 			return nil, err
 		}
 	}
+	l.progress("walk", int64(len(l.tab)), l.repoBlocks)
 	return out, nil
 }
 

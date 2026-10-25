@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -247,8 +248,35 @@ func dataPieces(res *Result) map[string]bool {
 
 func TestBuild(t *testing.T) {
 	r := sample(t, false)
-	res := build(t, r, t.TempDir())
+	dir := t.TempDir()
+	opts := testOptions()
+	last := map[string][2]int64{}
+	opts.Progress = func(stage string, done, total int64) {
+		if p := last[stage]; done < p[0] || (total != 0 && done > total) {
+			t.Errorf("progress %s went %d/%d after %d/%d", stage, done, total, p[0], p[1])
+		}
+		last[stage] = [2]int64{done, total}
+	}
+	res, err := Build(context.Background(), r, dir, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	check(t, res)
+	var dataBytes int64
+	for _, p := range res.Pieces {
+		if p.BlockList != "" {
+			dataBytes += p.CARBytes
+		}
+	}
+	if w := last["write"]; w[0] != dataBytes || w[1] != dataBytes || last["walk"][1] != int64(len(r.blocks)) {
+		t.Errorf("final progress %v, data pieces hold %d bytes", last, dataBytes)
+	}
+	// the archive's index/ and explorer/ stay on disk for local preview
+	for _, p := range []string{"index/manifest.json", "index/pieces/0000", "explorer/index.html", ManifestFile} {
+		if _, err := os.Stat(filepath.Join(dir, p)); err != nil {
+			t.Error(err)
+		}
+	}
 	m := res.Manifest
 	if len(dataPieces(res)) < 8 {
 		t.Fatalf("only %d data pieces; the test needs more to mean anything", len(dataPieces(res)))
