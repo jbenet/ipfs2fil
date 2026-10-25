@@ -309,3 +309,24 @@ func TestPDPVerifierABI(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestReadConfig(t *testing.T) {
+	t.Setenv(EnvKey, "")
+	t.Setenv(EnvKeyFile, "")
+	t.Setenv(EnvAddress, "")
+	if _, err := ReadConfig(CalibrationRPC, "", ""); err == nil || !strings.Contains(err.Error(), "--address") {
+		t.Errorf("no key or address: %v", err)
+	}
+	t.Setenv(EnvAddress, "0xd8F3b19a517A40D673B5a4389d64D179FB9531EB")
+	cfg, err := ReadConfig(CalibrationRPC, "", "")
+	if err != nil || cfg.Key != nil || cfg.Address == "" {
+		t.Errorf("address only: %+v %v", cfg, err)
+	}
+	t.Setenv(EnvKey, hex.EncodeToString(bytes.Repeat([]byte{7}, 32)))
+	if cfg, err := ReadConfig(CalibrationRPC, "", ""); err != nil || cfg.Key == nil {
+		t.Errorf("key wins: %+v %v", cfg, err)
+	}
+	if _, _, err := Open(context.Background(), Config{RPC: CalibrationRPC, Address: "f1abc"}); err == nil || !strings.Contains(err.Error(), "0x address") {
+		t.Errorf("bad address: %v", err)
+	}
+}
