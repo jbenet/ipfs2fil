@@ -6,15 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime/debug"
-
-	"github.com/jbenet/ipfs2fil/internal/explorer"
-	"github.com/jbenet/ipfs2fil/internal/manifest"
-	"github.com/jbenet/ipfs2fil/internal/repo"
-	"github.com/multiformats/go-multihash"
+	"sort"
+	"strings"
+	"syscall"
 )
 
 // Set by the release build (.goreleaser.yaml).
@@ -43,157 +41,154 @@ func versionString() string {
 	return v
 }
 
-const usage = `ipfs2fil archives an IPFS repo to Filecoin.
+// command is one subcommand. help is the man-style text `ipfs2fil help <name>`
+// prints above the flags.
+type command struct {
+	name    string
+	summary string
+	help    string
+	flags   func(fs *flag.FlagSet, o *opts)
+	run     func(ctx context.Context, o *opts, args []string) error
+}
+
+var commands = map[string]*command{}
+
+func register(c *command) { commands[c.name] = c }
+
+// order is how the usage lists commands.
+var order = []string{"scan", "pack", "push", "up", "status", "explore", "verify", "version"}
+
+func usage(w io.Writer) {
+	fmt.Fprint(w, `ipfs2fil archives an IPFS repo to Filecoin.
 
 Usage:
-  ipfs2fil <command> [--repo <path>] [flags]
+  ipfs2fil <command> [flags]
 
 Commands:
-  scan      Read the repo and say what an archive would hold and cost
-  pack      Build the archive and its pieces on disk
-  push      Upload pieces that are not stored yet (3 copies by default)
-  status    Show copies, funding and proofs for an archive
-  explore   Write or serve the HTML explorer
-  verify    Fetch pieces back and check every block
-  version   Print the version
-
+`)
+	names := append([]string(nil), order...)
+	for n := range commands {
+		if !contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	sort.SliceStable(names, func(i, j int) bool { return index(order, names[i]) < index(order, names[j]) })
+	for _, n := range names {
+		if c := commands[n]; c != nil {
+			fmt.Fprintf(w, "  %-9s %s\n", c.name, c.summary)
+		}
+	}
+	fmt.Fprint(w, `
 The repo is --repo, else $IPFS_PATH, else ~/.ipfs. It is only ever read.
-`
+Run 'ipfs2fil help <command>' for details.
+`)
+}
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprint(os.Stderr, usage)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	interrupted := ctx.Err() != nil
+	stop()
+	switch {
+	case err == nil:
+	case errors.Is(err, flag.ErrHelp):
+	case errors.Is(err, errUsage):
 		os.Exit(2)
-	}
-	cmd, args := os.Args[1], os.Args[2:]
-	if err := run(context.Background(), cmd, args); err != nil {
+	case interrupted:
+		fmt.Fprintln(os.Stderr, "\nipfs2fil: stopped. Run the same command again to pick up where it left off.")
+		os.Exit(130)
+	default:
 		fmt.Fprintln(os.Stderr, "ipfs2fil:", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, cmd string, args []string) error {
-	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
-	repoPath := fs.String("repo", "", "path to the IPFS repo")
-	switch cmd {
-	case "version", "--version", "-v":
-		fmt.Println("ipfs2fil", versionString())
-		return nil
+// errUsage means the usage was already printed.
+var errUsage = errors.New("usage")
+
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		usage(stderr)
+		return errUsage
+	}
+	name, args := args[0], args[1:]
+	switch name {
+	case "--version", "-v":
+		name = "version"
 	case "help", "--help", "-h":
-		fmt.Print(usage)
+		if len(args) == 0 {
+			usage(stdout)
+			return nil
+		}
+		c := commands[args[0]]
+		if c == nil {
+			return fmt.Errorf("no command %q; run 'ipfs2fil help' for the list", args[0])
+		}
+		o := &opts{stdout: stdout, stderr: stderr}
+		printHelp(stdout, c, newFlagSet(c, o))
 		return nil
-	case "explore":
-		return explore(ctx, args)
-	case "scan", "pack", "push", "status", "verify":
-	default:
-		return fmt.Errorf("unknown command %q\n\n%s", cmd, usage)
 	}
+	c := commands[name]
+	if c == nil {
+		fmt.Fprintf(stderr, "ipfs2fil: no command %q\n\n", name)
+		usage(stderr)
+		return errUsage
+	}
+	o := &opts{stdout: stdout, stderr: stderr}
+	fs := newFlagSet(c, o)
+	fs.SetOutput(io.Discard)
 	if err := fs.Parse(args); err != nil {
-		return err
+		if errors.Is(err, flag.ErrHelp) {
+			printHelp(stdout, c, fs)
+			return err
+		}
+		fmt.Fprintf(stderr, "ipfs2fil %s: %v\nRun 'ipfs2fil help %s' for its flags.\n", c.name, err, c.name)
+		return errUsage
 	}
-	path, err := repo.Discover(*repoPath)
-	if err != nil {
-		return err
-	}
-	v, err := repo.DetectVersion(path)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("repo %s (fs-repo %d)\n", path, v)
-	if cmd == "scan" {
-		return scan(ctx, path)
-	}
-	return errors.New(cmd + " is not implemented yet")
+	o.set = map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { o.set[f.Name] = true })
+	return c.run(ctx, o, fs.Args())
 }
 
-// explore refreshes or serves the explorer of an archive on disk.
-func explore(ctx context.Context, args []string) error {
-	fs := flag.NewFlagSet("explore", flag.ContinueOnError)
-	dir := fs.String("archive", ".", "archive directory, the one holding index/ and explorer/")
-	serve := fs.Bool("serve", false, "serve the archive and its explorer on --addr")
-	addr := fs.String("addr", "127.0.0.1:8484", "address for --serve")
-	demo := fs.Bool("demo", false, "write a made-up archive explorer into --archive (a new temp dir if unset) and serve it")
-	scale := fs.Int("scale", 1, "with --demo, how big the made-up archive is")
-	if err := fs.Parse(args); err != nil {
-		return err
+func newFlagSet(c *command, o *opts) *flag.FlagSet {
+	fs := flag.NewFlagSet(c.name, flag.ContinueOnError)
+	if c.flags != nil {
+		c.flags(fs, o)
 	}
-	if *demo {
-		if !isSet(fs, "archive") {
-			d, err := os.MkdirTemp("", "ipfs2fil-demo-")
-			if err != nil {
-				return err
-			}
-			*dir = d
-		}
-		m, entries := explorer.Demo(*scale)
-		if err := os.MkdirAll(filepath.Join(*dir, "index"), 0o755); err != nil {
-			return err
-		}
-		if err := m.Write(filepath.Join(*dir, "index", "manifest.json")); err != nil {
-			return err
-		}
-		if err := explorer.Write(filepath.Join(*dir, "explorer"), m, entries); err != nil {
-			return err
-		}
-		fmt.Printf("wrote a demo archive explorer to %s (%d entries)\n", *dir, len(entries))
-		*serve = true
-	} else {
-		m, err := manifest.Read(filepath.Join(*dir, "index", "manifest.json"))
-		if err != nil {
-			return fmt.Errorf("%w; pass --archive with the directory pack wrote", err)
-		}
-		if err := explorer.WriteManifest(filepath.Join(*dir, "explorer"), m); err != nil {
-			return err
-		}
-		fmt.Printf("explorer in %s is up to date with index/manifest.json\n", filepath.Join(*dir, "explorer"))
+	return fs
+}
+
+func printHelp(w io.Writer, c *command, fs *flag.FlagSet) {
+	fmt.Fprintf(w, "ipfs2fil %s: %s\n\n%s\n", c.name, c.summary, strings.TrimSpace(c.help))
+	n := 0
+	fs.VisitAll(func(*flag.Flag) { n++ })
+	if n == 0 {
+		return
 	}
-	if !*serve {
-		return nil
+	fmt.Fprint(w, "\nFlags:\n")
+	fs.SetOutput(w)
+	fs.PrintDefaults()
+}
+
+func contains(s []string, v string) bool { return index(s, v) < len(s) }
+
+func index(s []string, v string) int {
+	for i, x := range s {
+		if x == v {
+			return i
+		}
 	}
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
-	defer stop()
-	return explorer.Serve(ctx, *dir, *addr, func(url string) {
-		fmt.Printf("serving %s at %s (ctrl-c stops)\n", *dir, url)
+	return len(s)
+}
+
+func init() {
+	register(&command{
+		name:    "version",
+		summary: "Print the version",
+		help:    "Prints the release version and commit.",
+		run: func(_ context.Context, o *opts, _ []string) error {
+			fmt.Fprintln(o.stdout, "ipfs2fil", versionString())
+			return nil
+		},
 	})
-}
-
-func isSet(fs *flag.FlagSet, name string) bool {
-	set := false
-	fs.Visit(func(f *flag.Flag) { set = set || f.Name == name })
-	return set
-}
-
-// scan prints what the repo holds. Archive contents and costs come later.
-func scan(ctx context.Context, path string) error {
-	r, err := repo.Open(path)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	var n, size int
-	err = r.ForEachBlock(ctx, func(_ multihash.Multihash, s int) error {
-		n++
-		size += s
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	pins, err := r.Pins(ctx)
-	if err != nil {
-		return err
-	}
-	var rec int
-	for _, p := range pins {
-		if p.Mode == repo.Recursive {
-			rec++
-		}
-	}
-	fmt.Printf("%d blocks, %d bytes\n%d pins (%d recursive, %d direct)\n", n, size, len(pins), rec, len(pins)-rec)
-	if c, ok, err := r.MFSRoot(ctx); err != nil {
-		return err
-	} else if ok {
-		fmt.Printf("MFS root %s\n", c)
-	}
-	return nil
 }

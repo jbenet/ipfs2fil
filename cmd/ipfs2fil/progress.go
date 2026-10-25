@@ -1,0 +1,157 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+// progress draws one status line for a long step: a bar with ETA when the
+// total is known, a running count when it is not. On a terminal it redraws in
+// place; otherwise (logs, CI) it prints a line every interval.
+type progress struct {
+	w        io.Writer
+	label    string
+	total    int64 // 0 if unknown
+	bytes    bool  // format counts as bytes
+	tty      bool
+	interval time.Duration
+	now      func() time.Time
+
+	mu    sync.Mutex
+	done  int64
+	start time.Time
+	last  time.Time
+	drawn bool
+}
+
+func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
+	p := &progress{w: w, label: label, total: total, bytes: bytes, tty: isTerminal(w), now: time.Now}
+	p.interval = 100 * time.Millisecond
+	if !p.tty {
+		p.interval = 10 * time.Second
+	}
+	p.start = p.now()
+	p.last = p.start
+	return p
+}
+
+// Add records n more units done.
+func (p *progress) Add(n int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.done += n
+	if t := p.now(); t.Sub(p.last) >= p.interval {
+		p.last = t
+		p.draw(false)
+	}
+}
+
+// Done draws the final line.
+func (p *progress) Done() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.tty || p.drawn {
+		p.draw(true)
+	}
+}
+
+func (p *progress) draw(final bool) {
+	p.drawn = true
+	el := p.now().Sub(p.start)
+	var line string
+	if p.total > 0 {
+		frac := float64(p.done) / float64(p.total)
+		if frac > 1 {
+			frac = 1
+		}
+		const width = 24
+		fill := int(frac * width)
+		bar := strings.Repeat("=", fill) + strings.Repeat(" ", width-fill)
+		line = fmt.Sprintf("%s [%s] %3.0f%% %s/%s", p.label, bar, frac*100, p.count(p.done), p.count(p.total))
+		if final {
+			line += " in " + roundDur(el)
+		} else if p.done > 0 && el > time.Second {
+			eta := time.Duration(float64(el) * (1/frac - 1))
+			line += " ETA " + roundDur(eta)
+		}
+	} else {
+		line = fmt.Sprintf("%s %s", p.label, p.count(p.done))
+		if s := el.Seconds(); s >= 1 {
+			line += fmt.Sprintf(" (%s/s)", p.count(int64(float64(p.done)/s)))
+		}
+		if final {
+			line += " in " + roundDur(el)
+		}
+	}
+	if p.tty {
+		fmt.Fprintf(p.w, "\r\033[K%s", line)
+		if final {
+			fmt.Fprintln(p.w)
+		}
+	} else {
+		fmt.Fprintln(p.w, line)
+	}
+}
+
+func (p *progress) count(n int64) string {
+	if p.bytes {
+		return humanBytes(n)
+	}
+	return fmt.Sprint(n)
+}
+
+func roundDur(d time.Duration) string {
+	switch {
+	case d < time.Second:
+		return d.Round(time.Millisecond).String()
+	case d < time.Minute:
+		return d.Round(time.Second).String()
+	default:
+		return d.Round(time.Minute).String()
+	}
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit && exp < 5; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	st, err := f.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice != 0
+}
+
+// confirm asks a yes/no question on stderr and reads the answer from in. It
+// says no when in is not a terminal, so scripts must pass --yes.
+func confirm(o *opts, in io.Reader, question string) (bool, error) {
+	if o.yes {
+		return true, nil
+	}
+	if f, ok := in.(*os.File); ok && !isTerminal(f) {
+		return false, fmt.Errorf("%s needs a yes; pass --yes to run without asking", question)
+	}
+	fmt.Fprintf(o.stderr, "%s [y/N] ", question)
+	ans, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && ans == "" {
+		return false, err
+	}
+	ans = strings.ToLower(strings.TrimSpace(ans))
+	return ans == "y" || ans == "yes", nil
+}
