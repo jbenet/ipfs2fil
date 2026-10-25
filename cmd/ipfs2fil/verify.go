@@ -17,11 +17,11 @@ func init() {
 Downloads every piece from every copy recorded in --out/manifest.json and
 checks that it hashes to its PieceCID and that every block in it hashes to its
 CID. Keeps going past bad pieces and lists them at the end; run push to
-re-upload a piece a copy has lost.`,
+re-upload a piece a copy has lost. No wallet key needed: --address is enough.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
-			addStoreFlags(fs)
+			addReadStoreFlags(fs)
 		},
 		run: runVerify,
 	})

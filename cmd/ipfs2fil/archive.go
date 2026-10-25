@@ -66,17 +66,27 @@ func isDir(p string) bool {
 // Storage. Commands that talk to Filecoin share these flags.
 
 type storeOpts struct {
-	keyFile string
-	rpc     string
-	network string
+	keyFile  string
+	rpc      string
+	network  string
+	address  string
+	readOnly bool // status and verify need no key, only the paying address
 }
 
 var storeFlags storeOpts
 
 func addStoreFlags(fs *flag.FlagSet) {
+	storeFlags.readOnly = false
 	fs.StringVar(&storeFlags.keyFile, "key-file", "", "file holding the wallet's private key (default $"+foc.EnvKeyFile+", else $"+foc.EnvKey+")")
 	fs.StringVar(&storeFlags.network, "network", "mainnet", "mainnet or calibration")
 	fs.StringVar(&storeFlags.rpc, "rpc", "", "Filecoin RPC URL (default: the public glif endpoint for --network)")
+}
+
+// addReadStoreFlags is addStoreFlags for commands that only read from chain.
+func addReadStoreFlags(fs *flag.FlagSet) {
+	addStoreFlags(fs)
+	storeFlags.readOnly = true
+	fs.StringVar(&storeFlags.address, "address", "", "with no wallet key, the 0x address that paid for the archive (default $"+foc.EnvAddress+")")
 }
 
 // funder is a store that can say what funding a push needs (FOC can).
@@ -104,11 +114,21 @@ var openStore = func(ctx context.Context, o *opts) (store.Store, io.Closer, erro
 			return nil, nil, fmt.Errorf("unknown --network %q; use mainnet or calibration", storeFlags.network)
 		}
 	}
-	key, err := foc.LoadKey(storeFlags.keyFile)
-	if err != nil {
-		return nil, nil, err
+	var cfg foc.Config
+	if storeFlags.readOnly {
+		c, err := foc.ReadConfig(rpc, storeFlags.keyFile, storeFlags.address)
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg = c
+	} else {
+		key, err := foc.LoadKey(storeFlags.keyFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg = foc.Config{RPC: rpc, Key: key}
 	}
-	s, c, err := foc.Open(ctx, foc.Config{RPC: rpc, Key: key})
+	s, c, err := foc.Open(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
