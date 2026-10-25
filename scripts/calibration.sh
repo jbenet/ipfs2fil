@@ -1,7 +1,7 @@
 #!/bin/sh
 # Stores 3 small pieces as 3 copies on Filecoin Calibration through the FOC
 # store, re-runs to check nothing uploads twice, reads status from chain and
-# verifies every piece. Cloud sessions cannot reach glif; run this locally.
+# verifies every piece. Needs network access to the RPC (glif by default).
 #
 # Needs a secp256k1 wallet on Calibration with tFIL for gas and a few USDFC,
 # both from the Calibration faucets.
