@@ -1,0 +1,55 @@
+# Release builds: `git tag vX.Y.Z && git push --tags` runs .github/workflows/release.yml.
+# Local dry run: goreleaser release --snapshot --clean
+version: 2
+project_name: ipfs2fil
+
+builds:
+  - id: ipfs2fil
+    main: ./cmd/ipfs2fil
+    binary: ipfs2fil
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}}"]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    # Every platform kubo ships for; keep in step with the cross job in ci.yml.
+    targets:
+      - darwin_amd64_v1
+      - darwin_arm64
+      - freebsd_386_sse2
+      - freebsd_amd64_v1
+      - freebsd_arm_6
+      - linux_386_sse2
+      - linux_amd64_v1
+      - linux_arm_6
+      - linux_arm64
+      - linux_riscv64
+      - openbsd_386_sse2
+      - openbsd_amd64_v1
+      - openbsd_arm_6
+      - windows_386_sse2
+      - windows_amd64_v1
+      - windows_arm64
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # ipfs2fil_v0.1.0_linux_amd64.tar.gz, the names install.sh asks for.
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [README.md, LICENSE*]
+
+checksum:
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
+
+release:
+  github:
+    owner: jbenet
+    name: ipfs2fil
+  extra_files:
+    - glob: ./install.sh
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^Merge "]
