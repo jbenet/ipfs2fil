@@ -3,8 +3,10 @@ package archive
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	mdag "github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/ipld/unixfs"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 )
@@ -32,6 +34,61 @@ func links(c cid.Cid, data []byte) ([]cid.Cid, error) {
 		return out, err
 	}
 	return nil, nil
+}
+
+// UnixFS node types the explorer cares about.
+const (
+	ufsNone = iota
+	ufsFile
+	ufsDir
+	ufsShard
+)
+
+// ufsInfo is what the explorer index needs from one block.
+type ufsInfo struct {
+	kind  byte
+	size  int64    // file bytes
+	names []string // per link, for directories; "" marks a HAMT sub-shard
+}
+
+// unixfsInfo reads a block's UnixFS type, file size and link names.
+func unixfsInfo(c cid.Cid, data []byte) ufsInfo {
+	if c.Type() == cid.Raw {
+		return ufsInfo{kind: ufsFile, size: int64(len(data))}
+	}
+	if c.Type() != cid.DagProtobuf {
+		return ufsInfo{}
+	}
+	n, err := mdag.DecodeProtobuf(data)
+	if err != nil {
+		return ufsInfo{}
+	}
+	fs, err := unixfs.FSNodeFromBytes(n.Data())
+	if err != nil {
+		return ufsInfo{}
+	}
+	switch fs.Type() {
+	case unixfs.TFile, unixfs.TRaw:
+		return ufsInfo{kind: ufsFile, size: int64(fs.FileSize())}
+	case unixfs.TDirectory, unixfs.THAMTShard:
+		info := ufsInfo{kind: ufsDir}
+		pad := 0
+		if fs.Type() == unixfs.THAMTShard {
+			info.kind = ufsShard
+			if fs.Fanout() < 2 {
+				return ufsInfo{}
+			}
+			pad = len(fmt.Sprintf("%X", fs.Fanout()-1))
+		}
+		for _, l := range n.Links() {
+			if len(l.Name) < pad {
+				return ufsInfo{}
+			}
+			info.names = append(info.names, l.Name[pad:])
+		}
+		return info
+	}
+	return ufsInfo{}
 }
 
 // guess picks a CID for a block known only by multihash (an orphan; repo 12

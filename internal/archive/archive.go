@@ -182,11 +182,16 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 
 	// index/ and explorer/
-	idx, err := l.indexDir(ctx, dag, m, dataPieces)
+	// The archive cannot name its own root or the pieces it sits in, so
+	// index/ and explorer/ see the manifest without them.
+	inner := *m
+	inner.Snapshots = slices.Clone(m.Snapshots)
+	inner.Snapshots[snap].Root = ""
+	idx, err := l.indexDir(ctx, dag, &inner, dataPieces)
 	if err != nil {
 		return nil, err
 	}
-	exp, err := explorerDir(ctx, dag, outDir, m, l, roots)
+	exp, err := explorerDir(ctx, dag, outDir, &inner, l, roots)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +380,7 @@ func (l *layout) dataDir(ctx context.Context, dag memDAG, roots []root) (format.
 
 // indexDir makes index/: the manifest as known from inside the archive, and
 // one block list per data piece.
-func (l *layout) indexDir(ctx context.Context, dag memDAG, m *manifest.Manifest, pieces []span) (format.Node, error) {
+func (l *layout) indexDir(ctx context.Context, dag memDAG, inner *manifest.Manifest, pieces []span) (format.Node, error) {
 	var lists []child
 	for i, p := range pieces {
 		var sb strings.Builder
@@ -393,11 +398,7 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, m *manifest.Manifest,
 	if err != nil {
 		return nil, err
 	}
-	// The archive cannot name its own root or the pieces it sits in.
-	inner := *m
-	inner.Snapshots = slices.Clone(m.Snapshots)
-	inner.Snapshots[len(inner.Snapshots)-1].Root = ""
-	b, err := json.MarshalIndent(&inner, "", "  ")
+	b, err := json.MarshalIndent(inner, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -410,19 +411,14 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, m *manifest.Manifest,
 }
 
 // explorerDir asks the explorer for its pages, in a scratch directory under
-// outDir, and adds them. Until the explorer lands it is an empty directory.
+// outDir, and adds them.
 func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, l *layout, roots []root) (format.Node, error) {
-	var entries []explorer.Entry
-	for i, rt := range roots {
-		r := m.Roots[i]
-		entries = append(entries, explorer.Entry{Name: rt.name, Path: r.Path, CID: r.CID, Kind: "other", Bytes: r.Bytes, Piece: r.FirstPiece})
-	}
 	dir, err := os.MkdirTemp(outDir, ".explorer-*")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(dir)
-	if err := explorer.Write(dir, m, entries); err != nil && !errors.Is(err, explorer.ErrNotImplemented) {
+	if err := explorer.Write(dir, m, l.entries(roots, m)); err != nil {
 		return nil, fmt.Errorf("explorer: %w", err)
 	}
 	return importDir(ctx, dag, dir)

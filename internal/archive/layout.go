@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 
 	"github.com/jbenet/ipfs2fil/internal/car"
+	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -22,6 +24,7 @@ type blk struct {
 	start bool // a root starts here
 	piece int32
 	mark  uint32
+	ufs   ufsInfo
 }
 
 type root struct {
@@ -90,17 +93,28 @@ func (l *layout) place(ctx context.Context, c cid.Cid) (int32, error) {
 	if err != nil {
 		return -1, fmt.Errorf("block %s: %w", c, err)
 	}
+	ufs := unixfsInfo(c, data)
+	if ufs.names != nil && len(ufs.names) != len(ls) {
+		ufs = ufsInfo{}
+	}
 	var kids []int32
-	for _, lc := range ls {
+	var names []string
+	for j, lc := range ls {
 		k, err := l.place(ctx, lc)
 		if err != nil {
 			return -1, err
 		}
 		if k >= 0 {
 			kids = append(kids, k)
+			if ufs.names != nil {
+				names = append(names, ufs.names[j])
+			}
 		}
 	}
-	l.tab[i].kids = kids
+	if ufs.names != nil {
+		ufs.names = names
+	}
+	l.tab[i].kids, l.tab[i].ufs = kids, ufs
 	return i, nil
 }
 
@@ -270,4 +284,62 @@ func (l *layout) cut(opts Options) ([]span, error) {
 		out = append(out, span{start, len(l.tab)})
 	}
 	return out, nil
+}
+
+// entries lists every UnixFS name under each root for the explorer: the root
+// itself, then every file and directory below it, depth first.
+func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
+	var out []explorer.Entry
+	var walk func(i int32, p, name string) int64
+	walk = func(i int32, p, name string) int64 {
+		b := &l.tab[i]
+		at := len(out)
+		isDir := b.ufs.kind == ufsDir || b.ufs.kind == ufsShard
+		out = append(out, explorer.Entry{Name: name, Path: p, CID: b.c.String(), Kind: explorer.KindOf(name, isDir),
+			Bytes: b.ufs.size, Piece: int(b.piece)})
+		if !isDir {
+			if b.ufs.kind == ufsNone {
+				out[at].Bytes = int64(b.size)
+			}
+			return out[at].Bytes
+		}
+		var total int64
+		var kids func(i int32)
+		kids = func(i int32) {
+			d := &l.tab[i]
+			for j, k := range d.kids {
+				if j >= len(d.ufs.names) {
+					break
+				}
+				if n := d.ufs.names[j]; n == "" && d.ufs.kind == ufsShard {
+					kids(k) // a sub-shard: its links are this directory's too
+				} else {
+					total += walk(k, p+"/"+n, n)
+				}
+			}
+		}
+		kids(i)
+		out[at].Bytes = total
+		return total
+	}
+	for n, rt := range roots {
+		i, ok := l.idx[string(rt.c.Hash())]
+		if !ok {
+			continue
+		}
+		p := m.Roots[n].Path
+		name := rt.name
+		if name == "" {
+			name = path.Base(p)
+		}
+		if rt.kind == manifest.KindPinDirect {
+			// a direct pin holds only its own block
+			b := &l.tab[i]
+			out = append(out, explorer.Entry{Name: name, Path: p, CID: rt.c.String(), Kind: explorer.KindOf(name, false),
+				Bytes: int64(b.size), Piece: int(b.piece)})
+			continue
+		}
+		walk(i, p, name)
+	}
+	return out
 }

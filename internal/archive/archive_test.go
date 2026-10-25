@@ -3,6 +3,7 @@ package archive
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -14,11 +15,13 @@ import (
 	"github.com/ipfs/boxo/ipld/unixfs"
 	"github.com/ipfs/boxo/ipld/unixfs/importer/balanced"
 	h "github.com/ipfs/boxo/ipld/unixfs/importer/helpers"
+	uio "github.com/ipfs/boxo/ipld/unixfs/io"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
 
 	"github.com/jbenet/ipfs2fil/internal/car"
+	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -126,7 +129,7 @@ func random(seed int64, n int) []byte {
 }
 
 func testOptions() Options {
-	return Options{MinPiece: 8 << 10, MaxPiece: 24 << 10, CutBits: 2, Orphans: true, Tool: "ipfs2fil test",
+	return Options{MinPiece: 8 << 10, MaxPiece: 320 << 10, CutBits: 2, Orphans: true, Tool: "ipfs2fil test",
 		Now: func() time.Time { return time.Date(2026, 10, 24, 0, 0, 0, 0, time.UTC) }}
 }
 
@@ -390,6 +393,61 @@ func TestMissingAndSharded(t *testing.T) {
 	fs, err := unixfs.FSNodeFromBytes(rec.Data())
 	if err != nil || fs.Type() != unixfs.THAMTShard {
 		t.Fatalf("pins/recursive is %v (%v), want a HAMT shard", fs, err)
+	}
+}
+
+func TestEntries(t *testing.T) {
+	ctx := context.Background()
+	f := newFake()
+	sub := f.dir(t, map[string]format.Node{"a.md": f.file(t, []byte("# hi"), true)})
+	site := f.dir(t, map[string]format.Node{"photo.jpg": f.file(t, random(1, 3000), false), "sub": sub})
+	// a sharded directory, as kubo makes for big folders
+	d, err := uio.NewHAMTDirectory(f.dag(), 0, uio.WithMaxHAMTFanout(8))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 40 {
+		if err := d.AddChild(ctx, fmt.Sprintf("n%02d.txt", i), f.file(t, []byte(fmt.Sprint(i)), true)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	big, err := d.GetNode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Add(ctx, big)
+	f.pins = []repo.Pin{{Root: site.Cid(), Mode: repo.Recursive, Name: "site"}}
+	f.mfs = big.Cid()
+
+	l := newLayout(f)
+	roots, err := l.walkRoots(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.cut(testOptions()); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{}
+	for _, rt := range roots {
+		m.Roots = append(m.Roots, l.rootEntry(rt))
+	}
+	got := map[string]explorer.Entry{}
+	for _, e := range l.entries(roots, m) {
+		got[e.Path] = e
+	}
+	sp := "pins/recursive/" + site.Cid().String()
+	want := map[string]string{sp: "folder", sp + "/photo.jpg": "image", sp + "/sub": "folder", sp + "/sub/a.md": "text",
+		"mfs": "folder", "mfs/n07.txt": "text", "mfs/n39.txt": "text"}
+	for p, k := range want {
+		if got[p].Kind != k {
+			t.Errorf("%s: kind %q, want %q", p, got[p].Kind, k)
+		}
+	}
+	if len(got) != 5+40 {
+		t.Errorf("%d entries, want 45", len(got))
+	}
+	if got[sp].Name != "site" || got[sp+"/photo.jpg"].Bytes != 3000 || got[sp].Bytes != 3004 || got["mfs"].Bytes != 70 {
+		t.Errorf("site %+v, photo %+v, mfs %+v", got[sp], got[sp+"/photo.jpg"], got["mfs"])
 	}
 }
 
