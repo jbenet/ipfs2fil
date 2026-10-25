@@ -44,6 +44,9 @@ type scanResult struct {
 	Copies      int     `json:"copies"`
 	Monthly     float64 `json:"monthlyUSDFC"`
 	OneTime     float64 `json:"oneTimeUSDFC"`
+	// AtMinimum is set when the archive is small enough that each copy pays
+	// the per-data-set floor rather than a per-byte rate.
+	AtMinimum bool `json:"atMinimum"`
 }
 
 func runScan(ctx context.Context, o *opts, _ []string) error {
@@ -106,6 +109,7 @@ func scanRepo(ctx context.Context, o *opts) (*scanResult, error) {
 	s.Pieces = estimatePieces(s.Bytes, archive.DefaultOptions())
 	c := store.Estimate(s.Bytes, s.Pieces, s.Copies)
 	s.Monthly, s.OneTime = c.Monthly, c.OneTime
+	s.AtMinimum = c.Monthly <= store.Estimate(0, 0, s.Copies).Monthly
 	return s, nil
 }
 
@@ -130,6 +134,10 @@ func printScan(o *opts, s *scanResult) {
 	fmt.Fprintf(w, "pieces   about %d\n", s.Pieces)
 	fmt.Fprintf(w, "cost     %s USDFC/month for %d copies, plus about %s USDFC to add the pieces\n",
 		usdfc(s.Monthly), s.Copies, usdfc(s.OneTime))
+	if s.AtMinimum {
+		fmt.Fprintf(w, "         (the minimum: each copy costs at least %s USDFC/month, which covers up to about %s)\n",
+			usdfc(store.Estimate(0, 0, 1).Monthly), humanBytes(minimumCovers()))
+	}
 }
 
 func usdfc(v float64) string {
@@ -137,4 +145,11 @@ func usdfc(v float64) string {
 		return fmt.Sprintf("%.2f", v)
 	}
 	return fmt.Sprintf("%.0f", v)
+}
+
+// minimumCovers is how many bytes one copy stores for the per-data-set floor.
+func minimumCovers() int64 {
+	floor := store.Estimate(0, 0, 1).Monthly
+	perTiB := store.Estimate(1<<40, 0, 1).Monthly
+	return int64(floor / perTiB * (1 << 40))
 }

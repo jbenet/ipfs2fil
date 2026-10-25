@@ -35,7 +35,7 @@ func TestScanJSON(t *testing.T) {
 	if s.RepoVersion != 18 || s.Blocks == 0 || s.Bytes == 0 || s.Pins == 0 || s.MFSRoot == "" {
 		t.Errorf("scan = %+v", s)
 	}
-	if s.Copies != 3 || s.Pieces < 2 || s.Monthly <= 0 || s.OneTime <= 0 {
+	if s.Copies != 3 || s.Pieces < 2 || s.Monthly <= 0 || s.OneTime <= 0 || !s.AtMinimum {
 		t.Errorf("estimate = %+v", s)
 	}
 }
@@ -46,7 +46,7 @@ func TestScanText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"fs-repo 0", "blocks", "pins", "USDFC/month for 2 copies"} {
+	for _, want := range []string{"fs-repo 0", "blocks", "pins", "USDFC/month for 2 copies", "(the minimum: each copy costs at least 0.12 USDFC/month, which covers up to about 49.2 GiB)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("scan output lacks %q:\n%s", want, out)
 		}
