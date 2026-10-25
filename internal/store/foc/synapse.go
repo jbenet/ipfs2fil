@@ -209,17 +209,46 @@ func (b *synapseBackend) Upload(ctx context.Context, ds dataSet, pieceCID string
 	if err != nil {
 		return "", err
 	}
-	res, err := dsc.Upload(ctx, r, &storage.ContextUploadOptions{PieceCID: pc, PieceMetadata: meta})
-	if err != nil {
+	if _, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc}); err != nil {
 		return "", err
 	}
-	if len(res.Copies) == 0 {
-		for _, f := range res.FailedAttempts {
-			err = errors.Join(err, f.Err)
-		}
-		return "", fmt.Errorf("not committed: %w", err)
+	var res *storage.CommitResult
+	err = retryCommit(ctx, commitDelays, func() (submitted bool, err error) {
+		res, err = dsc.Commit(ctx, storage.CommitRequest{
+			Pieces:      []storage.PieceInput{{PieceCID: pc, PieceMetadata: meta}},
+			OnSubmitted: func(storage.CommitSubmission) { submitted = true },
+		})
+		return submitted, err
+	})
+	if err != nil {
+		return "", fmt.Errorf("adding the piece to data set %s: %w", ds.ID, err)
 	}
-	return res.Copies[0].PieceID.String(), nil
+	if len(res.PieceIDs) == 0 {
+		return "", fmt.Errorf("adding the piece to data set %s: the provider returned no piece id", ds.ID)
+	}
+	return res.PieceIDs[0].String(), nil
+}
+
+// commitDelays are the waits between attempts to add a just-stored piece. A
+// provider can reject the add for a minute after the upload, with "subPiece
+// CID ... not found", until it has indexed the piece.
+var commitDelays = []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second}
+
+// retryCommit calls commit until it succeeds, retrying only while the
+// provider has not yet seen the piece. A commit that reached the chain is
+// never sent again.
+func retryCommit(ctx context.Context, delays []time.Duration, commit func() (submitted bool, err error)) error {
+	for i := 0; ; i++ {
+		submitted, err := commit()
+		if err == nil || submitted || i == len(delays) || !strings.Contains(err.Error(), "not found") {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(err, ctx.Err())
+		case <-time.After(delays[i]):
+		}
+	}
 }
 
 func (b *synapseBackend) Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error) {
@@ -377,18 +406,42 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 		f.Monthly, f.Fees = prep.Costs.RatePerMonth, prep.Costs.Fees.Total
 	}
 	if t := prep.Transaction; t != nil {
-		f.Deposit, f.Approve = t.DepositAmount, t.IncludesApproval
-		f.apply = func(ctx context.Context) error {
-			_, err := t.Execute(ctx, payments.WithWait(10*time.Minute))
-			return err
-		}
 		wallet, err := b.c.Payments().WalletBalance(ctx, b.c.ResolvedAddresses().USDFC, b.c.Address())
 		if err != nil {
 			return nil, fmt.Errorf("reading the wallet's USDFC: %w", err)
 		}
-		f.Wallet = wallet
+		f.Deposit, f.Approve, f.Wallet = t.DepositAmount, t.IncludesApproval, wallet
+		f.apply = func(ctx context.Context) error {
+			_, err := t.Execute(ctx, payments.WithWait(10*time.Minute))
+			return err
+		}
+		if d := topUp(t.DepositAmount, wallet); d.Cmp(t.DepositAmount) != 0 {
+			opts := []payments.WriteOption{payments.WithWait(10 * time.Minute), payments.WithFundNeedsFwssApproval(t.IncludesApproval)}
+			if t.IncludesApproval && prep.Costs != nil && prep.Costs.RequiredLockupPeriod != nil {
+				opts = append(opts, payments.WithFundApprovalLockupPeriod(prep.Costs.RequiredLockupPeriod))
+			}
+			f.Deposit = d
+			f.apply = func(ctx context.Context) error {
+				_, err := b.c.Payments().FundSync(ctx, d, opts...)
+				return err
+			}
+		}
 	}
 	return f, nil
+}
+
+// minDeposit is the smallest deposit sent. The account drains every epoch, so
+// a deposit sized to the exact shortfall leaves the next push short by a few
+// epochs and sends another transaction for a fraction of a cent.
+var minDeposit = big.NewInt(1e16) // 0.01 USDFC
+
+// topUp is the deposit to send for a shortfall of need: at least minDeposit
+// when the wallet holds it.
+func topUp(need, wallet *big.Int) *big.Int {
+	if need.Sign() <= 0 || need.Cmp(minDeposit) >= 0 || wallet == nil || wallet.Cmp(minDeposit) < 0 {
+		return need
+	}
+	return new(big.Int).Set(minDeposit)
 }
 
 func (b *synapseBackend) Runway(ctx context.Context) (int, *big.Int, error) {
