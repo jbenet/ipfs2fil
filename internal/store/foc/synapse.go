@@ -13,6 +13,8 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ipfs/go-cid"
 	synapse "github.com/strahe/synapse-go"
@@ -31,11 +33,32 @@ const (
 type Config struct {
 	RPC string // e.g. CalibrationRPC; the network is read from it
 	Key *ecdsa.PrivateKey
+	// Address opens the store read-only for this wallet (0x...) when Key is
+	// nil: Status, Has and Fetch work, and anything that writes fails.
+	Address string
 }
 
-// Open connects to FOC as the wallet in cfg.Key. Close the store when done.
+var errReadOnly = errors.New("this needs the wallet key; the store was opened with an address only")
+
+// Open connects to FOC as the wallet in cfg.Key, or read-only as cfg.Address.
+// Close the store when done.
 func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
-	if cfg.Key == nil {
+	key, payer := cfg.Key, common.Address{}
+	switch {
+	case key != nil:
+		payer = crypto.PubkeyToAddress(key.PublicKey)
+	case cfg.Address != "":
+		if !common.IsHexAddress(cfg.Address) {
+			return nil, nil, fmt.Errorf("wallet address %q is not a 0x address", cfg.Address)
+		}
+		payer = common.HexToAddress(cfg.Address)
+		// synapse-go needs a signer even for reads; this one never signs
+		// anything that reaches the chain.
+		var err error
+		if key, err = crypto.GenerateKey(); err != nil {
+			return nil, nil, err
+		}
+	default:
 		return nil, nil, errNoKey
 	}
 	ec, err := ethclient.DialContext(ctx, cfg.RPC)
@@ -43,7 +66,7 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 		return nil, nil, fmt.Errorf("connecting to %s: %w", cfg.RPC, err)
 	}
 	c, err := synapse.New(ctx,
-		synapse.WithPrivateKey(cfg.Key),
+		synapse.WithPrivateKey(key),
 		synapse.WithEthClient(ec),
 		synapse.WithSource("ipfs2fil"),
 	)
@@ -55,7 +78,7 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 	if err != nil {
 		panic(err)
 	}
-	b := &synapseBackend{c: c, ec: ec, pdp: pdp, dsc: map[string]*storage.DataSetContext{}}
+	b := &synapseBackend{c: c, ec: ec, pdp: pdp, payer: payer, readOnly: cfg.Key == nil, dsc: map[string]*storage.DataSetContext{}}
 	return newStore(b), b, nil
 }
 
@@ -64,9 +87,11 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 const uploadRunway = chain.EpochsPerDay
 
 type synapseBackend struct {
-	c   *synapse.Client
-	ec  *ethclient.Client
-	pdp abi.ABI
+	c        *synapse.Client
+	ec       *ethclient.Client
+	pdp      abi.ABI
+	payer    common.Address
+	readOnly bool
 
 	mu  sync.Mutex
 	dsc map[string]*storage.DataSetContext
@@ -83,7 +108,7 @@ func (b *synapseBackend) Close() error {
 }
 
 func (b *synapseBackend) DataSets(ctx context.Context) ([]dataSet, error) {
-	all, err := b.c.Storage().FindDataSets(ctx, &storage.FindDataSetsOptions{OnlyManaged: true})
+	all, err := b.c.Storage().FindDataSets(ctx, &storage.FindDataSetsOptions{Payer: b.payer, OnlyManaged: true})
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +123,9 @@ func (b *synapseBackend) DataSets(ctx context.Context) ([]dataSet, error) {
 }
 
 func (b *synapseBackend) Providers(ctx context.Context, n int, exclude []string, meta map[string]string) ([]string, error) {
+	if b.readOnly {
+		return nil, errReadOnly
+	}
 	ex, err := bigInts(exclude)
 	if err != nil {
 		return nil, err
@@ -129,6 +157,9 @@ func (b *synapseBackend) providerContext(ctx context.Context, provider string, m
 }
 
 func (b *synapseBackend) Create(ctx context.Context, provider string, meta map[string]string) (dataSet, error) {
+	if b.readOnly {
+		return dataSet{}, errReadOnly
+	}
 	pc, err := b.providerContext(ctx, provider, meta)
 	if err != nil {
 		return dataSet{}, err
@@ -167,6 +198,9 @@ func (b *synapseBackend) dataSetContext(ctx context.Context, id string) (*storag
 }
 
 func (b *synapseBackend) Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (string, error) {
+	if b.readOnly {
+		return "", errReadOnly
+	}
 	pc, err := cid.Decode(pieceCID)
 	if err != nil {
 		return "", fmt.Errorf("bad PieceCID: %w", err)
@@ -192,6 +226,19 @@ func (b *synapseBackend) Download(ctx context.Context, ds dataSet, pieceCID stri
 	pc, err := cid.Decode(pieceCID)
 	if err != nil {
 		return nil, fmt.Errorf("bad PieceCID: %w", err)
+	}
+	if b.readOnly {
+		// Data set downloads check that the client owns the data set, so
+		// read-only fetches go straight to the provider.
+		prov, err := types.ParseBigInt(ds.Provider)
+		if err != nil {
+			return nil, err
+		}
+		pc2, err := b.c.Storage().NewProviderContext(ctx, prov, storage.NewProviderContextOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return b.c.Storage().Download(ctx, pc, &storage.DownloadOptions{URL: pc2.PieceURL(pc)})
 	}
 	id, err := types.ParseBigInt(ds.ID)
 	if err != nil {
@@ -269,6 +316,9 @@ func (b *synapseBackend) Proofs(ctx context.Context, dataSetID string) (int64, t
 }
 
 func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta map[string]string, sizes []int64) (*Funding, error) {
+	if b.readOnly {
+		return nil, errReadOnly
+	}
 	f := &Funding{Deposit: new(big.Int), Monthly: new(big.Int), Fees: new(big.Int)}
 	if len(sizes) == 0 {
 		return f, nil
@@ -322,7 +372,7 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 }
 
 func (b *synapseBackend) RunwayDays(ctx context.Context) (int, error) {
-	s, err := b.c.Payments().AccountSummary(ctx, b.c.Address())
+	s, err := b.c.Payments().AccountSummary(ctx, b.payer)
 	if err != nil {
 		return 0, err
 	}

@@ -17,7 +17,27 @@ import (
 const (
 	EnvKey     = "IPFS2FIL_PRIVATE_KEY" // hex secp256k1 key, with or without 0x
 	EnvKeyFile = "IPFS2FIL_KEY_FILE"    // a file holding the same, or a Lotus key export
+	EnvAddress = "IPFS2FIL_ADDRESS"     // 0x wallet address, for read-only use without a key
 )
+
+// ReadConfig is the Config for commands that only read (status, verify):
+// the wallet key if one is set, else address, else $IPFS2FIL_ADDRESS.
+func ReadConfig(rpc, keyFile, address string) (Config, error) {
+	key, err := LoadKey(keyFile)
+	if err == nil {
+		return Config{RPC: rpc, Key: key}, nil
+	}
+	if err != errNoKey {
+		return Config{}, err
+	}
+	if address == "" {
+		address = os.Getenv(EnvAddress)
+	}
+	if address == "" {
+		return Config{}, errors.New("no wallet: set --address or " + EnvAddress + " to the 0x address that paid for the archive, or give a wallet key")
+	}
+	return Config{RPC: rpc, Address: address}, nil
+}
 
 var errNoKey = errors.New("no wallet key: set " + EnvKey + " to a hex private key, or " +
 	EnvKeyFile + " (or --key-file) to a file holding one; the wallet pays for storage")
