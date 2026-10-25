@@ -18,12 +18,13 @@ func init() {
 Reads the archive's data sets from chain: which providers hold a copy, how
 many pieces each has, when each last proved it still holds them, and how many
 days the Filecoin Pay deposit lasts at today's rate. It reports only what the
-chain says. With --json, prints one JSON object.`,
+chain says. No wallet key needed: --address (or $IPFS2FIL_ADDRESS) is enough.
+With --json, prints one JSON object.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			jsonFlag(fs, o)
-			addStoreFlags(fs)
+			addReadStoreFlags(fs)
 		},
 		run: runStatus,
 	})
