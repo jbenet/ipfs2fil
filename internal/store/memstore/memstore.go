@@ -137,7 +137,7 @@ func (s *Store) Status(_ context.Context, archive string) (store.Status, error) 
 	var st store.Status
 	for _, d := range s.sets {
 		if d.Metadata["ipfs2fil"] == archive {
-			st.DataSets = append(st.DataSets, store.DataSetStatus{DataSet: d, Pieces: len(s.pieces[d.ID]), LastProven: "never"})
+			st.DataSets = append(st.DataSets, store.DataSetStatus{DataSet: d, Pieces: len(s.pieces[d.ID]), LastProven: "not yet"})
 		}
 	}
 	st.FundedDays = -1

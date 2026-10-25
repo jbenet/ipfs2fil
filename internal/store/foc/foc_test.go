@@ -266,7 +266,7 @@ func TestStatusAndFetch(t *testing.T) {
 	if got := st.DataSets[0].URL; !strings.HasPrefix(got, "https://sp") {
 		t.Errorf("URL %q", got)
 	}
-	if got := st.DataSets[1].LastProven; got != "never" {
+	if got := st.DataSets[1].LastProven; got != "not yet" {
 		t.Errorf("last proven %q", got)
 	}
 	r, err := newStore(f).Fetch(context.Background(), sets[1], "p2")
