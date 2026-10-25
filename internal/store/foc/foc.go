@@ -210,7 +210,7 @@ func (s *Store) Plan(ctx context.Context, archive string, copies int, pieces map
 			return nil, fmt.Errorf("choosing %d storage providers: %w", n, err)
 		}
 		if len(fresh) < n {
-			return nil, fmt.Errorf("asked for %d copies but only %d providers are available; try --copies %d",
+			return nil, fmt.Errorf("asked for %d copies but only %d storage providers are available; use --copies %d or fewer",
 				copies, len(have)+len(fresh), len(have)+len(fresh))
 		}
 	}
@@ -292,7 +292,7 @@ func (s *Store) DataSets(ctx context.Context, archive string, copies int) ([]sto
 	slices.SortFunc(made, func(a, b dataSet) int { return cmpID(a.ID, b.ID) })
 	have = append(have, made...)
 	if len(have) < copies {
-		return nil, fmt.Errorf("asked for %d copies but only %d providers are available; try --copies %d",
+		return nil, fmt.Errorf("asked for %d copies but only %d storage providers are available; use --copies %d or fewer",
 			copies, len(have), len(have))
 	}
 	out := make([]store.DataSet, len(have))

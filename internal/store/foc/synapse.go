@@ -139,6 +139,11 @@ func (b *synapseBackend) Providers(ctx context.Context, n int, exclude []string,
 		AllowUnendorsedPrimary: len(exclude) > 0,
 	})
 	if err != nil && !errors.Is(err, storage.ErrInsufficientUploadContexts) {
+		// Every eligible provider is excluded (already holds a copy):
+		// report none left, so callers can say how many copies fit.
+		if strings.Contains(err.Error(), "no eligible providers") || strings.Contains(err.Error(), "no remaining providers") {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var out []string
