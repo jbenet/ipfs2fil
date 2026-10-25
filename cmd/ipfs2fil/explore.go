@@ -33,6 +33,7 @@ gateway once the archive is stored.
 --serve serves the archive directory on --addr so you can browse it before (or
 after) pushing. --demo writes a made-up archive and serves it.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
+			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			fs.StringVar(&o.out, "archive", o.out, "same as --out")
 			fs.BoolVar(&exploreFlags.serve, "serve", false, "serve the archive and its explorer on --addr")
@@ -67,7 +68,12 @@ func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 		fmt.Fprintf(o.stdout, "wrote a demo archive explorer to %s (%d entries)\n", dir, len(entries))
 		e.serve = true
 	} else {
-		m, err := manifest.Read(filepath.Join(dir, "index", "manifest.json"))
+		// The full manifest pack and push keep in dir has the copies; an
+		// archive fetched from IPFS has only index/manifest.json.
+		m, err := manifest.Read(manifestPath(dir))
+		if errors.Is(err, os.ErrNotExist) {
+			m, err = manifest.Read(filepath.Join(dir, "index", "manifest.json"))
+		}
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("no archive in %s; run 'ipfs2fil pack' first, or pass --out with the directory pack wrote", dir)
 		}
@@ -77,7 +83,7 @@ func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 		if err := explorer.WriteManifest(filepath.Join(dir, "explorer"), m); err != nil {
 			return err
 		}
-		fmt.Fprintf(o.stdout, "explorer in %s is up to date with index/manifest.json\n", filepath.Join(dir, "explorer"))
+		fmt.Fprintf(o.stdout, "explorer in %s is up to date\n", filepath.Join(dir, "explorer"))
 	}
 	if !e.serve {
 		return nil

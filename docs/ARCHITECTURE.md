@@ -3,7 +3,7 @@
 One Go binary, no cgo, built for every platform kubo ships for (see CI).
 
 ```
-cmd/ipfs2fil        CLI: scan, pack, push, status, explore, verify
+cmd/ipfs2fil        CLI: scan, pack, push, up, status, explore, verify
 internal/repo       read fs-repo 0..18, read-only -> blocks by multihash, pins, MFS root
 internal/archive    link roots, lay out blocks, cut pieces, write CARs + index/
 internal/car        CARv1 writing and PieceCID (v2)

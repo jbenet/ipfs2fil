@@ -51,6 +51,17 @@ func (p *progress) Add(n int64) {
 	}
 }
 
+// Set records done units out of total, for callers that report running totals.
+func (p *progress) Set(done, total int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.done, p.total = done, total
+	if t := p.now(); t.Sub(p.last) >= p.interval {
+		p.last = t
+		p.draw(false)
+	}
+}
+
 // Done draws the final line.
 func (p *progress) Done() {
 	p.mu.Lock()
@@ -155,3 +166,6 @@ func confirm(o *opts, in io.Reader, question string) (bool, error) {
 	ans = strings.ToLower(strings.TrimSpace(ans))
 	return ans == "y" || ans == "yes", nil
 }
+
+// stdin is where confirm reads answers. Tests replace it.
+var stdin io.Reader = os.Stdin

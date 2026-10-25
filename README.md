@@ -9,8 +9,7 @@ archive carries its own index and an HTML explorer, so any IPFS gateway can
 serve the files and show what is where.
 
     ipfs2fil scan              # what would be archived, and what it costs
-    ipfs2fil pack              # build the archive and its pieces on disk
-    ipfs2fil push              # upload what is not stored yet
+    ipfs2fil up                # pack and push in one go, after confirming the cost
     ipfs2fil status            # copies, funding, proofs
     ipfs2fil explore --serve   # browse the archive locally
     ipfs2fil explore --demo    # preview the explorer on a made-up archive
@@ -33,5 +32,44 @@ or `go install github.com/jbenet/ipfs2fil/cmd/ipfs2fil@latest`, or download a
 binary for your platform from [releases](https://github.com/jbenet/ipfs2fil/releases).
 Each release lists SHA-256 checksums and signed build provenance
 (`gh attestation verify <file> --repo jbenet/ipfs2fil`).
+
+## Quickstart (5 minutes)
+
+You need a kubo or go-ipfs repo (the daemon can keep running) and a Filecoin
+wallet holding some FIL for gas and USDFC to pay for storage.
+
+1. See what you have and what it costs. Nothing is written.
+
+       ipfs2fil scan
+
+   It reads `$IPFS_PATH`, else `~/.ipfs`; pass `--repo <path>` for another repo.
+
+2. Give it your wallet key. The key is never printed or written anywhere.
+
+       export IPFS2FIL_KEY_FILE=~/secrets/filecoin.key    # or IPFS2FIL_PRIVATE_KEY=<hex>
+
+3. Archive. This packs the repo into `./ipfs2fil-archive`, shows the monthly
+   cost and any deposit to make into Filecoin Pay, and uploads 3 copies once
+   you say yes.
+
+       ipfs2fil up
+
+   Ctrl-C is safe: run `ipfs2fil up` again and it carries on. Run it again
+   after the repo changes and only the changed pieces upload.
+
+4. Check on it, and browse it.
+
+       ipfs2fil status            # providers, pieces, last proof, days funded
+       ipfs2fil verify            # fetch every piece back and check every block
+       ipfs2fil explore --serve   # http://127.0.0.1:8484/explorer/
+
+   Once stored, the archive root printed by `up` opens from any gateway,
+   e.g. `https://dweb.link/ipfs/<root>/explorer/`.
+
+The steps of `up` also run on their own: `ipfs2fil pack`, then `ipfs2fil push`.
+Try it free on the Calibration testnet with `--network calibration`. Every
+command explains itself: `ipfs2fil help <command>`.
+
+## Releases
 
 To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
