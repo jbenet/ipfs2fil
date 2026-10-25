@@ -173,6 +173,10 @@ func confirm(o *opts, in io.Reader, question string) (bool, error) {
 	fmt.Fprintf(o.stderr, "%s [y/N] ", question)
 	ans, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && ans == "" {
+		if err == io.EOF { // e.g. stdin is /dev/null, which still looks like a terminal
+			fmt.Fprintln(o.stderr)
+			return false, fmt.Errorf("%s needs a yes; pass --yes to run without asking", question)
+		}
 		return false, err
 	}
 	ans = strings.ToLower(strings.TrimSpace(ans))
