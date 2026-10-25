@@ -11,9 +11,11 @@ import (
 // DataSet is one provider's set of pieces for one archive. One data set per
 // copy; the default is 3 copies on 3 providers.
 type DataSet struct {
-	Provider string
+	Provider string // provider id
 	ID       string
 	Metadata map[string]string // includes withIPFSIndexing so providers announce blocks to IPNI
+	// URL is where the provider serves this data set's pieces, if known.
+	URL string
 }
 
 type PieceRef struct {
@@ -34,14 +36,22 @@ type DataSetStatus struct {
 	LastProven string // as the chain reports it; the store never claims proofs it did not read
 }
 
+// Store methods take an archive key: the root of the archive's first snapshot,
+// manifest.Snapshots[0].Root. The archive root itself changes with every
+// snapshot, but the key does not, so re-runs find the same data sets.
 type Store interface {
-	// DataSets finds or creates the archive's data sets, one per copy.
-	DataSets(ctx context.Context, archiveRoot string, copies int) ([]DataSet, error)
+	// DataSets finds or creates the archive's data sets, one per copy, each on
+	// a different provider. Existing data sets come first, in a stable order.
+	DataSets(ctx context.Context, archive string, copies int) ([]DataSet, error)
 	// Has reports whether ds already holds a piece with this PieceCID, so re-runs skip it.
 	Has(ctx context.Context, ds DataSet, pieceCID string) (bool, error)
 	// Upload stores one piece in ds. meta carries ipfsRootCID.
 	Upload(ctx context.Context, ds DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (PieceRef, error)
-	Status(ctx context.Context, archiveRoot string) (Status, error)
+	// Fetch reads a piece back from ds's provider. The reader returns an error
+	// at EOF if the bytes do not hash to pieceCID.
+	Fetch(ctx context.Context, ds DataSet, pieceCID string) (io.ReadCloser, error)
+	// Status reads the archive's data sets, proofs and funding from chain.
+	Status(ctx context.Context, archive string) (Status, error)
 }
 
 // Cost is a USDFC estimate.
