@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 
 // fake is an in-memory FOC: providers 1..n, data sets with ids from 100.
 type fake struct {
+	mu        sync.Mutex // Create runs concurrently
 	providers []string
 	sets      []dataSet
 	pieces    map[string]map[string]string // data set -> PieceCID -> piece id
@@ -54,6 +56,8 @@ func (f *fake) Providers(_ context.Context, n int, exclude []string, _ map[strin
 }
 
 func (f *fake) Create(_ context.Context, p string, meta map[string]string) (dataSet, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	d := dataSet{ID: strconv.Itoa(f.nextID), Provider: p, Metadata: meta}
 	f.nextID++
 	f.sets = append(f.sets, d)
@@ -204,10 +208,13 @@ func TestPlanUsesChosenProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []string{"1", "2", "3"} {
-		if sets[i].Provider != want {
-			t.Errorf("copy %d on provider %s, want the planned %s", i, sets[i].Provider, want)
-		}
+	var got []string
+	for _, d := range sets {
+		got = append(got, d.Provider)
+	}
+	slices.Sort(got)
+	if fmt.Sprint(got) != "[1 2 3]" {
+		t.Errorf("copies on providers %v, want the planned [1 2 3]", got)
 	}
 	fd, err = s.Plan(ctx, "bafyA", 3, []int64{1000})
 	if err != nil || !fd.Ready() {
