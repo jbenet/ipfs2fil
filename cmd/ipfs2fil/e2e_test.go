@@ -122,8 +122,12 @@ func TestPushAsksFirst(t *testing.T) {
 		t.Errorf("push answered no: %v, %d uploads\n%s", err, ms.Uploads(), stderr)
 	}
 	stdin = strings.NewReader("y\n")
-	if _, _, err := ipfs2fil(t, "push", "--out", out); err != nil || ms.Uploads() == 0 {
+	_, stderr, err = ipfs2fil(t, "push", "--out", out)
+	if err != nil || ms.Uploads() == 0 {
 		t.Errorf("push answered yes: %v, %d uploads", err, ms.Uploads())
+	}
+	if n := strings.Count(stderr, " stored\n"); n != ms.Uploads() {
+		t.Errorf("push logged %d stored pieces for %d uploads:\n%s", n, ms.Uploads(), stderr)
 	}
 }
 

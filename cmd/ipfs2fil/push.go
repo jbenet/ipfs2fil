@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -73,14 +74,28 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		return err
 	}
 
-	bar := newProgress(o.stderr, "uploading", total*int64(o.copies), true)
+	// Before the first piece event, Push finds or creates a data set per
+	// copy; on chain that takes minutes, so say so instead of a frozen bar.
+	_, onChain := s.(funder)
+	if onChain {
+		fmt.Fprintf(o.stderr, "setting up %d data sets with the providers (a few minutes on chain)...\n", o.copies)
+	}
+	start := time.Now()
+	var bar *progress
 	var mu sync.Mutex
 	seen := map[[2]int]int64{} // (copy, piece) -> bytes counted
+	final := map[[2]int]bool{} // (copy, piece) -> stored or skipped
 	var sent, skipped int
 	failed := map[int]bool{}
 	err = store.Push(ctx, s, m, pieces, o.copies, saveManifest(o.out), func(ev store.PushEvent) {
 		mu.Lock()
 		defer mu.Unlock()
+		if bar == nil {
+			if onChain {
+				fmt.Fprintf(o.stderr, "data sets ready in %s\n", roundDur(time.Since(start)))
+			}
+			bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
+		}
 		k := [2]int{ev.Copy, ev.Piece}
 		done := ev.Done
 		if ev.Skipped {
@@ -90,15 +105,26 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 			seen[k] = done
 			bar.Add(d)
 		}
+		if final[k] {
+			return
+		}
 		switch {
 		case ev.Err != nil:
 			failed[ev.Copy] = true
+			final[k] = true
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d failed: %v", ev.Copy+1, ev.Provider, ev.Piece, ev.Err))
 		case ev.Skipped:
 			skipped++
+			final[k] = true
 		case ev.Done == ev.Total:
 			sent++
+			final[k] = true
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d stored", ev.Copy+1, ev.Provider, ev.Piece))
 		}
 	})
+	if bar == nil {
+		bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
+	}
 	bar.Done()
 	fmt.Fprintf(o.stdout, "uploaded %d pieces, %d were already stored", sent, skipped)
 	if len(failed) > 0 {
@@ -165,8 +191,10 @@ func approveCost(ctx context.Context, o *opts, s store.Store, key string, sizes 
 		return ok, err
 	}
 	fmt.Fprintln(o.stderr, "sending the deposit and waiting for it to land...")
+	start := time.Now()
 	if err := fund.Apply(ctx); err != nil {
 		return false, err
 	}
+	fmt.Fprintf(o.stderr, "deposit landed in %s\n", roundDur(time.Since(start)))
 	return true, nil
 }
