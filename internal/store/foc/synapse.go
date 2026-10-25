@@ -59,6 +59,10 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 	return newStore(b), b, nil
 }
 
+// uploadRunway is the payment time a deposit adds beyond the lockup, so the
+// account stays funded while a push runs.
+const uploadRunway = chain.EpochsPerDay
+
 type synapseBackend struct {
 	c   *synapse.Client
 	ec  *ethclient.Client
@@ -288,7 +292,14 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 	for i, s := range sizes {
 		us[i] = uint64(s)
 	}
-	prep, err := b.c.Storage().Prepare(ctx, &storage.PrepareOptions{PieceSizes: us, Contexts: contexts})
+	// Without extra runway the deposit covers the lockup exactly, and the rail
+	// starts paying out when the first data set is created. Pieces added a few
+	// minutes later then fail with "insufficient funds to cover lockup".
+	prep, err := b.c.Storage().Prepare(ctx, &storage.PrepareOptions{
+		PieceSizes:        us,
+		Contexts:          contexts,
+		ExtraRunwayEpochs: uploadRunway,
+	})
 	if err != nil {
 		return nil, err
 	}
