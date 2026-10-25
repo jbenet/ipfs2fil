@@ -31,10 +31,19 @@ With --json, prints one JSON object.`,
 }
 
 type statusResult struct {
-	Archive    string                `json:"archive"`
-	Pieces     int                   `json:"pieces"`
-	DataSets   []store.DataSetStatus `json:"dataSets"`
-	FundedDays int                   `json:"fundedDays"` // -1 if the store cannot say
+	Archive    string          `json:"archive"`
+	Pieces     int             `json:"pieces"`
+	DataSets   []dataSetResult `json:"dataSets"`
+	FundedDays int             `json:"fundedDays"` // -1 if the store cannot say
+}
+
+type dataSetResult struct {
+	Provider   string            `json:"provider"`
+	ID         string            `json:"id"`
+	URL        string            `json:"url,omitempty"`
+	Pieces     int               `json:"pieces"`
+	LastProven string            `json:"lastProven"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 func runStatus(ctx context.Context, o *opts, _ []string) error {
@@ -56,9 +65,10 @@ func runStatus(ctx context.Context, o *opts, _ []string) error {
 	if err != nil {
 		return err
 	}
-	res := statusResult{Archive: m.Root, Pieces: len(m.Pieces), DataSets: st.DataSets, FundedDays: st.FundedDays}
-	if res.DataSets == nil {
-		res.DataSets = []store.DataSetStatus{}
+	res := statusResult{Archive: m.Root, Pieces: len(m.Pieces), DataSets: []dataSetResult{}, FundedDays: st.FundedDays}
+	for _, d := range st.DataSets {
+		res.DataSets = append(res.DataSets, dataSetResult{Provider: d.Provider, ID: d.ID, URL: d.URL,
+			Pieces: d.Pieces, LastProven: d.LastProven, Metadata: d.Metadata})
 	}
 	if o.json {
 		e := json.NewEncoder(o.stdout)
