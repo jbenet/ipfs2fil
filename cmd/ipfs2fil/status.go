@@ -35,6 +35,10 @@ type statusResult struct {
 	Pieces     int             `json:"pieces"`
 	DataSets   []dataSetResult `json:"dataSets"`
 	FundedDays int             `json:"fundedDays"` // -1 if the store cannot say
+	// Reserve and ReserveDataSets are account-wide: the USDFC the account's
+	// live data sets hold back, which comes back when they end.
+	Reserve         string `json:"reserve,omitempty"`
+	ReserveDataSets int    `json:"reserveDataSets,omitempty"`
 }
 
 type dataSetResult struct {
@@ -65,7 +69,8 @@ func runStatus(ctx context.Context, o *opts, _ []string) error {
 	if err != nil {
 		return err
 	}
-	res := statusResult{Archive: m.Root, Pieces: len(m.Pieces), DataSets: []dataSetResult{}, FundedDays: st.FundedDays}
+	res := statusResult{Archive: m.Root, Pieces: len(m.Pieces), DataSets: []dataSetResult{}, FundedDays: st.FundedDays,
+		Reserve: st.Reserve, ReserveDataSets: st.ReserveDataSets}
 	for _, d := range st.DataSets {
 		res.DataSets = append(res.DataSets, dataSetResult{Provider: d.Provider, ID: d.ID, URL: d.URL,
 			Pieces: d.Pieces, LastProven: d.LastProven, Metadata: d.Metadata})
@@ -89,12 +94,16 @@ func runStatus(ctx context.Context, o *opts, _ []string) error {
 		}
 		fmt.Fprintf(w, "  %d. provider %s, data set %s: %d pieces, last proven %s%s\n", i+1, d.Provider, d.ID, d.Pieces, d.LastProven, note)
 	}
+	reserve := ""
+	if st.Reserve != "" {
+		reserve = fmt.Sprintf(" (plus %s USDFC reserved by %d data sets)", st.Reserve, st.ReserveDataSets)
+	}
 	switch {
 	case st.FundedDays < 0:
 	case st.FundedDays < 30:
-		fmt.Fprintf(w, "funded   %d days; top up the Filecoin Pay deposit soon or providers stop storing\n", st.FundedDays)
+		fmt.Fprintf(w, "funded   %d days%s; top up the Filecoin Pay deposit soon or providers stop storing\n", st.FundedDays, reserve)
 	default:
-		fmt.Fprintf(w, "funded   %d days\n", st.FundedDays)
+		fmt.Fprintf(w, "funded   %d days%s\n", st.FundedDays, reserve)
 	}
 	return nil
 }

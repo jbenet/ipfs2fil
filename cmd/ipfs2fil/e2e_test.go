@@ -26,6 +26,18 @@ func useMemStore(t *testing.T, providers int) *memstore.Store {
 	return ms
 }
 
+// fundedStore reports funding the way the Filecoin store does.
+type fundedStore struct{ store.Store }
+
+func (f fundedStore) Status(ctx context.Context, key string) (store.Status, error) {
+	st, err := f.Store.Status(ctx, key)
+	if err != nil {
+		return st, err
+	}
+	st.FundedDays, st.Reserve, st.ReserveDataSets = 40, "3", 6
+	return st, nil
+}
+
 // TestEndToEnd: fixture repo -> pack -> push to a fake store -> re-run uploads
 // nothing -> explorer written; then status and verify read it back.
 func TestEndToEnd(t *testing.T) {
@@ -98,6 +110,20 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil || !strings.Contains(stdout, `"dataSets": [`) || !strings.Contains(stdout, `"provider": `) || strings.Contains(stdout, `"Provider"`) {
 		t.Errorf("status --json: %v\n%s", err, stdout)
 	}
+	// A store that knows its funding shows the account's reserve too.
+	openStore = func(context.Context, *opts) (store.Store, io.Closer, error) {
+		return fundedStore{ms}, io.NopCloser(nil), nil
+	}
+	stdout, _, err = ipfs2fil(t, "status", "--out", out)
+	if err != nil || !strings.Contains(stdout, "funded   40 days (plus 3 USDFC reserved by 6 data sets)") {
+		t.Errorf("status with a reserve: %v\n%s", err, stdout)
+	}
+	stdout, _, err = ipfs2fil(t, "status", "--out", out, "--json")
+	if err != nil || !strings.Contains(stdout, `"reserve": "3"`) || !strings.Contains(stdout, `"reserveDataSets": 6`) {
+		t.Errorf("status --json with a reserve: %v\n%s", err, stdout)
+	}
+	openStore = func(context.Context, *opts) (store.Store, io.Closer, error) { return ms, io.NopCloser(nil), nil }
+
 	stdout, _, err = ipfs2fil(t, "verify", "--out", out)
 	if err != nil || !strings.Contains(stdout, " 0 bad") {
 		t.Errorf("verify: %v\n%s", err, stdout)
