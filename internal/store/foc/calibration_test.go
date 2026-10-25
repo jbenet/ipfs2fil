@@ -150,7 +150,7 @@ func TestCalibration(t *testing.T) {
 
 	save := func(*manifest.Manifest) error { return nil }
 	log := func(e store.PushEvent) {
-		if e.Done == e.Total || e.Err != nil {
+		if e.Final {
 			t.Logf("copy %d provider %s piece %d: skipped=%v err=%v", e.Copy, e.Provider, e.Piece, e.Skipped, e.Err)
 		}
 	}

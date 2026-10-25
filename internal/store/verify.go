@@ -14,13 +14,14 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
-// VerifyEvent reports progress fetching one piece from one copy. A final event
-// has Done == Total or Err.
+// VerifyEvent reports progress fetching one piece from one copy. The Final
+// event says the piece checked out, or Err says why not.
 type VerifyEvent struct {
 	Copy        int // index into m.Copies
 	Provider    string
 	Piece       int
 	Done, Total int64
+	Final       bool
 	Err         error
 }
 
@@ -49,7 +50,7 @@ func Verify(ctx context.Context, s Store, m *manifest.Manifest, progress func(Ve
 					progress(ev)
 				})
 				if err != nil {
-					ev.Err = err
+					ev.Err, ev.Final = err, true
 					progress(ev)
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("copy %d on provider %s, piece %d: %w", i+1, c.Provider, p.Index, err))
@@ -59,7 +60,7 @@ func Verify(ctx context.Context, s Store, m *manifest.Manifest, progress func(Ve
 					}
 					continue
 				}
-				ev.Done = p.CARBytes
+				ev.Done, ev.Final = p.CARBytes, true
 				progress(ev)
 			}
 		})
