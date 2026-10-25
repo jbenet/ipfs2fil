@@ -126,6 +126,9 @@ type Store struct {
 
 var _ store.Store = (*Store)(nil)
 
+// Service names this store in manifest.Copy.Service.
+func (*Store) Service() string { return Service }
+
 func newStore(b backend) *Store {
 	return &Store{b: b, pieces: map[string]map[string]string{}, chosen: map[string][]string{}}
 }

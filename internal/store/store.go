@@ -45,7 +45,8 @@ type Store interface {
 	DataSets(ctx context.Context, archive string, copies int) ([]DataSet, error)
 	// Has reports whether ds already holds a piece with this PieceCID, so re-runs skip it.
 	Has(ctx context.Context, ds DataSet, pieceCID string) (bool, error)
-	// Upload stores one piece in ds. meta carries ipfsRootCID.
+	// Upload stores one piece in ds. meta carries ipfsRootCID. If ds already
+	// holds the piece, Upload returns its ref without reading car.
 	Upload(ctx context.Context, ds DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (PieceRef, error)
 	// Fetch reads a piece back from ds's provider. The reader returns an error
 	// at EOF if the bytes do not hash to pieceCID.
