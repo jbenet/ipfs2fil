@@ -754,3 +754,45 @@ func TestRecord(t *testing.T) {
 		t.Errorf("the record changed the archive root")
 	}
 }
+
+// TestOddLinkNames packs a pin whose directory names links "", ".", "..",
+// "a/b" and "x" twice, as some DAGs in the wild do. Each gets its own clean
+// path and the archive, explorer included, still builds.
+func TestOddLinkNames(t *testing.T) {
+	f := newFake()
+	d := merkledag.NodeWithData([]byte{0x08, 0x01}) // UnixFS directory
+	for i, name := range []string{"", ".", "..", "a/b", "x", "x", "%2E"} {
+		if err := d.AddNodeLink(name, f.file(t, []byte(fmt.Sprint("file ", i)), true)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.Add(context.Background(), d)
+	f.pins = []repo.Pin{{Root: d.Cid(), Mode: repo.Recursive}}
+	res := build(t, f, t.TempDir())
+	check(t, res)
+
+	l := newLayout(f)
+	roots, err := l.walkRoots(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{}
+	for _, rt := range roots {
+		m.Roots = append(m.Roots, l.rootEntry(rt))
+	}
+	sp := "pins/recursive/" + d.Cid().String()
+	got := map[string]string{}
+	for _, e := range l.entries(roots, m) {
+		got[e.Path] = e.Name
+	}
+	want := map[string]string{sp + "/(no name)": "(no name)", sp + "/%2E~2": ".", sp + "/%2E%2E": "..",
+		sp + "/a%2Fb": "a/b", sp + "/x": "x", sp + "/x~2": "x", sp + "/%2E": "%2E"} // links sort by name, so "%2E" comes first
+	for p, n := range want {
+		if g, ok := got[p]; !ok || g != n {
+			t.Errorf("%s: name %q (listed %v), want %q", p, g, ok, n)
+		}
+	}
+	if len(got) != len(want)+1 {
+		t.Errorf("entries %v", got)
+	}
+}

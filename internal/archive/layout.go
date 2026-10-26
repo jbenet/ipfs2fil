@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -340,6 +341,7 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 			return out[at].Bytes
 		}
 		var total int64
+		used := map[string]bool{}
 		var kids func(i int32)
 		kids = func(i int32) {
 			d := &l.tab[i]
@@ -350,7 +352,11 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 				if n := d.ufs.names[j]; n == "" && d.ufs.kind == ufsShard {
 					kids(k) // a sub-shard: its links are this directory's too
 				} else {
-					total += walk(k, p+"/"+n, n)
+					seg := segment(n, used)
+					if n == "" {
+						n = seg
+					}
+					total += walk(k, p+"/"+seg, n)
 				}
 			}
 		}
@@ -378,4 +384,24 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		walk(i, p, name)
 	}
 	return out
+}
+
+// segment turns a link name into a path segment no other link in the same
+// directory uses. Any DAG can name a link "", ".", ".." or "a/b", or reuse a
+// name; those would make a path that is not clean or not unique.
+func segment(name string, used map[string]bool) string {
+	seg := strings.ReplaceAll(name, "/", "%2F")
+	switch seg {
+	case "":
+		seg = "(no name)"
+	case ".":
+		seg = "%2E"
+	case "..":
+		seg = "%2E%2E"
+	}
+	for n, base := 2, seg; used[seg]; n++ {
+		seg = fmt.Sprintf("%s~%d", base, n)
+	}
+	used[seg] = true
+	return seg
 }
