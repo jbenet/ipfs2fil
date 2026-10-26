@@ -267,7 +267,9 @@ func approveCost(ctx context.Context, o *opts, s store.Store, key string, sizes 
 	if err != nil {
 		return false, err
 	}
-	fmt.Fprintf(o.stderr, "storing %d pieces (%s) as %d copies: %s USDFC/month, %s USDFC in one-time fees\n",
+	// Fees are synapse-go's ceiling: one add-pieces fee per piece, though
+	// push adds pieces in batches. They come out of the deposit.
+	fmt.Fprintf(o.stderr, "storing %d pieces (%s) as %d copies: %s USDFC/month, at most %s USDFC in one-time fees (paid from the deposit)\n",
 		len(sizes), humanBytes(total), o.copies, foc.USDFC(fund.Monthly), foc.USDFC(fund.Fees))
 	if fund.Ready() {
 		return confirm(o, stdin, "Upload?")
