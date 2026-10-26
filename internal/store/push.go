@@ -12,8 +12,13 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
-// ArchiveKey is the key Store methods take: the root of the first snapshot.
+// ArchiveKey is the key Store methods take: the root of the first snapshot,
+// or for an archive in a collection, the collection's key, so every archive
+// in it shares one set of data sets.
 func ArchiveKey(m *manifest.Manifest) (string, error) {
+	if m.Collection != "" {
+		return m.Collection, nil
+	}
 	if len(m.Snapshots) == 0 || m.Snapshots[0].Root == "" {
 		return "", errors.New("the manifest has no snapshots; run pack first")
 	}

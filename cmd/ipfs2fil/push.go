@@ -26,15 +26,22 @@ missing. Progress is saved to manifest.json after every piece.
 Before uploading, push shows the cost and any deposit your wallet must make
 into Filecoin Pay, and asks to go ahead (--yes skips the question). The wallet
 key comes from --key-file, $IPFS2FIL_KEY_FILE or $IPFS2FIL_PRIVATE_KEY; it is
-never printed or written anywhere.`,
+never printed or written anywhere.
+
+With --all, pushes every repo 'ipfs2fil repos add' listed into one shared set
+of data sets, in the order added, after one confirmation for all of them.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			copiesFlag(fs, o)
 			yesFlag(fs, o)
 			addStoreFlags(fs)
+			allFlag(fs, o)
 		},
 		run: func(ctx context.Context, o *opts, _ []string) error {
+			if o.all {
+				return pushAll(ctx, o)
+			}
 			m, pieces, err := loadArchive(o.out)
 			if err != nil {
 				return err
@@ -73,7 +80,14 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		}
 		return err
 	}
+	return upload(ctx, o, s, m, pieces, total)
+}
 
+// upload stores the archive's pieces once the cost is approved.
+func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, pieces []archive.Piece, total int64) error {
+	if err := checkShared(ctx, s, m, o.copies); err != nil {
+		return err
+	}
 	// Before the first piece event, Push finds or creates a data set per
 	// copy; creating one on chain takes minutes, so say so instead of a
 	// frozen bar.
@@ -90,7 +104,7 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 	final := map[[2]int]bool{} // (copy, piece) -> stored or skipped
 	var sent, skipped int
 	failed := map[int]bool{}
-	err = store.Push(ctx, s, m, pieces, o.copies, saveManifest(o.out), func(ev store.PushEvent) {
+	err := store.Push(ctx, s, m, pieces, o.copies, saveManifest(o.out), func(ev store.PushEvent) {
 		mu.Lock()
 		defer mu.Unlock()
 		if bar == nil {
@@ -138,7 +152,43 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		return fmt.Errorf("%w\nWhat landed is saved; run push again to retry the rest", err)
 	}
 	fmt.Fprintf(o.stdout, "archive  %s, %d copies\n", m.Root, o.copies)
-	fmt.Fprintf(o.stdout, "next     ipfs2fil status --out %s   (proofs start within a day)\n", o.out)
+	if !o.all {
+		fmt.Fprintf(o.stdout, "next     ipfs2fil status --out %s   (proofs start within a day)\n", o.out)
+	}
+	return nil
+}
+
+// checkShared makes sure the pieces of earlier repos that hold this archive's
+// shared blocks are stored in every copy, so the archive is whole once pushed.
+func checkShared(ctx context.Context, s store.Store, m *manifest.Manifest, copies int) error {
+	if m.Shared == nil || len(m.Shared.Pieces) == 0 {
+		return nil
+	}
+	key, err := store.ArchiveKey(m)
+	if err != nil {
+		return err
+	}
+	st, err := s.Status(ctx, key)
+	if err != nil {
+		return err
+	}
+	need := "push the repos it shares blocks with first ('ipfs2fil push --all' pushes them in order)"
+	if len(st.DataSets) < copies {
+		return fmt.Errorf("this archive leaves %d blocks to earlier repos' pieces, which are not stored in %d copies yet; %s",
+			m.Shared.Blocks, copies, need)
+	}
+	for _, d := range st.DataSets[:copies] {
+		for _, p := range m.Shared.Pieces {
+			ok, err := s.Has(ctx, d.DataSet, p.PieceCID)
+			if err != nil {
+				return fmt.Errorf("checking provider %s for shared piece %s: %w", d.Provider, p.PieceCID, err)
+			}
+			if !ok {
+				return fmt.Errorf("provider %s does not hold piece %s yet, which has %d of this archive's blocks; %s",
+					d.Provider, p.PieceCID, p.Blocks, need)
+			}
+		}
+	}
 	return nil
 }
 

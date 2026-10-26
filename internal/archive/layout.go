@@ -22,9 +22,12 @@ type blk struct {
 	size  int
 	kids  []int32
 	start bool // a root starts here
-	piece int32
-	mark  uint32
-	ufs   ufsInfo
+	// shared is 1 + the index into layout.shared of the other archive's
+	// piece that holds this block, or 0 if the block goes in this archive.
+	shared int32
+	piece  int32
+	mark   uint32
+	ufs    ufsInfo
 }
 
 type root struct {
@@ -43,6 +46,7 @@ type layout struct {
 	gen        uint32
 	repoBlocks int64
 	repoBytes  int64
+	shared     []SharedBlock // distinct pieces other archives hold blocks in
 }
 
 func newLayout(r repo.Repo) *layout {
@@ -274,20 +278,26 @@ func cutHere(h multihash.Multihash, bits int) bool {
 }
 
 // cut splits the layout into data pieces and marks each block's piece.
+// Shared blocks go in no piece; a root that starts on one starts the piece at
+// the next block of this archive's own.
 func (l *layout) cut(opts Options) ([]span, error) {
 	var out []span
-	start, size := 0, int64(0)
+	start, size, pending := -1, int64(0), false
 	for i := range l.tab {
 		b := &l.tab[i]
-		e := car.EntrySize(b.c, b.size)
-		if i > start {
-			if (b.start || cutHere(b.c.Hash(), opts.CutBits)) && size >= opts.MinPiece || size+e > opts.MaxPiece {
-				out = append(out, span{start, i})
-				start = i
-			}
+		if b.shared != 0 {
+			b.piece = -1
+			pending = pending || b.start
+			continue
 		}
-		if i == start {
-			size = car.HeaderSize(b.c)
+		e := car.EntrySize(b.c, b.size)
+		rootHere := b.start || pending
+		pending = false
+		if start < 0 || (rootHere || cutHere(b.c.Hash(), opts.CutBits)) && size >= opts.MinPiece || size+e > opts.MaxPiece {
+			if start >= 0 {
+				out = append(out, span{start, i})
+			}
+			start, size = i, car.HeaderSize(b.c)
 		}
 		size += e
 		if size > opts.MaxPiece {
@@ -295,10 +305,21 @@ func (l *layout) cut(opts Options) ([]span, error) {
 		}
 		b.piece = int32(len(out))
 	}
-	if start < len(l.tab) {
+	if start >= 0 {
 		out = append(out, span{start, len(l.tab)})
 	}
 	return out, nil
+}
+
+// own counts the blocks of p that this archive stores (not shared ones).
+func (l *layout) own(p span) int64 {
+	var n int64
+	for j := p.start; j < p.end; j++ {
+		if l.tab[j].shared == 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // entries lists every UnixFS name under each root for the explorer: the root

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/store"
@@ -19,14 +20,24 @@ Reads the archive's data sets from chain: which providers hold a copy, how
 many pieces each has, when each last proved it still holds them, and how many
 days the Filecoin Pay deposit lasts at today's rate. It reports only what the
 chain says. No wallet key needed: --address (or $IPFS2FIL_ADDRESS) is enough.
-With --json, prints one JSON object.`,
+With --json, prints one JSON object.
+
+With --all, shows every repo 'ipfs2fil repos add' listed: how much of each is
+stored, what it shares with earlier repos, and the shared data sets' copies,
+proofs and funding.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			jsonFlag(fs, o)
 			addReadStoreFlags(fs)
+			allFlag(fs, o)
 		},
-		run: runStatus,
+		run: func(ctx context.Context, o *opts, args []string) error {
+			if o.all {
+				return statusAll(ctx, o)
+			}
+			return runStatus(ctx, o, args)
+		},
 	})
 }
 
@@ -94,6 +105,12 @@ func runStatus(ctx context.Context, o *opts, _ []string) error {
 		}
 		fmt.Fprintf(w, "  %d. provider %s, data set %s: %d pieces, last proven %s%s\n", i+1, d.Provider, d.ID, d.Pieces, d.LastProven, note)
 	}
+	printFunding(w, st)
+	return nil
+}
+
+// printFunding says how long the deposit lasts, and the reserve beside it.
+func printFunding(w io.Writer, st store.Status) {
 	reserve := ""
 	if st.Reserve != "" {
 		reserve = fmt.Sprintf(" (plus %s USDFC reserved by %d data sets)", st.Reserve, st.ReserveDataSets)
@@ -105,5 +122,4 @@ func runStatus(ctx context.Context, o *opts, _ []string) error {
 	default:
 		fmt.Fprintf(w, "funded   %d days%s\n", st.FundedDays, reserve)
 	}
-	return nil
 }

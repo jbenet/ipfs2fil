@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/archive"
+	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
@@ -19,6 +23,14 @@ type opts struct {
 	copies int
 	json   bool
 	yes    bool
+
+	// --all runs over every repo in the collection in --home (repos.go).
+	all  bool
+	home string
+	// Set by pack --all for each repo: blocks earlier repos store, and the
+	// collection's data set key.
+	shared        func(multihash.Multihash) (archive.SharedBlock, bool)
+	collectionKey string
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {
@@ -41,6 +53,16 @@ func copiesFlag(fs *flag.FlagSet, o *opts) {
 
 func jsonFlag(fs *flag.FlagSet, o *opts) {
 	fs.BoolVar(&o.json, "json", false, "print JSON instead of text")
+}
+
+func homeFlag(fs *flag.FlagSet, o *opts) {
+	fs.StringVar(&o.home, "home", "", "directory holding the list of repos and their archives (default $"+collection.EnvHome+", else ~/.ipfs2fil)")
+}
+
+// allFlag adds --all and --home: run over every repo 'ipfs2fil repos add' listed.
+func allFlag(fs *flag.FlagSet, o *opts) {
+	fs.BoolVar(&o.all, "all", false, "every repo in the list 'ipfs2fil repos add' keeps, instead of --repo and --out")
+	homeFlag(fs, o)
 }
 
 func yesFlag(fs *flag.FlagSet, o *opts) {

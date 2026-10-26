@@ -44,7 +44,7 @@ type DataSetStatus struct {
 }
 
 // Store methods take an archive key: the root of the archive's first snapshot,
-// manifest.Snapshots[0].Root. The archive root itself changes with every
+// manifest.Snapshots[0].Root, or the collection's key (ArchiveKey). The archive root itself changes with every
 // snapshot, but the key does not, so re-runs find the same data sets.
 type Store interface {
 	// DataSets finds or creates the archive's data sets, one per copy, each on
