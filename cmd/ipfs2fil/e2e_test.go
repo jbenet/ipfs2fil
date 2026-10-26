@@ -88,7 +88,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second up: %v", err)
 	}
-	if !strings.Contains(stdout, "0 changed since the last pack") || !strings.Contains(stdout, "nothing to upload") {
+	if !strings.Contains(stdout, "unchanged since the last pack") || !strings.Contains(stdout, "nothing to upload") {
 		t.Errorf("second up output:\n%s", stdout)
 	}
 	if got, want := ms.Uploads(), 3*len(m.Pieces); got != want {

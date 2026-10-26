@@ -25,7 +25,10 @@ read, and pack is safe to run while the daemon runs.
 Pieces are cut where the content says, so packing the same repo again gives
 the same pieces, and after an edit only nearby pieces change. Run pack again
 after the repo changes, then push: only the new pieces upload. A pack stopped
-with Ctrl-C can simply be run again.
+with Ctrl-C can simply be run again. When the repo has not changed since the
+last pack, pack only lists its blocks and keeps the last archive; after a
+change, pieces whose blocks are the same keep their CAR files (the record of
+what was written is --out/pack-cache.json).
 
 With --all, packs every repo 'ipfs2fil repos add' listed, in the order added.
 Blocks an earlier repo's pieces already hold are left out of later repos'
@@ -115,7 +118,9 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	w := o.stdout
 	fmt.Fprintf(w, "archive  %s\n", m.Root)
 	fmt.Fprintf(w, "roots    %d (pins, MFS and orphans)\n", len(m.Roots))
-	if len(before) > 0 {
+	if res.Reused {
+		fmt.Fprintf(w, "pieces   %d, %s (the repo is unchanged since the last pack, so its pieces are reused)\n", len(m.Pieces), humanBytes(bytes))
+	} else if len(before) > 0 {
 		fmt.Fprintf(w, "pieces   %d, %s (%d changed since the last pack)\n", len(m.Pieces), humanBytes(bytes), fresh)
 	} else {
 		fmt.Fprintf(w, "pieces   %d, %s\n", len(m.Pieces), humanBytes(bytes))

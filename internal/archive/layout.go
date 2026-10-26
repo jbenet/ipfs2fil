@@ -48,6 +48,7 @@ type layout struct {
 	repoBlocks int64
 	repoBytes  int64
 	shared     []SharedBlock // distinct pieces other archives hold blocks in
+	all        []listed      // the repo's listing, from list
 }
 
 func newLayout(r repo.Repo) *layout {
@@ -127,27 +128,10 @@ func (l *layout) place(ctx context.Context, c cid.Cid) (int32, error) {
 	return i, nil
 }
 
-// walkRoots lays out pins, the MFS root and (if asked) orphans, and returns
+// walkRoots, after list, lays out pins, the MFS root and (if asked) orphans, and returns
 // the roots that are in the repo, in layout order.
 func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
-	// List the blocks first, so progress has a total.
-	// Repos 5 to 11 can list one multihash twice, stored under two CIDs.
-	var all []multihash.Multihash
-	listed := map[string]bool{}
-	err := l.r.ForEachBlock(ctx, func(h multihash.Multihash, size int) error {
-		if listed[string(h)] {
-			return nil
-		}
-		listed[string(h)] = true
-		l.repoBlocks++
-		l.repoBytes += int64(size)
-		all = append(all, h)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing blocks: %w", err)
-	}
-	listed = nil
+	// l.all is listed first (list), so progress has a total.
 	l.progress("walk", 0, l.repoBlocks)
 
 	pins, err := l.r.Pins(ctx)
@@ -222,9 +206,9 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 	// not a root of its own.
 	var loose []multihash.Multihash
 	if orphans {
-		for _, h := range all {
-			if _, ok := l.idx[string(h)]; !ok {
-				loose = append(loose, h)
+		for _, b := range l.all {
+			if _, ok := l.idx[string(b.h)]; !ok {
+				loose = append(loose, b.h)
 			}
 		}
 	}

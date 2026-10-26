@@ -62,8 +62,12 @@ wallet holding some FIL for gas and USDFC to pay for storage.
 
        ipfs2fil up
 
-   Ctrl-C is safe: run `ipfs2fil up` again and it carries on. Run it again
-   after the repo changes and only the changed pieces upload.
+   Ctrl-C or a failure is safe: run `ipfs2fil up` again and it carries on.
+   If the repo has not changed, packing only lists its blocks and keeps the
+   last archive; pieces every copy holds are skipped, and the existing data
+   sets are reused. Run it again after the repo changes and only the changed
+   pieces are written and uploaded. With `--all`, a repo that fails to pack
+   does not stop the others from being pushed.
 
 4. Check on it, and browse it.
 
