@@ -177,6 +177,9 @@ func copyRecord(m *manifest.Manifest, ds DataSet, service string) int {
 			if c.PieceIDs == nil {
 				c.PieceIDs = map[int]string{}
 			}
+			if c.Service == "" {
+				c.Service = service
+			}
 			return i
 		}
 	}

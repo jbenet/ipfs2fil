@@ -153,7 +153,7 @@ func pushAll(ctx context.Context, o *opts) error {
 	if len(as) == 0 {
 		return errors.New("no repo is packed yet; run 'ipfs2fil pack --all' or 'ipfs2fil up --all'")
 	}
-	adoptCopies(as)
+	adoptCopies(as, otherCopies(c))
 
 	s, closer, err := openStore(ctx, o)
 	if err != nil {
@@ -227,22 +227,48 @@ func pushAll(ctx context.Context, o *opts) error {
 	return nil
 }
 
+// otherCopies lists the data sets other machines' archives use, by key, as
+// the catalog last read them.
+func otherCopies(c *collection.Collection) map[string][]manifest.Copy {
+	out := map[string][]manifest.Copy{}
+	es, err := c.Entries()
+	if err != nil {
+		return out
+	}
+	for _, e := range es {
+		if e.Local {
+			continue
+		}
+		if m, err := e.Manifest(); err == nil && m != nil && m.Collection != "" && len(m.Copies) > 0 && out[m.Collection] == nil {
+			out[m.Collection] = m.Copies
+		}
+	}
+	return out
+}
+
 // adoptCopies gives an archive that has no copies yet the data sets another
-// archive with the same key already uses, so push checks them for pieces it
-// has and says no new data sets are needed. Piece ids fill in as it pushes.
-func adoptCopies(as []*listedArchive) {
+// archive with the same key already uses, on this machine or (others) on
+// another, so push checks them for pieces it has and says no new data sets
+// are needed. Piece ids fill in as it pushes.
+func adoptCopies(as []*listedArchive, others map[string][]manifest.Copy) {
 	for _, a := range as {
 		if len(a.m.Copies) > 0 {
 			continue
 		}
+		from := others[a.key]
 		for _, b := range as {
 			if b.key == a.key && len(b.m.Copies) > 0 {
-				for _, cp := range b.m.Copies {
-					a.m.Copies = append(a.m.Copies, manifest.Copy{Provider: cp.Provider, DataSetID: cp.DataSetID,
-						Service: cp.Service, PieceIDs: map[int]string{}})
-				}
+				from = b.m.Copies
 				break
 			}
+		}
+		for _, cp := range from {
+			service := cp.Service
+			if service == "chain" {
+				service = "" // filled in by the store on push
+			}
+			a.m.Copies = append(a.m.Copies, manifest.Copy{Provider: cp.Provider, DataSetID: cp.DataSetID,
+				Service: service, PieceIDs: map[int]string{}})
 		}
 	}
 }
