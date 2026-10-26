@@ -89,7 +89,7 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 	}
 	b := &synapseBackend{c: c, ec: ec, pdp: pdp, payer: payer, readOnly: cfg.Key == nil, dsc: map[string]*storage.DataSetContext{}}
 	if cfg.MaxBaseFee >= 0 {
-		b.gas = &gasGate{max: big.NewInt(cmp.Or(cfg.MaxBaseFee, DefaultMaxBaseFee)), every: time.Minute, report: cfg.OnGas,
+		b.gas = &gasGate{max: big.NewInt(cmp.Or(cfg.MaxBaseFee, DefaultMaxBaseFee)), every: epoch, report: cfg.OnGas,
 			read: func(ctx context.Context) (*big.Int, error) {
 				h, err := ec.HeaderByNumber(ctx, nil)
 				if err != nil {
@@ -100,6 +100,10 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 	}
 	return newStore(b), b, nil
 }
+
+// epoch is the Filecoin block time; a held step checks the base fee once
+// per block.
+const epoch = 30 * time.Second
 
 // uploadRunway is the payment time a deposit adds beyond the lockup, so the
 // account stays funded while a push runs.
