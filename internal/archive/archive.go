@@ -102,6 +102,9 @@ type Result struct {
 	// that added them; nothing reads the local CARs again.
 	Removed      int
 	RemovedBytes int64
+	// Reused is set when nothing Build depends on changed since the last
+	// pack in outDir, so it returned that pack without reading any block.
+	Reused bool
 }
 
 // ManifestFile is the full manifest Build writes in outDir. Build reads it
@@ -128,6 +131,22 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	l := newLayout(r)
 	if opts.Progress != nil {
 		l.progress = opts.Progress
+	}
+	if err := l.list(ctx); err != nil {
+		return nil, err
+	}
+	cache := readCache(outDir)
+	inputs, err := l.inputs(ctx, outDir, prev, opts)
+	if err != nil {
+		return nil, err
+	}
+	if prev != nil && cache.Inputs == inputs && cache.Root == prev.Root && reusable(outDir, prev) {
+		return reuse(outDir, prev, cache)
+	}
+	// Until this pack completes, the cache only vouches for pieces.
+	cache.Inputs, cache.Root, cache.Missing = "", "", nil
+	if err := cache.write(outDir); err != nil {
+		return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
 	}
 	roots, err := l.walkRoots(ctx, opts.Orphans)
 	if err != nil {
@@ -174,7 +193,18 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	l.progress("write", 0, planned)
 	var out []Piece
+	keys := make([]string, len(dataPieces))
 	for i, p := range dataPieces {
+		keys[i] = l.pieceKey(p)
+		if c, path, ok := cache.piece(pieceDir, keys[i]); ok {
+			// The same blocks as a CAR already on disk: keep it.
+			m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = c.PieceCID, c.CARBytes
+			finished += c.CARBytes
+			written = finished
+			l.progress("write", written, planned)
+			out = append(out, Piece{Piece: m.Pieces[i], Path: path})
+			continue
+		}
 		path, sum, err := writePiece(pieceDir, []cid.Cid{l.tab[p.start].c}, func(w *car.Writer) error {
 			for j := p.start; j < p.end; j++ {
 				b := &l.tab[j]
@@ -196,6 +226,11 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		})
 		if err != nil {
 			return nil, err
+		}
+		// Saved per piece, so a pack stopped part way keeps what it wrote.
+		cache.Pieces[keys[i]] = cachedPiece{PieceCID: sum.PieceCID.String(), CARBytes: sum.Bytes}
+		if err := cache.write(outDir); err != nil {
+			return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
 		}
 		m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = sum.PieceCID.String(), sum.Bytes
 		finished += sum.Bytes
@@ -327,7 +362,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		p := manifest.Piece{Index: i, PieceCID: sum.PieceCID.String(), CARBytes: sum.Bytes, Blocks: sum.Blocks, Snapshot: snap}
 		if s, ok := known[p.PieceCID]; ok {
 			p.Snapshot = s
-		} else {
+		}
+		// an unchanged re-run keeps its own meta pieces in its snapshot
+		if p.Snapshot == snap {
 			m.Snapshots[snap].NewPieces = append(m.Snapshots[snap].NewPieces, i)
 		}
 		m.Pieces = append(m.Pieces, p)
@@ -345,6 +382,28 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	res := &Result{Manifest: m, Pieces: out, Missing: l.missing}
 	if res.Removed, res.RemovedBytes, err = prune(pieceDir, m); err != nil {
+		return nil, fmt.Errorf("removing old pieces: %w", err)
+	}
+	done := &packCache{Format: cacheFormat, Inputs: inputs, Root: m.Root, Missing: l.missing, Pieces: map[string]cachedPiece{}}
+	for i, k := range keys {
+		done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+	}
+	if err := done.write(outDir); err != nil {
+		return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
+	}
+	return res, nil
+}
+
+// reuse returns the last pack in outDir as this one's result, its inputs
+// being the same.
+func reuse(outDir string, prev *manifest.Manifest, cache *packCache) (*Result, error) {
+	res := &Result{Manifest: prev, Missing: cache.Missing, Reused: true}
+	pieceDir := filepath.Join(outDir, "pieces")
+	for _, p := range prev.Pieces {
+		res.Pieces = append(res.Pieces, Piece{Piece: p, Path: filepath.Join(pieceDir, p.PieceCID+".car")})
+	}
+	var err error
+	if res.Removed, res.RemovedBytes, err = prune(pieceDir, prev); err != nil {
 		return nil, fmt.Errorf("removing old pieces: %w", err)
 	}
 	return res, nil

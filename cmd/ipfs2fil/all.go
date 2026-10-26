@@ -73,16 +73,43 @@ func readCatalog(ctx context.Context, o *opts, c *collection.Collection, s store
 // packAll packs every repo in order, each leaving out the blocks earlier
 // repos' pieces hold. A repo that fails does not stop the others.
 func packAll(ctx context.Context, o *opts) error {
-	c, err := listedRepos(o)
+	failed, err := packEach(ctx, o)
 	if err != nil {
 		return err
+	}
+	if len(failed.errs) > 0 {
+		return failed
+	}
+	fmt.Fprintln(o.stdout, "next     ipfs2fil push --all")
+	return nil
+}
+
+// packFailures are the repos packEach could not pack, in order.
+type packFailures struct {
+	of    int // repos packed
+	names map[string]bool
+	errs  []error
+}
+
+func (f *packFailures) failed(name string) bool { return f != nil && f.names[name] }
+
+func (f *packFailures) Error() string {
+	return fmt.Sprintf("%d of %d repos did not pack:\n%v", len(f.errs), f.of, errors.Join(f.errs...))
+}
+
+// packEach packs every repo and returns the ones that failed; err is set
+// only when nothing more can be done.
+func packEach(ctx context.Context, o *opts) (*packFailures, error) {
+	c, err := listedRepos(o)
+	if err != nil {
+		return nil, err
 	}
 	var secret []byte
 	if c.OnChain() {
 		// Each archive carries a record naming it, sealed with the wallet
 		// key, so other machines find it on chain.
 		if secret, err = walletSecret(); err != nil {
-			return fmt.Errorf("pack --all names each archive for your other machines under the wallet key: %w", err)
+			return nil, fmt.Errorf("pack --all names each archive for your other machines under the wallet key: %w", err)
 		}
 		if s, closer, err := openStore(ctx, o); err != nil {
 			fmt.Fprintf(o.stderr, "warning: not reading other machines' repos from chain: %v\n", err)
@@ -91,13 +118,13 @@ func packAll(ctx context.Context, o *opts) error {
 			closer.Close()
 		}
 	}
-	var errs []error
+	failed := &packFailures{of: len(c.Repos), names: map[string]bool{}}
 	for i, r := range c.Repos {
 		fmt.Fprintf(o.stdout, "== %s (%d of %d)\n", r.Name, i+1, len(c.Repos))
 		ro := forRepo(o, c, r)
 		if secret != nil {
 			if ro.record, err = collection.SealRecord(secret, collection.Record{Host: c.Host, Name: r.Name, Added: r.Added}); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if ro.shared, err = c.Shared(r.Name); err == nil {
@@ -107,19 +134,16 @@ func packAll(ctx context.Context, o *opts) error {
 		}
 		if err != nil {
 			if ctx.Err() != nil {
-				return err
+				return nil, err
 			}
 			fmt.Fprintf(o.stderr, "%s: %v\n", r.Name, err)
-			errs = append(errs, fmt.Errorf("%s: %w", r.Name, err))
+			failed.names[r.Name] = true
+			failed.errs = append(failed.errs, fmt.Errorf("%s: %w", r.Name, err))
 		}
 		fmt.Fprintln(o.stdout)
 	}
 	commitCatalog(o, c, "pack")
-	if len(errs) > 0 {
-		return fmt.Errorf("%d of %d repos did not pack:\n%w", len(errs), len(c.Repos), errors.Join(errs...))
-	}
-	fmt.Fprintln(o.stdout, "next     ipfs2fil push --all")
-	return nil
+	return failed, nil
 }
 
 type listedArchive struct {
@@ -133,12 +157,21 @@ type listedArchive struct {
 // pushAll pushes every packed repo in order, after one confirmation per set
 // of data sets (one, unless some archive was pushed before it joined).
 func pushAll(ctx context.Context, o *opts) error {
+	return pushListed(ctx, o, nil)
+}
+
+// pushListed is pushAll, leaving out the repos in skip.
+func pushListed(ctx context.Context, o *opts, skip *packFailures) error {
 	c, err := listedRepos(o)
 	if err != nil {
 		return err
 	}
 	var as []*listedArchive
 	for _, r := range c.Repos {
+		if skip.failed(r.Name) {
+			fmt.Fprintf(o.stderr, "%s: did not pack, so not pushing it\n", r.Name)
+			continue
+		}
 		ro := forRepo(o, c, r)
 		m, pieces, err := loadArchive(ro.out)
 		if err != nil {
@@ -274,12 +307,19 @@ func adoptCopies(as []*listedArchive, others map[string][]manifest.Copy) {
 	}
 }
 
+// upAll packs and pushes every repo. A repo that fails to pack does not hold
+// back the others: they are pushed, and the failures reported after.
 func upAll(ctx context.Context, o *opts) error {
-	if err := packAll(ctx, o); err != nil {
+	failed, err := packEach(ctx, o)
+	if err != nil {
 		return err
 	}
 	fmt.Fprintln(o.stdout)
-	return pushAll(ctx, o)
+	err = pushListed(ctx, o, failed)
+	if len(failed.errs) > 0 {
+		return errors.Join(err, fmt.Errorf("%w\nrun 'ipfs2fil up --all' again once fixed; what is done is skipped", failed))
+	}
+	return err
 }
 
 type statusAllResult struct {

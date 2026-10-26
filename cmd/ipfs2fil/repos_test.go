@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -152,6 +153,55 @@ func TestPushNeedsSharedPieces(t *testing.T) {
 	_, _, err := ipfs2fil(t, "push", "--out", filepath.Join(home, "archives", "v17"), "--yes")
 	if err == nil || !strings.Contains(err.Error(), "push --all") {
 		t.Errorf("push of the later repo alone: %v", err)
+	}
+}
+
+// TestUpAllPushesWhatPacked: a repo that fails to pack does not stop the
+// others from being pushed, and a re-run once it is fixed picks up the rest.
+func TestUpAllPushesWhatPacked(t *testing.T) {
+	ms := useMemStore(t, 5)
+	home := t.TempDir()
+	a, b := fixture(t, "v18"), fixture(t, "v11")
+	for name, r := range map[string]string{"first": a, "second": b} {
+		if _, _, err := ipfs2fil(t, "repos", "add", r, "--name", name, "--home", home); err != nil {
+			t.Fatal(err)
+		}
+	}
+	version, err := os.ReadFile(filepath.Join(a, "version"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(a, "version"), []byte("999\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, err := ipfs2fil(t, "up", "--all", "--home", home, "--yes")
+	if err == nil || !strings.Contains(err.Error(), "1 of 2 repos did not pack") || !strings.Contains(err.Error(), "first") {
+		t.Fatalf("up --all with a broken repo: %v\n%s", err, stdout)
+	}
+	c, err := collection.Open(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, _ := c.Manifest(c.Repos[c.Find("second")])
+	if m == nil || len(m.Copies) != 3 {
+		t.Fatalf("the repo that packed was not pushed: %+v", m)
+	}
+	uploads := ms.Uploads()
+	if uploads == 0 {
+		t.Fatal("nothing uploaded")
+	}
+
+	os.WriteFile(filepath.Join(a, "version"), version, 0o644)
+	stdout, _, err = ipfs2fil(t, "up", "--all", "--home", home, "--yes")
+	if err != nil {
+		t.Fatalf("up --all once fixed: %v\n%s", err, stdout)
+	}
+	if !strings.Contains(stdout, "unchanged since the last pack") || !strings.Contains(stdout, "second: all") {
+		t.Errorf("the re-run redid the repo already stored:\n%s", stdout)
+	}
+	m, _ = c.Manifest(c.Repos[c.Find("first")])
+	if m == nil || len(m.Copies) != 3 {
+		t.Fatalf("the fixed repo was not pushed: %+v", m)
 	}
 }
 

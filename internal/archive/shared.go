@@ -20,20 +20,9 @@ func (l *layout) markShared(outDir string, prev *manifest.Manifest, lookup func(
 	if lookup == nil {
 		return nil, nil
 	}
-	own := map[string]bool{}
-	if prev != nil {
-		for _, p := range prev.Pieces {
-			if p.BlockList == "" || !storedIn(prev, p.Index) {
-				continue
-			}
-			err := ReadBlockList(filepath.Join(outDir, "index", p.BlockList), func(h multihash.Multihash) error {
-				own[string(h)] = true
-				return nil
-			})
-			if err != nil && !os.IsNotExist(err) {
-				return nil, err
-			}
-		}
+	own, err := ownBlocks(outDir, prev)
+	if err != nil {
+		return nil, err
 	}
 	out := &manifest.Shared{}
 	at := map[SharedBlock]int32{}
@@ -67,6 +56,28 @@ func (l *layout) markShared(outDir string, prev *manifest.Manifest, lookup func(
 	}
 	slices.SortFunc(out.Pieces, func(a, b manifest.SharedPiece) int { return strings.Compare(a.PieceCID, b.PieceCID) })
 	return out, nil
+}
+
+// ownBlocks lists the blocks in prev's data pieces that every copy holds.
+// They stay this archive's own, so re-runs keep the pieces already paid for.
+func ownBlocks(outDir string, prev *manifest.Manifest) (map[string]bool, error) {
+	own := map[string]bool{}
+	if prev == nil {
+		return own, nil
+	}
+	for _, p := range prev.Pieces {
+		if p.BlockList == "" || !storedIn(prev, p.Index) {
+			continue
+		}
+		err := ReadBlockList(filepath.Join(outDir, "index", p.BlockList), func(h multihash.Multihash) error {
+			own[string(h)] = true
+			return nil
+		})
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	return own, nil
 }
 
 // ReadBlockList calls fn with each multihash in an index/pieces block list.

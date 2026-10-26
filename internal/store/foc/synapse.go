@@ -21,6 +21,7 @@ import (
 	synapse "github.com/strahe/synapse-go"
 	"github.com/strahe/synapse-go/chain"
 	"github.com/strahe/synapse-go/payments"
+	pdpclient "github.com/strahe/synapse-go/pdp"
 	"github.com/strahe/synapse-go/storage"
 	"github.com/strahe/synapse-go/types"
 )
@@ -234,10 +235,34 @@ func (b *synapseBackend) Upload(ctx context.Context, ds dataSet, pieceCID string
 	if err != nil {
 		return "", err
 	}
+	piece := storage.PieceInput{PieceCID: pc, PieceMetadata: meta}
+	// A run that sent the piece but stopped before it was added to the data
+	// set (the add failed, or the run was stopped) leaves it parked with the
+	// provider for a while: add it without sending it again.
+	if parked(ctx, dsc.ServiceURL(), pc) {
+		id, err := b.commit(ctx, dsc, ds, piece, nil)
+		if err == nil || ctx.Err() != nil || !strings.Contains(err.Error(), "not found") {
+			return id, err
+		}
+	}
 	if _, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc}); err != nil {
 		return "", err
 	}
-	return b.commit(ctx, dsc, ds, storage.PieceInput{PieceCID: pc, PieceMetadata: meta}, nil)
+	return b.commit(ctx, dsc, ds, piece, nil)
+}
+
+// parked reports whether the provider at serviceURL holds the piece, ready
+// to add to a data set. Any doubt, such as an error, says no, so the piece
+// is uploaded as usual.
+var parked = func(ctx context.Context, serviceURL string, pc cid.Cid) bool {
+	c, err := pdpclient.New(serviceURL)
+	if err != nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	_, err = c.FindPiece(ctx, pc)
+	return err == nil
 }
 
 // Pull has ds's provider fetch the piece from from's provider, which serves
