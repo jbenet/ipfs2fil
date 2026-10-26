@@ -1,13 +1,16 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
@@ -44,12 +47,13 @@ type PushEvent struct {
 	// (or Skipped), or Err says why not.
 	Final   bool
 	Skipped bool // the copy already held this piece
-	// Pulled is set when the copy's provider fetched the piece from the
-	// first copy's provider (From) instead of from this machine.
+	// Pulled is set when the copy's provider fetched the piece from another
+	// copy's provider (From) instead of from this machine.
 	Pulled bool
 	From   string
-	// PullErr says why a provider could not fetch the piece from the first
-	// copy, on a non-final event; the piece is then uploaded from here.
+	// PullErr says why a provider could not fetch the piece from another
+	// copy's provider, on a non-final event; the piece is then uploaded from
+	// here.
 	PullErr error
 	// Dropped marks a non-final event: the provider dropped the staged piece
 	// before it could be added, so it is sent again.
@@ -79,9 +83,11 @@ const commitBatch = 32
 // not stop the uploads. A piece the provider dropped while it waited is sent
 // again.
 //
-// The first copy uploads each piece and the others have their providers pull
-// it from the first copy's provider once it is there, falling back to an
-// upload if the pull fails or the first copy does not get the piece.
+// Each piece leaves this machine once. The copies take turns sending the
+// pieces no copy holds, so the uploads to their providers run at the same
+// time, and each copy's provider pulls the pieces others sent from the
+// provider that got them, falling back to an upload from here if the pull
+// fails. A piece a copy already holds is pulled from that copy's provider.
 //
 // A failing copy stops at its first error; the other copies carry on, and
 // Push returns all errors joined.
@@ -115,21 +121,10 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 		return fmt.Errorf("saving the manifest: %w", err)
 	}
 
-	// landed[j] closes when the first copy is done with pieces[j]; held[j]
-	// then says whether its provider holds it, so the others can pull it.
-	var landed []chan struct{}
-	var held []bool
-	if len(sets) > 1 {
-		landed, held = make([]chan struct{}, len(pieces)), make([]bool, len(pieces))
-		for j := range landed {
-			landed[j] = make(chan struct{})
-		}
-	}
-	errs := make([]error, len(sets))
-	var wg sync.WaitGroup
+	cs := make([]*copyPush, len(sets))
 	for i, ds := range sets {
-		c := &copyPush{s: s, i: i, ds: ds, first: sets[0], pieces: pieces, progress: progress,
-			meta: map[string]string{"ipfsRootCID": m.Root}, landed: landed, held: held,
+		cs[i] = &copyPush{s: s, i: i, ds: ds, sets: sets, pieces: pieces, progress: progress,
+			meta: map[string]string{"ipfsRootCID": m.Root},
 			record: func(p archive.Piece, id string) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -143,9 +138,49 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 				}
 				return nil
 			}}
+	}
+	errs := make([]error, len(sets))
+	fail := func(i int, err error) {
+		errs[i] = fmt.Errorf("copy %d on provider %s: %w", i+1, sets[i].Provider, err)
+	}
+
+	// First find what each copy holds already, so pieces some copy holds are
+	// pulled from it rather than sent from here again.
+	var wg sync.WaitGroup
+	for i, c := range cs {
+		wg.Go(func() {
+			if err := c.scan(ctx); err != nil {
+				fail(i, err)
+			}
+		})
+	}
+	wg.Wait()
+	sizes := make([]int64, len(pieces))
+	for j, p := range pieces {
+		sizes[j] = p.CARBytes
+	}
+	sh := newShare(sizes)
+	stop := context.AfterFunc(ctx, sh.wake)
+	defer stop()
+	for j := range pieces {
+		for i, c := range cs {
+			if errs[i] == nil && c.has[j] {
+				sh.from[j] = i
+				break
+			}
+		}
+		if sh.from[j] < 0 {
+			sh.todo = append(sh.todo, j)
+		}
+	}
+	for i, c := range cs {
+		if errs[i] != nil {
+			continue
+		}
+		c.sh = sh
 		wg.Go(func() {
 			if err := c.run(ctx); err != nil {
-				errs[i] = fmt.Errorf("copy %d on provider %s: %w", i+1, ds.Provider, err)
+				fail(i, err)
 			}
 		})
 	}
@@ -170,30 +205,267 @@ func copyRecord(m *manifest.Manifest, ds DataSet, service string) int {
 	return len(m.Copies) - 1
 }
 
-// copyPush stores the pieces in one copy: a sender stages them with the
-// provider while a committer adds the staged ones on chain in batches.
+// share hands the pieces no copy holds to the copies to send from this
+// machine, so each copy uploads to its provider at the same time as the
+// others. It measures how fast each copy's uploads go and gives a copy only
+// the pieces it would finish before the others could, so a slow provider
+// sends few pieces and pulls the rest. It tells the copies when a piece
+// reaches a provider they can pull it from.
+type share struct {
+	mu     sync.Mutex
+	cond   *sync.Cond
+	size   []int64 // per piece: CAR bytes
+	todo   []int   // pieces no copy holds or is sending, in order
+	from   []int   // per piece: the copy whose provider holds it, or -1
+	owner  []int   // per piece: the copy sending it from here, or -1
+	flying int     // pieces being sent from here
+	up     map[int]*uploader
+	now    func() time.Time
+}
+
+// uploader is one copy's sending from here, while it waits for or sends a
+// piece.
+type uploader struct {
+	active bool      // waiting in take or sending; planned for
+	speed  float64   // bytes per second over its earlier pieces, 0 until one is sent
+	piece  int       // the piece being sent, or -1 while waiting for one
+	done   int64     // bytes of it sent
+	start  time.Time // when it started
+}
+
+func newShare(sizes []int64) *share {
+	sh := &share{size: sizes, from: make([]int, len(sizes)), owner: make([]int, len(sizes)),
+		up: map[int]*uploader{}, now: time.Now}
+	sh.cond = sync.NewCond(&sh.mu)
+	for j := range sizes {
+		sh.from[j], sh.owner[j] = -1, -1
+	}
+	return sh
+}
+
+func (sh *share) wake() {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	sh.cond.Broadcast()
+}
+
+// take gives copy i a piece to send from here. It waits while the other
+// copies would send all that is left sooner, or send the last pieces (a
+// failed copy gives its piece back), and reports false once nothing is left
+// or stop says so.
+func (sh *share) take(i int, stop func() bool) (int, bool) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	u := sh.up[i]
+	if u == nil {
+		u = &uploader{piece: -1}
+		sh.up[i] = u
+	}
+	u.active = true
+	defer func() {
+		if u.piece < 0 {
+			u.active = false
+			sh.cond.Broadcast()
+		}
+	}()
+	for !stop() {
+		if len(sh.todo) == 0 && sh.flying == 0 {
+			return 0, false
+		}
+		if k := sh.pick(i); k >= 0 {
+			j := sh.todo[k]
+			sh.todo = slices.Delete(sh.todo, k, k+1)
+			sh.owner[j] = i
+			sh.flying++
+			u.piece, u.done, u.start = j, 0, sh.now()
+			return j, true
+		}
+		sh.cond.Wait()
+	}
+	return 0, false
+}
+
+// pick plans who sends the pieces left, each to the copy that would finish
+// it first given what it is sending now, and returns the index in todo of
+// the first piece the plan gives copy i, or -1 if it gives copy i none.
+// Copies not yet measured are planned at the others' average speed; with
+// none measured, copy i takes the next piece.
+func (sh *share) pick(i int) int {
+	if len(sh.todo) == 0 {
+		return -1
+	}
+	var sum float64
+	var n int
+	for _, u := range sh.up {
+		if u.active && u.speed > 0 {
+			sum += u.speed
+			n++
+		}
+	}
+	if n == 0 {
+		return 0
+	}
+	avg := sum / float64(n)
+	now := sh.now()
+	type lane struct {
+		copy  int
+		speed float64
+		free  float64 // seconds from now until it can start another piece
+	}
+	// Copy i plans first, so it takes a piece on a tie: copies tied with
+	// each other then never all wait on one another.
+	ks := slices.Sorted(maps.Keys(sh.up))
+	slices.SortStableFunc(ks, func(a, b int) int { return cmp.Compare(b2i(b == i), b2i(a == i)) })
+	var lanes []lane
+	for _, k := range ks {
+		u := sh.up[k]
+		if !u.active {
+			continue
+		}
+		l := lane{copy: k, speed: u.speed}
+		if l.speed == 0 {
+			l.speed = avg
+		}
+		if u.piece >= 0 {
+			speed := l.speed
+			// A piece going slower than before shows the link now.
+			if el := now.Sub(u.start).Seconds(); el >= 2 && u.done > 0 {
+				speed = min(speed, float64(u.done)/el)
+			}
+			l.free = float64(sh.size[u.piece]-u.done) / speed
+		}
+		lanes = append(lanes, l)
+	}
+	for k, j := range sh.todo {
+		best := 0
+		for m := range lanes {
+			if lanes[m].free+float64(sh.size[j])/lanes[m].speed < lanes[best].free+float64(sh.size[j])/lanes[best].speed {
+				best = m
+			}
+		}
+		if lanes[best].copy == i {
+			return k
+		}
+		lanes[best].free += float64(sh.size[j]) / lanes[best].speed
+	}
+	return -1
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// note records bytes of copy i's current piece sent so far.
+func (sh *share) note(i int, done int64) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	if u := sh.up[i]; u != nil {
+		u.done = done
+	}
+}
+
+// sent records that copy i's provider holds piece j, or with ok false that
+// copy i failed to send it, so another copy takes it.
+func (sh *share) sent(i, j int, ok bool) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	sh.flying--
+	u := sh.up[i]
+	if ok {
+		sh.from[j] = i
+		if el := max(sh.now().Sub(u.start).Seconds(), 0.001); el > 0 {
+			if v := float64(sh.size[j]) / el; u.speed == 0 {
+				u.speed = v
+			} else {
+				u.speed = (u.speed + v) / 2
+			}
+		}
+	} else {
+		sh.owner[j] = -1
+		sh.todo = append([]int{j}, sh.todo...)
+	}
+	u.piece, u.active = -1, false
+	sh.cond.Broadcast()
+}
+
+// next waits until one of copy i's wanted pieces has reached another copy's
+// provider and returns it with that copy. Pieces copy i itself sends drop out
+// of wanted. It reports false once wanted is empty or stop says so.
+func (sh *share) next(i int, wanted *[]int, stop func() bool) (j, from int, ok bool) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	for {
+		*wanted = slices.DeleteFunc(*wanted, func(j int) bool { return sh.owner[j] == i || sh.from[j] == i })
+		if len(*wanted) == 0 || stop() {
+			return 0, 0, false
+		}
+		for k, j := range *wanted {
+			if f := sh.from[j]; f >= 0 {
+				*wanted = slices.Delete(*wanted, k, k+1)
+				return j, f, true
+			}
+		}
+		sh.cond.Wait()
+	}
+}
+
+// copyPush stores the pieces in one copy: it sends its share of the pieces
+// from here and has its provider pull the rest from the other copies'
+// providers, while a committer adds the staged pieces on chain in batches.
 type copyPush struct {
-	s         Store
-	i         int
-	ds, first DataSet
-	pieces    []archive.Piece
-	meta      map[string]string
-	landed    []chan struct{}
-	held      []bool
-	progress  func(PushEvent)
-	record    func(p archive.Piece, id string) error
+	s        Store
+	i        int
+	ds       DataSet
+	sets     []DataSet
+	pieces   []archive.Piece
+	meta     map[string]string
+	progress func(PushEvent)
+	record   func(p archive.Piece, id string) error
+	has      []bool // per piece: held when the push started
+	sh       *share
 
 	mu      sync.Mutex
 	cond    *sync.Cond
 	queue   []staged // staged and waiting to be added, oldest first
 	sending bool
 	failed  bool // the committer stopped
+	halted  atomic.Bool
 }
 
 type staged struct {
 	p  archive.Piece
 	at time.Time
 	ev PushEvent
+}
+
+// scan finds the pieces the copy holds and records them as skipped.
+func (c *copyPush) scan(ctx context.Context) error {
+	c.has = make([]bool, len(c.pieces))
+	for j, p := range c.pieces {
+		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
+		has, err := c.s.Has(ctx, c.ds, p.PieceCID)
+		if err == nil && has {
+			// Commit returns a held piece's id without going on chain.
+			var ids []string
+			if ids, err = c.s.Commit(ctx, c.ds, []string{p.PieceCID}, c.meta); err == nil {
+				err = c.record(p, ids[0])
+			}
+		}
+		if err != nil {
+			ev.Err, ev.Final = err, true
+			c.progress(ev)
+			return err
+		}
+		if has {
+			c.has[j] = true
+			ev.Done, ev.Skipped, ev.Final = p.CARBytes, true, true
+			c.progress(ev)
+		}
+	}
+	return nil
 }
 
 func (c *copyPush) run(ctx context.Context) error {
@@ -207,7 +479,11 @@ func (c *copyPush) run(ctx context.Context) error {
 	defer stop()
 	committed := make(chan error, 1)
 	go func() { committed <- c.commitLoop(ctx) }()
-	sendErr := c.send(ctx)
+	var upErr, pullErr error
+	var wg sync.WaitGroup
+	wg.Go(func() { upErr = c.uploads(ctx) })
+	wg.Go(func() { pullErr = c.pulls(ctx) })
+	wg.Wait()
 	c.mu.Lock()
 	c.sending = false
 	c.cond.Broadcast()
@@ -217,68 +493,107 @@ func (c *copyPush) run(ctx context.Context) error {
 	if commitErr != nil {
 		return commitErr
 	}
-	return sendErr
+	return errors.Join(upErr, pullErr)
 }
 
-// send stages each piece the copy lacks and queues it to be added.
-func (c *copyPush) send(ctx context.Context) error {
-	next := 0
-	if c.landed != nil && c.i == 0 {
-		defer func() {
-			for _, l := range c.landed[next:] {
-				close(l)
-			}
-		}()
-	}
-	landed := func(j int, ok bool) {
-		if c.landed != nil && c.i == 0 {
-			c.held[j] = ok
-			close(c.landed[j])
-			next = j + 1
+// halt stops the copy's sending after an error.
+func (c *copyPush) halt() {
+	c.halted.Store(true)
+	c.mu.Lock()
+	c.cond.Broadcast()
+	c.mu.Unlock()
+	c.sh.wake()
+}
+
+func (c *copyPush) stopped(ctx context.Context) func() bool {
+	return func() bool { return c.halted.Load() || ctx.Err() != nil }
+}
+
+// uploads sends pieces no copy holds from here, taking them one at a time
+// from the share until none are left.
+func (c *copyPush) uploads(ctx context.Context) error {
+	for c.room(ctx) {
+		j, ok := c.sh.take(c.i, c.stopped(ctx))
+		if !ok {
+			break
 		}
-	}
-	for j, p := range c.pieces {
-		if !c.room(ctx) {
-			return ctx.Err() // nil when the committer failed; it reports why
-		}
+		p := c.pieces[j]
 		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
-		fail := func(err error) error {
-			ev.Err, ev.Final = err, true
-			c.progress(ev)
-			return err
-		}
-		has, err := c.s.Has(ctx, c.ds, p.PieceCID)
+		err := c.upload(ctx, p, &ev, func(n int64) { c.sh.note(c.i, n) })
+		c.sh.sent(c.i, j, err == nil)
 		if err != nil {
-			return fail(err)
+			return c.fail(ev, err)
 		}
-		if has {
-			// Commit returns a held piece's id without going on chain.
-			ids, err := c.s.Commit(ctx, c.ds, []string{p.PieceCID}, c.meta)
-			if err != nil {
-				return fail(err)
-			}
-			landed(j, true)
-			if err := c.record(p, ids[0]); err != nil {
-				return err
-			}
-			ev.Done, ev.Skipped, ev.Final = p.CARBytes, true, true
-			c.progress(ev)
-			continue
-		}
-		err = c.stage(ctx, j, p, &ev)
-		landed(j, err == nil)
-		if err != nil {
-			return fail(err)
-		}
-		ev.Done, ev.Staged = p.CARBytes, true
-		c.progress(ev)
-		ev.Staged = false
-		c.mu.Lock()
-		c.queue = append(c.queue, staged{p: p, at: time.Now(), ev: ev})
-		c.cond.Broadcast()
-		c.mu.Unlock()
+		c.queue1(p, ev)
 	}
-	return nil
+	return ctx.Err() // nil when the committer failed; it reports why
+}
+
+// pullsAtOnce is how many pieces a copy's provider fetches from other
+// providers at the same time.
+const pullsAtOnce = 4
+
+// pulls has the copy's provider fetch each piece it lacks from a provider
+// that holds it, once one does, up to pullsAtOnce at a time, and sends a
+// piece from here if fetching it fails.
+func (c *copyPush) pulls(ctx context.Context) error {
+	var wanted []int // shared by the pullers; share.next changes it under its lock
+	for j := range c.pieces {
+		if !c.has[j] {
+			wanted = append(wanted, j)
+		}
+	}
+	errs := make([]error, pullsAtOnce)
+	var wg sync.WaitGroup
+	for k := range errs {
+		wg.Go(func() { errs[k] = c.puller(ctx, &wanted) })
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
+func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
+	for c.room(ctx) {
+		j, from, ok := c.sh.next(c.i, wanted, c.stopped(ctx))
+		if !ok {
+			break
+		}
+		p := c.pieces[j]
+		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
+		src := c.sets[from]
+		err := c.s.Pull(ctx, c.ds, src, p.PieceCID)
+		if err == nil {
+			ev.Pulled, ev.From = true, src.Provider
+		} else {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: src.Provider, PullErr: err})
+			if err := c.upload(ctx, p, &ev, nil); err != nil {
+				return c.fail(ev, err)
+			}
+		}
+		c.queue1(p, ev)
+	}
+	return ctx.Err()
+}
+
+func (c *copyPush) fail(ev PushEvent, err error) error {
+	ev.Err, ev.Final = err, true
+	c.progress(ev)
+	c.halt()
+	return err
+}
+
+// queue1 reports a staged piece and queues it to be added.
+func (c *copyPush) queue1(p archive.Piece, ev PushEvent) {
+	ev.Done, ev.Staged = p.CARBytes, true
+	c.progress(ev)
+	ev.Staged = false
+	c.mu.Lock()
+	c.queue = append(c.queue, staged{p: p, at: time.Now(), ev: ev})
+	c.cond.Broadcast()
+	c.mu.Unlock()
 }
 
 // room waits while the copy has sent stageAhead's worth ahead of what is
@@ -286,38 +601,15 @@ func (c *copyPush) send(ctx context.Context) error {
 func (c *copyPush) room(ctx context.Context) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for !c.failed && ctx.Err() == nil && len(c.queue) > 0 && time.Since(c.queue[0].at) >= stageAhead {
+	for !c.failed && !c.halted.Load() && ctx.Err() == nil && len(c.queue) > 0 && time.Since(c.queue[0].at) >= stageAhead {
 		c.cond.Wait()
 	}
-	return !c.failed && ctx.Err() == nil
+	return !c.failed && !c.halted.Load() && ctx.Err() == nil
 }
 
-// stage gets piece j to the copy's provider: pulled from the first copy's
-// provider when that holds it, else uploaded from here.
-func (c *copyPush) stage(ctx context.Context, j int, p archive.Piece, ev *PushEvent) error {
-	if c.landed != nil && c.i > 0 {
-		select {
-		case <-c.landed[j]:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		if c.held[j] {
-			err := c.s.Pull(ctx, c.ds, c.first, p.PieceCID)
-			if err == nil {
-				ev.Pulled, ev.From = true, c.first.Provider
-				return nil
-			}
-			if ctx.Err() != nil {
-				return err
-			}
-			c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: c.first.Provider, PullErr: err})
-		}
-	}
-	return c.upload(ctx, p, ev)
-}
-
-// upload sends the piece's CAR from this machine.
-func (c *copyPush) upload(ctx context.Context, p archive.Piece, ev *PushEvent) error {
+// upload sends the piece's CAR from this machine, telling note (if set) the
+// bytes sent so far.
+func (c *copyPush) upload(ctx context.Context, p archive.Piece, ev *PushEvent, note func(int64)) error {
 	f, err := os.Open(p.Path)
 	if err != nil {
 		return fmt.Errorf("piece %d: %w", p.Index, err)
@@ -327,6 +619,9 @@ func (c *copyPush) upload(ctx context.Context, p archive.Piece, ev *PushEvent) e
 	r := &counter{r: f, report: func(done int64) {
 		sent.Done = done
 		c.progress(sent)
+		if note != nil {
+			note(done)
+		}
 	}}
 	ev.Pulled, ev.From = false, ""
 	return c.s.Stage(ctx, c.ds, p.PieceCID, r, p.CARBytes)
@@ -360,6 +655,9 @@ func (c *copyPush) commitLoop(ctx context.Context) error {
 			ev := batch[0].ev
 			ev.Err, ev.Final = err, true
 			c.progress(ev)
+		}
+		if err != nil {
+			c.halt()
 		}
 		c.mu.Lock()
 		if err != nil {
@@ -396,7 +694,7 @@ func (c *copyPush) commit(ctx context.Context, batch []staged) ([]string, error)
 			ev := st.ev
 			ev.Dropped = true
 			c.progress(ev)
-			if err := c.upload(ctx, st.p, &st.ev); err != nil {
+			if err := c.upload(ctx, st.p, &st.ev, nil); err != nil {
 				return nil, err
 			}
 		}
