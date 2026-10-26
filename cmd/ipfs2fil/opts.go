@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/multiformats/go-multihash"
 
@@ -40,6 +41,34 @@ type opts struct {
 	// record is the sealed catalog record pack --all puts in each archive
 	// when the catalog is read from chain.
 	record []byte
+}
+
+// notes routes lines from background steps to the progress bar drawing on
+// stderr, if any. A run draws one bar at a time.
+var notes struct {
+	sync.Mutex
+	bar *progress
+}
+
+// note prints a line on stderr, above the progress bar if one is drawing, so
+// messages from background steps (such as waiting for the base fee) do not
+// break the bar.
+func (o *opts) note(line string) {
+	notes.Lock()
+	bar := notes.bar
+	notes.Unlock()
+	if bar != nil {
+		bar.Log(line)
+		return
+	}
+	fmt.Fprintln(o.stderr, line)
+}
+
+// logTo sends notes to bar until called again; nil prints them plainly.
+func logTo(bar *progress) {
+	notes.Lock()
+	defer notes.Unlock()
+	notes.bar = bar
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {

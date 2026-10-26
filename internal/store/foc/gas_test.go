@@ -8,7 +8,7 @@ import (
 )
 
 func TestGasGateWaitsOutSpike(t *testing.T) {
-	fees := []int64{5_000_000, 2_000_000, 300}
+	fees := []int64{500_000_000, 200_000_000, 2_000_000}
 	var reads int
 	var reports []bool
 	g := &gasGate{

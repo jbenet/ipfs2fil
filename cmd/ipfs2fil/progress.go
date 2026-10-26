@@ -22,11 +22,12 @@ type progress struct {
 	interval time.Duration
 	now      func() time.Time
 
-	mu    sync.Mutex
-	done  int64
-	start time.Time
-	last  time.Time
-	drawn bool
+	mu     sync.Mutex
+	suffix string
+	done   int64
+	start  time.Time
+	last   time.Time
+	drawn  bool
 }
 
 func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
@@ -60,6 +61,13 @@ func (p *progress) Set(done, total int64) {
 		p.last = t
 		p.draw(false)
 	}
+}
+
+// Suffix sets a note shown after the bar, or clears it when empty.
+func (p *progress) Suffix(s string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.suffix = s
 }
 
 // Log prints a line above the bar, then redraws the bar.
@@ -110,6 +118,9 @@ func (p *progress) draw(final bool) {
 		if final {
 			line += " in " + roundDur(el)
 		}
+	}
+	if p.suffix != "" && !final {
+		line += " · " + p.suffix
 	}
 	if p.tty {
 		fmt.Fprintf(p.w, "\r\033[K%s", line)

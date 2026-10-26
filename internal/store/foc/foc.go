@@ -44,9 +44,13 @@ type backend interface {
 	Create(ctx context.Context, provider string, meta map[string]string) (dataSet, error)
 	// Pieces lists a data set's active pieces on chain: PieceCID -> piece id.
 	Pieces(ctx context.Context, dataSetID string) (map[string]string, error)
-	Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (pieceID string, err error)
-	// Pull has ds's provider fetch the piece from from's provider, then adds it.
-	Pull(ctx context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (pieceID string, err error)
+	// Stage sends the piece to ds's provider, unless it holds it already.
+	Stage(ctx context.Context, ds dataSet, pieceCID string, r io.Reader) error
+	// Pull has ds's provider fetch the piece from from's provider.
+	Pull(ctx context.Context, ds, from dataSet, pieceCID string) error
+	// Commit adds staged pieces to ds on chain and returns their piece ids,
+	// or a *store.GoneError naming those the provider no longer holds.
+	Commit(ctx context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) (pieceIDs []string, err error)
 	Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error)
 	// Proofs reads when the data set was last proven, zero until the first proof.
 	Proofs(ctx context.Context, dataSetID string) (lastEpoch int64, last time.Time, err error)
@@ -146,10 +150,7 @@ type Store struct {
 	chosen map[string][]string          // archive -> providers chosen by Plan, not yet used
 }
 
-var (
-	_ store.Store  = (*Store)(nil)
-	_ store.Puller = (*Store)(nil)
-)
+var _ store.Store = (*Store)(nil)
 
 // Service names this store in manifest.Copy.Service.
 func (*Store) Service() string { return Service }
@@ -376,49 +377,88 @@ func (s *Store) lookup(ctx context.Context, id, pieceCID string) (string, bool, 
 	return pid, ok, nil
 }
 
-// Upload stores the piece unless the data set already holds it.
+// Upload stores the piece unless the data set already holds it: Stage, then
+// Commit.
 func (s *Store) Upload(ctx context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (store.PieceRef, error) {
 	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
-	pid, ok, err := s.lookup(ctx, ds.ID, pieceCID)
+	if err := s.Stage(ctx, ds, pieceCID, car, size); err != nil {
+		return ref, err
+	}
+	ids, err := s.Commit(ctx, ds, []string{pieceCID}, meta)
 	if err != nil {
 		return ref, err
 	}
-	if ok {
-		ref.PieceID = pid
-		return ref, nil
-	}
-	pid, err = s.b.Upload(ctx, fromPublic(ds), pieceCID, car, meta)
-	if err != nil {
-		return ref, fmt.Errorf("uploading piece %s to provider %s: %w", pieceCID, ds.Provider, err)
-	}
-	s.mu.Lock()
-	s.pieces[ds.ID][pieceCID] = pid
-	s.mu.Unlock()
-	ref.PieceID = pid
+	ref.PieceID = ids[0]
 	return ref, nil
+}
+
+// Stage sends the piece to ds's provider unless ds holds it, or the provider
+// has it staged from an earlier run.
+func (s *Store) Stage(ctx context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64) error {
+	if _, ok, err := s.lookup(ctx, ds.ID, pieceCID); err != nil || ok {
+		return err
+	}
+	if err := s.b.Stage(ctx, fromPublic(ds), pieceCID, car); err != nil {
+		return fmt.Errorf("uploading piece %s to provider %s: %w", pieceCID, ds.Provider, err)
+	}
+	return nil
 }
 
 // Pull has ds's provider fetch the piece from the provider of from, unless ds
 // already holds it, so the bytes leave this machine once for all copies.
-func (s *Store) Pull(ctx context.Context, ds, from store.DataSet, pieceCID string, meta map[string]string) (store.PieceRef, error) {
-	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
-	pid, ok, err := s.lookup(ctx, ds.ID, pieceCID)
-	if err != nil {
-		return ref, err
+func (s *Store) Pull(ctx context.Context, ds, from store.DataSet, pieceCID string) error {
+	if _, ok, err := s.lookup(ctx, ds.ID, pieceCID); err != nil || ok {
+		return err
 	}
-	if ok {
-		ref.PieceID = pid
-		return ref, nil
+	if err := s.b.Pull(ctx, fromPublic(ds), fromPublic(from), pieceCID); err != nil {
+		return fmt.Errorf("provider %s fetching piece %s from provider %s: %w", ds.Provider, pieceCID, from.Provider, err)
 	}
-	pid, err = s.b.Pull(ctx, fromPublic(ds), fromPublic(from), pieceCID, meta)
+	return nil
+}
+
+// Commit adds the staged pieces to ds in one on-chain step. Pieces ds holds
+// already keep their ids, and if it holds all of them nothing goes on chain.
+func (s *Store) Commit(ctx context.Context, ds store.DataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
+	ids := make([]string, len(pieceCIDs))
+	var add []string
+	for i, c := range pieceCIDs {
+		pid, ok, err := s.lookup(ctx, ds.ID, c)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			ids[i] = pid
+		} else if !slices.Contains(add, c) {
+			add = append(add, c)
+		}
+	}
+	if len(add) == 0 {
+		return ids, nil
+	}
+	added, err := s.b.Commit(ctx, fromPublic(ds), add, meta)
 	if err != nil {
-		return ref, fmt.Errorf("provider %s fetching piece %s from provider %s: %w", ds.Provider, pieceCID, from.Provider, err)
+		return nil, fmt.Errorf("adding %d %s to data set %s on provider %s: %w",
+			len(add), plural(len(add), "piece", "pieces"), ds.ID, ds.Provider, err)
+	}
+	if len(added) != len(add) {
+		return nil, fmt.Errorf("adding %d pieces to data set %s: the provider returned %d piece ids", len(add), ds.ID, len(added))
 	}
 	s.mu.Lock()
-	s.pieces[ds.ID][pieceCID] = pid
+	for i, c := range add {
+		s.pieces[ds.ID][c] = added[i]
+	}
+	for i, c := range pieceCIDs {
+		ids[i] = s.pieces[ds.ID][c]
+	}
 	s.mu.Unlock()
-	ref.PieceID = pid
-	return ref, nil
+	return ids, nil
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 func (s *Store) Fetch(ctx context.Context, ds store.DataSet, pieceCID string) (io.ReadCloser, error) {

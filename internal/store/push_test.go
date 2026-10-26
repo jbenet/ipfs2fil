@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -210,14 +211,16 @@ func TestCheckCARTruncated(t *testing.T) {
 }
 
 func TestPushReportsBytes(t *testing.T) {
-	// A small piece still reports its bytes before the final event.
+	// A small piece still reports its bytes, then that it is staged, before
+	// the final event.
 	s := memstore.New(1)
 	m, pieces := fixture(t, 1)
 	var r recorder
 	if err := store.Push(context.Background(), s, m, pieces, 1, r.save, r.progress); err != nil {
 		t.Fatal(err)
 	}
-	if len(r.events) != 2 || r.events[0].Final || r.events[0].Done != pieces[0].CARBytes || !r.events[1].Final {
+	if len(r.events) != 3 || r.events[0].Final || r.events[0].Done != pieces[0].CARBytes ||
+		!r.events[1].Staged || r.events[1].Final || !r.events[2].Final {
 		t.Fatalf("events %+v", r.events)
 	}
 }
@@ -266,5 +269,157 @@ func TestPushUploadsWhenPullFails(t *testing.T) {
 	}
 	if n := r.count(func(e store.PushEvent) bool { return e.PullErr != nil && !e.Final }); n != 4 {
 		t.Errorf("%d pull failures reported, want 4", n)
+	}
+}
+
+// gate holds every Commit that adds pieces until open is closed, as a wait
+// for the base fee to fall.
+type gate struct {
+	open    chan struct{}
+	waiting chan struct{} // receives once per held Commit
+}
+
+func newGate() *gate { return &gate{open: make(chan struct{}), waiting: make(chan struct{}, 100)} }
+
+func (g *gate) hold(ctx context.Context, _ store.DataSet, _ []string) error {
+	g.waiting <- struct{}{}
+	select {
+	case <-g.open:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestPushSendsWhileAddsWait(t *testing.T) {
+	// While adding on chain waits, every piece still reaches every provider;
+	// once it may go ahead, what piled up is added in one step per copy.
+	s := memstore.New(3)
+	g := newGate()
+	s.BeforeCommit = g.hold
+	m, pieces := fixture(t, 4)
+	var r recorder
+	done := make(chan error)
+	go func() { done <- store.Push(context.Background(), s, m, pieces, 3, r.save, r.progress) }()
+	deadline := time.Now().Add(10 * time.Second)
+	for s.Uploads() < 12 {
+		if time.Now().After(deadline) {
+			t.Fatalf("only %d of 12 pieces staged while adds wait", s.Uploads())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(g.open)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	// Each copy's first add started before the other pieces were sent;
+	// the rest go together.
+	if n := s.Commits(); n < 3 || n > 6 {
+		t.Errorf("%d on-chain adds, want 3 to 6 for 12 pieces", n)
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != 4 {
+			t.Errorf("copy %+v is missing pieces", c)
+		}
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Staged }); n != 12 {
+		t.Errorf("%d staged events, want 12", n)
+	}
+}
+
+func TestPushStopsSendingFarAhead(t *testing.T) {
+	// Providers drop staged pieces after a while, so a copy stops sending
+	// once its oldest waiting piece is stageAhead old.
+	defer store.SetStageAhead(0)()
+	s := memstore.New(1)
+	g := newGate()
+	s.BeforeCommit = g.hold
+	m, pieces := fixture(t, 3)
+	done := make(chan error)
+	go func() {
+		done <- store.Push(context.Background(), s, m, pieces, 1, func(*manifest.Manifest) error { return nil }, nil)
+	}()
+	<-g.waiting
+	time.Sleep(50 * time.Millisecond)
+	if n := s.Uploads(); n != 1 {
+		t.Fatalf("%d pieces sent while the first waits to be added, want 1", n)
+	}
+	close(g.open)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 3 || len(m.Copies[0].PieceIDs) != 3 {
+		t.Fatalf("%d sent, %d stored; want 3, 3", s.Uploads(), len(m.Copies[0].PieceIDs))
+	}
+}
+
+func TestPushResendsDroppedPieces(t *testing.T) {
+	// A provider dropped a staged piece before it was added (FOC providers
+	// do after about two hours): it is sent again and added.
+	s := memstore.New(2)
+	m, pieces := fixture(t, 2)
+	dropped := false
+	s.BeforeCommit = func(_ context.Context, ds store.DataSet, cids []string) error {
+		if ds.Provider == "2" && !dropped {
+			dropped = true
+			s.Drop(ds.Provider, cids[0])
+		}
+		return nil
+	}
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Dropped }); n != 1 {
+		t.Errorf("%d dropped events, want 1", n)
+	}
+	// 2 pieces x 2 copies, the second copy pulled, plus one sent again.
+	if s.Uploads() != 5 {
+		t.Errorf("%d pieces sent, want 5", s.Uploads())
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != 2 {
+			t.Errorf("copy %+v is missing pieces", c)
+		}
+	}
+}
+
+func TestPushResumeSendsNothingTwice(t *testing.T) {
+	// A push stopped while pieces wait to be added: the re-run skips the
+	// piece added before and adds the staged ones without sending them again.
+	s := memstore.New(1)
+	m, pieces := fixture(t, 4)
+	save := func(*manifest.Manifest) error { return nil }
+	if err := store.Push(context.Background(), s, m, pieces[:1], 1, save, nil); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.BeforeCommit = func(ctx context.Context, _ store.DataSet, _ []string) error {
+		for s.Uploads() < 4 {
+			time.Sleep(time.Millisecond)
+		}
+		cancel()
+		return ctx.Err()
+	}
+	if err := store.Push(ctx, s, m, pieces, 1, save, nil); err == nil {
+		t.Fatal("the stopped push reported no error")
+	}
+	if n := len(m.Copies[0].PieceIDs); n != 1 || s.Uploads() != 4 {
+		t.Fatalf("stopped push: %d added, %d sent; want 1, 4", n, s.Uploads())
+	}
+
+	s.BeforeCommit = nil
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 1, save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 4 || len(m.Copies[0].PieceIDs) != 4 {
+		t.Fatalf("re-run: %d sent in all, %d added; want 4, 4", s.Uploads(), len(m.Copies[0].PieceIDs))
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Skipped }); n != 1 {
+		t.Errorf("%d skipped, want 1", n)
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Done > 0 && !e.Staged && !e.Final }); n != 0 {
+		t.Errorf("re-run sent bytes %d times", n)
 	}
 }

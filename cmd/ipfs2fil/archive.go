@@ -152,10 +152,10 @@ var openStore = func(ctx context.Context, o *opts) (store.Store, io.Closer, erro
 		}
 		cfg = foc.Config{RPC: rpc, Key: key, MaxBaseFee: storeFlags.maxBaseFee, OnGas: func(fee *big.Int, paused bool) {
 			if paused {
-				fmt.Fprintf(o.stderr, "\nthe network base fee is %s attoFIL/gas, at or above --max-base-fee %d; waiting for it to fall before going on chain\n",
-					fee, storeFlags.maxBaseFee)
+				o.note(fmt.Sprintf("the network base fee is %s attoFIL/gas, at or above --max-base-fee %d; on-chain steps wait for it to fall (pieces keep uploading)",
+					fee, storeFlags.maxBaseFee))
 			} else {
-				fmt.Fprintf(o.stderr, "\nthe base fee is down to %s attoFIL/gas; carrying on\n", fee)
+				o.note(fmt.Sprintf("the network base fee is down to %s attoFIL/gas; on-chain steps carry on", fee))
 			}
 		}}
 		if storeFlags.maxBaseFee == 0 {

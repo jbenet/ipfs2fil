@@ -57,8 +57,10 @@ wallet holding some FIL for gas and USDFC to pay for storage.
 3. Archive. This packs the repo into `./ipfs2fil-archive`, shows the monthly
    cost and any deposit to make into Filecoin Pay, and stores 3 copies once
    you say yes. Each piece is uploaded once; the other providers copy it from
-   the first. While the network's gas price spikes, on-chain steps wait it out
-   (`--max-base-fee`).
+   the first. Uploading and adding pieces on chain are separate steps, so
+   uploads keep going while on-chain adds wait out a gas price spike
+   (`--max-base-fee`, default 0.1 nanoFIL per gas); the pieces that piled up
+   are then added together.
 
        ipfs2fil up
 

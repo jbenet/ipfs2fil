@@ -5,7 +5,9 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 )
 
 // DataSet is one provider's set of pieces for one archive. One data set per
@@ -60,11 +62,37 @@ type Store interface {
 	// Upload stores one piece in ds. meta carries ipfsRootCID. If ds already
 	// holds the piece, Upload returns its ref without reading car.
 	Upload(ctx context.Context, ds DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (PieceRef, error)
+	// Stage sends a piece to ds's provider, which holds it ready to add to
+	// ds. Nothing is on chain until Commit; FOC providers drop a staged piece
+	// that is not added within about two hours. If the provider already holds
+	// the piece, Stage returns without reading car.
+	Stage(ctx context.Context, ds DataSet, pieceCID string, car io.Reader, size int64) error
+	// Pull stages a piece by having ds's provider fetch it from the provider
+	// of from, which holds it staged or added, so the bytes leave this
+	// machine once for all copies.
+	Pull(ctx context.Context, ds, from DataSet, pieceCID string) error
+	// Commit adds staged pieces to ds in one on-chain step and returns their
+	// piece ids, in order. Pieces ds already holds keep their ids. If the
+	// provider dropped some staged pieces, Commit adds nothing and returns a
+	// *GoneError naming them: stage them again, then commit again.
+	Commit(ctx context.Context, ds DataSet, pieceCIDs []string, meta map[string]string) ([]string, error)
 	// Fetch reads a piece back from ds's provider. The reader returns an error
 	// at EOF if the bytes do not hash to pieceCID.
 	Fetch(ctx context.Context, ds DataSet, pieceCID string) (io.ReadCloser, error)
 	// Status reads the archive's data sets, proofs and funding from chain.
 	Status(ctx context.Context, archive string) (Status, error)
+}
+
+// GoneError says which staged pieces a provider no longer holds, so they
+// cannot be added until they are staged again.
+type GoneError struct {
+	Provider  string
+	PieceCIDs []string
+}
+
+func (e *GoneError) Error() string {
+	return fmt.Sprintf("provider %s dropped %d staged pieces before they were added: %s",
+		e.Provider, len(e.PieceCIDs), strings.Join(e.PieceCIDs, ", "))
 }
 
 // Lister is a Store that can read what an archive's data sets hold without

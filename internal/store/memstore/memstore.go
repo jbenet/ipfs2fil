@@ -24,20 +24,44 @@ type Store struct {
 	pieces  map[string]map[string]string // data set id -> PieceCID -> piece id
 	data    map[string][]byte            // PieceCID -> bytes
 	meta    map[string]map[string]string // data set id/PieceCID -> metadata
+	staged  map[string]map[string]bool   // provider -> PieceCID staged, not yet added
 	uploads int
 	pulls   int
+	commits int
 	// PullFails makes every Pull fail, so Push falls back to uploading.
 	PullFails bool
+	// BeforeCommit, if set, runs before each Commit that adds pieces, as a
+	// wait for the base fee; an error fails the Commit.
+	BeforeCommit func(ctx context.Context, ds store.DataSet, pieceCIDs []string) error
 }
 
-var (
-	_ store.Store  = (*Store)(nil)
-	_ store.Puller = (*Store)(nil)
-)
+var _ store.Store = (*Store)(nil)
 
 func New(providers int) *Store {
 	return &Store{Providers: providers, pieces: map[string]map[string]string{},
-		data: map[string][]byte{}, meta: map[string]map[string]string{}}
+		data: map[string][]byte{}, meta: map[string]map[string]string{}, staged: map[string]map[string]bool{}}
+}
+
+// Commits counts Commit calls that added pieces.
+func (s *Store) Commits() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.commits
+}
+
+// Drop makes provider forget a staged piece, as FOC providers do with pieces
+// not added within a couple of hours.
+func (s *Store) Drop(provider, pieceCID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.staged[provider], pieceCID)
+}
+
+// Staged reports whether provider holds the piece staged, not yet added.
+func (s *Store) Staged(provider, pieceCID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.staged[provider][pieceCID]
 }
 
 func (s *Store) Service() string { return "mem" }
@@ -122,59 +146,121 @@ func (s *Store) Has(_ context.Context, ds store.DataSet, pieceCID string) (bool,
 	return ok, nil
 }
 
-func (s *Store) Upload(_ context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (store.PieceRef, error) {
+func (s *Store) Upload(ctx context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64, meta map[string]string) (store.PieceRef, error) {
 	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
-	s.mu.Lock()
-	p, ok := s.pieces[ds.ID]
-	if id, held := p[pieceCID]; held {
-		s.mu.Unlock()
-		ref.PieceID = id
-		return ref, nil
+	if err := s.Stage(ctx, ds, pieceCID, car, size); err != nil {
+		return ref, err
 	}
-	s.mu.Unlock()
-	if !ok {
-		return ref, fmt.Errorf("no data set %s", ds.ID)
-	}
-	b, err := io.ReadAll(car)
+	ids, err := s.Commit(ctx, ds, []string{pieceCID}, meta)
 	if err != nil {
 		return ref, err
 	}
-	if int64(len(b)) != size {
-		return ref, fmt.Errorf("piece %s: read %d bytes, expected %d", pieceCID, len(b), size)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	ref.PieceID = strconv.Itoa(len(p))
-	p[pieceCID] = ref.PieceID
-	s.data[pieceCID] = b
-	s.meta[ds.ID+"/"+pieceCID] = meta
-	s.uploads++
+	ref.PieceID = ids[0]
 	return ref, nil
 }
 
-func (s *Store) Pull(_ context.Context, ds, from store.DataSet, pieceCID string, meta map[string]string) (store.PieceRef, error) {
-	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
+func (s *Store) Stage(_ context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64) error {
+	s.mu.Lock()
+	p, ok := s.pieces[ds.ID]
+	_, held := p[pieceCID]
+	staged := s.staged[ds.Provider][pieceCID]
+	s.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("no data set %s", ds.ID)
+	}
+	if held || staged {
+		return nil
+	}
+	b, err := io.ReadAll(car)
+	if err != nil {
+		return err
+	}
+	if int64(len(b)) != size {
+		return fmt.Errorf("piece %s: read %d bytes, expected %d", pieceCID, len(b), size)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data[pieceCID] = b
+	s.stage(ds.Provider, pieceCID)
+	s.uploads++
+	return nil
+}
+
+// stage marks the piece staged with provider; the caller holds s.mu.
+func (s *Store) stage(provider, pieceCID string) {
+	if s.staged[provider] == nil {
+		s.staged[provider] = map[string]bool{}
+	}
+	s.staged[provider][pieceCID] = true
+}
+
+func (s *Store) Pull(_ context.Context, ds, from store.DataSet, pieceCID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.pieces[ds.ID]
 	if !ok {
-		return ref, fmt.Errorf("no data set %s", ds.ID)
+		return fmt.Errorf("no data set %s", ds.ID)
 	}
-	if id, held := p[pieceCID]; held {
-		ref.PieceID = id
-		return ref, nil
+	if _, held := p[pieceCID]; held || s.staged[ds.Provider][pieceCID] {
+		return nil
 	}
 	if s.PullFails {
-		return ref, fmt.Errorf("provider %s could not fetch piece %s", ds.Provider, pieceCID)
+		return fmt.Errorf("provider %s could not fetch piece %s", ds.Provider, pieceCID)
 	}
-	if _, ok := s.pieces[from.ID][pieceCID]; !ok {
-		return ref, fmt.Errorf("data set %s has no piece %s to pull", from.ID, pieceCID)
+	if _, ok := s.pieces[from.ID][pieceCID]; !ok && !s.staged[from.Provider][pieceCID] {
+		return fmt.Errorf("provider %s has no piece %s to pull", from.Provider, pieceCID)
 	}
-	ref.PieceID = strconv.Itoa(len(p))
-	p[pieceCID] = ref.PieceID
-	s.meta[ds.ID+"/"+pieceCID] = meta
+	s.stage(ds.Provider, pieceCID)
 	s.pulls++
-	return ref, nil
+	return nil
+}
+
+func (s *Store) Commit(ctx context.Context, ds store.DataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
+	s.mu.Lock()
+	p, ok := s.pieces[ds.ID]
+	if !ok {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("no data set %s", ds.ID)
+	}
+	adds := false
+	for _, c := range pieceCIDs {
+		if _, held := p[c]; !held {
+			adds = true
+		}
+	}
+	hook := s.BeforeCommit
+	s.mu.Unlock()
+	if adds && hook != nil {
+		if err := hook(ctx, ds, pieceCIDs); err != nil {
+			return nil, err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var gone []string
+	for _, c := range pieceCIDs {
+		if _, held := p[c]; !held && !s.staged[ds.Provider][c] {
+			gone = append(gone, c)
+		}
+	}
+	if gone != nil {
+		return nil, &store.GoneError{Provider: ds.Provider, PieceCIDs: gone}
+	}
+	ids := make([]string, len(pieceCIDs))
+	for i, c := range pieceCIDs {
+		if id, held := p[c]; held {
+			ids[i] = id
+			continue
+		}
+		ids[i] = strconv.Itoa(len(p))
+		p[c] = ids[i]
+		s.meta[ds.ID+"/"+c] = meta
+		delete(s.staged[ds.Provider], c)
+	}
+	if adds {
+		s.commits++
+	}
+	return ids, nil
 }
 
 func (s *Store) Fetch(_ context.Context, ds store.DataSet, pieceCID string) (io.ReadCloser, error) {

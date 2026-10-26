@@ -8,11 +8,13 @@ import (
 )
 
 // DefaultMaxBaseFee is the base fee, in attoFIL per gas, at or above which a
-// push waits before anything goes on chain. The network floor is 100, so this
-// is 10,000 times it. PDP transactions burn a lot of gas, and providers pay
-// for the ones they send for us, so a push waits out congestion rather than
-// paying many times the usual cost.
-const DefaultMaxBaseFee = 1_000_000
+// push holds its on-chain steps (uploads carry on). The network floor is 100.
+// Busy stretches run at 1-2 million for hours: on 2026-10-26 mainnet sat
+// between 1.3 and 2.3 million for over 10 hours, where an addPieces (about
+// 300 million gas) costs the provider about 0.0005 FIL, so waiting those out
+// only stalls the push. 100 million (0.1 nanoFIL) is 50 times that, about
+// 0.03 FIL per addPieces: only a real spike waits.
+const DefaultMaxBaseFee = 100_000_000
 
 // gasGate holds on-chain steps while the base fee is at or above max.
 type gasGate struct {
