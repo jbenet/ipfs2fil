@@ -36,6 +36,9 @@ type fake struct {
 	reads     int // Pieces calls
 	nextID    int
 	prepared  string // the last Prepare's ids, fresh providers and sizes
+	// beforeCreate, if set, runs once inside the first Create, as another
+	// machine creating data sets at the same moment.
+	beforeCreate func()
 }
 
 func newFake(providers int) *fake {
@@ -61,11 +64,20 @@ func (f *fake) Providers(_ context.Context, n int, exclude []string, _ map[strin
 func (f *fake) Create(_ context.Context, p string, meta map[string]string) (dataSet, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if hook := f.beforeCreate; hook != nil {
+		f.beforeCreate = nil
+		hook()
+	}
+	return f.create(p, meta), nil
+}
+
+// create adds a data set; the caller holds f.mu.
+func (f *fake) create(p string, meta map[string]string) dataSet {
 	d := dataSet{ID: strconv.Itoa(f.nextID), Provider: p, Metadata: meta}
 	f.nextID++
 	f.sets = append(f.sets, d)
 	f.pieces[d.ID] = map[string]string{}
-	return d, nil
+	return d
 }
 
 func (f *fake) Pieces(_ context.Context, id string) (map[string]string, error) {
@@ -217,6 +229,42 @@ func TestArchivesKeepSeparateDataSets(t *testing.T) {
 	b := push(t, newStore(f), "bafyB", 2, map[string]string{"p": "x"})
 	if a[0].ID == b[0].ID || len(f.sets) != 4 {
 		t.Fatalf("archives share data sets: %v %v", a, b)
+	}
+}
+
+// TestFirstPushRace: another machine creates the key's data sets while ours
+// are landing. Both machines then push into the oldest ones.
+func TestFirstPushRace(t *testing.T) {
+	f := newFake(5)
+	f.beforeCreate = func() {
+		for _, p := range []string{"3", "4", "5"} {
+			f.create(p, dataSetMeta("repos:default"))
+		}
+	}
+	s := newStore(f)
+	sets, err := s.DataSets(context.Background(), "repos:default", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := sets[0].ID + " " + sets[1].ID + " " + sets[2].ID; ids != "100 101 102" {
+		t.Fatalf("used %s, want the other machine's 100 101 102", ids)
+	}
+	if len(f.sets) != 6 {
+		t.Fatalf("%d data sets", len(f.sets))
+	}
+	other, err := newStore(f).DataSets(context.Background(), "repos:default", 3)
+	if err != nil || other[0].ID != "100" || other[2].ID != "102" {
+		t.Fatalf("the other machine uses %v: %v", other, err)
+	}
+	st, err := s.Status(context.Background(), "repos:default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One per provider: the oldest three are used; ours on providers 1 and 2
+	// stay listed (a push with more copies would use them), and ours on
+	// provider 3 is a second one there.
+	if len(st.DataSets) != 5 || len(st.Unused) != 1 || st.Unused[0].Provider != "3" {
+		t.Errorf("status: %d data sets, unused %v", len(st.DataSets), st.Unused)
 	}
 }
 

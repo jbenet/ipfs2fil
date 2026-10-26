@@ -29,12 +29,17 @@ with Ctrl-C can simply be run again.
 
 With --all, packs every repo 'ipfs2fil repos add' listed, in the order added.
 Blocks an earlier repo's pieces already hold are left out of later repos'
-pieces, so blocks shared between repos are stored once.`,
+pieces, so blocks shared between repos are stored once, including repos on
+other machines that use the same wallet: their list is read from chain, so
+--all needs the wallet key.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoFlag(fs, o)
 			outFlag(fs, o)
 			fs.BoolVar(&packOrphans, "orphans", true, "include blocks no pin or MFS reaches, under data/orphans")
 			allFlag(fs, o)
+			// --all reads other machines' repos from chain.
+			copiesFlag(fs, o)
+			addStoreFlags(fs)
 		},
 		run: func(ctx context.Context, o *opts, _ []string) error {
 			if o.all {
@@ -58,7 +63,7 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	opt := archive.DefaultOptions()
 	opt.Orphans = packOrphans
 	opt.Tool = "ipfs2fil " + version
-	opt.Shared = o.shared
+	opt.Shared, opt.Record = o.shared, o.record
 	var bar *progress
 	stage := ""
 	opt.Progress = func(st string, done, total int64) {

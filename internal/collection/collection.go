@@ -47,8 +47,10 @@ type Collection struct {
 	Dir string `json:"-"` // the archives (and, with no catalog, the list) live here
 	// Catalog, if set, is the directory shared by every machine; this
 	// machine's list is Catalog/Host/repos.json.
-	Catalog string `json:"-"`
-	Host    string `json:"-"`
+	Catalog string      `json:"-"`
+	Host    string      `json:"-"`
+	git     *gitCatalog // set when the catalog is a git repository
+	chain   bool        // the catalog is read from chain (chain.go); Catalog is its cache
 
 	Format int `json:"format"`
 	// Key is the store key every archive in the collection uses
@@ -76,23 +78,42 @@ func DefaultDir() (string, error) {
 	return filepath.Join(home, ".ipfs2fil"), nil
 }
 
-// Open reads the collection in dir. A directory with no repos.json is an
-// empty collection; it is written on the first Save.
+// Open reads the collection in dir alone, with no catalog. A directory with
+// no repos.json is an empty collection; it is written on the first Save.
 func Open(dir string) (*Collection, error) {
-	return OpenShared(dir, "", "")
+	return open(&Collection{Dir: dir, Format: 1, Key: DefaultKey}, "")
 }
 
-// OpenShared reads this machine's list from catalog/host/repos.json, or with
-// no catalog from dir/repos.json. A machine joining a catalog brings its
-// local list along.
+// OpenShared reads this machine's list, host's, and sets up the catalog that
+// shows other machines' repos. With catalog "" or Chain, the catalog is read
+// from chain (SyncChain) and the list stays in dir/repos.json. Otherwise the
+// catalog is a folder or a git repository (IsGitURL, cloned into dir/catalog
+// or pulled) and the list is catalog/host/repos.json; a machine joining it
+// brings its local list along.
 func OpenShared(dir, catalog, host string) (*Collection, error) {
-	c := &Collection{Dir: dir, Catalog: catalog, Host: host, Format: 1, Key: DefaultKey}
-	if catalog != "" && !hostOK.MatchString(host) {
+	if !hostOK.MatchString(host) {
 		return nil, fmt.Errorf("%q is not a usable host name for the catalog; pass --host with letters, digits, '.', '_' and '-'", host)
+	}
+	c := &Collection{Dir: dir, Catalog: catalog, Host: host, Format: 1, Key: DefaultKey}
+	if catalog == "" || catalog == Chain {
+		c.Catalog, c.chain = filepath.Join(dir, ChainDir), true
+		return open(c, "")
+	}
+	return open(c, catalog)
+}
+
+func open(c *Collection, catalog string) (*Collection, error) {
+	dir := c.Dir
+	if catalog != "" && IsGitURL(catalog) {
+		c.git = &gitCatalog{url: catalog, dir: filepath.Join(dir, CloneDir), host: c.Host}
+		if err := c.git.sync(); err != nil {
+			return nil, err
+		}
+		c.Catalog = c.git.dir
 	}
 	path := c.listPath()
 	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) && catalog != "" {
+	if errors.Is(err, os.ErrNotExist) && catalog != "" && !c.chain {
 		path = filepath.Join(dir, File)
 		b, err = os.ReadFile(path)
 	}
@@ -112,10 +133,29 @@ func OpenShared(dir, catalog, host string) (*Collection, error) {
 }
 
 func (c *Collection) listPath() string {
-	if c.Catalog != "" {
+	if c.Catalog != "" && !c.chain {
 		return filepath.Join(c.Catalog, c.Host, File)
 	}
 	return filepath.Join(c.Dir, File)
+}
+
+// Commit shares this machine's changes to the catalog: for a git catalog it
+// commits and pushes them; for a folder, the folder is already shared; on
+// chain, push shares them.
+func (c *Collection) Commit(msg string) error {
+	if c.git == nil {
+		return nil
+	}
+	return c.git.commit(msg)
+}
+
+// Stale says why the catalog may be out of date (a git pull that failed),
+// or "" if it is not.
+func (c *Collection) Stale() string {
+	if c.git == nil || c.git.pulled == nil {
+		return ""
+	}
+	return fmt.Sprintf("could not pull the catalog, so other machines' repos may be out of date: %v", c.git.pulled)
 }
 
 // Where is where this machine's list lives.

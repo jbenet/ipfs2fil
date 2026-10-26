@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"strconv"
 	"sync"
 
@@ -96,6 +97,22 @@ func (s *Store) DataSets(_ context.Context, archive string, copies int) ([]store
 		return nil, fmt.Errorf("asked for %d copies but only %d providers are available", copies, len(out))
 	}
 	return out, nil
+}
+
+var _ store.Lister = (*Store)(nil)
+
+func (s *Store) Pieces(_ context.Context, archive string, copies int) ([]store.DataSet, []map[string]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var sets []store.DataSet
+	var pieces []map[string]string
+	for _, d := range s.sets {
+		if d.Metadata["ipfs2fil"] == archive && len(sets) < copies {
+			sets = append(sets, d)
+			pieces = append(pieces, maps.Clone(s.pieces[d.ID]))
+		}
+	}
+	return sets, pieces, nil
 }
 
 func (s *Store) Has(_ context.Context, ds store.DataSet, pieceCID string) (bool, error) {

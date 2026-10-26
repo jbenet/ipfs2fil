@@ -45,12 +45,18 @@ uploaded. rm only takes a repo off the list: its archive stays on disk and its
 pieces stay stored.
 
 Repos on several machines: run ipfs2fil on each machine with the same wallet
-key and the same --catalog (or $IPFS2FIL_CATALOG), a directory every machine
-sees, such as a synced folder or a git checkout. Each machine keeps its list,
-manifests and block lists there under its host name (--host); pieces stay on
-the machine that packed them. Then 'up --all' on a machine packs and pushes
-its own repos, leaving out blocks other machines' repos already store, and
-'status --all' on any machine shows every repo on every machine.`,
+key. The catalog of every machine's repos is read from your data sets on
+chain: each archive's own pieces carry a record of its machine and repo,
+encrypted under the wallet key, and other machines find it there once the
+pieces are stored, caching what they read in --home. Then 'up --all' on a
+machine packs and pushes its own repos, leaving out blocks other machines'
+repos already store, and 'status --all' on any machine shows every repo on
+every machine.
+
+A git repository URL (http, https or ssh) or a shared folder can be the
+catalog instead (--catalog): ipfs2fil clones, pulls, commits and pushes a git
+catalog itself. The catalog is remembered; --catalog filecoin goes back to
+chain. Machines are named by --host, default the host name.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "for add: the IPFS repo to add (or give it as the argument)")
 			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name)")
@@ -127,7 +133,24 @@ func openCollection(o *opts) (*collection.Collection, error) {
 	if host == "" {
 		host = collection.HostName()
 	}
-	return collection.OpenShared(dir, catalog, host)
+	catalog, err := collection.ResolveCatalog(dir, catalog)
+	if err != nil {
+		return nil, err
+	}
+	c, err := collection.OpenShared(dir, catalog, host)
+	if err == nil && c.Stale() != "" {
+		fmt.Fprintln(o.stderr, "warning:", c.Stale())
+	}
+	return c, err
+}
+
+// commitCatalog shares this machine's catalog changes (a git push for a git
+// catalog). A failure only warns: the archives are fine, and the next run
+// pushes the change.
+func commitCatalog(o *opts, c *collection.Collection, msg string) {
+	if err := c.Commit(msg); err != nil {
+		fmt.Fprintln(o.stderr, "warning:", err)
+	}
 }
 
 func reposAdd(o *opts, c *collection.Collection, args []string) error {
@@ -167,6 +190,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
+	commitCatalog(o, c, "add "+name)
 	fmt.Fprintf(o.stdout, "added    %s (%s, fs-repo %d)\n", name, abs, v)
 	fmt.Fprintf(o.stdout, "repos    %d on this machine, listed in %s\n", len(c.Repos), c.Where())
 	fmt.Fprintf(o.stdout, "next     ipfs2fil up --all\n")
@@ -296,6 +320,7 @@ func reposRemove(o *opts, c *collection.Collection, args []string) error {
 	if err := c.Unpublish(name); err != nil {
 		return err
 	}
+	commitCatalog(o, c, "remove "+name)
 	fmt.Fprintf(o.stdout, "removed  %s from the list; its archive stays in %s and its pieces stay stored\n", name, out)
 	return nil
 }

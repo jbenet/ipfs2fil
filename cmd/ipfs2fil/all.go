@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
@@ -43,6 +44,31 @@ func forRepo(o *opts, c *collection.Collection, r collection.Repo) *opts {
 	return &ro
 }
 
+// copiesOf is o.copies, or the default for commands without --copies.
+func copiesOf(o *opts) int {
+	if o.copies > 0 {
+		return o.copies
+	}
+	return 3
+}
+
+// readCatalog refreshes the catalog read from chain. Problems only warn:
+// what was read before stays usable, and at worst a block another machine
+// stores is stored again.
+func readCatalog(ctx context.Context, o *opts, c *collection.Collection, s store.Store) {
+	if !c.OnChain() {
+		return
+	}
+	secret, err := walletSecret()
+	if err != nil {
+		fmt.Fprintf(o.stderr, "warning: other machines' repos are read from chain with the wallet key: %v\n", err)
+		return
+	}
+	if err := c.SyncChain(ctx, s, secret, copiesOf(o)); err != nil {
+		fmt.Fprintf(o.stderr, "warning: reading the catalog from chain: %v\n(using what was read before)\n", err)
+	}
+}
+
 // packAll packs every repo in order, each leaving out the blocks earlier
 // repos' pieces hold. A repo that fails does not stop the others.
 func packAll(ctx context.Context, o *opts) error {
@@ -50,10 +76,29 @@ func packAll(ctx context.Context, o *opts) error {
 	if err != nil {
 		return err
 	}
+	var secret []byte
+	if c.OnChain() {
+		// Each archive carries a record naming it, sealed with the wallet
+		// key, so other machines find it on chain.
+		if secret, err = walletSecret(); err != nil {
+			return fmt.Errorf("pack --all names each archive for your other machines under the wallet key: %w", err)
+		}
+		if s, closer, err := openStore(ctx, o); err != nil {
+			fmt.Fprintf(o.stderr, "warning: not reading other machines' repos from chain: %v\n", err)
+		} else {
+			readCatalog(ctx, o, c, s)
+			closer.Close()
+		}
+	}
 	var errs []error
 	for i, r := range c.Repos {
 		fmt.Fprintf(o.stdout, "== %s (%d of %d)\n", r.Name, i+1, len(c.Repos))
 		ro := forRepo(o, c, r)
+		if secret != nil {
+			if ro.record, err = collection.SealRecord(secret, collection.Record{Host: c.Host, Name: r.Name, Added: r.Added}); err != nil {
+				return err
+			}
+		}
 		if ro.shared, err = c.Shared(r.Name); err == nil {
 			if _, err = pack(ctx, ro); err == nil {
 				publish(o, c, r)
@@ -68,6 +113,7 @@ func packAll(ctx context.Context, o *opts) error {
 		}
 		fmt.Fprintln(o.stdout)
 	}
+	commitCatalog(o, c, "pack")
 	if len(errs) > 0 {
 		return fmt.Errorf("%d of %d repos did not pack:\n%w", len(errs), len(c.Repos), errors.Join(errs...))
 	}
@@ -144,6 +190,7 @@ func pushAll(ctx context.Context, o *opts) error {
 	}
 	if len(todo) == 0 {
 		fmt.Fprintf(o.stdout, "all %d packed repos are stored; nothing to upload\n", len(as))
+		commitCatalog(o, c, "push")
 		return nil
 	}
 	for _, k := range keys {
@@ -172,6 +219,7 @@ func pushAll(ctx context.Context, o *opts) error {
 			errs = append(errs, fmt.Errorf("%s: %w", a.repo.Name, err))
 		}
 	}
+	commitCatalog(o, c, "push")
 	if len(errs) > 0 {
 		return fmt.Errorf("%d of %d repos did not finish; run 'ipfs2fil push --all' again to retry:\n%w", len(errs), len(todo), errors.Join(errs...))
 	}
@@ -225,6 +273,12 @@ func statusAll(ctx context.Context, o *opts) error {
 	if err != nil {
 		return err
 	}
+	s, closer, err := openStore(ctx, o)
+	if err != nil {
+		return err
+	}
+	defer closer.Close()
+	readCatalog(ctx, o, c, s)
 	es, err := c.Entries()
 	if err != nil {
 		return err
@@ -236,11 +290,6 @@ func statusAll(ctx context.Context, o *opts) error {
 	if err != nil {
 		return err
 	}
-	s, closer, err := openStore(ctx, o)
-	if err != nil {
-		return err
-	}
-	defer closer.Close()
 	statuses := map[string]store.Status{}
 	statusOf := func(key string) (store.Status, error) {
 		if st, ok := statuses[key]; ok {
@@ -340,6 +389,14 @@ func statusAll(ctx context.Context, o *opts) error {
 			note = fmt.Sprintf("  (missing %d; run push --all)", res.Pieces-d.Pieces)
 		}
 		fmt.Fprintf(w, "  %d. provider %s, data set %s: %d pieces, last proven %s%s\n", i+1, d.Provider, d.ID, d.Pieces, d.LastProven, note)
+	}
+	if len(main.Unused) > 0 {
+		var ids []string
+		for _, d := range main.Unused {
+			ids = append(ids, d.ID)
+		}
+		fmt.Fprintf(w, "unused   data sets %s were made at the same time as the ones above (two machines pushing first at once);\n"+
+			"         they hold nothing, and each keeps its share of the reserve until ended\n", strings.Join(ids, ", "))
 	}
 	printFunding(w, main)
 	return nil

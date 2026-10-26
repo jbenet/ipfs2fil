@@ -21,14 +21,15 @@ import (
 func useMemStore(t *testing.T, providers int) *memstore.Store {
 	t.Helper()
 	ms := memstore.New(providers)
-	old, oldKey, oldIPNI := openStore, checkKey, checkIPNI
+	old, oldKey, oldSecret, oldIPNI := openStore, checkKey, walletSecret, checkIPNI
 	openStore = func(context.Context, *opts) (store.Store, io.Closer, error) { return ms, io.NopCloser(nil), nil }
 	checkKey = func() error { return nil }
+	walletSecret = func() ([]byte, error) { return []byte("test wallet"), nil }
 	// Every CID but the archive root is announced.
 	checkIPNI = func(_ context.Context, _ *http.Client, endpoint string, cids []string, _ int) ipni.Result {
 		return ipni.Result{Endpoint: endpoint, Checked: len(cids), Announced: len(cids) - 1, Missing: []ipni.Miss{{CID: cids[0], Reason: "no providers"}}}
 	}
-	t.Cleanup(func() { openStore, checkKey, checkIPNI = old, oldKey, oldIPNI })
+	t.Cleanup(func() { openStore, checkKey, walletSecret, checkIPNI = old, oldKey, oldSecret, oldIPNI })
 	return ms
 }
 
