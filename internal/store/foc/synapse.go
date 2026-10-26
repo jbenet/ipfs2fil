@@ -1,6 +1,7 @@
 package foc
 
 import (
+	"cmp"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -36,6 +37,11 @@ type Config struct {
 	// Address opens the store read-only for this wallet (0x...) when Key is
 	// nil: Status, Has and Fetch work, and anything that writes fails.
 	Address string
+	// MaxBaseFee holds on-chain steps while the network base fee (attoFIL
+	// per gas) is at or above it: 0 means DefaultMaxBaseFee, negative never
+	// waits. OnGas, if set, hears when steps start and stop waiting.
+	MaxBaseFee int64
+	OnGas      func(baseFee *big.Int, paused bool)
 }
 
 var errReadOnly = errors.New("this needs the wallet key; the store was opened with an address only")
@@ -79,6 +85,16 @@ func Open(ctx context.Context, cfg Config) (*Store, io.Closer, error) {
 		panic(err)
 	}
 	b := &synapseBackend{c: c, ec: ec, pdp: pdp, payer: payer, readOnly: cfg.Key == nil, dsc: map[string]*storage.DataSetContext{}}
+	if cfg.MaxBaseFee >= 0 {
+		b.gas = &gasGate{max: big.NewInt(cmp.Or(cfg.MaxBaseFee, DefaultMaxBaseFee)), every: time.Minute, report: cfg.OnGas,
+			read: func(ctx context.Context) (*big.Int, error) {
+				h, err := ec.HeaderByNumber(ctx, nil)
+				if err != nil {
+					return nil, err
+				}
+				return h.BaseFee, nil
+			}}
+	}
 	return newStore(b), b, nil
 }
 
@@ -92,6 +108,7 @@ type synapseBackend struct {
 	pdp      abi.ABI
 	payer    common.Address
 	readOnly bool
+	gas      *gasGate
 
 	mu  sync.Mutex
 	dsc map[string]*storage.DataSetContext
@@ -169,6 +186,9 @@ func (b *synapseBackend) Create(ctx context.Context, provider string, meta map[s
 	if err != nil {
 		return dataSet{}, err
 	}
+	if err := b.gas.wait(ctx); err != nil {
+		return dataSet{}, err
+	}
 	res, err := pc.CreateDataSet(ctx, nil)
 	if err != nil {
 		return dataSet{}, err
@@ -217,10 +237,57 @@ func (b *synapseBackend) Upload(ctx context.Context, ds dataSet, pieceCID string
 	if _, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc}); err != nil {
 		return "", err
 	}
+	return b.commit(ctx, dsc, ds, storage.PieceInput{PieceCID: pc, PieceMetadata: meta}, nil)
+}
+
+// Pull has ds's provider fetch the piece from from's provider, which serves
+// it at /piece/<PieceCID>, then adds it to ds. The pull and the add carry one
+// signed authorization, as synapse-go's own multi-copy upload does.
+func (b *synapseBackend) Pull(ctx context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (string, error) {
+	if b.readOnly {
+		return "", errReadOnly
+	}
+	pc, err := cid.Decode(pieceCID)
+	if err != nil {
+		return "", fmt.Errorf("bad PieceCID: %w", err)
+	}
+	src, err := b.dataSetContext(ctx, from.ID)
+	if err != nil {
+		return "", err
+	}
+	dsc, err := b.dataSetContext(ctx, ds.ID)
+	if err != nil {
+		return "", err
+	}
+	piece := storage.PieceInput{PieceCID: pc, PieceMetadata: meta}
+	extra, err := dsc.PresignForCommit(ctx, []storage.PieceInput{piece})
+	if err != nil {
+		return "", fmt.Errorf("signing the pull: %w", err)
+	}
+	res, err := dsc.Pull(ctx, storage.PullRequest{Pieces: []cid.Cid{pc}, From: src.PieceURL, ExtraData: extra})
+	if err != nil {
+		return "", err
+	}
+	if res == nil {
+		return "", errors.New("the provider reported no pull status")
+	}
+	if res.Status != storage.PullStatusComplete {
+		return "", fmt.Errorf("the pull ended %s", res.Status)
+	}
+	return b.commit(ctx, dsc, ds, piece, extra)
+}
+
+// commit adds a piece the provider holds to ds, once the base fee allows.
+// extra is the signed authorization, or nil to sign a new one.
+func (b *synapseBackend) commit(ctx context.Context, dsc *storage.DataSetContext, ds dataSet, piece storage.PieceInput, extra []byte) (string, error) {
+	if err := b.gas.wait(ctx); err != nil {
+		return "", err
+	}
 	var res *storage.CommitResult
-	err = retryCommit(ctx, commitDelays, func() (submitted bool, err error) {
+	err := retryCommit(ctx, commitDelays, func() (submitted bool, err error) {
 		res, err = dsc.Commit(ctx, storage.CommitRequest{
-			Pieces:      []storage.PieceInput{{PieceCID: pc, PieceMetadata: meta}},
+			Pieces:      []storage.PieceInput{piece},
+			ExtraData:   extra,
 			OnSubmitted: func(storage.CommitSubmission) { submitted = true },
 		})
 		return submitted, err
@@ -417,6 +484,9 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 		}
 		f.Deposit, f.Approve, f.Wallet = t.DepositAmount, t.IncludesApproval, wallet
 		f.apply = func(ctx context.Context) error {
+			if err := b.gas.wait(ctx); err != nil {
+				return err
+			}
 			_, err := t.Execute(ctx, payments.WithWait(10*time.Minute))
 			return err
 		}
@@ -427,6 +497,9 @@ func (b *synapseBackend) Prepare(ctx context.Context, ids, fresh []string, meta 
 			}
 			f.Deposit = d
 			f.apply = func(ctx context.Context) error {
+				if err := b.gas.wait(ctx); err != nil {
+					return err
+				}
 				_, err := b.c.Payments().FundSync(ctx, d, opts...)
 				return err
 			}

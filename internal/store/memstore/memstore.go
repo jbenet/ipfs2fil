@@ -24,9 +24,15 @@ type Store struct {
 	data    map[string][]byte            // PieceCID -> bytes
 	meta    map[string]map[string]string // data set id/PieceCID -> metadata
 	uploads int
+	pulls   int
+	// PullFails makes every Pull fail, so Push falls back to uploading.
+	PullFails bool
 }
 
-var _ store.Store = (*Store)(nil)
+var (
+	_ store.Store  = (*Store)(nil)
+	_ store.Puller = (*Store)(nil)
+)
 
 func New(providers int) *Store {
 	return &Store{Providers: providers, pieces: map[string]map[string]string{},
@@ -35,11 +41,18 @@ func New(providers int) *Store {
 
 func (s *Store) Service() string { return "mem" }
 
-// Uploads counts pieces actually uploaded, skips excluded.
+// Uploads counts pieces actually stored, by upload or pull; skips excluded.
 func (s *Store) Uploads() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.uploads
+	return s.uploads + s.pulls
+}
+
+// Pulls counts pieces a provider fetched from another provider.
+func (s *Store) Pulls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pulls
 }
 
 // Meta returns the metadata a piece was uploaded with.
@@ -119,6 +132,31 @@ func (s *Store) Upload(_ context.Context, ds store.DataSet, pieceCID string, car
 	s.data[pieceCID] = b
 	s.meta[ds.ID+"/"+pieceCID] = meta
 	s.uploads++
+	return ref, nil
+}
+
+func (s *Store) Pull(_ context.Context, ds, from store.DataSet, pieceCID string, meta map[string]string) (store.PieceRef, error) {
+	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.pieces[ds.ID]
+	if !ok {
+		return ref, fmt.Errorf("no data set %s", ds.ID)
+	}
+	if id, held := p[pieceCID]; held {
+		ref.PieceID = id
+		return ref, nil
+	}
+	if s.PullFails {
+		return ref, fmt.Errorf("provider %s could not fetch piece %s", ds.Provider, pieceCID)
+	}
+	if _, ok := s.pieces[from.ID][pieceCID]; !ok {
+		return ref, fmt.Errorf("data set %s has no piece %s to pull", from.ID, pieceCID)
+	}
+	ref.PieceID = strconv.Itoa(len(p))
+	p[pieceCID] = ref.PieceID
+	s.meta[ds.ID+"/"+pieceCID] = meta
+	s.pulls++
 	return ref, nil
 }
 

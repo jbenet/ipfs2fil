@@ -23,6 +23,11 @@ each on a different provider. Pieces a copy already holds are skipped, so
 running push again after Ctrl-C, a failure, or a new pack uploads only what is
 missing. Progress is saved to manifest.json after every piece.
 
+Each piece leaves this machine once: it goes to the first copy's provider, and
+the other providers copy it from there (if one cannot, the piece is uploaded
+to it from here). While the network base fee is at or above --max-base-fee,
+on-chain steps wait for it to fall.
+
 Before uploading, push shows the cost and any deposit your wallet must make
 into Filecoin Pay, and asks to go ahead (--yes skips the question). The wallet
 key comes from --key-file, $IPFS2FIL_KEY_FILE or $IPFS2FIL_PRIVATE_KEY; it is
@@ -102,7 +107,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 	var mu sync.Mutex
 	seen := map[[2]int]int64{} // (copy, piece) -> bytes counted
 	final := map[[2]int]bool{} // (copy, piece) -> stored or skipped
-	var sent, skipped int
+	var sent, skipped, pulled int
 	failed := map[int]bool{}
 	err := store.Push(ctx, s, m, pieces, o.copies, saveManifest(o.out), func(ev store.PushEvent) {
 		mu.Lock()
@@ -126,6 +131,14 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 			return
 		}
 		switch {
+		case ev.PullErr != nil:
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d could not be copied from provider %s, uploading it from here: %v",
+				ev.Copy+1, ev.Provider, ev.Piece, ev.From, ev.PullErr))
+		case ev.Final && ev.Pulled && ev.Err == nil:
+			sent++
+			pulled++
+			final[k] = true
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d copied from provider %s, stored", ev.Copy+1, ev.Provider, ev.Piece, ev.From))
 		case ev.Err != nil:
 			failed[ev.Copy] = true
 			final[k] = true
@@ -143,7 +156,10 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 		bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
 	}
 	bar.Done()
-	fmt.Fprintf(o.stdout, "uploaded %d pieces, %d were already stored", sent, skipped)
+	fmt.Fprintf(o.stdout, "stored %d pieces, skipped %d already stored", sent, skipped)
+	if pulled > 0 {
+		fmt.Fprintf(o.stdout, "; providers copied %d from each other, so each piece left this machine once", pulled)
+	}
 	if len(failed) > 0 {
 		fmt.Fprintf(o.stdout, ", %d of %d copies stopped early", len(failed), o.copies)
 	}

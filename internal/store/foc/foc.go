@@ -44,6 +44,8 @@ type backend interface {
 	// Pieces lists a data set's active pieces on chain: PieceCID -> piece id.
 	Pieces(ctx context.Context, dataSetID string) (map[string]string, error)
 	Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (pieceID string, err error)
+	// Pull has ds's provider fetch the piece from from's provider, then adds it.
+	Pull(ctx context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (pieceID string, err error)
 	Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error)
 	// Proofs reads when the data set was last proven, zero until the first proof.
 	Proofs(ctx context.Context, dataSetID string) (lastEpoch int64, last time.Time, err error)
@@ -143,7 +145,10 @@ type Store struct {
 	chosen map[string][]string          // archive -> providers chosen by Plan, not yet used
 }
 
-var _ store.Store = (*Store)(nil)
+var (
+	_ store.Store  = (*Store)(nil)
+	_ store.Puller = (*Store)(nil)
+)
 
 // Service names this store in manifest.Copy.Service.
 func (*Store) Service() string { return Service }
@@ -353,6 +358,29 @@ func (s *Store) Upload(ctx context.Context, ds store.DataSet, pieceCID string, c
 	pid, err = s.b.Upload(ctx, fromPublic(ds), pieceCID, car, meta)
 	if err != nil {
 		return ref, fmt.Errorf("uploading piece %s to provider %s: %w", pieceCID, ds.Provider, err)
+	}
+	s.mu.Lock()
+	s.pieces[ds.ID][pieceCID] = pid
+	s.mu.Unlock()
+	ref.PieceID = pid
+	return ref, nil
+}
+
+// Pull has ds's provider fetch the piece from the provider of from, unless ds
+// already holds it, so the bytes leave this machine once for all copies.
+func (s *Store) Pull(ctx context.Context, ds, from store.DataSet, pieceCID string, meta map[string]string) (store.PieceRef, error) {
+	ref := store.PieceRef{DataSetID: ds.ID, PieceCID: pieceCID}
+	pid, ok, err := s.lookup(ctx, ds.ID, pieceCID)
+	if err != nil {
+		return ref, err
+	}
+	if ok {
+		ref.PieceID = pid
+		return ref, nil
+	}
+	pid, err = s.b.Pull(ctx, fromPublic(ds), fromPublic(from), pieceCID, meta)
+	if err != nil {
+		return ref, fmt.Errorf("provider %s fetching piece %s from provider %s: %w", ds.Provider, pieceCID, from.Provider, err)
 	}
 	s.mu.Lock()
 	s.pieces[ds.ID][pieceCID] = pid

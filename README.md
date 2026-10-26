@@ -49,8 +49,10 @@ wallet holding some FIL for gas and USDFC to pay for storage.
        export IPFS2FIL_KEY_FILE=~/secrets/filecoin.key    # or IPFS2FIL_PRIVATE_KEY=<hex>
 
 3. Archive. This packs the repo into `./ipfs2fil-archive`, shows the monthly
-   cost and any deposit to make into Filecoin Pay, and uploads 3 copies once
-   you say yes.
+   cost and any deposit to make into Filecoin Pay, and stores 3 copies once
+   you say yes. Each piece is uploaded once; the other providers copy it from
+   the first. While the network's gas price spikes, on-chain steps wait it out
+   (`--max-base-fee`).
 
        ipfs2fil up
 
@@ -60,7 +62,8 @@ wallet holding some FIL for gas and USDFC to pay for storage.
 4. Check on it, and browse it.
 
        ipfs2fil status            # providers, pieces, last proof, days funded
-       ipfs2fil verify            # fetch every piece back and check every block
+       ipfs2fil verify            # fetch every piece back, check every block, and
+                                  # check the CIDs are announced to IPFS
        ipfs2fil explore --serve   # http://127.0.0.1:8484/explorer/
 
    Once stored, the archive root printed by `up` opens from any gateway,

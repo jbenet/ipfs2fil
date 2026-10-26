@@ -37,8 +37,25 @@ type PushEvent struct {
 	// Final marks the last event for this piece in this copy: it is stored
 	// (or Skipped), or Err says why not.
 	Final   bool
-	Skipped bool  // the copy already held this piece
+	Skipped bool // the copy already held this piece
+	// Pulled is set when the copy's provider fetched the piece from the
+	// first copy's provider (From) instead of from this machine.
+	Pulled bool
+	From   string
+	// PullErr says why a provider could not fetch the piece from the first
+	// copy, on a non-final event; the piece is then uploaded from here.
+	PullErr error
 	Err     error // this copy stopped at this piece
+}
+
+// Puller is a Store whose providers can fetch a piece from one another. Push
+// then sends each piece from this machine once, to the first copy, and the
+// other copies' providers fetch it from there.
+type Puller interface {
+	// Pull has ds's provider fetch the piece from the provider of from,
+	// which holds it, and adds it to ds. If ds already holds the piece, Pull
+	// returns its ref.
+	Pull(ctx context.Context, ds, from DataSet, pieceCID string, meta map[string]string) (PieceRef, error)
 }
 
 // Push stores every piece in copies data sets. Pieces a data set already
@@ -46,6 +63,10 @@ type PushEvent struct {
 // missing. Copies upload in parallel. m.Copies is updated as pieces land, and
 // save is called after each one so a killed run loses at most the pieces in
 // flight. Each piece carries ipfsRootCID = m.Root.
+//
+// When s is a Puller, the first copy uploads each piece and the others pull
+// it from the first copy's provider once it lands, falling back to an upload
+// if the pull fails or the first copy does not get the piece.
 //
 // A failing copy stops at its first error; the other copies carry on, and
 // Push returns all errors joined.
@@ -80,16 +101,48 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 	}
 
 	meta := map[string]string{"ipfsRootCID": m.Root}
+	// landed[j] closes when the first copy is done with pieces[j]; held[j]
+	// then says whether it holds it, so the other copies can pull it.
+	puller, _ := s.(Puller)
+	var landed []chan struct{}
+	var held []bool
+	if puller != nil && len(sets) > 1 {
+		landed, held = make([]chan struct{}, len(pieces)), make([]bool, len(pieces))
+		for j := range landed {
+			landed[j] = make(chan struct{})
+		}
+	}
 	errs := make([]error, len(sets))
 	var wg sync.WaitGroup
 	for i, ds := range sets {
 		wg.Go(func() {
-			for _, p := range pieces {
+			next := 0
+			if landed != nil && i == 0 {
+				defer func() {
+					for _, c := range landed[next:] {
+						close(c)
+					}
+				}()
+			}
+			for j, p := range pieces {
 				ev := PushEvent{Copy: i, Provider: ds.Provider, Piece: p.Index, Total: p.CARBytes}
-				skipped, id, err := pushOne(ctx, s, ds, p, meta, func(done int64) {
+				sent := func(done int64) {
 					ev.Done = done
 					progress(ev)
-				})
+				}
+				var skipped bool
+				var id string
+				var err error
+				if landed != nil && i > 0 {
+					skipped, id, err = pullOne(ctx, puller, s, ds, sets[0], p, meta, landed[j], &held[j], &ev, progress, sent)
+				} else {
+					skipped, id, err = pushOne(ctx, s, ds, p, meta, sent)
+				}
+				if landed != nil && i == 0 {
+					held[j] = err == nil
+					close(landed[j])
+					next = j + 1
+				}
 				if err != nil {
 					ev.Err, ev.Final = err, true
 					progress(ev)
@@ -129,6 +182,37 @@ func copyRecord(m *manifest.Manifest, ds DataSet, service string) int {
 	}
 	m.Copies = append(m.Copies, manifest.Copy{Provider: ds.Provider, DataSetID: ds.ID, PieceIDs: map[int]string{}, Service: service})
 	return len(m.Copies) - 1
+}
+
+// pullOne stores p in ds by having its provider fetch it from the first copy,
+// from, once that holds it; it uploads p instead if the pull fails or the
+// first copy did not get it.
+func pullOne(ctx context.Context, puller Puller, s Store, ds, from DataSet, p archive.Piece, meta map[string]string,
+	landed <-chan struct{}, held *bool, ev *PushEvent, progress func(PushEvent), sent func(int64)) (skipped bool, id string, err error) {
+	has, err := s.Has(ctx, ds, p.PieceCID)
+	if err != nil {
+		return false, "", err
+	}
+	if has {
+		return pushOne(ctx, s, ds, p, meta, sent)
+	}
+	select {
+	case <-landed:
+	case <-ctx.Done():
+		return false, "", ctx.Err()
+	}
+	if *held {
+		ref, err := puller.Pull(ctx, ds, from, p.PieceCID, meta)
+		if err == nil {
+			ev.Pulled, ev.From = true, from.Provider
+			return false, ref.PieceID, nil
+		}
+		if ctx.Err() != nil {
+			return false, "", err
+		}
+		progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: from.Provider, PullErr: err})
+	}
+	return pushOne(ctx, s, ds, p, meta, sent)
 }
 
 func pushOne(ctx context.Context, s Store, ds DataSet, p archive.Piece, meta map[string]string, sent func(int64)) (skipped bool, id string, err error) {
