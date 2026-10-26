@@ -25,8 +25,11 @@ missing. Progress is saved to manifest.json after every piece.
 
 Each piece leaves this machine once: it goes to the first copy's provider, and
 the other providers copy it from there (if one cannot, the piece is uploaded
-to it from here). While the network base fee is at or above --max-base-fee,
-on-chain steps wait for it to fall.
+to it from here). Sending a piece and adding it on chain are separate steps:
+while the network base fee is at or above --max-base-fee, adding waits for it
+to fall but sending carries on (up to an hour ahead, as providers drop pieces
+not added within about two hours), and the pieces that piled up are added
+together.
 
 Before uploading, push shows the cost and any deposit your wallet must make
 into Filecoin Pay, and asks to go ahead (--yes skips the question). The wallet
@@ -105,10 +108,12 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 	start := time.Now()
 	var bar *progress
 	var mu sync.Mutex
-	seen := map[[2]int]int64{} // (copy, piece) -> bytes counted
-	final := map[[2]int]bool{} // (copy, piece) -> stored or skipped
+	seen := map[[2]int]int64{}   // (copy, piece) -> bytes counted
+	final := map[[2]int]bool{}   // (copy, piece) -> stored or skipped
+	waiting := map[[2]int]bool{} // (copy, piece) -> staged, not yet added on chain
 	var sent, skipped, pulled int
 	failed := map[int]bool{}
+	defer logTo(nil)
 	err := store.Push(ctx, s, m, pieces, o.copies, saveManifest(o.out), func(ev store.PushEvent) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -117,8 +122,21 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 				fmt.Fprintf(o.stderr, "data sets ready in %s\n", roundDur(time.Since(start)))
 			}
 			bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
+			logTo(bar)
 		}
 		k := [2]int{ev.Copy, ev.Piece}
+		if ev.Staged || ev.Final {
+			if ev.Staged {
+				waiting[k] = true
+			} else {
+				delete(waiting, k)
+			}
+			if n := len(waiting); n > 0 {
+				bar.Suffix(fmt.Sprintf("%d %s sent, waiting to go on chain", n, plural(n, "piece", "pieces")))
+			} else {
+				bar.Suffix("")
+			}
+		}
 		done := ev.Done
 		if ev.Skipped {
 			done = ev.Total
@@ -131,6 +149,9 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 			return
 		}
 		switch {
+		case ev.Dropped:
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d was dropped by the provider while it waited to go on chain; sending it again",
+				ev.Copy+1, ev.Provider, ev.Piece))
 		case ev.PullErr != nil:
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d could not be copied from provider %s, uploading it from here: %v",
 				ev.Copy+1, ev.Provider, ev.Piece, ev.From, ev.PullErr))
@@ -143,6 +164,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 			failed[ev.Copy] = true
 			final[k] = true
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d failed: %v", ev.Copy+1, ev.Provider, ev.Piece, ev.Err))
+		case ev.Staged:
 		case ev.Skipped:
 			skipped++
 			final[k] = true
@@ -155,6 +177,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 	if bar == nil {
 		bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
 	}
+	bar.Suffix("")
 	bar.Done()
 	fmt.Fprintf(o.stdout, "stored %d pieces, skipped %d already stored", sent, skipped)
 	if pulled > 0 {

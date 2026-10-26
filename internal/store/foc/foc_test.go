@@ -36,8 +36,10 @@ type fake struct {
 	sets      []dataSet
 	pieces    map[string]map[string]string // data set -> PieceCID -> piece id
 	data      map[string][]byte            // PieceCID -> bytes
+	staged    map[string]bool              // provider/PieceCID, sent but not added
 	uploads   int
 	pulls     int
+	commits   int
 	reads     int // Pieces calls
 	nextID    int
 	prepared  string // the last Prepare's ids, fresh providers and sizes
@@ -90,32 +92,54 @@ func (f *fake) Pieces(_ context.Context, id string) (map[string]string, error) {
 	return maps.Clone(f.pieces[id]), nil
 }
 
-func (f *fake) Upload(_ context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (string, error) {
+func (f *fake) Stage(_ context.Context, ds dataSet, pieceCID string, r io.Reader) error {
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return "", err
-	}
-	if meta[KeyIPFSRoot] == "" {
-		return "", fmt.Errorf("no %s", KeyIPFSRoot)
+		return err
 	}
 	f.uploads++
 	f.data[pieceCID] = b
-	id := strconv.Itoa(len(f.pieces[ds.ID]))
-	f.pieces[ds.ID][pieceCID] = id
-	return id, nil
+	f.stage(ds.Provider, pieceCID)
+	return nil
 }
 
-func (f *fake) Pull(_ context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (string, error) {
-	if _, ok := f.pieces[from.ID][pieceCID]; !ok {
-		return "", fmt.Errorf("data set %s has no piece %s", from.ID, pieceCID)
+func (f *fake) stage(provider, pieceCID string) {
+	if f.staged == nil {
+		f.staged = map[string]bool{}
 	}
-	if meta[KeyIPFSRoot] == "" {
-		return "", fmt.Errorf("no %s", KeyIPFSRoot)
+	f.staged[provider+"/"+pieceCID] = true
+}
+
+func (f *fake) Pull(_ context.Context, ds, from dataSet, pieceCID string) error {
+	if _, ok := f.pieces[from.ID][pieceCID]; !ok && !f.staged[from.Provider+"/"+pieceCID] {
+		return fmt.Errorf("data set %s has no piece %s", from.ID, pieceCID)
 	}
 	f.pulls++
-	id := strconv.Itoa(len(f.pieces[ds.ID]))
-	f.pieces[ds.ID][pieceCID] = id
-	return id, nil
+	f.stage(ds.Provider, pieceCID)
+	return nil
+}
+
+func (f *fake) Commit(_ context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
+	if meta[KeyIPFSRoot] == "" {
+		return nil, fmt.Errorf("no %s", KeyIPFSRoot)
+	}
+	var gone []string
+	for _, c := range pieceCIDs {
+		if !f.staged[ds.Provider+"/"+c] {
+			gone = append(gone, c)
+		}
+	}
+	if gone != nil {
+		return nil, &store.GoneError{Provider: ds.Provider, PieceCIDs: gone}
+	}
+	f.commits++
+	ids := make([]string, len(pieceCIDs))
+	for i, c := range pieceCIDs {
+		ids[i] = strconv.Itoa(len(f.pieces[ds.ID]))
+		f.pieces[ds.ID][c] = ids[i]
+		delete(f.staged, ds.Provider+"/"+c)
+	}
+	return ids, nil
 }
 
 func (f *fake) Download(_ context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error) {
@@ -587,18 +611,50 @@ func TestPullCopiesBetweenProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 	meta := map[string]string{KeyIPFSRoot: "bafyA"}
-	if _, err := s.Upload(ctx, sets[0], "p", strings.NewReader("x"), 1, meta); err != nil {
+	// The second provider pulls the piece while the first only has it
+	// staged, then each adds it.
+	if err := s.Stage(ctx, sets[0], "p", strings.NewReader("x"), 1); err != nil {
 		t.Fatal(err)
 	}
-	ref, err := s.Pull(ctx, sets[1], sets[0], "p", meta)
-	if err != nil || ref.PieceID == "" || f.pulls != 1 || f.uploads != 1 {
-		t.Fatalf("pull: %+v, %v; %d pulls, %d uploads", ref, err, f.pulls, f.uploads)
+	if err := s.Pull(ctx, sets[1], sets[0], "p"); err != nil || f.pulls != 1 || f.uploads != 1 {
+		t.Fatalf("pull: %v; %d pulls, %d uploads", err, f.pulls, f.uploads)
 	}
-	// Held already: no second pull.
-	if again, err := s.Pull(ctx, sets[1], sets[0], "p", meta); err != nil || again.PieceID != ref.PieceID || f.pulls != 1 {
-		t.Fatalf("re-pull: %+v, %v; %d pulls", again, err, f.pulls)
+	for _, ds := range sets {
+		if ids, err := s.Commit(ctx, ds, []string{"p"}, meta); err != nil || ids[0] == "" {
+			t.Fatalf("commit on %s: %v, %v", ds.Provider, ids, err)
+		}
 	}
-	if _, err := s.Pull(ctx, sets[0], sets[1], "q", meta); err == nil || !strings.Contains(err.Error(), "fetching piece q from provider") {
+	// Held already: no second pull, and no second add.
+	if err := s.Pull(ctx, sets[1], sets[0], "p"); err != nil || f.pulls != 1 {
+		t.Fatalf("re-pull: %v; %d pulls", err, f.pulls)
+	}
+	if _, err := s.Commit(ctx, sets[1], []string{"p"}, meta); err != nil || f.commits != 2 {
+		t.Fatalf("re-commit: %v; %d commits", err, f.commits)
+	}
+	if err := s.Pull(ctx, sets[0], sets[1], "q"); err == nil || !strings.Contains(err.Error(), "fetching piece q from provider") {
 		t.Fatalf("pull of a missing piece: %v", err)
+	}
+}
+
+func TestCommitReportsDroppedPieces(t *testing.T) {
+	// A piece staged, then dropped by the provider, comes back as a
+	// GoneError through the Store's wrapping, and nothing is added.
+	f := newFake(1)
+	s := newStore(f)
+	ctx := context.Background()
+	sets, err := s.DataSets(ctx, "bafyA", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []string{"p", "q"} {
+		if err := s.Stage(ctx, sets[0], c, strings.NewReader("x"), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	delete(f.staged, "1/q")
+	_, err = s.Commit(ctx, sets[0], []string{"p", "q"}, map[string]string{KeyIPFSRoot: "bafyA"})
+	var gone *store.GoneError
+	if !errors.As(err, &gone) || fmt.Sprint(gone.PieceCIDs) != "[q]" || f.commits != 0 {
+		t.Fatalf("got %v (%d commits), want q gone", err, f.commits)
 	}
 }

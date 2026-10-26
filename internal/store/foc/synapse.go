@@ -24,6 +24,8 @@ import (
 	pdpclient "github.com/strahe/synapse-go/pdp"
 	"github.com/strahe/synapse-go/storage"
 	"github.com/strahe/synapse-go/types"
+
+	"github.com/jbenet/ipfs2fil/internal/store"
 )
 
 // Public RPC endpoints.
@@ -223,107 +225,150 @@ func (b *synapseBackend) dataSetContext(ctx context.Context, id string) (*storag
 	return c, nil
 }
 
-func (b *synapseBackend) Upload(ctx context.Context, ds dataSet, pieceCID string, r io.Reader, meta map[string]string) (string, error) {
+func (b *synapseBackend) Stage(ctx context.Context, ds dataSet, pieceCID string, r io.Reader) error {
 	if b.readOnly {
-		return "", errReadOnly
+		return errReadOnly
 	}
 	pc, err := cid.Decode(pieceCID)
 	if err != nil {
-		return "", fmt.Errorf("bad PieceCID: %w", err)
+		return fmt.Errorf("bad PieceCID: %w", err)
 	}
 	dsc, err := b.dataSetContext(ctx, ds.ID)
 	if err != nil {
-		return "", err
+		return err
 	}
-	piece := storage.PieceInput{PieceCID: pc, PieceMetadata: meta}
-	// A run that sent the piece but stopped before it was added to the data
-	// set (the add failed, or the run was stopped) leaves it parked with the
-	// provider for a while: add it without sending it again.
-	if parked(ctx, dsc.ServiceURL(), pc) {
-		id, err := b.commit(ctx, dsc, ds, piece, nil)
-		if err == nil || ctx.Err() != nil || !strings.Contains(err.Error(), "not found") {
-			return id, err
-		}
+	// A run that sent the piece but stopped before it was added leaves it
+	// parked with the provider for a while: it need not be sent again.
+	if ok, err := parked(ctx, dsc.ServiceURL(), pc); err == nil && ok {
+		return nil
 	}
-	if _, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc}); err != nil {
-		return "", err
-	}
-	return b.commit(ctx, dsc, ds, piece, nil)
+	_, err = dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
+	return err
 }
 
 // parked reports whether the provider at serviceURL holds the piece, ready
-// to add to a data set. Any doubt, such as an error, says no, so the piece
-// is uploaded as usual.
-var parked = func(ctx context.Context, serviceURL string, pc cid.Cid) bool {
+// to add to a data set; err says when it could not tell.
+var parked = func(ctx context.Context, serviceURL string, pc cid.Cid) (bool, error) {
 	c, err := pdpclient.New(serviceURL)
 	if err != nil {
-		return false
+		return false, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	_, err = c.FindPiece(ctx, pc)
-	return err == nil
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, pdpclient.ErrPieceNotFound):
+		return false, nil
+	}
+	return false, err
 }
 
 // Pull has ds's provider fetch the piece from from's provider, which serves
-// it at /piece/<PieceCID>, then adds it to ds. The pull and the add carry one
-// signed authorization, as synapse-go's own multi-copy upload does.
-func (b *synapseBackend) Pull(ctx context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (string, error) {
+// it at /piece/<PieceCID> once it is parked there. The request carries a
+// signed authorization to add the piece, as synapse-go's own multi-copy
+// upload does; Commit signs its own for the pieces it adds together.
+func (b *synapseBackend) Pull(ctx context.Context, ds, from dataSet, pieceCID string) error {
 	if b.readOnly {
-		return "", errReadOnly
+		return errReadOnly
 	}
 	pc, err := cid.Decode(pieceCID)
 	if err != nil {
-		return "", fmt.Errorf("bad PieceCID: %w", err)
+		return fmt.Errorf("bad PieceCID: %w", err)
 	}
 	src, err := b.dataSetContext(ctx, from.ID)
 	if err != nil {
-		return "", err
+		return err
 	}
 	dsc, err := b.dataSetContext(ctx, ds.ID)
 	if err != nil {
-		return "", err
+		return err
 	}
-	piece := storage.PieceInput{PieceCID: pc, PieceMetadata: meta}
-	extra, err := dsc.PresignForCommit(ctx, []storage.PieceInput{piece})
+	if ok, err := parked(ctx, dsc.ServiceURL(), pc); err == nil && ok {
+		return nil
+	}
+	extra, err := dsc.PresignForCommit(ctx, []storage.PieceInput{{PieceCID: pc}})
 	if err != nil {
-		return "", fmt.Errorf("signing the pull: %w", err)
+		return fmt.Errorf("signing the pull: %w", err)
 	}
 	res, err := dsc.Pull(ctx, storage.PullRequest{Pieces: []cid.Cid{pc}, From: src.PieceURL, ExtraData: extra})
 	if err != nil {
-		return "", err
+		return err
 	}
 	if res == nil {
-		return "", errors.New("the provider reported no pull status")
+		return errors.New("the provider reported no pull status")
 	}
 	if res.Status != storage.PullStatusComplete {
-		return "", fmt.Errorf("the pull ended %s", res.Status)
+		return fmt.Errorf("the pull ended %s", res.Status)
 	}
-	return b.commit(ctx, dsc, ds, piece, extra)
+	return nil
 }
 
-// commit adds a piece the provider holds to ds, once the base fee allows.
-// extra is the signed authorization, or nil to sign a new one.
-func (b *synapseBackend) commit(ctx context.Context, dsc *storage.DataSetContext, ds dataSet, piece storage.PieceInput, extra []byte) (string, error) {
+// Commit adds pieces the provider holds to ds, once the base fee allows. A
+// piece can wait a long time for that, and providers drop parked pieces
+// about two hours after they arrive, so each is checked first and the
+// dropped ones are reported in a *store.GoneError for the caller to send
+// again.
+func (b *synapseBackend) Commit(ctx context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
+	if b.readOnly {
+		return nil, errReadOnly
+	}
+	pieces := make([]storage.PieceInput, len(pieceCIDs))
+	for i, c := range pieceCIDs {
+		pc, err := cid.Decode(c)
+		if err != nil {
+			return nil, fmt.Errorf("bad PieceCID: %w", err)
+		}
+		pieces[i] = storage.PieceInput{PieceCID: pc, PieceMetadata: meta}
+	}
+	dsc, err := b.dataSetContext(ctx, ds.ID)
+	if err != nil {
+		return nil, err
+	}
 	if err := b.gas.wait(ctx); err != nil {
-		return "", err
+		return nil, err
+	}
+	if err := b.gone(ctx, dsc.ServiceURL(), ds, pieces); err != nil {
+		return nil, err
 	}
 	var res *storage.CommitResult
-	err := retryCommit(ctx, commitDelays, func() (submitted bool, err error) {
+	err = retryCommit(ctx, commitDelays, func() (submitted bool, err error) {
 		res, err = dsc.Commit(ctx, storage.CommitRequest{
-			Pieces:      []storage.PieceInput{piece},
-			ExtraData:   extra,
+			Pieces:      pieces,
 			OnSubmitted: func(storage.CommitSubmission) { submitted = true },
 		})
 		return submitted, err
 	})
 	if err != nil {
-		return "", fmt.Errorf("adding the piece to data set %s: %w", ds.ID, err)
+		if ctx.Err() == nil && strings.Contains(err.Error(), "not found") {
+			if gone := b.gone(ctx, dsc.ServiceURL(), ds, pieces); gone != nil {
+				return nil, gone
+			}
+		}
+		return nil, err
 	}
-	if len(res.PieceIDs) == 0 {
-		return "", fmt.Errorf("adding the piece to data set %s: the provider returned no piece id", ds.ID)
+	ids := make([]string, len(res.PieceIDs))
+	for i, id := range res.PieceIDs {
+		ids[i] = id.String()
 	}
-	return res.PieceIDs[0].String(), nil
+	return ids, nil
+}
+
+// gone returns a *store.GoneError naming the pieces the provider says it no
+// longer holds, or nil. Pieces it cannot check are assumed held: the add then
+// fails or succeeds on its own.
+func (b *synapseBackend) gone(ctx context.Context, serviceURL string, ds dataSet, pieces []storage.PieceInput) error {
+	var out []string
+	for _, p := range pieces {
+		if ok, err := parked(ctx, serviceURL, p.PieceCID); err == nil && !ok {
+			out = append(out, p.PieceCID.String())
+		}
+	}
+	if out == nil {
+		return nil
+	}
+	return &store.GoneError{Provider: ds.Provider, PieceCIDs: out}
 }
 
 // commitDelays are the waits between attempts to add a just-stored piece. A

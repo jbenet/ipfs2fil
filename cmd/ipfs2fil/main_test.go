@@ -136,6 +136,31 @@ func TestProgress(t *testing.T) {
 	}
 }
 
+func TestNotesGoAboveTheBar(t *testing.T) {
+	// A note from a background step, such as a base fee pause, prints as
+	// its own line through the bar rather than into the middle of it.
+	var b bytes.Buffer
+	p := newProgress(&b, "uploading", 1000, true)
+	p.tty = true // as on a terminal: the bar redraws in place
+	p.Suffix("2 pieces sent, waiting to go on chain")
+	p.Add(500)
+	o := &opts{stderr: &b}
+	logTo(p)
+	o.note("the network base fee is high")
+	logTo(nil)
+	o.note("plain")
+	got := b.String()
+	if !strings.Contains(got, "\r\033[Kthe network base fee is high\n") {
+		t.Errorf("note not printed above the bar:\n%q", got)
+	}
+	if !strings.Contains(got, "· 2 pieces sent, waiting to go on chain") {
+		t.Errorf("bar lacks its suffix:\n%q", got)
+	}
+	if !strings.HasSuffix(got, "plain\n") {
+		t.Errorf("note without a bar:\n%q", got)
+	}
+}
+
 func TestHumanBytes(t *testing.T) {
 	for n, want := range map[int64]string{0: "0 B", 1023: "1023 B", 1536: "1.5 KiB", 3 << 30: "3.0 GiB", 5 << 40: "5.0 TiB"} {
 		if got := humanBytes(n); got != want {
