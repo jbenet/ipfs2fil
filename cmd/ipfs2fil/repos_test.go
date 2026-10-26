@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jbenet/ipfs2fil/internal/collection"
+	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
 // TestReposAll: two repos in a list -> up --all -> one set of data sets,
@@ -294,5 +295,22 @@ func TestReposChainCatalog(t *testing.T) {
 	out, errOut, err = on(other, "status", "--all")
 	if err == nil || strings.Contains(out, "photos") {
 		t.Errorf("another wallet's status --all: %v\n%s\n%s", err, out, errOut)
+	}
+}
+
+// TestAdoptCopies: an archive never pushed takes the data sets of an archive
+// with the same key, on this machine first, else on another machine.
+func TestAdoptCopies(t *testing.T) {
+	remote := map[string][]manifest.Copy{"k": {{Provider: "4", DataSetID: "46739", Service: "chain", PieceIDs: map[int]string{0: "3"}}}}
+	a := &listedArchive{key: "k", m: &manifest.Manifest{}}
+	adoptCopies([]*listedArchive{a}, remote)
+	if len(a.m.Copies) != 1 || a.m.Copies[0].DataSetID != "46739" || a.m.Copies[0].Service != "" || len(a.m.Copies[0].PieceIDs) != 0 {
+		t.Errorf("from another machine: %+v", a.m.Copies)
+	}
+	local := &listedArchive{key: "k", m: &manifest.Manifest{Copies: []manifest.Copy{{Provider: "2", DataSetID: "7", Service: "foc-fwss"}}}}
+	b := &listedArchive{key: "k", m: &manifest.Manifest{}}
+	adoptCopies([]*listedArchive{local, b}, remote)
+	if len(b.m.Copies) != 1 || b.m.Copies[0].DataSetID != "7" {
+		t.Errorf("from this machine: %+v", b.m.Copies)
 	}
 }

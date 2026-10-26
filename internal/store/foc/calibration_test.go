@@ -221,8 +221,10 @@ func TestCalibration(t *testing.T) {
 		t.Fatalf("Pieces: %d data sets, %v", len(sets), err)
 	}
 	for i, h := range held {
-		if len(h) != len(ps) {
-			t.Errorf("data set %s lists %d pieces, want %d", sets[i].ID, len(h), len(ps))
+		for _, p := range ps {
+			if _, ok := h[p.PieceCID]; !ok {
+				t.Errorf("data set %s does not list piece %s", sets[i].ID, p.PieceCID)
+			}
 		}
 	}
 	peekStart := time.Now()
