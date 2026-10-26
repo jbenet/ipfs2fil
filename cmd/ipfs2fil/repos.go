@@ -45,8 +45,11 @@ uploaded. rm only takes a repo off the list: its archive stays on disk and its
 pieces stay stored.
 
 Repos on several machines: run ipfs2fil on each machine with the same wallet
-key and the same --catalog (or $IPFS2FIL_CATALOG), a directory every machine
-sees, such as a synced folder or a git checkout. Each machine keeps its list,
+key and the same --catalog (or $IPFS2FIL_CATALOG): a git repository URL, such
+as git@github.com:you/ipfs2fil-catalog.git, or a folder every machine sees.
+For git, ipfs2fil clones it into --home, pulls before reading and commits
+and pushes after each change. The catalog is remembered, so later commands
+need no flag. Each machine keeps its list,
 manifests and block lists there under its host name (--host); pieces stay on
 the machine that packed them. Then 'up --all' on a machine packs and pushes
 its own repos, leaving out blocks other machines' repos already store, and
@@ -127,7 +130,24 @@ func openCollection(o *opts) (*collection.Collection, error) {
 	if host == "" {
 		host = collection.HostName()
 	}
-	return collection.OpenShared(dir, catalog, host)
+	catalog, err := collection.ResolveCatalog(dir, catalog)
+	if err != nil {
+		return nil, err
+	}
+	c, err := collection.OpenShared(dir, catalog, host)
+	if err == nil && c.Stale() != "" {
+		fmt.Fprintln(o.stderr, "warning:", c.Stale())
+	}
+	return c, err
+}
+
+// commitCatalog shares this machine's catalog changes (a git push for a git
+// catalog). A failure only warns: the archives are fine, and the next run
+// pushes the change.
+func commitCatalog(o *opts, c *collection.Collection, msg string) {
+	if err := c.Commit(msg); err != nil {
+		fmt.Fprintln(o.stderr, "warning:", err)
+	}
 }
 
 func reposAdd(o *opts, c *collection.Collection, args []string) error {
@@ -167,6 +187,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	if err := c.Save(); err != nil {
 		return err
 	}
+	commitCatalog(o, c, "add "+name)
 	fmt.Fprintf(o.stdout, "added    %s (%s, fs-repo %d)\n", name, abs, v)
 	fmt.Fprintf(o.stdout, "repos    %d on this machine, listed in %s\n", len(c.Repos), c.Where())
 	fmt.Fprintf(o.stdout, "next     ipfs2fil up --all\n")
@@ -296,6 +317,7 @@ func reposRemove(o *opts, c *collection.Collection, args []string) error {
 	if err := c.Unpublish(name); err != nil {
 		return err
 	}
+	commitCatalog(o, c, "remove "+name)
 	fmt.Fprintf(o.stdout, "removed  %s from the list; its archive stays in %s and its pieces stay stored\n", name, out)
 	return nil
 }
