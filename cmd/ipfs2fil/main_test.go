@@ -157,6 +157,27 @@ func TestProgressSpeed(t *testing.T) {
 	}
 }
 
+func TestProgressDrawsAtOnce(t *testing.T) {
+	// A push that resumes reports the pieces held already in a burst and may
+	// then wait minutes on providers copying pieces between them: the bar
+	// and a changed note show at once, not after the next bytes sent.
+	var b bytes.Buffer
+	now := time.Unix(0, 0)
+	p := newProgress(&b, "uploading", 1000, true)
+	p.tty = true
+	p.now = func() time.Time { return now }
+	p.start, p.last = now, now
+	p.Skip(500)
+	p.Skip(100)
+	if got := b.String(); !strings.Contains(got, " 50% 500 B/1000 B") {
+		t.Errorf("first update not drawn:\n%q", got)
+	}
+	p.Suffix("4 pieces copying between providers")
+	if got := b.String(); !strings.Contains(got, " 60% 600 B/1000 B · 4 pieces copying between providers") {
+		t.Errorf("new note not drawn:\n%q", got)
+	}
+}
+
 func TestNotesGoAboveTheBar(t *testing.T) {
 	// A note from a background step, such as a base fee pause, prints as
 	// its own line through the bar rather than into the middle of it.

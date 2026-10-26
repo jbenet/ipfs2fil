@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,6 +113,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 	seen := map[[2]int]int64{}   // (copy, piece) -> bytes counted
 	final := map[[2]int]bool{}   // (copy, piece) -> stored or skipped
 	waiting := map[[2]int]bool{} // (copy, piece) -> staged, not yet added on chain
+	pulling := map[[2]int]bool{} // (copy, piece) -> its provider is fetching it from another
 	var sent, skipped, pulled int
 	failed := map[int]bool{}
 	defer logTo(nil)
@@ -126,18 +128,24 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 			logTo(bar)
 		}
 		k := [2]int{ev.Copy, ev.Piece}
-		if ev.Staged || ev.Final {
-			if ev.Staged {
-				waiting[k] = true
-			} else {
-				delete(waiting, k)
-			}
-			if n := len(waiting); n > 0 {
-				bar.Suffix(fmt.Sprintf("%d %s sent, waiting to go on chain", n, plural(n, "piece", "pieces")))
-			} else {
-				bar.Suffix("")
-			}
+		switch {
+		case ev.Pulling:
+			pulling[k] = true
+		case ev.Staged:
+			delete(pulling, k)
+			waiting[k] = true
+		case ev.Final || ev.PullErr != nil:
+			delete(pulling, k)
+			delete(waiting, k)
 		}
+		var notes []string
+		if n := len(pulling); n > 0 {
+			notes = append(notes, fmt.Sprintf("%d %s copying between providers", n, plural(n, "piece", "pieces")))
+		}
+		if n := len(waiting); n > 0 {
+			notes = append(notes, fmt.Sprintf("%d %s sent, waiting to go on chain", n, plural(n, "piece", "pieces")))
+		}
+		bar.Suffix(strings.Join(notes, " · "))
 		done := ev.Done
 		if ev.Skipped {
 			done = ev.Total
