@@ -10,6 +10,9 @@ import (
 	"io"
 	"maps"
 	"math/big"
+	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +21,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
@@ -453,8 +458,54 @@ func TestParseKey(t *testing.T) {
 	}
 	t.Setenv(EnvKey, "")
 	t.Setenv(EnvKeyFile, "")
+	t.Setenv(EnvHome, t.TempDir())
 	if _, err := LoadKey(""); err != errNoKey {
 		t.Errorf("LoadKey with nothing set: %v", err)
+	}
+}
+
+// A key 'wallet new' makes is private to you, never replaces a file, and is
+// what LoadKey finds when nothing else is set.
+func TestNewKeyFile(t *testing.T) {
+	t.Setenv(EnvKey, "")
+	t.Setenv(EnvKeyFile, "")
+	t.Setenv(EnvHome, filepath.Join(t.TempDir(), "home"))
+	p, err := DefaultKeyFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := NewKeyFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(p); err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o600) {
+		t.Errorf("key file: %v %v", st.Mode(), err)
+	}
+	if _, err := NewKeyFile(p); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("second NewKeyFile: %v", err)
+	}
+	got, err := LoadKey("")
+	if err != nil || !got.Equal(key) {
+		t.Fatalf("LoadKey found %v, %v", got, err)
+	}
+	t.Setenv(EnvKey, hex.EncodeToString(bytes.Repeat([]byte{7}, 32)))
+	if got, err := LoadKey(""); err != nil || got.Equal(key) {
+		t.Errorf("$%s should win over the default file: %v", EnvKey, err)
+	}
+}
+
+func TestFilecoinAddress(t *testing.T) {
+	a := common.HexToAddress("0xd8F3b19a517A40D673B5a4389d64D179FB9531EB")
+	f, err := FilecoinAddress(a, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := address.NewFromString(f)
+	if err != nil || !strings.HasPrefix(f, "f410f") || !bytes.Equal(parsed.Payload()[1:], a.Bytes()) {
+		t.Errorf("mainnet: %s %v", f, err)
+	}
+	if tf, _ := FilecoinAddress(a, true); tf != "t"+f[1:] {
+		t.Errorf("calibration: %s", tf)
 	}
 }
 

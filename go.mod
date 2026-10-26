@@ -7,6 +7,7 @@ require (
 	github.com/cockroachdb/pebble/v2 v2.1.7
 	github.com/dgraph-io/badger v1.6.2
 	github.com/ethereum/go-ethereum v1.17.2
+	github.com/filecoin-project/go-address v1.2.0
 	github.com/filecoin-project/go-fil-commcid v0.3.1
 	github.com/filecoin-project/go-fil-commp-hashhash v0.4.0
 	github.com/fxamacker/cbor/v2 v2.9.6
@@ -48,7 +49,6 @@ require (
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.6 // indirect
-	github.com/filecoin-project/go-address v1.2.0 // indirect
 	github.com/filecoin-project/go-commp-utils/v2 v2.1.0 // indirect
 	github.com/filecoin-project/go-padreader v0.0.1 // indirect
 	github.com/filecoin-project/go-state-types v0.17.0 // indirect

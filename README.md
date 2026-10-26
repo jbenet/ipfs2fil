@@ -44,7 +44,13 @@ wallet holding some FIL for gas and USDFC to pay for storage.
 
    It reads `$IPFS_PATH`, else `~/.ipfs`; pass `--repo <path>` for another repo.
 
-2. Give it your wallet key. The key is never printed or written anywhere.
+2. Give it a wallet. Either make a new one here and fund it:
+
+       ipfs2fil wallet new        # writes ~/.ipfs2fil/wallet.key, prints the address to fund
+       ipfs2fil wallet            # FIL, USDFC, and the Filecoin Pay deposit
+
+   or point it at the key of a wallet you already have. ipfs2fil never prints
+   the key or copies it anywhere.
 
        export IPFS2FIL_KEY_FILE=~/secrets/filecoin.key    # or IPFS2FIL_PRIVATE_KEY=<hex>
 
