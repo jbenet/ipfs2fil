@@ -123,6 +123,10 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	if sh := m.Shared; sh != nil {
 		fmt.Fprintf(w, "shared   %d blocks (%s) are already in earlier repos' pieces, so they are not stored again\n", sh.Blocks, humanBytes(sh.Bytes))
 	}
+	if res.Removed > 0 {
+		fmt.Fprintf(w, "removed  %d old piece files (%s) this archive no longer uses; pieces already pushed stay stored with their snapshot\n",
+			res.Removed, humanBytes(res.RemovedBytes))
+	}
 	if len(res.Missing) > 0 {
 		fmt.Fprintf(w, "missing  %d blocks the pins link to were never in the repo; the archive has everything else\n", len(res.Missing))
 	}

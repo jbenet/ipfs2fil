@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
+	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/store"
@@ -284,6 +285,10 @@ func upAll(ctx context.Context, o *opts) error {
 type statusAllResult struct {
 	Home  string          `json:"home"`
 	Repos []repoStatusRow `json:"repos"`
+	// Earlier counts the pieces the data sets hold that no repo's current
+	// archive uses: pieces of earlier snapshots. They stay stored and paid for.
+	Earlier      int   `json:"earlierPieces"`
+	EarlierBytes int64 `json:"earlierBytes"`
 	statusResult
 }
 
@@ -368,6 +373,22 @@ func statusAll(ctx context.Context, o *opts) error {
 		res.Repos = append(res.Repos, row)
 	}
 	res.Pieces = len(distinct)
+	if l, ok := s.(store.Lister); ok && len(main.DataSets) > 0 {
+		_, held, err := l.Pieces(ctx, c.Key, len(main.DataSets))
+		if err != nil {
+			return err
+		}
+		earlier := map[string]bool{}
+		for _, h := range held {
+			for p := range h {
+				if !distinct[p] && !earlier[p] {
+					earlier[p] = true
+					res.EarlierBytes += car.PayloadSize(p)
+				}
+			}
+		}
+		res.Earlier = len(earlier)
+	}
 	for _, d := range main.DataSets {
 		res.DataSets = append(res.DataSets, dataSetResult{Provider: d.Provider, ID: d.ID, URL: d.URL,
 			Pieces: d.Pieces, LastProven: d.LastProven, Metadata: d.Metadata})
@@ -415,6 +436,10 @@ func statusAll(ctx context.Context, o *opts) error {
 			note = fmt.Sprintf("  (missing %d; run push --all)", res.Pieces-d.Pieces)
 		}
 		fmt.Fprintf(w, "  %d. provider %s, data set %s: %d pieces, last proven %s%s\n", i+1, d.Provider, d.ID, d.Pieces, d.LastProven, note)
+	}
+	if res.Earlier > 0 {
+		fmt.Fprintf(w, "earlier  %d pieces (%s) in the data sets belong to earlier snapshots, not to any repo's current archive;\n"+
+			"         they stay stored and paid for, so those snapshots can still be read\n", res.Earlier, humanBytes(res.EarlierBytes))
 	}
 	if len(main.Unused) > 0 {
 		var ids []string

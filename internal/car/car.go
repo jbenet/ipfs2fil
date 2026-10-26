@@ -149,6 +149,20 @@ func PieceCID(r io.Reader) (cid.Cid, int64, error) {
 	return pc, n, err
 }
 
+// PayloadSize is the CAR bytes a v2 PieceCID says its piece holds, or 0 if
+// pieceCID is not a v2 PieceCID.
+func PayloadSize(pieceCID string) int64 {
+	c, err := cid.Decode(pieceCID)
+	if err != nil {
+		return 0
+	}
+	_, n, err := commcid.PieceCidV2ToDataCommitment(c)
+	if err != nil {
+		return 0
+	}
+	return int64(n)
+}
+
 // Reader reads a CARv1 written by Writer.
 type Reader struct {
 	r     *bufio.Reader
