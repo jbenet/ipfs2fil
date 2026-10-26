@@ -70,6 +70,22 @@ The steps of `up` also run on their own: `ipfs2fil pack`, then `ipfs2fil push`.
 Try it free on the Calibration testnet with `--network calibration`. Every
 command explains itself: `ipfs2fil help <command>`.
 
+## Many repos
+
+Keep a list of repos and archive them together:
+
+    ipfs2fil repos add ~/.ipfs
+    ipfs2fil repos add /Volumes/old/go-ipfs --name old-laptop
+    ipfs2fil up --all          # pack and push every repo, one confirmation
+    ipfs2fil status --all      # every repo, its copies, proofs and funding
+
+Repos in the list share one set of data sets (one per copy), so setup is paid
+once, and a block an earlier repo already stores is not stored again by a later
+one. The list and each repo's archive live in `~/.ipfs2fil` (or `--home`, or
+`$IPFS2FIL_HOME`); the list holds repo paths and never leaves the machine.
+`ipfs2fil repos ls` shows the list, and `ipfs2fil repos rm <name>` takes a repo
+off it.
+
 ## Releases
 
 To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.

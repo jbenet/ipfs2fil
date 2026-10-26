@@ -25,13 +25,21 @@ read, and pack is safe to run while the daemon runs.
 Pieces are cut where the content says, so packing the same repo again gives
 the same pieces, and after an edit only nearby pieces change. Run pack again
 after the repo changes, then push: only the new pieces upload. A pack stopped
-with Ctrl-C can simply be run again.`,
+with Ctrl-C can simply be run again.
+
+With --all, packs every repo 'ipfs2fil repos add' listed, in the order added.
+Blocks an earlier repo's pieces already hold are left out of later repos'
+pieces, so blocks shared between repos are stored once.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoFlag(fs, o)
 			outFlag(fs, o)
 			fs.BoolVar(&packOrphans, "orphans", true, "include blocks no pin or MFS reaches, under data/orphans")
+			allFlag(fs, o)
 		},
 		run: func(ctx context.Context, o *opts, _ []string) error {
+			if o.all {
+				return packAll(ctx, o)
+			}
 			_, err := pack(ctx, o)
 			return err
 		},
@@ -50,6 +58,7 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	opt := archive.DefaultOptions()
 	opt.Orphans = packOrphans
 	opt.Tool = "ipfs2fil " + version
+	opt.Shared = o.shared
 	var bar *progress
 	stage := ""
 	opt.Progress = func(st string, done, total int64) {
@@ -80,6 +89,14 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 		return nil, err
 	}
 	m := res.Manifest
+	// A new archive in a collection stores into the collection's data sets;
+	// one already pushed on its own keeps its own.
+	if o.collectionKey != "" && m.Collection == "" && len(m.Copies) == 0 {
+		m.Collection = o.collectionKey
+		if err := m.Write(manifestPath(o.out)); err != nil {
+			return nil, err
+		}
+	}
 	var bytes int64
 	for _, p := range m.Pieces {
 		bytes += p.CARBytes
@@ -98,12 +115,17 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	} else {
 		fmt.Fprintf(w, "pieces   %d, %s\n", len(m.Pieces), humanBytes(bytes))
 	}
+	if sh := m.Shared; sh != nil {
+		fmt.Fprintf(w, "shared   %d blocks (%s) are already in earlier repos' pieces, so they are not stored again\n", sh.Blocks, humanBytes(sh.Bytes))
+	}
 	if len(res.Missing) > 0 {
 		fmt.Fprintf(w, "missing  %d blocks the pins link to were never in the repo; the archive has everything else\n", len(res.Missing))
 	}
 	if isDir(filepath.Join(o.out, "explorer")) {
 		fmt.Fprintf(w, "explore  ipfs2fil explore --serve --out %s\n", o.out)
 	}
-	fmt.Fprintf(w, "next     ipfs2fil push --out %s\n", o.out)
+	if o.collectionKey == "" {
+		fmt.Fprintf(w, "next     ipfs2fil push --out %s\n", o.out)
+	}
 	return res, nil
 }

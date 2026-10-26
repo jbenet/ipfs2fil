@@ -27,6 +27,31 @@ type Manifest struct {
 	Pieces    []Piece    `json:"pieces"`
 	Copies    []Copy     `json:"copies,omitempty"`
 	Snapshots []Snapshot `json:"snapshots"`
+
+	// Shared, if set, lists the blocks this archive links but leaves to other
+	// archives' pieces, because an earlier repo in the same collection already
+	// stores them.
+	Shared *Shared `json:"shared,omitempty"`
+	// Collection is the key of the collection the archive belongs to. Every
+	// archive in a collection stores into the collection's data sets, so the
+	// store keys them by Collection instead of Snapshots[0].Root. It is only
+	// in outDir/manifest.json, never inside the archive.
+	Collection string `json:"collection,omitempty"`
+}
+
+// Shared counts the blocks other archives hold for this one.
+type Shared struct {
+	Blocks int64         `json:"blocks"`
+	Bytes  int64         `json:"bytes"`
+	Pieces []SharedPiece `json:"pieces"` // sorted by PieceCID
+}
+
+// SharedPiece is another archive's data piece that holds some of this
+// archive's blocks.
+type SharedPiece struct {
+	PieceCID string `json:"pieceCid"`
+	Archive  string `json:"archive"` // the other archive's key, its Snapshots[0].Root
+	Blocks   int64  `json:"blocks"`  // how many of this archive's blocks it holds
 }
 
 // Source describes the repo the archive came from. It never records the

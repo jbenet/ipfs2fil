@@ -540,3 +540,158 @@ func TestCBORLinks(t *testing.T) {
 		t.Fatal("truncated dag-cbor should not parse")
 	}
 }
+
+// sharedFrom is a Shared lookup over the data pieces of res, built in dir.
+func sharedFrom(t *testing.T, dir string, res *Result) func(multihash.Multihash) (SharedBlock, bool) {
+	t.Helper()
+	held := map[string]SharedBlock{}
+	for _, p := range res.Manifest.Pieces {
+		if p.BlockList == "" {
+			continue
+		}
+		sb := SharedBlock{Archive: res.Manifest.Snapshots[0].Root, PieceCID: p.PieceCID}
+		err := ReadBlockList(filepath.Join(dir, "index", p.BlockList), func(h multihash.Multihash) error {
+			held[string(h)] = sb
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	return func(h multihash.Multihash) (SharedBlock, bool) {
+		sb, ok := held[string(h)]
+		return sb, ok
+	}
+}
+
+// TestSharedBlocks packs repo A, then repo B (A plus a new pin) with A's
+// pieces as the shared lookup: B stores only what A lacks, every block of B
+// is in B's or A's pieces, and re-packing B gives the same pieces.
+func TestSharedBlocks(t *testing.T) {
+	dirA, dirB := t.TempDir(), t.TempDir()
+	a := build(t, sample(t, false), dirA)
+
+	repoB := func() *fakeRepo {
+		r := sample(t, false)
+		extra := r.file(t, random(200, 30000), false)
+		r.pins = append(r.pins, repo.Pin{Root: extra.Cid(), Mode: repo.Recursive, Name: "new"})
+		return r
+	}
+	opts := testOptions()
+	opts.Shared = sharedFrom(t, dirA, a)
+	b, err := Build(context.Background(), repoB(), dirB, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sh := b.Manifest.Shared
+	if sh == nil || sh.Blocks == 0 || len(sh.Pieces) == 0 {
+		t.Fatalf("nothing shared: %+v", sh)
+	}
+	inA := map[string]bool{}
+	for _, p := range a.Pieces {
+		if p.BlockList != "" {
+			inA[p.PieceCID] = true
+		}
+	}
+	for _, p := range sh.Pieces {
+		if !inA[p.PieceCID] || p.Archive != a.Manifest.Snapshots[0].Root {
+			t.Errorf("shared piece %+v is not one of A's data pieces", p)
+		}
+	}
+	// B's data pieces hold only the new pin's blocks.
+	var dataB int
+	for _, p := range b.Pieces {
+		if p.BlockList != "" {
+			dataB++
+		}
+	}
+	if dataB == 0 || dataB >= len(dataPieces(a)) {
+		t.Fatalf("B has %d data pieces, A %d", dataB, len(dataPieces(a)))
+	}
+	if sh.Blocks+int64(sumBlocks(b)) < b.Manifest.Source.Blocks {
+		t.Errorf("shared %d + own %d < %d repo blocks", sh.Blocks, sumBlocks(b), b.Manifest.Source.Blocks)
+	}
+	// Every block reachable from B's root is in B's pieces or A's.
+	both := &Result{Manifest: b.Manifest, Pieces: append(append([]Piece{}, b.Pieces...), a.Pieces[:len(dataPieces(a))]...)}
+	checkCovered(t, both)
+
+	// Re-pack B: same pieces. Then A drops nothing but B was already stored,
+	// so a lookup that now claims everything still leaves B's own blocks alone.
+	again, err := Build(context.Background(), repoB(), dirB, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again.Pieces) != len(b.Pieces) {
+		t.Fatalf("%d pieces, then %d", len(b.Pieces), len(again.Pieces))
+	}
+	for i := range b.Pieces {
+		if b.Pieces[i].PieceCID != again.Pieces[i].PieceCID {
+			t.Errorf("piece %d changed on re-pack", i)
+		}
+	}
+	opts.Shared = func(multihash.Multihash) (SharedBlock, bool) { return SharedBlock{Archive: "x", PieceCID: "y"}, true }
+	greedy, err := Build(context.Background(), repoB(), dirB, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < dataB; i++ {
+		if greedy.Pieces[i].PieceCID != b.Pieces[i].PieceCID {
+			t.Errorf("data piece %d changed when other archives grew", i)
+		}
+	}
+}
+
+func sumBlocks(res *Result) int {
+	n := 0
+	for _, p := range res.Pieces {
+		if p.BlockList != "" {
+			n += int(p.Blocks)
+		}
+	}
+	return n
+}
+
+// checkCovered walks the archive root over the given pieces' CARs.
+func checkCovered(t *testing.T, res *Result) {
+	t.Helper()
+	got := map[string][]byte{}
+	for _, p := range res.Pieces {
+		f, err := os.Open(p.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cr, err := car.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for {
+			c, data, err := cr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			got[string(c.Hash())] = data
+		}
+		f.Close()
+	}
+	seen := map[string]bool{}
+	var walk func(c cid.Cid)
+	walk = func(c cid.Cid) {
+		if seen[string(c.Hash())] || isIdentity(c) {
+			return
+		}
+		seen[string(c.Hash())] = true
+		data, ok := got[string(c.Hash())]
+		if !ok {
+			t.Fatalf("%s is reachable from the root but in no piece", c)
+		}
+		ls, _ := links(c, data)
+		for _, l := range ls {
+			walk(l)
+		}
+	}
+	root, _ := cid.Decode(res.Manifest.Root)
+	walk(root)
+}

@@ -50,6 +50,13 @@ type Options struct {
 	Tool    string
 	Now     func() time.Time
 
+	// Shared, if set, says which other archive's data piece already holds a
+	// block. Such blocks are linked from data/ as usual but left out of this
+	// archive's pieces, so blocks shared between repos are stored once.
+	// Blocks this archive stored in its last run are never shared, so a
+	// re-run gives the same pieces even after other archives grow.
+	Shared func(h multihash.Multihash) (SharedBlock, bool)
+
 	// Progress, if set, is called as Build goes: stage "walk" counts blocks
 	// laid out against the repo's block count, "write" counts CAR bytes
 	// written against the bytes planned. total is 0 while unknown.
@@ -60,6 +67,12 @@ type Options struct {
 func DefaultOptions() Options {
 	return Options{MinPiece: 512 << 20, MaxPiece: (1 << 30) * 127 / 128, CutBits: 10,
 		Orphans: true, Tool: "ipfs2fil", Now: time.Now}
+}
+
+// SharedBlock names the other archive's piece that holds a block.
+type SharedBlock struct {
+	Archive  string // that archive's key
+	PieceCID string
 }
 
 // Piece is a planned piece: a CAR file on disk and its PieceCID.
@@ -105,6 +118,10 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
+	shared, err := l.markShared(outDir, prev, opts.Shared)
+	if err != nil {
+		return nil, err
+	}
 	dataPieces, err := l.cut(opts)
 	if err != nil {
 		return nil, err
@@ -117,12 +134,12 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 
 	m := &manifest.Manifest{Format: manifest.Format, Tool: opts.Tool, DataRoot: dataRoot.Cid().String(),
-		Source: manifest.Source{RepoVersion: int(r.Version()), Blocks: l.repoBlocks, Bytes: l.repoBytes}}
+		Source: manifest.Source{RepoVersion: int(r.Version()), Blocks: l.repoBlocks, Bytes: l.repoBytes}, Shared: shared}
 	for _, rt := range roots {
 		m.Roots = append(m.Roots, l.rootEntry(rt))
 	}
 	for i, p := range dataPieces {
-		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: int64(p.end - p.start),
+		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: l.own(p),
 			BlockList: fmt.Sprintf("pieces/%04d", i)})
 	}
 
@@ -135,7 +152,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	for _, p := range dataPieces {
 		planned += car.HeaderSize(l.tab[p.start].c)
 		for j := p.start; j < p.end; j++ {
-			planned += car.EntrySize(l.tab[j].c, l.tab[j].size)
+			if l.tab[j].shared == 0 {
+				planned += car.EntrySize(l.tab[j].c, l.tab[j].size)
+			}
 		}
 	}
 	l.progress("write", 0, planned)
@@ -144,6 +163,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		path, sum, err := writePiece(pieceDir, l.tab[p.start].c, func(w *car.Writer) error {
 			for j := p.start; j < p.end; j++ {
 				b := &l.tab[j]
+				if b.shared != 0 {
+					continue
+				}
 				data, err := l.get(ctx, b.c)
 				if err != nil {
 					return err
@@ -170,7 +192,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// changes nothing adds no snapshot, so it rebuilds the same archive.
 	snap, known := 0, map[string]int{}
 	if prev != nil {
-		m.Snapshots, m.Copies = prev.Snapshots, prev.Copies
+		m.Snapshots, m.Copies, m.Collection = prev.Snapshots, prev.Copies, prev.Collection
 		for _, p := range prev.Pieces {
 			known[p.PieceCID] = p.Snapshot
 		}
@@ -209,7 +231,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// Copies stay out too: a push adds piece ids, and the next pack must not
 	// change because of them (explorer.WriteManifest shows them locally).
 	inner := *m
-	inner.Copies = nil
+	inner.Copies, inner.Collection = nil, ""
 	inner.Snapshots = slices.Clone(m.Snapshots)
 	inner.Snapshots[snap].Root = ""
 	idx, err := l.indexDir(ctx, dag, outDir, &inner, dataPieces)
@@ -337,7 +359,8 @@ func (l *layout) rootEntry(rt root) manifest.Root {
 		b.mark = l.gen
 		e.Blocks++
 		e.Bytes += int64(b.size)
-		if e.FirstPiece < 0 || int(b.piece) < e.FirstPiece {
+		// a shared block (piece -1) is in another archive's piece
+		if b.piece >= 0 && (e.FirstPiece < 0 || int(b.piece) < e.FirstPiece) {
 			e.FirstPiece = int(b.piece)
 		}
 		if int(b.piece) > e.LastPiece {
@@ -421,6 +444,9 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 	for i, p := range pieces {
 		var sb strings.Builder
 		for j := p.start; j < p.end; j++ {
+			if l.tab[j].shared != 0 {
+				continue
+			}
 			sb.WriteString(l.tab[j].c.Hash().B58String())
 			sb.WriteByte('\n')
 		}
