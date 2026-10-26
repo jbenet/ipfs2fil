@@ -6,6 +6,12 @@
 // The list lives in repos.json in the collection's directory, by default
 // ~/.ipfs2fil, with one archive directory per repo under archives/. It records
 // repo paths, so it stays on this machine; nothing in it is uploaded.
+//
+// Repos spread over several machines share a catalog: a directory every
+// machine can see, such as a synced folder or a git checkout (catalog.go).
+// Each machine keeps its list there under its own host name, with a copy of
+// each archive's manifest and block lists, so any machine can show every
+// repo and leave out blocks another machine's pieces already hold.
 package collection
 
 import (
@@ -17,8 +23,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/multiformats/go-multihash"
-
 	"github.com/jbenet/ipfs2fil/internal/archive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
@@ -26,8 +30,13 @@ import (
 // File is the collection's list of repos, in its directory.
 const File = "repos.json"
 
-// EnvHome overrides the default collection directory.
-const EnvHome = "IPFS2FIL_HOME"
+// Environment variables for the collection directory, the catalog shared by
+// every machine, and this machine's name in it.
+const (
+	EnvHome    = "IPFS2FIL_HOME"
+	EnvCatalog = "IPFS2FIL_CATALOG"
+	EnvHost    = "IPFS2FIL_HOST"
+)
 
 // DefaultKey is the data set key of a new collection. Data sets are found by
 // key among the wallet's own, so every machine using the same wallet and
@@ -35,8 +44,13 @@ const EnvHome = "IPFS2FIL_HOME"
 const DefaultKey = "repos:default"
 
 type Collection struct {
-	Dir    string `json:"-"`
-	Format int    `json:"format"`
+	Dir string `json:"-"` // the archives (and, with no catalog, the list) live here
+	// Catalog, if set, is the directory shared by every machine; this
+	// machine's list is Catalog/Host/repos.json.
+	Catalog string `json:"-"`
+	Host    string `json:"-"`
+
+	Format int `json:"format"`
 	// Key is the store key every archive in the collection uses
 	// (manifest.Collection), so they share one set of data sets.
 	Key   string `json:"key"`
@@ -65,8 +79,23 @@ func DefaultDir() (string, error) {
 // Open reads the collection in dir. A directory with no repos.json is an
 // empty collection; it is written on the first Save.
 func Open(dir string) (*Collection, error) {
-	c := &Collection{Dir: dir, Format: 1, Key: DefaultKey}
-	b, err := os.ReadFile(filepath.Join(dir, File))
+	return OpenShared(dir, "", "")
+}
+
+// OpenShared reads this machine's list from catalog/host/repos.json, or with
+// no catalog from dir/repos.json. A machine joining a catalog brings its
+// local list along.
+func OpenShared(dir, catalog, host string) (*Collection, error) {
+	c := &Collection{Dir: dir, Catalog: catalog, Host: host, Format: 1, Key: DefaultKey}
+	if catalog != "" && !hostOK.MatchString(host) {
+		return nil, fmt.Errorf("%q is not a usable host name for the catalog; pass --host with letters, digits, '.', '_' and '-'", host)
+	}
+	path := c.listPath()
+	b, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) && catalog != "" {
+		path = filepath.Join(dir, File)
+		b, err = os.ReadFile(path)
+	}
 	if errors.Is(err, os.ErrNotExist) {
 		return c, nil
 	}
@@ -74,7 +103,7 @@ func Open(dir string) (*Collection, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(b, c); err != nil {
-		return nil, fmt.Errorf("reading %s: %w", filepath.Join(dir, File), err)
+		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 	if c.Key == "" {
 		c.Key = DefaultKey
@@ -82,23 +111,41 @@ func Open(dir string) (*Collection, error) {
 	return c, nil
 }
 
-// Save writes repos.json atomically.
-func (c *Collection) Save() error {
-	if err := os.MkdirAll(c.Dir, 0o755); err != nil {
-		return err
+func (c *Collection) listPath() string {
+	if c.Catalog != "" {
+		return filepath.Join(c.Catalog, c.Host, File)
 	}
+	return filepath.Join(c.Dir, File)
+}
+
+// Where is where this machine's list lives.
+func (c *Collection) Where() string { return filepath.Dir(c.listPath()) }
+
+// Save writes this machine's list atomically.
+func (c *Collection) Save() error {
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := filepath.Join(c.Dir, File+".tmp")
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, filepath.Join(c.Dir, File))
+	return writeFile(c.listPath(), append(b, '\n'))
 }
 
-var nameOK = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+// writeFile writes path atomically, making its directory.
+func writeFile(path string, b []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+var (
+	nameOK = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+	hostOK = nameOK
+)
 
 // Add appends a repo. path should be the repo's absolute path.
 func (c *Collection) Add(name, path string, now time.Time) (*Repo, error) {
@@ -113,7 +160,7 @@ func (c *Collection) Add(name, path string, now time.Time) (*Repo, error) {
 			return nil, fmt.Errorf("%s is already in the list as %q", path, r.Name)
 		}
 	}
-	c.Repos = append(c.Repos, Repo{Name: name, Path: path, Out: filepath.Join("archives", name), Added: now.UTC().Truncate(time.Second)})
+	c.Repos = append(c.Repos, Repo{Name: name, Path: path, Out: filepath.Join("archives", name), Added: now.UTC()})
 	return &c.Repos[len(c.Repos)-1], nil
 }
 
@@ -142,68 +189,4 @@ func (c *Collection) Manifest(r Repo) (*manifest.Manifest, error) {
 		return nil, nil
 	}
 	return m, err
-}
-
-// Dependents lists the repos whose archives leave blocks to the named repo's
-// pieces.
-func (c *Collection) Dependents(name string) ([]string, error) {
-	i := c.Find(name)
-	if i < 0 {
-		return nil, fmt.Errorf("no repo named %q; 'ipfs2fil repos ls' lists them", name)
-	}
-	m, err := c.Manifest(c.Repos[i])
-	if err != nil || m == nil || len(m.Snapshots) == 0 {
-		return nil, err
-	}
-	var out []string
-	for _, r := range c.Repos {
-		o, err := c.Manifest(r)
-		if err != nil {
-			return nil, err
-		}
-		if o == nil || o.Shared == nil {
-			continue
-		}
-		for _, p := range o.Shared.Pieces {
-			if p.Archive == m.Snapshots[0].Root {
-				out = append(out, r.Name)
-				break
-			}
-		}
-	}
-	return out, nil
-}
-
-// Shared is the archive.Options.Shared lookup for packing repo i: the data
-// pieces of every earlier repo packed into this collection's data sets.
-func (c *Collection) Shared(i int) (func(multihash.Multihash) (archive.SharedBlock, bool), error) {
-	held := map[string]archive.SharedBlock{}
-	for _, r := range c.Repos[:i] {
-		m, err := c.Manifest(r)
-		if err != nil {
-			return nil, fmt.Errorf("repo %s: %w", r.Name, err)
-		}
-		if m == nil || m.Collection != c.Key || len(m.Snapshots) == 0 {
-			continue // not packed yet, or stored in data sets of its own
-		}
-		for _, p := range m.Pieces {
-			if p.BlockList == "" {
-				continue
-			}
-			sb := archive.SharedBlock{Archive: m.Snapshots[0].Root, PieceCID: p.PieceCID}
-			err := archive.ReadBlockList(filepath.Join(c.OutDir(r), "index", p.BlockList), func(h multihash.Multihash) error {
-				if _, ok := held[string(h)]; !ok {
-					held[string(h)] = sb
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, fmt.Errorf("repo %s: reading its block list: %w (run 'ipfs2fil pack --all' to rewrite it)", r.Name, err)
-			}
-		}
-	}
-	return func(h multihash.Multihash) (archive.SharedBlock, bool) {
-		sb, ok := held[string(h)]
-		return sb, ok
-	}, nil
 }

@@ -53,7 +53,7 @@ type Options struct {
 	// Shared, if set, says which other archive's data piece already holds a
 	// block. Such blocks are linked from data/ as usual but left out of this
 	// archive's pieces, so blocks shared between repos are stored once.
-	// Blocks this archive stored in its last run are never shared, so a
+	// Blocks in pieces this archive already stored are never shared, so a
 	// re-run gives the same pieces even after other archives grow.
 	Shared func(h multihash.Multihash) (SharedBlock, bool)
 

@@ -25,8 +25,10 @@ type opts struct {
 	yes    bool
 
 	// --all runs over every repo in the collection in --home (repos.go).
-	all  bool
-	home string
+	all     bool
+	home    string
+	catalog string
+	host    string
 	// Set by pack --all for each repo: blocks earlier repos store, and the
 	// collection's data set key.
 	shared        func(multihash.Multihash) (archive.SharedBlock, bool)
@@ -57,6 +59,8 @@ func jsonFlag(fs *flag.FlagSet, o *opts) {
 
 func homeFlag(fs *flag.FlagSet, o *opts) {
 	fs.StringVar(&o.home, "home", "", "directory holding the list of repos and their archives (default $"+collection.EnvHome+", else ~/.ipfs2fil)")
+	fs.StringVar(&o.catalog, "catalog", "", "directory shared by all your machines, such as a synced folder, to track repos on every machine (default $"+collection.EnvCatalog+")")
+	fs.StringVar(&o.host, "host", "", "this machine's name in the catalog (default $"+collection.EnvHost+", else the host name)")
 }
 
 // allFlag adds --all and --home: run over every repo 'ipfs2fil repos add' listed.

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -41,7 +42,15 @@ repos may rely on earlier repos' pieces, never the other way round.
 
 The list holds repo paths, so it stays on this machine; nothing in it is
 uploaded. rm only takes a repo off the list: its archive stays on disk and its
-pieces stay stored.`,
+pieces stay stored.
+
+Repos on several machines: run ipfs2fil on each machine with the same wallet
+key and the same --catalog (or $IPFS2FIL_CATALOG), a directory every machine
+sees, such as a synced folder or a git checkout. Each machine keeps its list,
+manifests and block lists there under its host name (--host); pieces stay on
+the machine that packed them. Then 'up --all' on a machine packs and pushes
+its own repos, leaving out blocks other machines' repos already store, and
+'status --all' on any machine shows every repo on every machine.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "for add: the IPFS repo to add (or give it as the argument)")
 			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name)")
@@ -108,7 +117,17 @@ func openCollection(o *opts) (*collection.Collection, error) {
 		}
 		dir = d
 	}
-	return collection.Open(dir)
+	catalog, host := o.catalog, o.host
+	if catalog == "" {
+		catalog = os.Getenv(collection.EnvCatalog)
+	}
+	if host == "" {
+		host = os.Getenv(collection.EnvHost)
+	}
+	if host == "" {
+		host = collection.HostName()
+	}
+	return collection.OpenShared(dir, catalog, host)
 }
 
 func reposAdd(o *opts, c *collection.Collection, args []string) error {
@@ -149,7 +168,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 		return err
 	}
 	fmt.Fprintf(o.stdout, "added    %s (%s, fs-repo %d)\n", name, abs, v)
-	fmt.Fprintf(o.stdout, "repos    %d in %s\n", len(c.Repos), c.Dir)
+	fmt.Fprintf(o.stdout, "repos    %d on this machine, listed in %s\n", len(c.Repos), c.Where())
 	fmt.Fprintf(o.stdout, "next     ipfs2fil up --all\n")
 	return nil
 }
@@ -177,9 +196,10 @@ func defaultName(path string) string {
 }
 
 type repoRow struct {
-	Name         string `json:"name"`
+	Name         string `json:"name"` // host/name with a catalog
 	Path         string `json:"path"`
-	Out          string `json:"out"`
+	Local        bool   `json:"local"` // on this machine
+	Out          string `json:"out,omitempty"`
 	Archive      string `json:"archive,omitempty"` // latest archive root
 	Pieces       int    `json:"pieces"`
 	Bytes        int64  `json:"bytes"`
@@ -189,13 +209,16 @@ type repoRow struct {
 	OwnDataSets  bool   `json:"ownDataSets,omitempty"` // pushed before it joined the list; keeps its own data sets
 }
 
-func repoRows(c *collection.Collection) ([]repoRow, error) {
+func repoRows(c *collection.Collection, es []collection.Entry) ([]repoRow, error) {
 	rows := []repoRow{}
-	for _, r := range c.Repos {
-		row := repoRow{Name: r.Name, Path: r.Path, Out: c.OutDir(r)}
-		m, err := c.Manifest(r)
+	for _, e := range es {
+		row := repoRow{Name: e.ID(), Path: e.Path, Local: e.Local}
+		if e.Local {
+			row.Out = e.Dir
+		}
+		m, err := e.Manifest()
 		if err != nil {
-			return nil, fmt.Errorf("repo %s: %w", r.Name, err)
+			return nil, fmt.Errorf("repo %s: %w", e.ID(), err)
 		}
 		if m != nil {
 			row.Archive, row.Pieces, row.Snapshots = m.Root, len(m.Pieces), len(m.Snapshots)
@@ -213,7 +236,11 @@ func repoRows(c *collection.Collection) ([]repoRow, error) {
 }
 
 func reposList(o *opts, c *collection.Collection) error {
-	rows, err := repoRows(c)
+	es, err := c.Entries()
+	if err != nil {
+		return err
+	}
+	rows, err := repoRows(c, es)
 	if err != nil {
 		return err
 	}
@@ -223,10 +250,10 @@ func reposList(o *opts, c *collection.Collection) error {
 		return e.Encode(rows)
 	}
 	if len(rows) == 0 {
-		fmt.Fprintf(o.stdout, "no repos in %s yet; add one with 'ipfs2fil repos add <path>'\n", c.Dir)
+		fmt.Fprintf(o.stdout, "no repos in %s yet; add one with 'ipfs2fil repos add <path>'\n", c.Where())
 		return nil
 	}
-	fmt.Fprintf(o.stdout, "%d repos in %s\n\n", len(rows), c.Dir)
+	fmt.Fprintf(o.stdout, "%d repos (%d on this machine)\n\n", len(rows), len(c.Repos))
 	tw := tabwriter.NewWriter(o.stdout, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "NAME\tPIECES\tSIZE\tSHARED\tPATH")
 	for _, r := range rows {
@@ -264,6 +291,9 @@ func reposRemove(o *opts, c *collection.Collection, args []string) error {
 	out := c.OutDir(c.Repos[i])
 	c.Repos = append(c.Repos[:i], c.Repos[i+1:]...)
 	if err := c.Save(); err != nil {
+		return err
+	}
+	if err := c.Unpublish(name); err != nil {
 		return err
 	}
 	fmt.Fprintf(o.stdout, "removed  %s from the list; its archive stays in %s and its pieces stay stored\n", name, out)
