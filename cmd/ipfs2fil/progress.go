@@ -23,7 +23,7 @@ type progress struct {
 	interval time.Duration
 	now      func() time.Time
 
-	mu     sync.Mutex
+	mu      sync.Mutex
 	suffix  string
 	done    int64
 	skipped int64 // part of done that did not move through here
