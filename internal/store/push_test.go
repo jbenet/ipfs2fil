@@ -80,6 +80,8 @@ func (r *recorder) save(*manifest.Manifest) error {
 }
 
 func (r *recorder) count(f func(store.PushEvent) bool) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	n := 0
 	for _, e := range r.events {
 		if f(e) {
@@ -160,8 +162,11 @@ func TestPushReportsMissingCAR(t *testing.T) {
 	if n := r.count(func(e store.PushEvent) bool { return e.Err != nil }); n != 2 {
 		t.Errorf("%d error events, want one per copy", n)
 	}
-	if len(m.Copies[0].PieceIDs) != 1 {
-		t.Errorf("piece 0 not recorded: %v", m.Copies)
+	// Piece 0 reached some copy before the copies stopped, and is kept.
+	if _, ok0 := m.Copies[0].PieceIDs[0]; !ok0 {
+		if _, ok1 := m.Copies[1].PieceIDs[0]; !ok1 {
+			t.Errorf("piece 0 not recorded: %v", m.Copies)
+		}
 	}
 }
 
@@ -225,9 +230,9 @@ func TestPushReportsBytes(t *testing.T) {
 	}
 }
 
-func TestPushPullsFromFirstCopy(t *testing.T) {
+func TestPushSendsEachPieceOnce(t *testing.T) {
 	// Each piece leaves this machine once; the other copies' providers
-	// fetch it from the first copy's provider.
+	// fetch it from the provider that got it.
 	s := memstore.New(5)
 	m, pieces := fixture(t, 4)
 	var r recorder
@@ -237,9 +242,8 @@ func TestPushPullsFromFirstCopy(t *testing.T) {
 	if s.Uploads() != 12 || s.Pulls() != 8 {
 		t.Fatalf("%d stored, %d pulled; want 12, 8", s.Uploads(), s.Pulls())
 	}
-	first := m.Copies[0].Provider
-	if n := r.count(func(e store.PushEvent) bool { return final(e) && e.Pulled && e.From == first && e.Copy > 0 }); n != 8 {
-		t.Errorf("%d pulled events from provider %s, want 8", n, first)
+	if n := r.count(func(e store.PushEvent) bool { return final(e) && e.Pulled && e.From != e.Provider }); n != 8 {
+		t.Errorf("%d pulled events, want 8", n)
 	}
 	for _, c := range m.Copies {
 		if len(c.PieceIDs) != 4 {
@@ -247,12 +251,101 @@ func TestPushPullsFromFirstCopy(t *testing.T) {
 		}
 	}
 
-	// A copy added later pulls from the first copy too.
+	// A copy added later pulls every piece from the copies that hold it.
 	if err := store.Push(context.Background(), s, m, pieces, 4, r.save, nil); err != nil {
 		t.Fatal(err)
 	}
 	if s.Uploads() != 16 || s.Pulls() != 12 {
 		t.Fatalf("fourth copy: %d stored, %d pulled; want 16, 12", s.Uploads(), s.Pulls())
+	}
+}
+
+func TestPushUploadsToProvidersAtOnce(t *testing.T) {
+	// The copies send different pieces from here at the same time, rather
+	// than one copy sending every piece while the others wait to pull.
+	s := memstore.New(3)
+	var mu sync.Mutex
+	in := map[string]bool{}
+	all := make(chan struct{})
+	s.BeforeStage = func(ctx context.Context, ds store.DataSet, _ string) error {
+		mu.Lock()
+		if !in[ds.Provider] && len(in) == 2 {
+			close(all)
+		}
+		in[ds.Provider] = true
+		mu.Unlock()
+		select {
+		case <-all:
+			return nil
+		case <-time.After(10 * time.Second):
+			return fmt.Errorf("provider %s: only %d uploads at once", ds.Provider, len(in))
+		}
+	}
+	m, pieces := fixture(t, 6)
+	if err := store.Push(context.Background(), s, m, pieces, 3, func(*manifest.Manifest) error { return nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 18 || s.Pulls() != 12 {
+		t.Fatalf("%d stored, %d pulled; want 18, 12", s.Uploads(), s.Pulls())
+	}
+}
+
+func TestPushPullsSeveralAtOnce(t *testing.T) {
+	// A provider fetches several pieces from the others at the same time:
+	// two copies pulling one piece each at a time never reach three pulls.
+	s := memstore.New(2)
+	var mu sync.Mutex
+	n := 0
+	three := make(chan struct{})
+	s.BeforePull = func(context.Context, store.DataSet, store.DataSet, string) error {
+		mu.Lock()
+		if n++; n == 3 {
+			close(three)
+		}
+		mu.Unlock()
+		select {
+		case <-three:
+			return nil
+		case <-time.After(5 * time.Second):
+			return fmt.Errorf("no three pulls at once")
+		}
+	}
+	m, pieces := fixture(t, 12)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.PullErr != nil }); n != 0 {
+		t.Errorf("%d pulls failed", n)
+	}
+	if s.Pulls() != 12 {
+		t.Errorf("%d pulled, want 12", s.Pulls())
+	}
+}
+
+func TestPushGivesBackAFailedUpload(t *testing.T) {
+	// A copy that fails stops, and the piece it was sending goes to another
+	// copy, so the others still get every piece.
+	s := memstore.New(3)
+	tried := make(chan struct{})
+	var once sync.Once
+	s.BeforeStage = func(_ context.Context, ds store.DataSet, _ string) error {
+		if ds.Provider == "2" {
+			once.Do(func() { close(tried) })
+			return fmt.Errorf("provider 2 is down")
+		}
+		<-tried // hold the others until provider 2 has taken a piece
+		return nil
+	}
+	m, pieces := fixture(t, 4)
+	err := store.Push(context.Background(), s, m, pieces, 3, func(*manifest.Manifest) error { return nil }, nil)
+	if err == nil || !strings.Contains(err.Error(), "provider 2 is down") {
+		t.Fatalf("err = %v", err)
+	}
+	for _, c := range m.Copies {
+		if c.Provider != "2" && len(c.PieceIDs) != 4 {
+			t.Errorf("copy on provider %s has %d of 4 pieces", c.Provider, len(c.PieceIDs))
+		}
 	}
 }
 
@@ -302,12 +395,14 @@ func TestPushSendsWhileAddsWait(t *testing.T) {
 	done := make(chan error)
 	go func() { done <- store.Push(context.Background(), s, m, pieces, 3, r.save, r.progress) }()
 	deadline := time.Now().Add(10 * time.Second)
-	for s.Uploads() < 12 {
+	isStaged := func(e store.PushEvent) bool { return e.Staged }
+	for r.count(isStaged) < 12 {
 		if time.Now().After(deadline) {
-			t.Fatalf("only %d of 12 pieces staged while adds wait", s.Uploads())
+			t.Fatalf("only %d of 12 pieces staged while adds wait", r.count(isStaged))
 		}
 		time.Sleep(time.Millisecond)
 	}
+	time.Sleep(10 * time.Millisecond) // the staged event comes just before the piece is queued
 	close(g.open)
 	if err := <-done; err != nil {
 		t.Fatal(err)

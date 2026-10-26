@@ -30,6 +30,11 @@ type Store struct {
 	commits int
 	// PullFails makes every Pull fail, so Push falls back to uploading.
 	PullFails bool
+	// BeforeStage, if set, runs before each Stage that sends bytes; an error
+	// fails the Stage.
+	BeforeStage func(ctx context.Context, ds store.DataSet, pieceCID string) error
+	// BeforePull, if set, runs before each Pull; an error fails the Pull.
+	BeforePull func(ctx context.Context, ds, from store.DataSet, pieceCID string) error
 	// BeforeCommit, if set, runs before each Commit that adds pieces, as a
 	// wait for the base fee; an error fails the Commit.
 	BeforeCommit func(ctx context.Context, ds store.DataSet, pieceCIDs []string) error
@@ -159,7 +164,7 @@ func (s *Store) Upload(ctx context.Context, ds store.DataSet, pieceCID string, c
 	return ref, nil
 }
 
-func (s *Store) Stage(_ context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64) error {
+func (s *Store) Stage(ctx context.Context, ds store.DataSet, pieceCID string, car io.Reader, size int64) error {
 	s.mu.Lock()
 	p, ok := s.pieces[ds.ID]
 	_, held := p[pieceCID]
@@ -170,6 +175,11 @@ func (s *Store) Stage(_ context.Context, ds store.DataSet, pieceCID string, car 
 	}
 	if held || staged {
 		return nil
+	}
+	if s.BeforeStage != nil {
+		if err := s.BeforeStage(ctx, ds, pieceCID); err != nil {
+			return err
+		}
 	}
 	b, err := io.ReadAll(car)
 	if err != nil {
@@ -194,7 +204,12 @@ func (s *Store) stage(provider, pieceCID string) {
 	s.staged[provider][pieceCID] = true
 }
 
-func (s *Store) Pull(_ context.Context, ds, from store.DataSet, pieceCID string) error {
+func (s *Store) Pull(ctx context.Context, ds, from store.DataSet, pieceCID string) error {
+	if s.BeforePull != nil {
+		if err := s.BeforePull(ctx, ds, from, pieceCID); err != nil {
+			return err
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.pieces[ds.ID]

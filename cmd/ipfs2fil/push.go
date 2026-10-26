@@ -23,8 +23,9 @@ each on a different provider. Pieces a copy already holds are skipped, so
 running push again after Ctrl-C, a failure, or a new pack uploads only what is
 missing. Progress is saved to manifest.json after every piece.
 
-Each piece leaves this machine once: it goes to the first copy's provider, and
-the other providers copy it from there (if one cannot, the piece is uploaded
+Each piece leaves this machine once: the copies split the pieces and upload
+to their providers at the same time, and each provider copies the pieces it
+did not get from the provider that did (if it cannot, the piece is uploaded
 to it from here). Sending a piece and adding it on chain are separate steps:
 while the network base fee is at or above --max-base-fee, adding waits for it
 to fall but sending carries on (up to an hour ahead, as providers drop pieces
