@@ -96,6 +96,12 @@ type Result struct {
 	// Missing lists blocks that roots link to but the repo does not hold. The
 	// archive has everything else; these were never in the repo to save.
 	Missing []string
+	// Removed and RemovedBytes count the CARs Build deleted from outDir:
+	// pieces of earlier packs the archive no longer has, and partial files a
+	// killed run left. Pieces already stored stay stored with the snapshot
+	// that added them; nothing reads the local CARs again.
+	Removed      int
+	RemovedBytes int64
 }
 
 // ManifestFile is the full manifest Build writes in outDir. Build reads it
@@ -337,7 +343,40 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err := m.Write(filepath.Join(outDir, ManifestFile)); err != nil {
 		return nil, err
 	}
-	return &Result{Manifest: m, Pieces: out, Missing: l.missing}, nil
+	res := &Result{Manifest: m, Pieces: out, Missing: l.missing}
+	if res.Removed, res.RemovedBytes, err = prune(pieceDir, m); err != nil {
+		return nil, fmt.Errorf("removing old pieces: %w", err)
+	}
+	return res, nil
+}
+
+// prune deletes the files in pieceDir that are not one of m's pieces: CARs
+// an earlier pack wrote for pieces the archive no longer has, and the
+// .piece-* files a killed run left behind. Other files are left alone.
+func prune(pieceDir string, m *manifest.Manifest) (n int, bytes int64, err error) {
+	keep := map[string]bool{}
+	for _, p := range m.Pieces {
+		keep[p.PieceCID+".car"] = true
+	}
+	ents, err := os.ReadDir(pieceDir)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, e := range ents {
+		name := e.Name()
+		if keep[name] || !e.Type().IsRegular() || !strings.HasSuffix(name, ".car") && !strings.HasPrefix(name, ".piece-") {
+			continue
+		}
+		var size int64
+		if fi, err := e.Info(); err == nil {
+			size = fi.Size()
+		}
+		if err := os.Remove(filepath.Join(pieceDir, name)); err != nil && !os.IsNotExist(err) {
+			return n, bytes, err
+		}
+		n, bytes = n+1, bytes+size
+	}
+	return n, bytes, nil
 }
 
 // RecordCID is the CID of an Options.Record block: raw, sha2-256.

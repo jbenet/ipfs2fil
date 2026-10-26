@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
@@ -84,8 +87,28 @@ func TestReposAll(t *testing.T) {
 
 	stdout, _, err = ipfs2fil(t, "status", "--all", "--home", home)
 	if err != nil || !strings.Contains(stdout, "copies   3 data sets shared by every repo") ||
-		!strings.Contains(stdout, "is stored once") || strings.Contains(stdout, "missing") {
+		!strings.Contains(stdout, "is stored once") || strings.Contains(stdout, "missing") || strings.Contains(stdout, "earlier") {
 		t.Errorf("status --all: %v\n%s", err, stdout)
+	}
+
+	// A piece no current archive uses, as an earlier snapshot leaves.
+	old := bytes.Repeat([]byte("an earlier snapshot's piece "), 20)
+	pc, n, err := car.PieceCID(bytes.NewReader(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sets, err := ms.DataSets(context.Background(), c.Key, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ds := range sets {
+		if _, err := ms.Upload(context.Background(), ds, pc.String(), bytes.NewReader(old), n, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stdout, _, err = ipfs2fil(t, "status", "--all", "--home", home)
+	if err != nil || !strings.Contains(stdout, "earlier  1 pieces (560 B)") || strings.Contains(stdout, "missing") {
+		t.Errorf("status --all with an earlier piece: %v\n%s", err, stdout)
 	}
 	for _, r := range []string{"first", "second"} {
 		if !strings.Contains(stdout, r+" ") {

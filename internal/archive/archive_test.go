@@ -310,6 +310,9 @@ func TestRerunIsByteIdentical(t *testing.T) {
 	a := build(t, sample(t, false), dir)
 	b := build(t, sample(t, false), t.TempDir()) // fresh output dir
 	c := build(t, sample(t, false), dir)         // same dir, reads its last manifest
+	if c.Removed != 0 {
+		t.Errorf("an unchanged re-run removed %d pieces", c.Removed)
+	}
 	for _, res := range []*Result{b, c} {
 		if res.Manifest.Root != a.Manifest.Root || len(res.Pieces) != len(a.Pieces) {
 			t.Fatalf("root %s vs %s, %d vs %d pieces", res.Manifest.Root, a.Manifest.Root, len(res.Pieces), len(a.Pieces))
@@ -362,8 +365,28 @@ func TestPushThenRepack(t *testing.T) {
 func TestEditChangesNearbyPieces(t *testing.T) {
 	dir := t.TempDir()
 	a := build(t, sample(t, false), dir)
+	// as a killed run leaves it
+	if err := os.WriteFile(filepath.Join(dir, "pieces", ".piece-123"), []byte("partial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	b := build(t, sample(t, true), dir)
 	check(t, b)
+	// Only the new archive's CARs are left in pieces/.
+	files, err := os.ReadDir(filepath.Join(dir, "pieces"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != len(b.Pieces) {
+		t.Errorf("%d files in pieces/ for %d pieces", len(files), len(b.Pieces))
+	}
+	for _, p := range b.Pieces {
+		if _, err := os.Stat(p.Path); err != nil {
+			t.Error(err)
+		}
+	}
+	if b.Removed < 2 || b.RemovedBytes == 0 {
+		t.Errorf("removed %d files, %d bytes", b.Removed, b.RemovedBytes)
+	}
 	old, now := dataPieces(a), dataPieces(b)
 	changed := 0
 	for p := range now {
