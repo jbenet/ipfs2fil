@@ -21,6 +21,7 @@ import (
 	"github.com/strahe/synapse-go/piece"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
+	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/store"
 	"github.com/jbenet/ipfs2fil/internal/store/foc"
@@ -189,5 +190,30 @@ func TestCalibration(t *testing.T) {
 	if err := store.Verify(ctx, s2, m, nil); err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("calibration: stored 3 copies, re-run uploaded nothing, verify passed")
+
+	// The catalog read from chain lists pieces and reads only their first
+	// bytes from the provider.
+	sets, held, err := s2.Pieces(ctx, key, 3)
+	if err != nil || len(sets) != 3 {
+		t.Fatalf("Pieces: %d data sets, %v", len(sets), err)
+	}
+	for i, h := range held {
+		if len(h) != len(ps) {
+			t.Errorf("data set %s lists %d pieces, want %d", sets[i].ID, len(h), len(ps))
+		}
+	}
+	peekStart := time.Now()
+	rc, err := s2.Fetch(ctx, sets[0], ps[0].PieceCID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := car.NewReader(rc)
+	if err != nil {
+		t.Fatalf("reading the CAR header from the provider: %v", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("closing a piece read early: %v", err)
+	}
+	t.Logf("read the header (root %s) in %s", r.Root, time.Since(peekStart))
+	fmt.Println("calibration: stored 3 copies, re-run uploaded nothing, verify passed, pieces listed and peeked")
 }

@@ -86,19 +86,32 @@ one. The list and each repo's archive live in `~/.ipfs2fil` (or `--home`, or
 `ipfs2fil repos ls` shows the list, and `ipfs2fil repos rm <name>` takes a repo
 off it.
 
-Repos on several machines: give every machine the same wallet key and the
-same catalog, a git repository (say a private one on GitHub) that ipfs2fil
-clones, pulls, commits to and pushes itself:
+Repos on several machines: give every machine the same wallet key, and run
+ipfs2fil on each. There is nothing else to set up or sync: the catalog of
+every machine's repos is read from your data sets on chain.
 
-    ipfs2fil repos add ~/.ipfs --catalog git@github.com:you/ipfs2fil-catalog.git   # on each machine
+    ipfs2fil repos add ~/.ipfs     # on each machine
     ipfs2fil up --all              # on each machine
     ipfs2fil status --all          # on any machine: every repo on every machine
 
-The catalog is remembered after the first time. Each machine commits only its
-own subfolder (named by its host name, or `--host`), holding its list and
-each archive's manifest and block lists; the pieces stay where they were
-packed. A machine leaves out blocks that repos on other machines have
-already stored. A folder every machine already sees works as `--catalog` too.
+Each archive's own pieces (its index, explorer and root) start with a small
+record naming its machine and repo, encrypted with a key derived from the
+wallet key. Another machine lists the data sets' pieces, reads the first
+bytes of each new one to find those records, and downloads only the index
+pieces of each repo's latest snapshot, into `~/.ipfs2fil/chain`. So a repo
+shows up on other machines once its pieces are stored, and a machine leaves
+out blocks that repos on other machines already store. Repo paths never
+leave the machine. Machines are named by their host name, or `--host`.
+
+If two machines push for the very first time at the same moment, both may
+create data sets; each then uses the oldest ones, and `status --all` lists
+any extra as unused. Running the first `up --all` on one machine avoids it.
+
+A git repository works as the catalog instead (`--catalog
+git@github.com:you/ipfs2fil-catalog.git`, or any http(s) URL): ipfs2fil
+clones, pulls, commits to and pushes it itself, each machine writing only its
+own subfolder. A folder every machine sees works too. The catalog is
+remembered; `--catalog filecoin` goes back to reading it from chain.
 
 ## Releases
 

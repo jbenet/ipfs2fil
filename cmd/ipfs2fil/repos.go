@@ -45,15 +45,18 @@ uploaded. rm only takes a repo off the list: its archive stays on disk and its
 pieces stay stored.
 
 Repos on several machines: run ipfs2fil on each machine with the same wallet
-key and the same --catalog (or $IPFS2FIL_CATALOG): a git repository URL, such
-as git@github.com:you/ipfs2fil-catalog.git, or a folder every machine sees.
-For git, ipfs2fil clones it into --home, pulls before reading and commits
-and pushes after each change. The catalog is remembered, so later commands
-need no flag. Each machine keeps its list,
-manifests and block lists there under its host name (--host); pieces stay on
-the machine that packed them. Then 'up --all' on a machine packs and pushes
-its own repos, leaving out blocks other machines' repos already store, and
-'status --all' on any machine shows every repo on every machine.`,
+key. The catalog of every machine's repos is read from your data sets on
+chain: each archive's own pieces carry a record of its machine and repo,
+encrypted under the wallet key, and other machines find it there once the
+pieces are stored, caching what they read in --home. Then 'up --all' on a
+machine packs and pushes its own repos, leaving out blocks other machines'
+repos already store, and 'status --all' on any machine shows every repo on
+every machine.
+
+A git repository URL (http, https or ssh) or a shared folder can be the
+catalog instead (--catalog): ipfs2fil clones, pulls, commits and pushes a git
+catalog itself. The catalog is remembered; --catalog filecoin goes back to
+chain. Machines are named by --host, default the host name.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "for add: the IPFS repo to add (or give it as the argument)")
 			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name)")

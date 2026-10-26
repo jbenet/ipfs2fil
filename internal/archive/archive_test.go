@@ -712,3 +712,45 @@ func checkCovered(t *testing.T, res *Result) {
 	root, _ := cid.Decode(res.Manifest.Root)
 	walk(root)
 }
+
+// TestRecord: the record goes first in the archive's own pieces, which name it
+// as their second root; data pieces are unchanged.
+func TestRecord(t *testing.T) {
+	plain := build(t, sample(t, false), t.TempDir())
+	opts := testOptions()
+	opts.Record = []byte("ipfs2fil test record")
+	res, err := Build(context.Background(), sample(t, false), t.TempDir(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := RecordCID(opts.Record)
+	first := true
+	for i, p := range res.Pieces {
+		f, err := os.Open(p.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := car.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, data, _ := r.Next()
+		f.Close()
+		if p.BlockList != "" {
+			if len(r.Roots) != 1 || p.PieceCID != plain.Pieces[i].PieceCID {
+				t.Errorf("data piece %d: roots %v, changed: %v", i, r.Roots, p.PieceCID != plain.Pieces[i].PieceCID)
+			}
+			continue
+		}
+		if len(r.Roots) != 2 || r.Root.String() != res.Manifest.Root || !r.Roots[1].Equals(rec) {
+			t.Errorf("own piece %d: roots %v", i, r.Roots)
+		}
+		if first && (!c.Equals(rec) || string(data) != string(opts.Record)) {
+			t.Errorf("own piece %d starts with %s", i, c)
+		}
+		first = false
+	}
+	if res.Manifest.Root != plain.Manifest.Root {
+		t.Errorf("the record changed the archive root")
+	}
+}

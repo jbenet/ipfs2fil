@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"slices"
 	"sync"
@@ -289,8 +290,16 @@ func (s *Store) DataSets(ctx context.Context, archive string, copies int) ([]sto
 		s.pieces[d.ID] = map[string]string{}
 	}
 	s.mu.Unlock()
-	slices.SortFunc(made, func(a, b dataSet) int { return cmpID(a.ID, b.ID) })
-	have = append(have, made...)
+	if len(made) > 0 {
+		// Another machine with the same wallet may have created data sets
+		// for this key while ours were landing. Read them again and use the
+		// oldest, as that machine will, so both push into the same ones;
+		// the newer ones stay empty (Status lists them as Unused).
+		if have, err = s.existing(ctx, archive); err != nil {
+			return nil, err
+		}
+		have = have[:min(len(have), copies)]
+	}
 	if len(have) < copies {
 		return nil, fmt.Errorf("asked for %d copies but only %d storage providers are available; use --copies %d or fewer",
 			copies, len(have), len(have))
@@ -300,6 +309,29 @@ func (s *Store) DataSets(ctx context.Context, archive string, copies int) ([]sto
 		out[i] = d.public()
 	}
 	return out, nil
+}
+
+var _ store.Lister = (*Store)(nil)
+
+func (s *Store) Pieces(ctx context.Context, archive string, copies int) ([]store.DataSet, []map[string]string, error) {
+	have, err := s.existing(ctx, archive)
+	if err != nil {
+		return nil, nil, err
+	}
+	have = have[:min(len(have), copies)]
+	sets := make([]store.DataSet, len(have))
+	pieces := make([]map[string]string, len(have))
+	for i, d := range have {
+		p, err := s.active(ctx, d.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		s.mu.Lock()
+		pieces[i] = maps.Clone(p)
+		s.mu.Unlock()
+		sets[i] = d.public()
+	}
+	return sets, pieces, nil
 }
 
 // active returns the data set's pieces, read from chain once per run.
@@ -375,6 +407,20 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 	if err != nil {
 		return st, err
 	}
+	all, err := s.b.DataSets(ctx)
+	if err != nil {
+		return st, err
+	}
+	used := map[string]bool{}
+	for _, d := range have {
+		used[d.ID] = true
+	}
+	for _, d := range all {
+		if d.Metadata[KeyArchive] == archive && !used[d.ID] {
+			st.Unused = append(st.Unused, d.public())
+		}
+	}
+	slices.SortFunc(st.Unused, func(a, b store.DataSet) int { return cmpID(a.ID, b.ID) })
 	for _, d := range have {
 		p, err := s.active(ctx, d.ID)
 		if err != nil {
@@ -398,10 +444,6 @@ func (s *Store) Status(ctx context.Context, archive string) (store.Status, error
 	days, reserve, err := s.b.Runway(ctx)
 	if err != nil {
 		return st, fmt.Errorf("reading your Filecoin Pay account: %w", err)
-	}
-	all, err := s.b.DataSets(ctx)
-	if err != nil {
-		return st, err
 	}
 	st.FundedDays, st.Reserve, st.ReserveDataSets = days, USDFC(reserve), len(all)
 	return st, nil
