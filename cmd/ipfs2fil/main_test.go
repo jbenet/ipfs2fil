@@ -95,7 +95,7 @@ func TestHelp(t *testing.T) {
 	}
 	for n := range commands {
 		out, _, _ := ipfs2fil(t, "help", n)
-		if n != "version" && !strings.Contains(out, "-repo") {
+		if n != "version" && n != "wallet" && !strings.Contains(out, "-repo") {
 			t.Errorf("%s does not take --repo", n)
 		}
 	}
@@ -184,5 +184,33 @@ func fixture(t *testing.T, name string) string {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestWalletNew(t *testing.T) {
+	t.Setenv("IPFS2FIL_KEY_FILE", "")
+	t.Setenv("IPFS2FIL_PRIVATE_KEY", "")
+	t.Setenv("IPFS2FIL_HOME", t.TempDir())
+	out, _, err := ipfs2fil(t, "wallet", "new", "--network", "calibration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"wallet.key", "address  0x", "t410f", "Back that file up"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("wallet new output lacks %q:\n%s", want, out)
+		}
+	}
+	if _, _, err := ipfs2fil(t, "wallet", "new"); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("second wallet new: %v", err)
+	}
+	if err := checkKey(); err != nil {
+		t.Errorf("the new key is not found: %v", err)
+	}
+	other := filepath.Join(t.TempDir(), "other.key")
+	if out, _, err := ipfs2fil(t, "wallet", "new", "--key-file", other); err != nil || !strings.Contains(out, "--key-file "+other) {
+		t.Errorf("wallet new --key-file: %v\n%s", err, out)
+	}
+	if _, _, err := ipfs2fil(t, "wallet", "bogus"); err == nil || !strings.Contains(err.Error(), "wallet new") {
+		t.Errorf("wallet bogus: %v", err)
 	}
 }

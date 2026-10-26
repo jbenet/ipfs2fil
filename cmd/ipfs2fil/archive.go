@@ -89,7 +89,7 @@ func addStoreFlags(fs *flag.FlagSet) {
 }
 
 func addChainFlags(fs *flag.FlagSet) {
-	fs.StringVar(&storeFlags.keyFile, "key-file", "", "file holding the wallet's private key (default $"+foc.EnvKeyFile+", else $"+foc.EnvKey+")")
+	fs.StringVar(&storeFlags.keyFile, "key-file", "", "file holding the wallet's private key (default $"+foc.EnvKeyFile+", else $"+foc.EnvKey+", else the key 'ipfs2fil wallet new' made)")
 	fs.StringVar(&storeFlags.network, "network", "mainnet", "mainnet or calibration")
 	fs.StringVar(&storeFlags.rpc, "rpc", "", "Filecoin RPC URL (default: the public glif endpoint for --network)")
 }

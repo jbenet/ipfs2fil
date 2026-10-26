@@ -574,3 +574,42 @@ func bigInts(ss []string) ([]types.BigInt, error) {
 	}
 	return out, nil
 }
+
+// Balances is what a wallet holds: FIL for gas, and USDFC both in the wallet
+// and deposited in Filecoin Pay, where storage is paid from.
+type Balances struct {
+	Address common.Address
+	Testnet bool
+	FIL     *big.Int // attoFIL
+	USDFC   *big.Int // in the wallet, not yet deposited
+	Deposit *big.Int // in Filecoin Pay
+	// Available is the part of Deposit not locked up by data sets.
+	Available *big.Int
+}
+
+// Balances reads the wallet's balances. Only the FOC store has them, so the
+// method is on Store rather than in the backend interface.
+func (s *Store) Balances(ctx context.Context) (Balances, error) {
+	b, ok := s.b.(*synapseBackend)
+	if !ok {
+		return Balances{}, errors.New("this store has no wallet balances")
+	}
+	return b.balances(ctx)
+}
+
+func (b *synapseBackend) balances(ctx context.Context) (Balances, error) {
+	out := Balances{Address: b.payer, Testnet: b.c.Chain() != chain.Mainnet}
+	var err error
+	if out.FIL, err = b.ec.BalanceAt(ctx, b.payer, nil); err != nil {
+		return out, fmt.Errorf("reading the FIL balance: %w", err)
+	}
+	if out.USDFC, err = b.c.Payments().WalletBalance(ctx, b.c.ResolvedAddresses().USDFC, b.payer); err != nil {
+		return out, fmt.Errorf("reading the USDFC balance: %w", err)
+	}
+	sum, err := b.c.Payments().AccountSummary(ctx, b.payer)
+	if err != nil {
+		return out, fmt.Errorf("reading your Filecoin Pay account: %w", err)
+	}
+	out.Deposit, out.Available = sum.Funds, sum.AvailableFunds
+	return out, nil
+}

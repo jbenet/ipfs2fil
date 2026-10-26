@@ -56,7 +56,7 @@ var commands = map[string]*command{}
 func register(c *command) { commands[c.name] = c }
 
 // order is how the usage lists commands.
-var order = []string{"scan", "pack", "push", "up", "status", "explore", "verify", "version"}
+var order = []string{"wallet", "scan", "pack", "push", "up", "status", "explore", "verify", "version"}
 
 func usage(w io.Writer) {
 	fmt.Fprint(w, `ipfs2fil archives an IPFS repo to Filecoin.
