@@ -129,7 +129,28 @@ func TestProgress(t *testing.T) {
 	p.Add(250)
 	p.Done()
 	got := b.String()
-	for _, want := range []string{"[======                  ]  25% 250 B/1000 B ETA 30s", " 50% 500 B/1000 B in 20s"} {
+	for _, want := range []string{"[======                  ]  25% 250 B/1000 B 25 B/s ETA 30s", " 50% 500 B/1000 B in 20s (25 B/s)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("progress lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestProgressSpeed(t *testing.T) {
+	// Skipped bytes fill the bar but not the speed, and the speed covers
+	// the last speedWindow, so a fast start does not hide a slow end.
+	var b bytes.Buffer
+	now := time.Unix(0, 0)
+	p := newProgress(&b, "uploading", 10000, true)
+	p.now = func() time.Time { return now }
+	p.start, p.last = now, now
+	p.Skip(5000)
+	now = now.Add(10 * time.Second)
+	p.Add(1000) // 100 B/s
+	now = now.Add(30 * time.Second)
+	p.Add(300) // 10 B/s since the last sample
+	got := b.String()
+	for _, want := range []string{"60% 5.9 KiB/9.8 KiB 100 B/s ETA 40s", "63% 6.2 KiB/9.8 KiB 10 B/s ETA 6m0s"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("progress lacks %q:\n%s", want, got)
 		}

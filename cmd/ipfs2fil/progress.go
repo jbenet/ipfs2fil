@@ -12,7 +12,8 @@ import (
 
 // progress draws one status line for a long step: a bar with ETA when the
 // total is known, a running count when it is not. On a terminal it redraws in
-// place; otherwise (logs, CI) it prints a line every interval.
+// place; otherwise (logs, CI) it prints a line every interval. The bar also
+// shows the speed over the last speedWindow, which drives the ETA.
 type progress struct {
 	w        io.Writer
 	label    string
@@ -23,12 +24,21 @@ type progress struct {
 	now      func() time.Time
 
 	mu     sync.Mutex
-	suffix string
-	done   int64
-	start  time.Time
-	last   time.Time
-	drawn  bool
+	suffix  string
+	done    int64
+	skipped int64 // part of done that did not move through here
+	start   time.Time
+	last    time.Time
+	drawn   bool
+	samples []sample // moved units over time, for the speed
 }
+
+type sample struct {
+	t time.Time
+	n int64
+}
+
+const speedWindow = 20 * time.Second
 
 func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
 	p := &progress{w: w, label: label, total: total, bytes: bytes, tty: isTerminal(w), now: time.Now}
@@ -50,6 +60,15 @@ func (p *progress) Add(n int64) {
 		p.last = t
 		p.draw(false)
 	}
+}
+
+// Skip records n more units done that did not move through here, such as
+// pieces a provider already held. They fill the bar but not the speed.
+func (p *progress) Skip(n int64) {
+	p.mu.Lock()
+	p.skipped += n
+	p.mu.Unlock()
+	p.Add(n)
 }
 
 // Set records done units out of total, for callers that report running totals.
@@ -91,9 +110,38 @@ func (p *progress) Done() {
 	}
 }
 
+// speed is units per second over the last speedWindow, or 0 before a second
+// has passed.
+func (p *progress) speed(t time.Time) float64 {
+	moved := p.done - p.skipped
+	if p.samples == nil {
+		p.samples = []sample{{t: p.start}}
+	}
+	if s := p.samples[len(p.samples)-1]; t.Sub(s.t) >= time.Second {
+		p.samples = append(p.samples, sample{t, moved})
+	}
+	i := 0
+	for i < len(p.samples)-2 && t.Sub(p.samples[i+1].t) >= speedWindow {
+		i++
+	}
+	p.samples = p.samples[i:]
+	s := p.samples[0]
+	dt := t.Sub(s.t).Seconds()
+	if dt < 1 {
+		return 0
+	}
+	return float64(moved-s.n) / dt
+}
+
+func (p *progress) rate(perSec float64) string {
+	return p.count(int64(perSec)) + "/s"
+}
+
 func (p *progress) draw(final bool) {
 	p.drawn = true
-	el := p.now().Sub(p.start)
+	t := p.now()
+	el := t.Sub(p.start)
+	speed := p.speed(t)
 	var line string
 	if p.total > 0 {
 		frac := float64(p.done) / float64(p.total)
@@ -106,9 +154,14 @@ func (p *progress) draw(final bool) {
 		line = fmt.Sprintf("%s [%s] %3.0f%% %s/%s", p.label, bar, frac*100, p.count(p.done), p.count(p.total))
 		if final {
 			line += " in " + roundDur(el)
-		} else if p.done > 0 && el > time.Second {
-			eta := time.Duration(float64(el) * (1/frac - 1))
-			line += " ETA " + roundDur(eta)
+			if s := el.Seconds(); s >= 1 && p.done > p.skipped {
+				line += " (" + p.rate(float64(p.done-p.skipped)/s) + ")"
+			}
+		} else if speed > 0 {
+			line += " " + p.rate(speed)
+			if left := p.total - p.done; left > 0 {
+				line += " ETA " + roundDur(time.Duration(float64(left)/speed*float64(time.Second)))
+			}
 		}
 	} else {
 		line = fmt.Sprintf("%s %s", p.label, p.count(p.done))

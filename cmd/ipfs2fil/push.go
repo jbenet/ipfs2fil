@@ -143,7 +143,11 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 		}
 		if d := done - seen[k]; d > 0 {
 			seen[k] = done
-			bar.Add(d)
+			if ev.Skipped || ev.Pulled { // these bytes did not leave this machine
+				bar.Skip(d)
+			} else {
+				bar.Add(d)
+			}
 		}
 		if final[k] {
 			return
@@ -271,12 +275,20 @@ func approveCost(ctx context.Context, o *opts, s store.Store, key string, sizes 
 	// push adds pieces in batches. They come out of the deposit.
 	fmt.Fprintf(o.stderr, "storing %d pieces (%s) as %d copies: %s USDFC/month, at most %s USDFC in one-time fees (paid from the deposit)\n",
 		len(sizes), humanBytes(total), o.copies, foc.USDFC(fund.Monthly), foc.USDFC(fund.Fees))
+	if b, ok := s.(balancer); ok {
+		// FIL and USDFC both have 18 decimals.
+		if bal, err := b.Balances(ctx); err != nil {
+			fmt.Fprintf(o.stderr, "could not read the wallet's balances: %v\n", err)
+		} else {
+			fmt.Fprintf(o.stderr, "wallet holds %s FIL and %s USDFC; Filecoin Pay holds %s USDFC deposited, %s available (not locked up by data sets)\n",
+				foc.USDFC(bal.FIL), foc.USDFC(bal.USDFC), foc.USDFC(bal.Deposit), foc.USDFC(bal.Available))
+		}
+	}
 	if fund.Ready() {
 		return confirm(o, stdin, "Upload?")
 	}
 	if fund.Deposit != nil && fund.Deposit.Sign() > 0 {
-		fmt.Fprintf(o.stderr, "your wallet holds %s USDFC; this deposits %s USDFC into Filecoin Pay\n",
-			foc.USDFC(fund.Wallet), foc.USDFC(fund.Deposit))
+		fmt.Fprintf(o.stderr, "this deposits %s USDFC from the wallet into Filecoin Pay\n", foc.USDFC(fund.Deposit))
 	}
 	if fund.Approve {
 		fmt.Fprintln(o.stderr, "this also lets Filecoin Warm Storage charge your Filecoin Pay account for storage")
