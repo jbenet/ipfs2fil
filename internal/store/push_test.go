@@ -221,3 +221,50 @@ func TestPushReportsBytes(t *testing.T) {
 		t.Fatalf("events %+v", r.events)
 	}
 }
+
+func TestPushPullsFromFirstCopy(t *testing.T) {
+	// Each piece leaves this machine once; the other copies' providers
+	// fetch it from the first copy's provider.
+	s := memstore.New(5)
+	m, pieces := fixture(t, 4)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 3, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 12 || s.Pulls() != 8 {
+		t.Fatalf("%d stored, %d pulled; want 12, 8", s.Uploads(), s.Pulls())
+	}
+	first := m.Copies[0].Provider
+	if n := r.count(func(e store.PushEvent) bool { return final(e) && e.Pulled && e.From == first && e.Copy > 0 }); n != 8 {
+		t.Errorf("%d pulled events from provider %s, want 8", n, first)
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != 4 {
+			t.Errorf("copy %+v is missing pieces", c)
+		}
+	}
+
+	// A copy added later pulls from the first copy too.
+	if err := store.Push(context.Background(), s, m, pieces, 4, r.save, nil); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 16 || s.Pulls() != 12 {
+		t.Fatalf("fourth copy: %d stored, %d pulled; want 16, 12", s.Uploads(), s.Pulls())
+	}
+}
+
+func TestPushUploadsWhenPullFails(t *testing.T) {
+	s := memstore.New(3)
+	s.PullFails = true
+	m, pieces := fixture(t, 2)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 3, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 6 || s.Pulls() != 0 {
+		t.Fatalf("%d stored, %d pulled; want 6, 0", s.Uploads(), s.Pulls())
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.PullErr != nil && !e.Final }); n != 4 {
+		t.Errorf("%d pull failures reported, want 4", n)
+	}
+}

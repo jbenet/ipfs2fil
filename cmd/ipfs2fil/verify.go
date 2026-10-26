@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/jbenet/ipfs2fil/internal/ipni"
 	"github.com/jbenet/ipfs2fil/internal/store"
 )
+
+// checkIPNI asks delegated routing about CIDs. Tests replace it.
+var checkIPNI = ipni.Check
 
 func init() {
 	register(&command{
@@ -17,11 +21,19 @@ func init() {
 Downloads every piece from every copy recorded in --out/manifest.json and
 checks that it hashes to its PieceCID and that every block in it hashes to its
 CID. Keeps going past bad pieces and lists them at the end; run push to
-re-upload a piece a copy has lost. No wallet key needed: --address is enough.`,
+re-upload a piece a copy has lost. No wallet key needed: --address is enough.
+
+Then asks --ipni, a delegated routing endpoint, whether a sample of the
+archive's CIDs (the archive root, data root and some pinned roots) are
+announced, which is what makes them findable by CID on the IPFS network.
+Providers announce a while after a push, so a new archive may not be
+announced yet; this part is reported but never fails verify.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			addReadStoreFlags(fs)
+			fs.StringVar(&o.ipni, "ipni", ipni.DefaultEndpoint, "delegated routing endpoint to check announcements with (empty: skip)")
+			fs.IntVar(&o.ipniSample, "ipni-sample", 20, "how many CIDs to check with --ipni")
 		},
 		run: runVerify,
 	})
@@ -69,6 +81,21 @@ func runVerify(ctx context.Context, o *opts, _ []string) error {
 	})
 	bar.Done()
 	fmt.Fprintf(o.stdout, "%d pieces checked across %d copies: %d good, %d bad\n", good+bad, len(m.Copies), good, bad)
+	if o.ipni != "" && o.ipniSample > 0 {
+		cids := ipni.Sample(m, o.ipniSample)
+		res := checkIPNI(ctx, nil, o.ipni, cids, 8)
+		fmt.Fprintf(o.stdout, "%d of %d sampled CIDs announced at %s\n", res.Announced, res.Checked, res.Endpoint)
+		for i, miss := range res.Missing {
+			if i == 5 {
+				fmt.Fprintf(o.stdout, "  and %d more\n", len(res.Missing)-i)
+				break
+			}
+			fmt.Fprintf(o.stdout, "  not announced: %s (%s)\n", miss.CID, miss.Reason)
+		}
+		if len(res.Missing) > 0 {
+			fmt.Fprintln(o.stdout, "providers announce a few hours after a push; if this persists, the CIDs are stored but not findable over IPFS")
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("%w\nRun 'ipfs2fil push --out %s' to re-upload what a copy lost", err, o.out)
 	}

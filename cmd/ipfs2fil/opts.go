@@ -24,6 +24,10 @@ type opts struct {
 	json   bool
 	yes    bool
 
+	// verify's announcement check.
+	ipni       string
+	ipniSample int
+
 	// --all runs over every repo in the collection in --home (repos.go).
 	all     bool
 	home    string

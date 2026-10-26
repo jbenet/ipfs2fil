@@ -32,6 +32,7 @@ type fake struct {
 	pieces    map[string]map[string]string // data set -> PieceCID -> piece id
 	data      map[string][]byte            // PieceCID -> bytes
 	uploads   int
+	pulls     int
 	reads     int // Pieces calls
 	nextID    int
 	prepared  string // the last Prepare's ids, fresh providers and sizes
@@ -94,6 +95,19 @@ func (f *fake) Upload(_ context.Context, ds dataSet, pieceCID string, r io.Reade
 	}
 	f.uploads++
 	f.data[pieceCID] = b
+	id := strconv.Itoa(len(f.pieces[ds.ID]))
+	f.pieces[ds.ID][pieceCID] = id
+	return id, nil
+}
+
+func (f *fake) Pull(_ context.Context, ds, from dataSet, pieceCID string, meta map[string]string) (string, error) {
+	if _, ok := f.pieces[from.ID][pieceCID]; !ok {
+		return "", fmt.Errorf("data set %s has no piece %s", from.ID, pieceCID)
+	}
+	if meta[KeyIPFSRoot] == "" {
+		return "", fmt.Errorf("no %s", KeyIPFSRoot)
+	}
+	f.pulls++
 	id := strconv.Itoa(len(f.pieces[ds.ID]))
 	f.pieces[ds.ID][pieceCID] = id
 	return id, nil
@@ -510,5 +524,30 @@ func TestReadConfig(t *testing.T) {
 	}
 	if _, _, err := Open(context.Background(), Config{RPC: CalibrationRPC, Address: "f1abc"}); err == nil || !strings.Contains(err.Error(), "0x address") {
 		t.Errorf("bad address: %v", err)
+	}
+}
+
+func TestPullCopiesBetweenProviders(t *testing.T) {
+	f := newFake(2)
+	s := newStore(f)
+	ctx := context.Background()
+	sets, err := s.DataSets(ctx, "bafyA", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := map[string]string{KeyIPFSRoot: "bafyA"}
+	if _, err := s.Upload(ctx, sets[0], "p", strings.NewReader("x"), 1, meta); err != nil {
+		t.Fatal(err)
+	}
+	ref, err := s.Pull(ctx, sets[1], sets[0], "p", meta)
+	if err != nil || ref.PieceID == "" || f.pulls != 1 || f.uploads != 1 {
+		t.Fatalf("pull: %+v, %v; %d pulls, %d uploads", ref, err, f.pulls, f.uploads)
+	}
+	// Held already: no second pull.
+	if again, err := s.Pull(ctx, sets[1], sets[0], "p", meta); err != nil || again.PieceID != ref.PieceID || f.pulls != 1 {
+		t.Fatalf("re-pull: %+v, %v; %d pulls", again, err, f.pulls)
+	}
+	if _, err := s.Pull(ctx, sets[0], sets[1], "q", meta); err == nil || !strings.Contains(err.Error(), "fetching piece q from provider") {
+		t.Fatalf("pull of a missing piece: %v", err)
 	}
 }

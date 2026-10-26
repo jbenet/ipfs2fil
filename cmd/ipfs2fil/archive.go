@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 
@@ -74,12 +75,20 @@ type storeOpts struct {
 	network  string
 	address  string
 	readOnly bool // status and verify need no key, only the paying address
+	// maxBaseFee holds on-chain steps while the base fee is at or above it.
+	maxBaseFee int64
 }
 
 var storeFlags storeOpts
 
 func addStoreFlags(fs *flag.FlagSet) {
+	addChainFlags(fs)
 	storeFlags.readOnly = false
+	fs.Int64Var(&storeFlags.maxBaseFee, "max-base-fee", foc.DefaultMaxBaseFee,
+		"wait before on-chain steps while the network base fee is at or above this many attoFIL per gas (0: never wait)")
+}
+
+func addChainFlags(fs *flag.FlagSet) {
 	fs.StringVar(&storeFlags.keyFile, "key-file", "", "file holding the wallet's private key (default $"+foc.EnvKeyFile+", else $"+foc.EnvKey+")")
 	fs.StringVar(&storeFlags.network, "network", "mainnet", "mainnet or calibration")
 	fs.StringVar(&storeFlags.rpc, "rpc", "", "Filecoin RPC URL (default: the public glif endpoint for --network)")
@@ -87,7 +96,7 @@ func addStoreFlags(fs *flag.FlagSet) {
 
 // addReadStoreFlags is addStoreFlags for commands that only read from chain.
 func addReadStoreFlags(fs *flag.FlagSet) {
-	addStoreFlags(fs)
+	addChainFlags(fs)
 	storeFlags.readOnly = true
 	fs.StringVar(&storeFlags.address, "address", "", "with no wallet key, the 0x address that paid for the archive (default $"+foc.EnvAddress+")")
 }
@@ -141,7 +150,17 @@ var openStore = func(ctx context.Context, o *opts) (store.Store, io.Closer, erro
 		if err != nil {
 			return nil, nil, err
 		}
-		cfg = foc.Config{RPC: rpc, Key: key}
+		cfg = foc.Config{RPC: rpc, Key: key, MaxBaseFee: storeFlags.maxBaseFee, OnGas: func(fee *big.Int, paused bool) {
+			if paused {
+				fmt.Fprintf(o.stderr, "\nthe network base fee is %s attoFIL/gas, at or above --max-base-fee %d; waiting for it to fall before going on chain\n",
+					fee, storeFlags.maxBaseFee)
+			} else {
+				fmt.Fprintf(o.stderr, "\nthe base fee is down to %s attoFIL/gas; carrying on\n", fee)
+			}
+		}}
+		if storeFlags.maxBaseFee == 0 {
+			cfg.MaxBaseFee = -1
+		}
 	}
 	s, c, err := foc.Open(ctx, cfg)
 	if err != nil {

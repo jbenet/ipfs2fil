@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -50,9 +51,18 @@ func open(t *testing.T, ctx context.Context) *foc.Store {
 
 // pieces writes n CARv1 files of about 1 MiB each, the same bytes every run,
 // so a second run of this test finds them stored already.
+// IPFS2FIL_CALIBRATION_SEED picks other bytes, to store new pieces (with
+// IPFS2FIL_CALIBRATION_ARCHIVE, into existing data sets).
 func pieces(t *testing.T, n int) (*manifest.Manifest, []archive.Piece) {
 	dir := t.TempDir()
-	rng := rand.New(rand.NewPCG(1, 2))
+	seed := uint64(2)
+	if v := os.Getenv("IPFS2FIL_CALIBRATION_SEED"); v != "" {
+		var err error
+		if seed, err = strconv.ParseUint(v, 10, 64); err != nil {
+			t.Fatalf("IPFS2FIL_CALIBRATION_SEED: %v", err)
+		}
+	}
+	rng := rand.New(rand.NewPCG(1, seed))
 	var ps []archive.Piece
 	var root cid.Cid
 	m := &manifest.Manifest{}
@@ -150,9 +160,19 @@ func TestCalibration(t *testing.T) {
 	}
 
 	save := func(*manifest.Manifest) error { return nil }
+	var pulled, sent atomic.Int32
 	log := func(e store.PushEvent) {
+		if e.PullErr != nil {
+			t.Logf("copy %d provider %s piece %d: pull from provider %s failed: %v", e.Copy, e.Provider, e.Piece, e.From, e.PullErr)
+		}
 		if e.Final {
-			t.Logf("copy %d provider %s piece %d: skipped=%v err=%v", e.Copy, e.Provider, e.Piece, e.Skipped, e.Err)
+			t.Logf("copy %d provider %s piece %d: skipped=%v pulled=%v err=%v", e.Copy, e.Provider, e.Piece, e.Skipped, e.Pulled, e.Err)
+			if e.Copy > 0 && !e.Skipped && e.Err == nil {
+				sent.Add(1)
+				if e.Pulled {
+					pulled.Add(1)
+				}
+			}
 		}
 	}
 	start := time.Now()
@@ -160,6 +180,9 @@ func TestCalibration(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("first push took %s; copies %+v", time.Since(start), m.Copies)
+	if pulled.Load() != sent.Load() {
+		t.Errorf("%d of %d copies after the first were pulled between providers, want all", pulled.Load(), sent.Load())
+	}
 
 	// A fresh connection reads the pieces from chain and uploads nothing.
 	s2 := open(t, ctx)
