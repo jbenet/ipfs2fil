@@ -615,8 +615,8 @@ func TestSharedBlocks(t *testing.T) {
 	both := &Result{Manifest: b.Manifest, Pieces: append(append([]Piece{}, b.Pieces...), a.Pieces[:len(dataPieces(a))]...)}
 	checkCovered(t, both)
 
-	// Re-pack B: same pieces. Then A drops nothing but B was already stored,
-	// so a lookup that now claims everything still leaves B's own blocks alone.
+	// Re-pack B: same pieces. Once B is stored, a lookup that now claims
+	// everything still leaves B's own blocks alone; before, it may shrink B.
 	again, err := Build(context.Background(), repoB(), dirB, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -629,7 +629,24 @@ func TestSharedBlocks(t *testing.T) {
 			t.Errorf("piece %d changed on re-pack", i)
 		}
 	}
-	opts.Shared = func(multihash.Multihash) (SharedBlock, bool) { return SharedBlock{Archive: "x", PieceCID: "y"}, true }
+	greedyOpts := opts
+	greedyOpts.Shared = func(multihash.Multihash) (SharedBlock, bool) { return SharedBlock{Archive: "x", PieceCID: "y"}, true }
+	if g, err := Build(context.Background(), repoB(), t.TempDir(), greedyOpts); err != nil || len(g.Pieces) >= len(b.Pieces) {
+		t.Fatalf("an unstored B did not shrink: %v", err)
+	}
+	m, err := manifest.Read(filepath.Join(dirB, ManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[int]string{}
+	for _, p := range m.Pieces {
+		ids[p.Index] = fmt.Sprint(p.Index + 1)
+	}
+	m.Copies = []manifest.Copy{{Provider: "1", DataSetID: "9", PieceIDs: ids}}
+	if err := m.Write(filepath.Join(dirB, ManifestFile)); err != nil {
+		t.Fatal(err)
+	}
+	opts = greedyOpts
 	greedy, err := Build(context.Background(), repoB(), dirB, opts)
 	if err != nil {
 		t.Fatal(err)

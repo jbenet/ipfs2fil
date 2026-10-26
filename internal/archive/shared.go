@@ -13,8 +13,9 @@ import (
 )
 
 // markShared marks the blocks other archives already hold, per lookup, and
-// returns what this archive leaves to them. Blocks in prev's data pieces stay
-// this archive's own, so re-runs keep their pieces.
+// returns what this archive leaves to them. Blocks in prev's data pieces that
+// are stored (every copy holds the piece) stay this archive's own, so re-runs
+// keep the pieces already paid for; pieces not stored yet are free to shrink.
 func (l *layout) markShared(outDir string, prev *manifest.Manifest, lookup func(multihash.Multihash) (SharedBlock, bool)) (*manifest.Shared, error) {
 	if lookup == nil {
 		return nil, nil
@@ -22,7 +23,7 @@ func (l *layout) markShared(outDir string, prev *manifest.Manifest, lookup func(
 	own := map[string]bool{}
 	if prev != nil {
 		for _, p := range prev.Pieces {
-			if p.BlockList == "" {
+			if p.BlockList == "" || !storedIn(prev, p.Index) {
 				continue
 			}
 			err := ReadBlockList(filepath.Join(outDir, "index", p.BlockList), func(h multihash.Multihash) error {
@@ -90,4 +91,17 @@ func ReadBlockList(path string, fn func(multihash.Multihash) error) error {
 		}
 	}
 	return sc.Err()
+}
+
+// storedIn reports whether every copy m records holds piece i.
+func storedIn(m *manifest.Manifest, i int) bool {
+	if len(m.Copies) == 0 {
+		return false
+	}
+	for _, c := range m.Copies {
+		if c.PieceIDs[i] == "" {
+			return false
+		}
+	}
+	return true
 }

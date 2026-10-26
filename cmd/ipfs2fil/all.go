@@ -15,15 +15,25 @@ import (
 
 // --all: pack, push, up and status over every repo in the collection.
 
+// listedRepos opens the collection and fails, saying what to run, when this
+// machine lists no repos.
 func listedRepos(o *opts) (*collection.Collection, error) {
 	c, err := openCollection(o)
 	if err != nil {
 		return nil, err
 	}
 	if len(c.Repos) == 0 {
-		return nil, fmt.Errorf("no repos in %s yet; add them with 'ipfs2fil repos add <path>'", c.Dir)
+		return nil, fmt.Errorf("no repos on this machine in %s yet; add them with 'ipfs2fil repos add <path>'", c.Where())
 	}
 	return c, nil
+}
+
+// publish copies a repo's manifest and block lists to the catalog, if any;
+// a failure only warns, since the archive itself is fine.
+func publish(o *opts, c *collection.Collection, r collection.Repo) {
+	if err := c.Publish(r); err != nil {
+		fmt.Fprintf(o.stderr, "%s: could not update the catalog in %s: %v\n", r.Name, c.Catalog, err)
+	}
 }
 
 // forRepo is o pointed at one repo of the collection.
@@ -44,8 +54,10 @@ func packAll(ctx context.Context, o *opts) error {
 	for i, r := range c.Repos {
 		fmt.Fprintf(o.stdout, "== %s (%d of %d)\n", r.Name, i+1, len(c.Repos))
 		ro := forRepo(o, c, r)
-		if ro.shared, err = c.Shared(i); err == nil {
-			_, err = pack(ctx, ro)
+		if ro.shared, err = c.Shared(r.Name); err == nil {
+			if _, err = pack(ctx, ro); err == nil {
+				publish(o, c, r)
+			}
 		}
 		if err != nil {
 			if ctx.Err() != nil {
@@ -115,6 +127,7 @@ func pushAll(ctx context.Context, o *opts) error {
 		}
 		if n == 0 {
 			fmt.Fprintf(o.stdout, "%s: all %d pieces already stored in %d copies\n", a.repo.Name, len(a.pieces), o.copies)
+			publish(o, c, a.repo)
 			continue
 		}
 		todo = append(todo, a)
@@ -149,7 +162,9 @@ func pushAll(ctx context.Context, o *opts) error {
 		for _, p := range a.pieces {
 			total += p.CARBytes
 		}
-		if err := upload(ctx, a.o, s, a.m, a.pieces, total); err != nil {
+		err := upload(ctx, a.o, s, a.m, a.pieces, total)
+		publish(o, c, a.repo)
+		if err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
@@ -203,14 +218,21 @@ type repoStatusRow struct {
 	Stored int `json:"stored"` // pieces every copy holds
 }
 
-// statusAll shows every repo, how much of it each copy holds, and the
-// shared data sets' proofs and funding.
+// statusAll shows every repo, on every machine in the catalog, how much of
+// it each copy holds, and the shared data sets' proofs and funding.
 func statusAll(ctx context.Context, o *opts) error {
-	c, err := listedRepos(o)
+	c, err := openCollection(o)
 	if err != nil {
 		return err
 	}
-	rows, err := repoRows(c)
+	es, err := c.Entries()
+	if err != nil {
+		return err
+	}
+	if len(es) == 0 {
+		return fmt.Errorf("no repos in %s yet; add them with 'ipfs2fil repos add <path>'", c.Where())
+	}
+	rows, err := repoRows(c, es)
 	if err != nil {
 		return err
 	}
@@ -236,9 +258,9 @@ func statusAll(ctx context.Context, o *opts) error {
 	res.Archive, res.DataSets, res.FundedDays = c.Key, []dataSetResult{}, main.FundedDays
 	res.Reserve, res.ReserveDataSets = main.Reserve, main.ReserveDataSets
 	distinct := map[string]bool{}
-	for i, r := range c.Repos {
+	for i, e := range es {
 		row := repoStatusRow{repoRow: rows[i]}
-		m, err := c.Manifest(r)
+		m, err := e.Manifest()
 		if err != nil {
 			return err
 		}
@@ -282,7 +304,7 @@ func statusAll(ctx context.Context, o *opts) error {
 	}
 
 	w := o.stdout
-	fmt.Fprintf(w, "%d repos in %s\n\n", len(res.Repos), c.Dir)
+	fmt.Fprintf(w, "%d repos (%d on this machine)\n\n", len(res.Repos), len(c.Repos))
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "NAME\tSTORED\tSIZE\tSHARED")
 	var bytes, saved int64
