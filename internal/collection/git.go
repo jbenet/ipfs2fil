@@ -27,7 +27,7 @@ const savedCatalog = "catalog.txt"
 var scpLike = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:`)
 
 // IsGitURL reports whether catalog names a git repository rather than a
-// folder: a URL (https://, ssh://, git://, file://), user@host:path, or a
+// folder: a URL (http://, https://, ssh://, git://, file://), user@host:path, or a
 // path ending in .git.
 func IsGitURL(catalog string) bool {
 	return strings.Contains(catalog, "://") || scpLike.MatchString(catalog) || strings.HasSuffix(strings.TrimRight(catalog, "/"), ".git")
@@ -63,8 +63,9 @@ func (g *gitCatalog) who(args ...string) []string {
 
 func git(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
+	// Prompts (an https password, an ssh passphrase) go to the terminal, so
+	// a catalog behind a login works like any git remote.
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	err := cmd.Run()

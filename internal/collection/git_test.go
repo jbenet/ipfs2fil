@@ -6,6 +6,7 @@ func TestIsGitURL(t *testing.T) {
 	for in, want := range map[string]bool{
 		"git@github.com:jbenet/catalog.git": true,
 		"https://github.com/jbenet/catalog": true,
+		"http://git.example.lan/catalog":    true,
 		"ssh://host/srv/catalog":            true,
 		"/srv/catalog.git":                  true,
 		"/srv/catalog.git/":                 true,
