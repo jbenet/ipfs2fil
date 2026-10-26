@@ -232,3 +232,67 @@ func TestReposGitCatalog(t *testing.T) {
 		t.Errorf("catalog history: %v\n%s", err, log)
 	}
 }
+
+// TestReposChainCatalog: with no --catalog, each machine reads the others'
+// repos from the shared data sets on chain. The second machine stores none of
+// the blocks the first already stored, each sees both repos, and nothing but
+// pieces is shared.
+func TestReposChainCatalog(t *testing.T) {
+	ms := useMemStore(t, 5)
+	laptopHome, serverHome := t.TempDir(), t.TempDir()
+	laptop := []string{"--home", laptopHome, "--host", "laptop"}
+	server := []string{"--home", serverHome, "--host", "server"}
+	on := func(machine []string, args ...string) (string, string, error) {
+		t.Helper()
+		return ipfs2fil(t, append(args, machine...)...)
+	}
+
+	if _, _, err := on(laptop, "repos", "add", fixture(t, "v18"), "--name", "photos"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := on(server, "repos", "add", fixture(t, "v17"), "--name", "backup"); err != nil {
+		t.Fatal(err)
+	}
+	if out, _, err := on(laptop, "up", "--all", "--yes"); err != nil {
+		t.Fatalf("laptop up: %v\n%s", err, out)
+	}
+	afterLaptop := ms.Uploads()
+	out, errOut, err := on(server, "up", "--all", "--yes")
+	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") || strings.Contains(errOut, "warning") {
+		t.Fatalf("server up: %v\n%s\n%s", err, out, errOut)
+	}
+	if got := ms.Uploads() - afterLaptop; got != 3 {
+		t.Errorf("server uploaded %d pieces, want 3 (its own piece in 3 copies)", got)
+	}
+	afterServer := ms.Uploads()
+	if out, _, err := on(server, "up", "--all", "--yes"); err != nil || !strings.Contains(out, "nothing to upload") {
+		t.Errorf("server again: %v\n%s", err, out)
+	}
+	if ms.Uploads() != afterServer {
+		t.Errorf("an unchanged re-run uploaded %d pieces", ms.Uploads()-afterServer)
+	}
+
+	for _, m := range [][]string{laptop, server} {
+		out, errOut, err := on(m, "status", "--all")
+		if err != nil || !strings.Contains(out, "laptop/photos") || !strings.Contains(out, "server/backup") ||
+			!strings.Contains(out, "2 repos") || strings.Contains(out, "missing") || strings.Contains(errOut, "warning") {
+			t.Errorf("status --all: %v\n%s\n%s", err, out, errOut)
+		}
+	}
+	if _, _, err := on(laptop, "repos", "rm", "photos"); err == nil || !strings.Contains(err.Error(), "server/backup") {
+		t.Errorf("rm of a repo another machine relies on: %v", err)
+	}
+	// The names are sealed: nothing in the pieces says "photos" or "backup".
+	for _, dir := range []string{filepath.Join(laptopHome, "archives", "photos", "pieces"), filepath.Join(serverHome, "archives", "backup", "pieces")} {
+		if out, _ := exec.Command("grep", "-rlaE", "photos|backup", dir).Output(); len(out) > 0 {
+			t.Errorf("a piece names the repo: %s", out)
+		}
+	}
+	// A machine with another wallet key reads nothing.
+	walletSecret = func() ([]byte, error) { return []byte("another wallet"), nil }
+	other := []string{"--home", t.TempDir(), "--host", "other"}
+	out, errOut, err = on(other, "status", "--all")
+	if err == nil || strings.Contains(out, "photos") {
+		t.Errorf("another wallet's status --all: %v\n%s\n%s", err, out, errOut)
+	}
+}

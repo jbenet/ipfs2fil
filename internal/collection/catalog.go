@@ -83,9 +83,10 @@ func (c *Collection) Entries() ([]Entry, error) {
 }
 
 // Publish copies a local repo's manifest and block lists into the catalog,
-// so other machines see it. Without a catalog it does nothing.
+// so other machines see it. Without a catalog, or on chain (where its
+// pieces are its entry), it does nothing.
 func (c *Collection) Publish(r Repo) error {
-	if c.Catalog == "" {
+	if c.Catalog == "" || c.chain {
 		return nil
 	}
 	src, dst := c.OutDir(r), filepath.Join(c.Catalog, c.Host, r.Name)
@@ -129,7 +130,7 @@ func (c *Collection) Publish(r Repo) error {
 
 // Unpublish removes a repo's copy from the catalog.
 func (c *Collection) Unpublish(name string) error {
-	if c.Catalog == "" {
+	if c.Catalog == "" || c.chain {
 		return nil
 	}
 	return os.RemoveAll(filepath.Join(c.Catalog, c.Host, name))

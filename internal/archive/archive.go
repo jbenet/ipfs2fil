@@ -31,6 +31,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/boxo/ipld/merkledag"
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
@@ -56,6 +58,13 @@ type Options struct {
 	// Blocks in pieces this archive already stored are never shared, so a
 	// re-run gives the same pieces even after other archives grow.
 	Shared func(h multihash.Multihash) (SharedBlock, bool)
+
+	// Record, if set, is a block of catalog data (collection.SealRecord)
+	// that names the archive to the machines sharing its data sets. It goes
+	// first in the archive's own pieces, whose CAR headers then name it as a
+	// second root after the archive root, so a reader finds it from a piece's
+	// first bytes. Nothing links to it.
+	Record []byte
 
 	// Progress, if set, is called as Build goes: stage "walk" counts blocks
 	// laid out against the repo's block count, "write" counts CAR bytes
@@ -160,7 +169,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	l.progress("write", 0, planned)
 	var out []Piece
 	for i, p := range dataPieces {
-		path, sum, err := writePiece(pieceDir, l.tab[p.start].c, func(w *car.Writer) error {
+		path, sum, err := writePiece(pieceDir, []cid.Cid{l.tab[p.start].c}, func(w *car.Writer) error {
 			for j := p.start; j < p.end; j++ {
 				b := &l.tab[j]
 				if b.shared != 0 {
@@ -273,7 +282,17 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err := walk(root.Cid()); err != nil {
 		return nil, err
 	}
-	hdr := car.HeaderSize(root.Cid())
+	heads := []cid.Cid{root.Cid()}
+	if opts.Record != nil {
+		rec, err := RecordCID(opts.Record)
+		if err != nil {
+			return nil, err
+		}
+		heads = append(heads, rec)
+		b, _ := blocks.NewBlockWithCid(opts.Record, rec)
+		made = append([]format.Node{&merkledag.RawNode{Block: b}}, made...)
+	}
+	hdr := car.HeaderSize(heads...)
 	for start := 0; start < len(made); {
 		end, size := start, hdr
 		for end < len(made) {
@@ -287,7 +306,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		if size > opts.MaxPiece {
 			return nil, fmt.Errorf("block %s does not fit in a piece", made[start].Cid())
 		}
-		path, sum, err := writePiece(pieceDir, root.Cid(), func(w *car.Writer) error {
+		path, sum, err := writePiece(pieceDir, heads, func(w *car.Writer) error {
 			for _, n := range made[start:end] {
 				if err := w.Put(n.Cid(), n.RawData()); err != nil {
 					return err
@@ -321,15 +340,20 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	return &Result{Manifest: m, Pieces: out, Missing: l.missing}, nil
 }
 
+// RecordCID is the CID of an Options.Record block: raw, sha2-256.
+func RecordCID(data []byte) (cid.Cid, error) {
+	return cid.V1Builder{Codec: cid.Raw, MhType: multihash.SHA2_256}.Sum(data)
+}
+
 // writePiece writes one CAR into dir, named by its PieceCID.
-func writePiece(dir string, root cid.Cid, fill func(*car.Writer) error) (string, car.Summary, error) {
+func writePiece(dir string, roots []cid.Cid, fill func(*car.Writer) error) (string, car.Summary, error) {
 	f, err := os.CreateTemp(dir, ".piece-*")
 	if err != nil {
 		return "", car.Summary{}, err
 	}
 	defer os.Remove(f.Name())
 	defer f.Close()
-	w, err := car.NewWriter(f, root)
+	w, err := car.NewWriter(f, roots...)
 	if err == nil {
 		err = fill(w)
 	}

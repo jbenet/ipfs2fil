@@ -19,21 +19,24 @@ import (
 // MinBytes is the smallest CAR a PieceCID can be computed for.
 const MinBytes = 65
 
-// header is the CARv1 header as dag-cbor: {"roots": [root], "version": 1}.
-func header(root cid.Cid) []byte {
-	cb := append([]byte{0}, root.Bytes()...) // tag 42 bytes start with the identity multibase prefix
+// header is the CARv1 header as dag-cbor: {"roots": [roots...], "version": 1}.
+func header(roots ...cid.Cid) []byte {
 	h := []byte{0xa2, 0x65}
 	h = append(h, "roots"...)
-	h = append(h, 0x81, 0xd8, 0x2a)
-	switch n := len(cb); {
-	case n < 24:
-		h = append(h, 0x40|byte(n))
-	case n < 256:
-		h = append(h, 0x58, byte(n))
-	default:
-		h = append(h, 0x59, byte(n>>8), byte(n))
+	h = append(h, 0x80|byte(len(roots)))
+	for _, root := range roots {
+		cb := append([]byte{0}, root.Bytes()...) // tag 42 bytes start with the identity multibase prefix
+		h = append(h, 0xd8, 0x2a)
+		switch n := len(cb); {
+		case n < 24:
+			h = append(h, 0x40|byte(n))
+		case n < 256:
+			h = append(h, 0x58, byte(n))
+		default:
+			h = append(h, 0x59, byte(n>>8), byte(n))
+		}
+		h = append(h, cb...)
 	}
-	h = append(h, cb...)
 	h = append(h, 0x67)
 	h = append(h, "version"...)
 	return append(h, 0x01)
@@ -44,9 +47,9 @@ func uvarintLen(n uint64) int64 {
 	return int64(binary.PutUvarint(buf[:], n))
 }
 
-// HeaderSize is the number of bytes the header naming root takes.
-func HeaderSize(root cid.Cid) int64 {
-	n := uint64(len(header(root)))
+// HeaderSize is the number of bytes the header naming roots takes.
+func HeaderSize(roots ...cid.Cid) int64 {
+	n := uint64(len(header(roots...)))
 	return uvarintLen(n) + int64(n)
 }
 
@@ -71,11 +74,18 @@ type Writer struct {
 	blocks int64
 }
 
-// NewWriter writes the header naming root and returns a Writer for the blocks.
-func NewWriter(w io.Writer, root cid.Cid) (*Writer, error) {
+// MaxRoots is the most roots a header written here may name.
+const MaxRoots = 23
+
+// NewWriter writes the header naming roots (at least one, at most MaxRoots)
+// and returns a Writer for the blocks.
+func NewWriter(w io.Writer, roots ...cid.Cid) (*Writer, error) {
+	if len(roots) < 1 || len(roots) > MaxRoots {
+		return nil, fmt.Errorf("a CAR header here names 1 to %d roots, not %d", MaxRoots, len(roots))
+	}
 	cw := &Writer{cp: &commp.Calc{}}
 	cw.w = bufio.NewWriterSize(io.MultiWriter(w, cw.cp), 1<<20)
-	return cw, cw.section(header(root))
+	return cw, cw.section(header(roots...))
 }
 
 func (w *Writer) section(parts ...[]byte) error {
@@ -139,10 +149,11 @@ func PieceCID(r io.Reader) (cid.Cid, int64, error) {
 	return pc, n, err
 }
 
-// Reader reads a CARv1 written by Writer (or any CARv1 with one root).
+// Reader reads a CARv1 written by Writer.
 type Reader struct {
-	r    *bufio.Reader
-	Root cid.Cid
+	r     *bufio.Reader
+	Root  cid.Cid   // the first root
+	Roots []cid.Cid // every root, Root first
 }
 
 var ErrBadCAR = errors.New("not a CARv1 file")
@@ -153,43 +164,51 @@ func NewReader(r io.Reader) (*Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadCAR, err)
 	}
-	root, err := parseHeader(h)
+	roots, err := parseHeader(h)
 	if err != nil {
 		return nil, err
 	}
-	return &Reader{r: br, Root: root}, nil
+	return &Reader{r: br, Root: roots[0], Roots: roots}, nil
 }
 
-// parseHeader accepts exactly the header shape Writer produces.
-func parseHeader(h []byte) (cid.Cid, error) {
+// parseHeader accepts exactly the header shapes Writer produces.
+func parseHeader(h []byte) ([]cid.Cid, error) {
 	pre := append([]byte{0xa2, 0x65}, "roots"...)
-	pre = append(pre, 0x81, 0xd8, 0x2a)
-	if len(h) < len(pre)+2 || string(h[:len(pre)]) != string(pre) {
-		return cid.Undef, fmt.Errorf("%w: header is not {roots: [cid], version: 1}", ErrBadCAR)
+	if len(h) < len(pre)+1 || string(h[:len(pre)]) != string(pre) || h[len(pre)] < 0x81 || h[len(pre)] > 0x80|MaxRoots {
+		return nil, fmt.Errorf("%w: header is not {roots: [cid...], version: 1}", ErrBadCAR)
 	}
-	h = h[len(pre):]
-	var n int
-	switch {
-	case h[0]&0xe0 == 0x40 && h[0] < 0x58:
-		n, h = int(h[0]&0x1f), h[1:]
-	case h[0] == 0x58:
-		n, h = int(h[1]), h[2:]
-	case h[0] == 0x59 && len(h) > 2:
-		n, h = int(h[1])<<8|int(h[2]), h[3:]
-	default:
-		return cid.Undef, fmt.Errorf("%w: bad root encoding", ErrBadCAR)
+	count := int(h[len(pre)] & 0x1f)
+	h = h[len(pre)+1:]
+	var roots []cid.Cid
+	for range count {
+		if len(h) < 4 || h[0] != 0xd8 || h[1] != 0x2a {
+			return nil, fmt.Errorf("%w: bad root encoding", ErrBadCAR)
+		}
+		h = h[2:]
+		var n int
+		switch {
+		case h[0]&0xe0 == 0x40 && h[0] < 0x58:
+			n, h = int(h[0]&0x1f), h[1:]
+		case h[0] == 0x58:
+			n, h = int(h[1]), h[2:]
+		case h[0] == 0x59 && len(h) > 2:
+			n, h = int(h[1])<<8|int(h[2]), h[3:]
+		default:
+			return nil, fmt.Errorf("%w: bad root encoding", ErrBadCAR)
+		}
+		if n < 1 || len(h) < n || h[0] != 0 {
+			return nil, fmt.Errorf("%w: bad root", ErrBadCAR)
+		}
+		c, err := cid.Cast(h[1:n])
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrBadCAR, err)
+		}
+		roots, h = append(roots, c), h[n:]
 	}
-	if n < 1 || len(h) < n || h[0] != 0 {
-		return cid.Undef, fmt.Errorf("%w: bad root", ErrBadCAR)
+	if tail := append([]byte{0x67}, "version\x01"...); string(h) != string(tail) {
+		return nil, fmt.Errorf("%w: header is not version 1", ErrBadCAR)
 	}
-	c, err := cid.Cast(h[1:n])
-	if err != nil {
-		return cid.Undef, fmt.Errorf("%w: %v", ErrBadCAR, err)
-	}
-	if tail := append([]byte{0x67}, "version\x01"...); string(h[n:]) != string(tail) {
-		return cid.Undef, fmt.Errorf("%w: header is not version 1", ErrBadCAR)
-	}
-	return c, nil
+	return roots, nil
 }
 
 // Next returns the next block, or io.EOF after the last one. It does not

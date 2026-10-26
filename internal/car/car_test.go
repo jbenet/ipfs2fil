@@ -109,3 +109,37 @@ func TestBadHeader(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+// TestTwoRoots: a header naming two roots reads back here and in go-car.
+func TestTwoRoots(t *testing.T) {
+	a, b := block(t, cid.DagProtobuf, []byte("root")), block(t, cid.Raw, []byte("record"))
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, a, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Put(b, []byte("record")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Put(block(t, cid.Raw, bytes.Repeat([]byte("x"), 100)), bytes.Repeat([]byte("x"), 100)); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := w.Finish()
+	if err != nil || sum.Bytes != HeaderSize(a, b)+EntrySize(b, 6)+EntrySize(b, 100) {
+		t.Fatalf("size %d: %v", sum.Bytes, err)
+	}
+	r, err := NewReader(bytes.NewReader(buf.Bytes()))
+	if err != nil || len(r.Roots) != 2 || !r.Root.Equals(a) || !r.Roots[1].Equals(b) {
+		t.Fatalf("roots %v: %v", r.Roots, err)
+	}
+	if c, d, err := r.Next(); err != nil || !c.Equals(b) || string(d) != "record" {
+		t.Fatalf("first block %s %q %v", c, d, err)
+	}
+	br, err := carv2.NewBlockReader(bytes.NewReader(buf.Bytes()))
+	if err != nil || len(br.Roots) != 2 || !br.Roots[1].Equals(b) {
+		t.Fatalf("go-car roots %v: %v", br, err)
+	}
+	if _, err := NewWriter(io.Discard); err == nil {
+		t.Error("a header with no roots")
+	}
+}

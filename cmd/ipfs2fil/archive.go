@@ -9,7 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/jbenet/ipfs2fil/internal/archive"
+	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/store"
@@ -101,6 +104,16 @@ var _ funder = (*foc.Store)(nil)
 var checkKey = func() error {
 	_, err := foc.LoadKey(storeFlags.keyFile)
 	return err
+}
+
+// walletSecret is the catalog key, derived from the wallet key: it seals and
+// opens the records that name each archive on chain. Tests replace it.
+var walletSecret = func() ([]byte, error) {
+	key, err := foc.LoadKey(storeFlags.keyFile)
+	if err != nil {
+		return nil, err
+	}
+	return collection.Secret(crypto.FromECDSA(key)), nil
 }
 
 // openStore connects to the storage backend. Tests replace it.

@@ -35,6 +35,11 @@ type Status struct {
 	// is empty if the store cannot say.
 	Reserve         string
 	ReserveDataSets int
+	// Unused lists data sets with the archive's key that it never uses: a
+	// second one on a provider DataSets already holds. They appear when two
+	// machines create the first data sets at once, hold no pieces, and keep
+	// their reserve until ended.
+	Unused []DataSet
 }
 
 type DataSetStatus struct {
@@ -60,6 +65,15 @@ type Store interface {
 	Fetch(ctx context.Context, ds DataSet, pieceCID string) (io.ReadCloser, error)
 	// Status reads the archive's data sets, proofs and funding from chain.
 	Status(ctx context.Context, archive string) (Status, error)
+}
+
+// Lister is a Store that can read what an archive's data sets hold without
+// creating any, which reading the catalog from chain needs.
+type Lister interface {
+	// Pieces returns the data sets DataSets would use for copies copies, as
+	// many as exist, and each one's pieces: PieceCID -> piece id, where piece
+	// ids grow in the order pieces were added.
+	Pieces(ctx context.Context, archive string, copies int) ([]DataSet, []map[string]string, error)
 }
 
 // Cost is a USDFC estimate.

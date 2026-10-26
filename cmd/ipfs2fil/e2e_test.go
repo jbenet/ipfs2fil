@@ -19,10 +19,11 @@ import (
 func useMemStore(t *testing.T, providers int) *memstore.Store {
 	t.Helper()
 	ms := memstore.New(providers)
-	old, oldKey := openStore, checkKey
+	old, oldKey, oldSecret := openStore, checkKey, walletSecret
 	openStore = func(context.Context, *opts) (store.Store, io.Closer, error) { return ms, io.NopCloser(nil), nil }
 	checkKey = func() error { return nil }
-	t.Cleanup(func() { openStore, checkKey = old, oldKey })
+	walletSecret = func() ([]byte, error) { return []byte("test wallet"), nil }
+	t.Cleanup(func() { openStore, checkKey, walletSecret = old, oldKey, oldSecret })
 	return ms
 }
 
