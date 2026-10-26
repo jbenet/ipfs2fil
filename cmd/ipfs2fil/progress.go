@@ -56,7 +56,7 @@ func (p *progress) Add(n int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.done += n
-	if t := p.now(); t.Sub(p.last) >= p.interval {
+	if t := p.now(); !p.drawn || t.Sub(p.last) >= p.interval {
 		p.last = t
 		p.draw(false)
 	}
@@ -82,11 +82,20 @@ func (p *progress) Set(done, total int64) {
 	}
 }
 
-// Suffix sets a note shown after the bar, or clears it when empty.
+// Suffix sets a note shown after the bar, or clears it when empty. On a
+// terminal a changed note is drawn at once, as it may be the only news for a
+// while.
 func (p *progress) Suffix(s string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if s == p.suffix {
+		return
+	}
 	p.suffix = s
+	if p.tty {
+		p.last = p.now()
+		p.draw(false)
+	}
 }
 
 // Log prints a line above the bar, then redraws the bar.

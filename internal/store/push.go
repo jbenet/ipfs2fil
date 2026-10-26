@@ -51,6 +51,10 @@ type PushEvent struct {
 	// copy's provider (From) instead of from this machine.
 	Pulled bool
 	From   string
+	// Pulling marks the non-final event sent when the copy's provider starts
+	// fetching the piece from another copy's provider (From). A fetch reports
+	// nothing more until it ends, which can take many minutes.
+	Pulling bool
 	// PullErr says why a provider could not fetch the piece from another
 	// copy's provider, on a non-final event; the piece is then uploaded from
 	// here.
@@ -561,6 +565,7 @@ func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
 		p := c.pieces[j]
 		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
 		src := c.sets[from]
+		c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: src.Provider, Pulling: true})
 		err := c.s.Pull(ctx, c.ds, src, p.PieceCID)
 		if err == nil {
 			ev.Pulled, ev.From = true, src.Provider

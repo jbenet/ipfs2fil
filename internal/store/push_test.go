@@ -323,6 +323,21 @@ func TestPushPullsSeveralAtOnce(t *testing.T) {
 	}
 }
 
+func TestPushReportsPullsStarting(t *testing.T) {
+	// A pull can run for many minutes with nothing more to say, so its start
+	// is reported, naming the provider it copies from.
+	s := memstore.New(2)
+	m, pieces := fixture(t, 4)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	n := r.count(func(e store.PushEvent) bool { return e.Pulling && !e.Final && e.From != "" && e.From != e.Provider })
+	if n != s.Pulls() || n == 0 {
+		t.Errorf("%d pulls reported starting, %d pulled", n, s.Pulls())
+	}
+}
+
 func TestPushGivesBackAFailedUpload(t *testing.T) {
 	// A copy that fails stops, and the piece it was sending goes to another
 	// copy, so the others still get every piece.
