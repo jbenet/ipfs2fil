@@ -68,6 +68,7 @@ func packAll(ctx context.Context, o *opts) error {
 		}
 		fmt.Fprintln(o.stdout)
 	}
+	commitCatalog(o, c, "pack")
 	if len(errs) > 0 {
 		return fmt.Errorf("%d of %d repos did not pack:\n%w", len(errs), len(c.Repos), errors.Join(errs...))
 	}
@@ -144,6 +145,7 @@ func pushAll(ctx context.Context, o *opts) error {
 	}
 	if len(todo) == 0 {
 		fmt.Fprintf(o.stdout, "all %d packed repos are stored; nothing to upload\n", len(as))
+		commitCatalog(o, c, "push")
 		return nil
 	}
 	for _, k := range keys {
@@ -172,6 +174,7 @@ func pushAll(ctx context.Context, o *opts) error {
 			errs = append(errs, fmt.Errorf("%s: %w", a.repo.Name, err))
 		}
 	}
+	commitCatalog(o, c, "push")
 	if len(errs) > 0 {
 		return fmt.Errorf("%d of %d repos did not finish; run 'ipfs2fil push --all' again to retry:\n%w", len(errs), len(todo), errors.Join(errs...))
 	}

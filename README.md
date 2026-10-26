@@ -87,18 +87,18 @@ one. The list and each repo's archive live in `~/.ipfs2fil` (or `--home`, or
 off it.
 
 Repos on several machines: give every machine the same wallet key and the
-same catalog folder, any directory they all see (a synced folder, or a git
-checkout you commit and pull):
+same catalog, a git repository (say a private one on GitHub) that ipfs2fil
+clones, pulls, commits to and pushes itself:
 
-    export IPFS2FIL_CATALOG=~/Sync/ipfs2fil-catalog
-    ipfs2fil repos add ~/.ipfs     # on each machine, for its own repos
+    ipfs2fil repos add ~/.ipfs --catalog git@github.com:you/ipfs2fil-catalog.git   # on each machine
     ipfs2fil up --all              # on each machine
     ipfs2fil status --all          # on any machine: every repo on every machine
 
-Each machine writes only its own subfolder (named by its host name, or
-`--host`), holding its list and each archive's manifest and block lists; the
-pieces stay where they were packed. A machine leaves out blocks that repos
-on other machines have already stored.
+The catalog is remembered after the first time. Each machine commits only its
+own subfolder (named by its host name, or `--host`), holding its list and
+each archive's manifest and block lists; the pieces stay where they were
+packed. A machine leaves out blocks that repos on other machines have
+already stored. A folder every machine already sees works as `--catalog` too.
 
 ## Releases
 

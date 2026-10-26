@@ -59,7 +59,7 @@ func jsonFlag(fs *flag.FlagSet, o *opts) {
 
 func homeFlag(fs *flag.FlagSet, o *opts) {
 	fs.StringVar(&o.home, "home", "", "directory holding the list of repos and their archives (default $"+collection.EnvHome+", else ~/.ipfs2fil)")
-	fs.StringVar(&o.catalog, "catalog", "", "directory shared by all your machines, such as a synced folder, to track repos on every machine (default $"+collection.EnvCatalog+")")
+	fs.StringVar(&o.catalog, "catalog", "", "git repository URL (or shared folder) that tracks repos on all your machines; remembered once given (default $"+collection.EnvCatalog+")")
 	fs.StringVar(&o.host, "host", "", "this machine's name in the catalog (default $"+collection.EnvHost+", else the host name)")
 }
 
