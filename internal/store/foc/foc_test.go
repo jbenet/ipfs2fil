@@ -120,6 +120,13 @@ func (f *fake) Pull(_ context.Context, ds, from dataSet, pieceCID string) error 
 	return nil
 }
 
+func (f *fake) Await(_ context.Context, ds dataSet, pieceCID string) error {
+	if !f.staged[ds.Provider+"/"+pieceCID] {
+		return fmt.Errorf("provider %s never took in piece %s", ds.Provider, pieceCID)
+	}
+	return nil
+}
+
 func (f *fake) Commit(_ context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
 	if meta[KeyIPFSRoot] == "" {
 		return nil, fmt.Errorf("no %s", KeyIPFSRoot)

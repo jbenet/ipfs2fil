@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -247,11 +249,101 @@ func (b *synapseBackend) Stage(ctx context.Context, ds dataSet, pieceCID string,
 	if ok, err := parked(ctx, dsc.ServiceURL(), pc); err == nil && ok {
 		return nil
 	}
-	_, err = dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
+	return sendPiece(ctx, func() error {
+		_, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
+		return err
+	}, func(ctx context.Context) (bool, error) { return parked(ctx, dsc.ServiceURL(), pc) })
+}
+
+// Await waits until ds's provider holds the piece parked, ready to add: a
+// provider keeps fetching a piece from another after the pull is no longer
+// waited for, and turns away an upload of it meanwhile.
+func (b *synapseBackend) Await(ctx context.Context, ds dataSet, pieceCID string) error {
+	pc, err := cid.Decode(pieceCID)
 	if err != nil {
-		return sessionless{err}
+		return fmt.Errorf("bad PieceCID: %w", err)
 	}
-	return nil
+	dsc, err := b.dataSetContext(ctx, ds.ID)
+	if err != nil {
+		return err
+	}
+	return awaitParked(ctx, func(ctx context.Context) (bool, error) { return parked(ctx, dsc.ServiceURL(), pc) })
+}
+
+// sessionRetries are the waits before opening an upload session again when
+// the provider did not answer in time or answered 5xx. Nothing was read from
+// the piece yet, so it can be sent again.
+var sessionRetries = []time.Duration{10 * time.Second, 30 * time.Second, time.Minute}
+
+// busyWait is how long an upload the provider turns away with 409, because
+// it is already taking the piece in, waits for that to finish.
+var busyWait = time.Hour
+
+// awaitEvery is how often awaitParked asks the provider.
+var awaitEvery = 30 * time.Second
+
+// sendPiece runs send, an upload, retrying it while its session could not be
+// opened. A provider answers 409 when it is already taking the piece in, from
+// a pull no longer waited for or an earlier run's upload: then sendPiece
+// waits, up to busyWait, for the piece to be parked rather than fail.
+func sendPiece(ctx context.Context, send func() error, isParked func(context.Context) (bool, error)) error {
+	for try := 0; ; try++ {
+		err := send()
+		switch {
+		case err == nil:
+			return nil
+		case conflict(err):
+			wctx, cancel := context.WithTimeout(ctx, busyWait)
+			werr := awaitParked(wctx, isParked)
+			cancel()
+			if werr == nil {
+				return nil
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("the provider is already taking this piece in (a copy from another provider, or an earlier upload) and had not finished after %s; run push again later: %w",
+				busyWait, sessionless{err})
+		case try < len(sessionRetries) && noSession(err) && ctx.Err() == nil:
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(sessionRetries[try]):
+			}
+		default:
+			return sessionless{err}
+		}
+	}
+}
+
+// awaitParked asks isParked every awaitEvery until it says yes or ctx ends.
+func awaitParked(ctx context.Context, isParked func(context.Context) (bool, error)) error {
+	for {
+		if ok, err := isParked(ctx); err == nil && ok {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(awaitEvery):
+		}
+	}
+}
+
+// conflict reports whether the provider turned an upload away with 409.
+func conflict(err error) bool {
+	he, ok := errors.AsType[*pdpclient.HTTPError](err)
+	return ok && he.StatusCode == http.StatusConflict
+}
+
+// noSession reports whether err came from opening an upload session (the
+// POST before any bytes are sent) and may pass if tried again.
+func noSession(err error) bool {
+	if he, ok := errors.AsType[*pdpclient.HTTPError](err); ok {
+		return he.Method == http.MethodPost && (he.StatusCode >= 500 || he.StatusCode == http.StatusTooManyRequests)
+	}
+	ue, ok := errors.AsType[*url.Error](err)
+	return ok && ue.Op == "Post"
 }
 
 // uploadSession matches the id a provider gives each upload. It names the
