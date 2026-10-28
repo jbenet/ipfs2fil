@@ -387,3 +387,47 @@ func TestAdoptCopies(t *testing.T) {
 		t.Errorf("from this machine: %+v", b.m.Copies)
 	}
 }
+
+// TestExploreAfterUpAll: explore with no flags finds the archives 'up --all'
+// packed into --home, all of them or the one named.
+func TestExploreAfterUpAll(t *testing.T) {
+	useMemStore(t, 5)
+	home := t.TempDir()
+	repos := map[string]string{"v18": fixture(t, "v18"), "v17": fixture(t, "v17")}
+	t.Setenv(collection.EnvHome, home)
+	t.Chdir(t.TempDir())
+	if _, _, err := ipfs2fil(t, "explore", "--serve=false"); err == nil || !strings.Contains(err.Error(), "ipfs2fil up") {
+		t.Errorf("explore with nothing packed: %v", err)
+	}
+	for _, f := range []string{"v18", "v17"} {
+		if _, _, err := ipfs2fil(t, "repos", "add", repos[f], "--name", f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := ipfs2fil(t, "explore", "--serve=false"); err == nil || !strings.Contains(err.Error(), "up --all") {
+		t.Errorf("explore before packing: %v", err)
+	}
+	if _, _, err := ipfs2fil(t, "pack", "--all"); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := ipfs2fil(t, "explore", "--serve=false")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"v18", "v17"} {
+		if !strings.Contains(out, filepath.Join(home, "archives", f, "explorer")) {
+			t.Errorf("explore did not refresh %s:\n%s", f, out)
+		}
+	}
+	out, _, err = ipfs2fil(t, "explore", "--serve=false", "v17")
+	if err != nil || strings.Contains(out, "v18") {
+		t.Errorf("explore v17: %v\n%s", err, out)
+	}
+	out, _, err = ipfs2fil(t, "explore", "--serve=false", "--repo", repos["v18"])
+	if err != nil || strings.Contains(out, "v17") || !strings.Contains(out, "v18") {
+		t.Errorf("explore --repo <path>: %v\n%s", err, out)
+	}
+	if _, _, err := ipfs2fil(t, "explore", "--serve=false", "nope"); err == nil || !strings.Contains(err.Error(), "v18, v17") {
+		t.Errorf("explore of an unlisted repo: %v", err)
+	}
+}

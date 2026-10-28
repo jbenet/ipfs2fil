@@ -413,7 +413,7 @@
   }
   const main = () => D.querySelector('main');
   function fail(err) {
-    main().innerHTML = `<div class="err"><h2>Something is missing</h2><p class="note">${esc(err.message || err)}</p><p class="note">If you opened this from disk, open explorer/index.html inside the archive, or run <code>ipfs2fil explore --serve</code>.</p></div>`;
+    main().innerHTML = `<div class="err"><h2>Something is missing</h2><p class="note">${esc(err.message || err)}</p><p class="note">If you opened this from disk, open explorer/index.html inside the archive, or run <code>ipfs2fil explore</code>.</p></div>`;
   }
 
   // ---- Overview
