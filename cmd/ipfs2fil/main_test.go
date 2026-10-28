@@ -178,6 +178,25 @@ func TestProgressDrawsAtOnce(t *testing.T) {
 	}
 }
 
+func TestProgressFitsTheTerminal(t *testing.T) {
+	// A line wider than the terminal wraps, and each redraw then leaves a
+	// row behind, so the bar is cut to fit.
+	var b bytes.Buffer
+	p := newProgress(&b, "uploading", 1000, true)
+	p.tty = true
+	p.width = func() int { return 40 }
+	p.Suffix("7 pieces copying between providers · 1 piece sent, waiting to go on chain")
+	p.Add(10)
+	for _, l := range strings.Split(b.String(), "\r\033[K")[1:] {
+		if n := len([]rune(l)); n >= 40 {
+			t.Errorf("%d columns: %q", n, l)
+		}
+	}
+	if fit("short", 40) != "short" || fit("abcdef", 0) != "abcdef" {
+		t.Error("fit changed a line that fits")
+	}
+}
+
 func TestNotesGoAboveTheBar(t *testing.T) {
 	// A note from a background step, such as a base fee pause, prints as
 	// its own line through the bar rather than into the middle of it.

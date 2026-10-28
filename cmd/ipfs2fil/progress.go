@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/term"
 )
 
 // progress draws one status line for a long step: a bar with ETA when the
@@ -22,6 +24,10 @@ type progress struct {
 	tty      bool
 	interval time.Duration
 	now      func() time.Time
+	// width is the terminal's width in columns, 0 if unknown. A line wider
+	// than the terminal wraps, and redrawing in place then clears only its
+	// last row, so lines are cut to fit.
+	width func() int
 
 	mu      sync.Mutex
 	suffix  string
@@ -41,7 +47,17 @@ type sample struct {
 const speedWindow = 20 * time.Second
 
 func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
-	p := &progress{w: w, label: label, total: total, bytes: bytes, tty: isTerminal(w), now: time.Now}
+	p := &progress{w: w, label: label, total: total, bytes: bytes, tty: isTerminal(w), now: time.Now,
+		width: func() int { return 0 }}
+	if f, ok := w.(*os.File); ok && p.tty {
+		p.width = func() int {
+			n, _, err := term.GetSize(int(f.Fd()))
+			if err != nil {
+				return 0
+			}
+			return n
+		}
+	}
 	p.interval = 100 * time.Millisecond
 	if !p.tty {
 		p.interval = 10 * time.Second
@@ -185,13 +201,23 @@ func (p *progress) draw(final bool) {
 		line += " · " + p.suffix
 	}
 	if p.tty {
-		fmt.Fprintf(p.w, "\r\033[K%s", line)
+		fmt.Fprintf(p.w, "\r\033[K%s", fit(line, p.width()))
 		if final {
 			fmt.Fprintln(p.w)
 		}
 	} else {
 		fmt.Fprintln(p.w, line)
 	}
+}
+
+// fit cuts line to fewer than width columns, leaving the cursor's column
+// free, so it never wraps; width 0 leaves it whole.
+func fit(line string, width int) string {
+	r := []rune(line)
+	if width <= 1 || len(r) < width {
+		return line
+	}
+	return string(r[:width-2]) + "…"
 }
 
 func (p *progress) count(n int64) string {

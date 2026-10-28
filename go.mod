@@ -20,6 +20,7 @@ require (
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/strahe/synapse-go v0.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
+	golang.org/x/term v0.46.0
 )
 
 require (
