@@ -11,7 +11,7 @@ serve the files and show what is where.
     ipfs2fil scan              # what would be archived, and what it costs
     ipfs2fil up                # pack and push in one go, after confirming the cost
     ipfs2fil status            # copies, funding, proofs
-    ipfs2fil explore --serve   # browse the archive locally
+    ipfs2fil explore           # browse the archive locally
     ipfs2fil explore --demo    # preview the explorer on a made-up archive
 
 The repo is only ever read. Running again after the repo changes uploads only
@@ -76,7 +76,7 @@ wallet holding some FIL for gas and USDFC to pay for storage.
        ipfs2fil status            # providers, pieces, last proof, days funded
        ipfs2fil verify            # fetch every piece back, check every block, and
                                   # check the CIDs are announced to IPFS
-       ipfs2fil explore --serve   # http://127.0.0.1:8484/explorer/
+       ipfs2fil explore           # http://127.0.0.1:8484/explorer/
 
    Once stored, the archive root printed by `up` opens from any gateway,
    e.g. `https://dweb.link/ipfs/<root>/explorer/`.
@@ -93,6 +93,7 @@ Keep a list of repos and archive them together:
     ipfs2fil repos add /Volumes/old/go-ipfs --name old-laptop
     ipfs2fil up --all          # pack and push every repo, one confirmation
     ipfs2fil status --all      # every repo, its copies, proofs and funding
+    ipfs2fil explore           # browse every packed repo (or: explore <name>)
 
 Repos in the list share one set of data sets (one per copy), so setup is paid
 once, and a block an earlier repo already stores is not stored again by a later

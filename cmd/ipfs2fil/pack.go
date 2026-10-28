@@ -136,7 +136,11 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 		fmt.Fprintf(w, "missing  %d blocks the pins link to were never in the repo; the archive has everything else\n", len(res.Missing))
 	}
 	if isDir(filepath.Join(o.out, "explorer")) {
-		fmt.Fprintf(w, "explore  ipfs2fil explore --serve --out %s\n", o.out)
+		if o.collectionKey != "" || !o.set["out"] {
+			fmt.Fprintln(w, "explore  ipfs2fil explore")
+		} else {
+			fmt.Fprintf(w, "explore  ipfs2fil explore --out %s\n", o.out)
+		}
 	}
 	if o.collectionKey == "" {
 		fmt.Fprintf(w, "next     ipfs2fil push --out %s\n", o.out)
