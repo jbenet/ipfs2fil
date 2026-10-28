@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -247,8 +248,27 @@ func (b *synapseBackend) Stage(ctx context.Context, ds dataSet, pieceCID string,
 		return nil
 	}
 	_, err = dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
-	return err
+	if err != nil {
+		return sessionless{err}
+	}
+	return nil
 }
+
+// uploadSession matches the id a provider gives each upload. It names the
+// HTTP session, not the piece, and is never kept, so errors leave it out:
+// the PieceCID beside them says which piece failed.
+var uploadSession = regexp.MustCompile(`/pdp/piece/uploads?/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+
+// sessionless is err without the provider's upload session id in its text.
+type sessionless struct{ err error }
+
+func (e sessionless) Error() string {
+	return uploadSession.ReplaceAllStringFunc(e.err.Error(), func(m string) string {
+		return m[:strings.LastIndexByte(m, '/')]
+	})
+}
+
+func (e sessionless) Unwrap() error { return e.err }
 
 // parked reports whether the provider at serviceURL holds the piece, ready
 // to add to a data set; err says when it could not tell.

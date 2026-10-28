@@ -25,6 +25,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
+	pdpclient "github.com/strahe/synapse-go/pdp"
 
 	"github.com/jbenet/ipfs2fil/internal/store"
 )
@@ -656,5 +657,17 @@ func TestCommitReportsDroppedPieces(t *testing.T) {
 	var gone *store.GoneError
 	if !errors.As(err, &gone) || fmt.Sprint(gone.PieceCIDs) != "[q]" || f.commits != 0 {
 		t.Fatalf("got %v (%d commits), want q gone", err, f.commits)
+	}
+}
+
+func TestUploadErrorsLeaveOutSessionID(t *testing.T) {
+	inner := &pdpclient.HTTPError{Method: "PUT", URL: "https://sp.example/pdp/piece/uploads/1051470a-8822-437a-9b42-6f438dec5dc5", StatusCode: 500, Body: "boom"}
+	err := error(sessionless{fmt.Errorf("upload: %w", inner)})
+	if strings.Contains(err.Error(), "1051470a") || !strings.Contains(err.Error(), "/pdp/piece/uploads") {
+		t.Fatalf("error text %q", err)
+	}
+	var he *pdpclient.HTTPError
+	if !errors.As(err, &he) || he.StatusCode != 500 {
+		t.Fatal("lost the HTTP error")
 	}
 }
