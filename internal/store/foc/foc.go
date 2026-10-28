@@ -48,6 +48,8 @@ type backend interface {
 	Stage(ctx context.Context, ds dataSet, pieceCID string, r io.Reader) error
 	// Pull has ds's provider fetch the piece from from's provider.
 	Pull(ctx context.Context, ds, from dataSet, pieceCID string) error
+	// Await waits until ds's provider holds the piece ready to add.
+	Await(ctx context.Context, ds dataSet, pieceCID string) error
 	// Commit adds staged pieces to ds on chain and returns their piece ids,
 	// or a *store.GoneError naming those the provider no longer holds.
 	Commit(ctx context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) (pieceIDs []string, err error)
@@ -412,6 +414,18 @@ func (s *Store) Pull(ctx context.Context, ds, from store.DataSet, pieceCID strin
 	}
 	if err := s.b.Pull(ctx, fromPublic(ds), fromPublic(from), pieceCID); err != nil {
 		return fmt.Errorf("provider %s fetching piece %s from provider %s: %w", ds.Provider, pieceCID, from.Provider, err)
+	}
+	return nil
+}
+
+// Await waits until ds holds the piece or its provider has it ready to add,
+// as it will once a pull no longer waited for ends.
+func (s *Store) Await(ctx context.Context, ds store.DataSet, pieceCID string) error {
+	if _, ok, err := s.lookup(ctx, ds.ID, pieceCID); err != nil || ok {
+		return err
+	}
+	if err := s.b.Await(ctx, fromPublic(ds), pieceCID); err != nil {
+		return fmt.Errorf("waiting for provider %s to take in piece %s: %w", ds.Provider, pieceCID, err)
 	}
 	return nil
 }

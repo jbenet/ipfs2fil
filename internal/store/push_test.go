@@ -377,6 +377,93 @@ func TestPushSendsWhenPullsStall(t *testing.T) {
 	}
 }
 
+// awaiting is a memstore whose provider, like a FOC one, keeps fetching a
+// piece after the pull stops waiting for it.
+type awaiting struct {
+	*memstore.Store
+	finish bool // the fetch ends once awaited
+	mu     *sync.Mutex
+	from   map[string]store.DataSet // piece -> the data set it is fetched from
+}
+
+type finishing struct{}
+
+func (a awaiting) Await(ctx context.Context, ds store.DataSet, pieceCID string) error {
+	if !a.finish {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	// The fetch that timed out ends: stage the piece as a pull would.
+	a.mu.Lock()
+	from := a.from[pieceCID]
+	a.mu.Unlock()
+	return a.Pull(context.WithValue(ctx, finishing{}, true), ds, from, pieceCID)
+}
+
+func slowPulls(t *testing.T, finish bool) (awaiting, *manifest.Manifest, []archive.Piece) {
+	s := memstore.New(2)
+	m, pieces := fixture(t, 6)
+	if err := store.Push(context.Background(), s, m, pieces, 1, func(*manifest.Manifest) error { return nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	a := awaiting{Store: s, finish: finish, mu: new(sync.Mutex), from: map[string]store.DataSet{}}
+	s.BeforePull = func(ctx context.Context, _, from store.DataSet, pieceCID string) error {
+		if ctx.Value(finishing{}) != nil {
+			return nil
+		}
+		a.mu.Lock()
+		a.from[pieceCID] = from
+		a.mu.Unlock()
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	return a, m, pieces
+}
+
+func TestPushWaitsForSlowPulls(t *testing.T) {
+	// A provider still fetching a piece turns away an upload of it, so a
+	// pull that times out is waited for rather than sent from here.
+	defer store.SetPullTimeout(10 * time.Millisecond)()
+	s, m, pieces := slowPulls(t, true)
+	var r recorder
+	if err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if s.Uploads() != 12 || s.Pulls() != 6 {
+		t.Errorf("%d stored, %d pulled; want 12, 6", s.Uploads(), s.Pulls())
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Slow }); n != 6 {
+		t.Errorf("%d slow pulls reported, want 6", n)
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.PullErr != nil }); n != 0 {
+		t.Errorf("%d pulls reported failed", n)
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != 6 {
+			t.Errorf("copy %+v is missing pieces", c)
+		}
+	}
+}
+
+func TestPushLeavesPullsThatNeverEnd(t *testing.T) {
+	// A pull still running after the longer wait is left for the next push,
+	// and the copy goes on with its other pieces.
+	defer store.SetPullTimeout(10 * time.Millisecond)()
+	defer store.SetSlowPullWait(10 * time.Millisecond)()
+	s, m, pieces := slowPulls(t, false)
+	var r recorder
+	err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress)
+	if err == nil || !strings.Contains(err.Error(), "was still copying it from provider") || !strings.Contains(err.Error(), "run push again later") {
+		t.Fatalf("err = %v", err)
+	}
+	if s.Uploads() != 6 {
+		t.Errorf("%d stored, want only the first push's 6", s.Uploads())
+	}
+	if n := r.count(func(e store.PushEvent) bool { return e.Final && e.Err != nil }); n != 6 {
+		t.Errorf("%d pieces failed, want all 6 left for later", n)
+	}
+}
+
 func TestPushGivesBackAFailedUpload(t *testing.T) {
 	// A copy that fails stops, and the piece it was sending goes to another
 	// copy, so the others still get every piece.

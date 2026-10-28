@@ -59,6 +59,11 @@ type PushEvent struct {
 	// copy's provider, on a non-final event; the piece is then uploaded from
 	// here.
 	PullErr error
+	// Slow marks a non-final event: a fetch from another copy's provider
+	// (From) passed SlowAfter, and the provider, which turns away an upload
+	// of the piece while it fetches, is waited for a while longer.
+	Slow      bool
+	SlowAfter time.Duration
 	// Dropped marks a non-final event: the provider dropped the staged piece
 	// before it could be added, so it is sent again.
 	Dropped bool
@@ -607,6 +612,18 @@ var pullTimeout = func(size int64) time.Duration {
 	return 15*time.Minute + time.Duration(size/(2<<20))*time.Second
 }
 
+// Awaiter is a Store whose providers keep fetching a piece after Pull stops
+// waiting for it, and turn away an upload of that piece until they finish,
+// as FOC providers do. Await waits until ds's provider holds the piece ready
+// to add.
+type Awaiter interface {
+	Await(ctx context.Context, ds DataSet, pieceCID string) error
+}
+
+// slowPullWait is how much longer a pull that passed pullTimeout is waited
+// for on an Awaiter, before the piece is left for the next push.
+var slowPullWait = func(size int64) time.Duration { return 2 * pullTimeout(size) }
+
 // pullsAtOnce is how many pieces a copy's provider fetches from other
 // providers at the same time.
 const pullsAtOnce = 4
@@ -625,6 +642,7 @@ func (c *copyPush) pulls(ctx context.Context) error {
 }
 
 func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
+	var late []error // pieces the provider was still fetching when the wait ran out
 	for c.room(ctx) {
 		j, from, ok := c.sh.next(c.i, wanted, c.stopped(ctx))
 		if !ok {
@@ -639,7 +657,24 @@ func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
 		err := c.s.Pull(pctx, c.ds, src, p.PieceCID)
 		cancel()
 		if err != nil && ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
-			err = fmt.Errorf("gave up after %s", d)
+			if a, ok := c.s.(Awaiter); ok {
+				// The provider is still fetching it and would turn an
+				// upload from here away, so wait for the fetch instead.
+				c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: src.Provider, Pulling: true, Slow: true, SlowAfter: d})
+				w := slowPullWait(p.CARBytes)
+				actx, cancel := context.WithTimeout(ctx, w)
+				err = a.Await(actx, c.ds, p.PieceCID)
+				cancel()
+				if err != nil && ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+					ev.From = src.Provider
+					ev.Err, ev.Final = fmt.Errorf("provider %s was still copying it from provider %s after %s; run push again later to add it", c.ds.Provider, src.Provider, d+w), true
+					c.progress(ev)
+					late = append(late, fmt.Errorf("piece %d: %w", p.Index, ev.Err))
+					continue
+				}
+			} else {
+				err = fmt.Errorf("gave up after %s", d)
+			}
 		}
 		if err == nil {
 			ev.Pulled, ev.From = true, src.Provider
@@ -654,7 +689,10 @@ func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
 		}
 		c.queue1(p, ev)
 	}
-	return ctx.Err()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return errors.Join(late...)
 }
 
 func (c *copyPush) fail(ev PushEvent, err error) error {

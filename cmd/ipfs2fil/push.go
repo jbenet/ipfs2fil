@@ -165,6 +165,9 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 		case ev.Dropped:
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d was dropped by the provider while it waited to go on chain; sending it again",
 				ev.Copy+1, ev.Provider, ev.Piece))
+		case ev.Slow:
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d is still copying from provider %s after %s; waiting for it, since the provider turns away an upload from here meanwhile",
+				ev.Copy+1, ev.Provider, ev.Piece, ev.From, roundDur(ev.SlowAfter)))
 		case ev.PullErr != nil:
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d could not be copied from provider %s, uploading it from here: %v",
 				ev.Copy+1, ev.Provider, ev.Piece, ev.From, ev.PullErr))
