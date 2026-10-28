@@ -224,6 +224,8 @@ type share struct {
 	owner  []int   // per piece: the copy sending it from here, or -1
 	flying int     // pieces being sent from here
 	up     map[int]*uploader
+	idle   map[int]int       // per copy: its pullers waiting for a piece
+	busy   map[int]time.Time // per copy: since when all its pullers are busy
 	now    func() time.Time
 }
 
@@ -239,7 +241,7 @@ type uploader struct {
 
 func newShare(sizes []int64) *share {
 	sh := &share{size: sizes, from: make([]int, len(sizes)), owner: make([]int, len(sizes)),
-		up: map[int]*uploader{}, now: time.Now}
+		up: map[int]*uploader{}, idle: map[int]int{}, busy: map[int]time.Time{}, now: time.Now}
 	sh.cond = sync.NewCond(&sh.mu)
 	for j := range sizes {
 		sh.from[j], sh.owner[j] = -1, -1
@@ -401,6 +403,13 @@ func (sh *share) sent(i, j int, ok bool) {
 func (sh *share) next(i int, wanted *[]int, stop func() bool) (j, from int, ok bool) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
+	sh.idle[i]++
+	defer func() {
+		if sh.idle[i]--; sh.idle[i] == 0 {
+			sh.busy[i] = sh.now()
+		}
+		sh.cond.Broadcast()
+	}()
 	for {
 		*wanted = slices.DeleteFunc(*wanted, func(j int) bool { return sh.owner[j] == i || sh.from[j] == i })
 		if len(*wanted) == 0 || stop() {
@@ -410,6 +419,43 @@ func (sh *share) next(i int, wanted *[]int, stop func() bool) (j, from int, ok b
 			if f := sh.from[j]; f >= 0 {
 				*wanted = slices.Delete(*wanted, k, k+1)
 				return j, f, true
+			}
+		}
+		sh.cond.Wait()
+	}
+}
+
+// helpAfter is how long all of a copy's pullers must have been busy, none
+// finishing, before its uploader sends a piece they would pull.
+var helpAfter = time.Minute
+
+// help gives copy i's uploader, once it has nothing of its own to send, a
+// wanted piece that another copy's provider holds once all of copy i's
+// pullers have been busy for helpAfter, so the piece is sent from here rather
+// than wait for slow pulls. Pulls that keep finishing keep the pieces to
+// them, so each leaves this machine once. It reports false once wanted is
+// empty or stop says so.
+func (sh *share) help(i int, wanted *[]int, stop func() bool) (int, bool) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	for {
+		*wanted = slices.DeleteFunc(*wanted, func(j int) bool { return sh.owner[j] == i || sh.from[j] == i })
+		if len(*wanted) == 0 || stop() {
+			return 0, false
+		}
+		if sh.idle[i] == 0 {
+			if sh.busy[i].IsZero() { // the pullers have not started yet
+				sh.busy[i] = sh.now()
+			}
+			if left := helpAfter - sh.now().Sub(sh.busy[i]); left > 0 {
+				time.AfterFunc(left, sh.wake)
+			} else {
+				for k, j := range *wanted {
+					if sh.from[j] >= 0 {
+						*wanted = slices.Delete(*wanted, k, k+1)
+						return j, true
+					}
+				}
 			}
 		}
 		sh.cond.Wait()
@@ -430,6 +476,7 @@ type copyPush struct {
 	record   func(p archive.Piece, id string) error
 	has      []bool // per piece: held when the push started
 	sh       *share
+	wanted   []int // pieces the copy lacks that nobody here is getting; guarded by sh.mu
 
 	mu      sync.Mutex
 	cond    *sync.Cond
@@ -481,6 +528,11 @@ func (c *copyPush) run(ctx context.Context) error {
 		c.cond.Broadcast()
 	})
 	defer stop()
+	for j := range c.pieces {
+		if !c.has[j] {
+			c.wanted = append(c.wanted, j)
+		}
+	}
 	committed := make(chan error, 1)
 	go func() { committed <- c.commitLoop(ctx) }()
 	var upErr, pullErr error
@@ -530,7 +582,29 @@ func (c *copyPush) uploads(ctx context.Context) error {
 		}
 		c.queue1(p, ev)
 	}
+	// With nothing left that no copy holds, send from here the pieces this
+	// copy still lacks while its pullers are busy: a provider fetching from
+	// another can take far longer than an upload from here.
+	for c.room(ctx) {
+		j, ok := c.sh.help(c.i, &c.wanted, c.stopped(ctx))
+		if !ok {
+			break
+		}
+		p := c.pieces[j]
+		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
+		if err := c.upload(ctx, p, &ev, nil); err != nil {
+			return c.fail(ev, err)
+		}
+		c.queue1(p, ev)
+	}
 	return ctx.Err() // nil when the committer failed; it reports why
+}
+
+// pullTimeout is how long a provider may take to fetch a piece of size bytes
+// from another before it is sent from here instead: a quarter hour, plus the
+// time at 2 MiB/s.
+var pullTimeout = func(size int64) time.Duration {
+	return 15*time.Minute + time.Duration(size/(2<<20))*time.Second
 }
 
 // pullsAtOnce is how many pieces a copy's provider fetches from other
@@ -541,16 +615,10 @@ const pullsAtOnce = 4
 // that holds it, once one does, up to pullsAtOnce at a time, and sends a
 // piece from here if fetching it fails.
 func (c *copyPush) pulls(ctx context.Context) error {
-	var wanted []int // shared by the pullers; share.next changes it under its lock
-	for j := range c.pieces {
-		if !c.has[j] {
-			wanted = append(wanted, j)
-		}
-	}
 	errs := make([]error, pullsAtOnce)
 	var wg sync.WaitGroup
 	for k := range errs {
-		wg.Go(func() { errs[k] = c.puller(ctx, &wanted) })
+		wg.Go(func() { errs[k] = c.puller(ctx, &c.wanted) })
 	}
 	wg.Wait()
 	return errors.Join(errs...)
@@ -566,7 +634,13 @@ func (c *copyPush) puller(ctx context.Context, wanted *[]int) error {
 		ev := PushEvent{Copy: c.i, Provider: c.ds.Provider, Piece: p.Index, Total: p.CARBytes}
 		src := c.sets[from]
 		c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, From: src.Provider, Pulling: true})
-		err := c.s.Pull(ctx, c.ds, src, p.PieceCID)
+		d := pullTimeout(p.CARBytes)
+		pctx, cancel := context.WithTimeout(ctx, d)
+		err := c.s.Pull(pctx, c.ds, src, p.PieceCID)
+		cancel()
+		if err != nil && ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+			err = fmt.Errorf("gave up after %s", d)
+		}
 		if err == nil {
 			ev.Pulled, ev.From = true, src.Provider
 		} else {

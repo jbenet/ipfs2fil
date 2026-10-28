@@ -338,6 +338,45 @@ func TestPushReportsPullsStarting(t *testing.T) {
 	}
 }
 
+func TestPushSendsWhenPullsStall(t *testing.T) {
+	// A copy added later would pull every piece, but its provider's pulls
+	// never finish: once they have all been busy a while, the pieces are
+	// sent from here instead, and the pulls give up.
+	defer store.SetHelpAfter(10 * time.Millisecond)()
+	defer store.SetPullTimeout(time.Second)()
+	s := memstore.New(2)
+	m, pieces := fixture(t, 12)
+	if err := store.Push(context.Background(), s, m, pieces, 1, func(*manifest.Manifest) error { return nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	s.BeforePull = func(ctx context.Context, _, _ store.DataSet, _ string) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	var r recorder
+	start := time.Now()
+	if err := store.Push(context.Background(), s, m, pieces, 2, r.save, r.progress); err != nil {
+		t.Fatal(err)
+	}
+	if s.Pulls() != 0 || s.Uploads() != 24 {
+		t.Errorf("%d stored, %d pulled; want 24, 0", s.Uploads(), s.Pulls())
+	}
+	gaveUp := r.count(func(e store.PushEvent) bool {
+		return e.PullErr != nil && strings.Contains(e.PullErr.Error(), "gave up after")
+	})
+	if gaveUp != 4 {
+		t.Errorf("%d pulls gave up, want the 4 that started", gaveUp)
+	}
+	if el := time.Since(start); el > 2500*time.Millisecond { // pulling alone takes 3s
+		t.Errorf("took %s", el)
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != 12 {
+			t.Errorf("copy %+v is missing pieces", c)
+		}
+	}
+}
+
 func TestPushGivesBackAFailedUpload(t *testing.T) {
 	// A copy that fails stops, and the piece it was sending goes to another
 	// copy, so the others still get every piece.
