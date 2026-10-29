@@ -5,7 +5,8 @@ package explorer
 // files an older pack could not tell from their names. From a gateway the
 // pages fetch the same things from the gateway instead.
 //
-//	GET  _i2f/info             {"content": true}
+//	GET  _i2f/info             {"content": true, "all": "<path>"}; all is the explorer over
+//	                           every archive, when explore serves several
 //	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads,
 //	                           ?w=<px> gets a JPEG thumbnail of a photo
 //	POST _i2f/kinds            CIDs, one per line -> {"<cid>": "<kind>"} for the files among them
@@ -47,6 +48,7 @@ type carBlocks struct {
 	files []*os.File
 	err   error
 	thumb *thumbs
+	all   string // the combined explorer's path, if any
 }
 
 type blockAt struct {
@@ -256,7 +258,10 @@ func (s *carBlocks) close() {
 func (s *carBlocks) handle(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/_i2f/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"content":true}`))
+		json.NewEncoder(w).Encode(struct {
+			Content bool   `json:"content"`
+			All     string `json:"all,omitempty"`
+		}{true, s.all})
 	})
 	mux.HandleFunc("GET "+prefix+"/_i2f/content/{cid}", s.serveContent)
 	mux.HandleFunc("POST "+prefix+"/_i2f/kinds", func(w http.ResponseWriter, r *http.Request) {

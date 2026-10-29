@@ -6,7 +6,8 @@ package explorer
 //
 //	manifest.js  key "manifest": index/manifest.json as written by pack
 //	meta.js      key "meta": counts, totals by kind and part, one summary per
-//	             piece, and the names of the shards
+//	             piece, the names of the shards, and in the combined index
+//	             explore serves over several archives, the repos (see combine)
 //	s/<name>.js  key "s/<name>": a shard of entries grouped by directory:
 //	             {"dirs": [path, ...], "pieces": [PieceCID, ...], "rows": [[dir, name, kind, bytes, cid, piece, seg?], ...]}
 //	             dir indexes "dirs" and piece "pieces" (-1 for none); seg is the
@@ -81,6 +82,9 @@ type meta struct {
 	Types   map[string]tally `json:"types"`
 	Parts   map[string]tally `json:"parts"`
 	Pieces  []pieceInfo      `json:"pieces"`
+	// Repos lists the archives of a combined index (see combine), whose
+	// data/ holds one folder per repo; nil for one archive.
+	Repos []repoInfo `json:"repos,omitempty"`
 }
 
 type shard struct {
@@ -439,11 +443,15 @@ func parent(p string) string {
 	return ""
 }
 
-// where names the part of the repo a data/ path is in.
+// where names the part of the repo a data/ path is in: its first element,
+// or in a combined index, where the repo's folder comes first, its second.
 func where(p string) string {
-	switch top, _, _ := strings.Cut(p, "/"); top {
-	case "pins", "mfs", "orphans":
-		return top
+	top, rest, _ := strings.Cut(p, "/")
+	for _, t := range []string{top, strings.SplitN(rest, "/", 2)[0]} {
+		switch t {
+		case "pins", "mfs", "orphans":
+			return t
+		}
 	}
 	return ""
 }

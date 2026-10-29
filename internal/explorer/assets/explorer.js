@@ -129,6 +129,9 @@
 
   // ---- Names for roots: pins live at pins/<mode>/<cid>; show their names instead.
   let ROOTS = {};
+  // In the explorer `ipfs2fil explore` serves over all its archives, data/
+  // holds one folder per repo, listed in meta.repos.
+  let REPOS = null;
   function rootAt(p) { return ROOTS[p]; }
   const rootLabel = (r) => r.name || (r.kind === 'mfs' ? 'mfs' : r.cid);
   function showPath(p) {
@@ -136,7 +139,7 @@
     const out = [];
     for (let i = 0; i < parts.length; i++) {
       const r = rootAt(parts.slice(0, i + 1).join('/'));
-      if (r && r.kind !== 'mfs') { out.length = 0; out.push(rootLabel(r)); } else out.push(parts[i]);
+      if (r && r.kind !== 'mfs') { out.length = REPOS ? 1 : 0; out.push(rootLabel(r)); } else out.push(parts[i]);
     }
     return out.join('/');
   }
@@ -197,6 +200,12 @@
     D.body.insertAdjacentHTML('beforeend', `<footer class="rail-wrap"><div class="rail">${rail}<button type="button" data-act="help">${kbd('?')} all shortcuts</button><span class="status"></span></div></footer>`);
     statusEl = D.querySelector('.rail .status');
     D.querySelector('[data-act=help]').onclick = () => help(true);
+    // Served by `ipfs2fil explore` with other archives: link the explorer over all of them.
+    if (/^https?:$/.test(location.protocol) && !HERE) {
+      fetch('../_i2f/info').then((r) => r.ok ? r.json() : {}).then((j) => {
+        if (j.all && !location.pathname.startsWith(j.all)) D.querySelector('nav.pages').insertAdjacentHTML('afterbegin', `<a href="${esc(j.all)}">All repos</a>`);
+      }).catch(() => {});
+    }
   }
   const status = (t) => { if (statusEl) statusEl.textContent = t; };
   function help(open) {
@@ -403,7 +412,7 @@
   }
   function crumbs(p) {
     const parts = p ? p.split('/') : [];
-    let out = `<a href="index.html">archive</a><span aria-hidden="true">/</span>` + (parts.length ? `<a href="${browseHref('')}">data</a>` : '<span aria-current="page">data</span>');
+    let out = `<a href="index.html">${REPOS ? 'all repos' : 'archive'}</a><span aria-hidden="true">/</span>` + (parts.length ? `<a href="${browseHref('')}">data</a>` : '<span aria-current="page">data</span>');
     let start = 0;
     for (let i = 0; i < parts.length; i++) {
       const sub = parts.slice(0, i + 1).join('/'), r = rootAt(sub);
@@ -428,10 +437,12 @@
     const roots = m.roots || [], pieces = m.pieces || [], copies = m.copies || [];
     // own counts each block once across roots; archives packed before it was added have only bytes
     const hasOwn = roots.some((r) => r.own != null);
-    const sum = (f) => roots.filter(f).reduce((a, r) => a + (hasOwn ? r.own || 0 : r.bytes), 0);
+    // a root several repos hold counts once
+    const uniq = (rs) => { const seen = new Set(); return REPOS ? rs.filter((r) => !seen.has(r.cid) && seen.add(r.cid)) : rs; };
+    const sum = (f) => uniq(roots.filter(f)).reduce((a, r) => a + (hasOwn ? r.own || 0 : r.bytes), 0);
     const isPin = (r) => r.kind === 'pin-recursive' || r.kind === 'pin-direct';
-    const pins = roots.filter(isPin), rec = pins.filter((r) => r.kind === 'pin-recursive').length;
-    const orphans = roots.filter((r) => r.kind === 'orphan');
+    const pins = uniq(roots.filter(isPin)), rec = pins.filter((r) => r.kind === 'pin-recursive').length;
+    const orphans = uniq(roots.filter((r) => r.kind === 'orphan'));
     const parts = meta.parts || {};
     const indexBytes = pieces.filter((p, i) => (meta.pieces[i] || {}).where === 'index').reduce((a, p) => a + p.carBytes, 0);
     const snaps = m.snapshots || [], last = snaps[snaps.length - 1];
@@ -443,10 +454,10 @@
     const partBars = [['pins', sum(isPin)], ['mfs', sum((r) => r.kind === 'mfs')], ['orphans', sum((r) => r.kind === 'orphan')], ['index', indexBytes]].map((p) => [PART[p[0]][0], p[1], PART[p[0]][1]]);
     main().innerHTML = `
 <section class="head">
-  <div class="eyebrow">Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}</div>
+  <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}`}</div>
   <h1>${bytes(total)}, ${plural(pins.length, 'pin')}, ${stored}</h1>
   <div class="meta">
-    <span>Archive root ${root ? `<code class="chipcode" title="${esc(root)}">${esc(shortCID(root))}</code> <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>
+    ${REPOS ? '<span>Each file a repo shares with an earlier one counts once</span>' : `<span>Archive root ${root ? `<code class="chipcode" title="${esc(root)}">${esc(shortCID(root))}</code> <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>`}
     ${m.dataRoot ? `<span>Data root <code class="mono" title="${esc(m.dataRoot)}">${esc(shortCID(m.dataRoot))}</code> <button type="button" class="link" data-copy="${esc(m.dataRoot)}">Copy</button></span>` : ''}
     ${last ? `<span>Snapshot ${day(last.time)}${snaps.length > 1 ? ` · ${plural(snaps.length - 1, 'earlier snapshot')}` : ''}</span>` : ''}
   </div>
@@ -467,6 +478,7 @@
     ${bar(types.map((t) => [t[3], t[1], t[2]]), types.map((t) => t[3] + ' ' + bytes(t[1])).join(', '))}
     <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
+${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>` : ''}
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
   <section class="card side" style="gap:12px"><div class="titled"><h2>Pieces</h2><a href="pieces.html">All ${num(pieces.length)}</a></div>
@@ -476,15 +488,26 @@
 </div>`;
     function stat(k, v, s) { return `<div class="card tight stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
     D.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(b.dataset.copy); });
-    const largest = roots.slice().sort((a, b) => b.bytes - a.bytes).slice(0, 10).map((r) => ({ ...r, name: rootLabel(r), path: r.path, dir: '', piece: r.firstPiece, kind: kindAt(r), root: r }));
+    const once = new Set();
+    const largest = roots.filter((r) => !REPOS || (!once.has(r.cid) && once.add(r.cid))).sort((a, b) => b.bytes - a.bytes).slice(0, 10).map((r) => ({ ...r, name: rootLabel(r), path: r.path, dir: '', piece: r.firstPiece, kind: kindAt(r), root: r }));
     function kindAt(r) { return r.kind === 'mfs' ? 'folder' : 'other'; }
-    const where = (r) => ({ 'pin-recursive': 'pin', 'pin-direct': 'direct pin', mfs: 'MFS', orphan: 'orphan' }[r.root.kind] + ' · ' + shortCID(r.cid));
+    const where = (r) => (REPOS ? r.path.split('/')[0] + ' · ' : '') + ({ 'pin-recursive': 'pin', 'pin-direct': 'direct pin', mfs: 'MFS', orphan: 'orphan' }[r.root.kind] + ' · ' + shortCID(r.cid));
     const list = new List(D.getElementById('roots'), {
       label: 'Largest roots', step: 10, sortSelect: false, sort0: null, filter: null,
       cols: [nameCol(where), { key: 'pieces', label: 'Pieces', cls: 'r', html: (r) => num(r.root.lastPiece - r.root.firstPiece + 1) }, sizeCol],
       href: entryHref, cid: (r) => r.cid
     });
     list.setItems(largest);
+    if (REPOS) {
+      const rows = REPOS.map((r) => ({ ...r, path: r.name, dir: '', kind: 'folder', cid: r.root, piece: -1 }));
+      new List(D.getElementById('repos'), {
+        label: 'Repos', step: 50, sortSelect: false, sort0: null, filter: null,
+        cols: [nameCol((r) => r.repo || ''), { key: 'pieces', label: 'Pieces', cls: 'r', html: (r) => num(r.pieces) },
+          { key: 'shared', label: 'Shared', cls: 'r', html: (r) => r.shared ? bytes(r.shared) : '' }, sizeCol,
+          { key: 'own', label: '', cls: 'r', html: (r) => `<a href="${esc(r.href)}">its own explorer</a>` }],
+        href: (r) => browseHref(r.name), cid: (r) => r.root
+      }).setItems(rows);
+    }
     // Kinds of root entries come from the index; fill them in when it loads.
     Promise.all(largest.map(async (r) => { const d = await dirInfo(r.path); if (d) r.kind = 'folder'; })).then(() => list.setItems(largest));
 
@@ -607,7 +630,7 @@
       const parts = meta.parts || {}, t = meta.types || {};
       const libOn = S.deep && !S.q && !S.p;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => k[0] === 'all' || t[k[0]]).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${k[0] === 'all' ? count(meta.entries) : count(t[k[0]][0])}</span></a>`).join('')}
-<div class="h">Places</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}All of data/</a>${['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => `<a href="${browseHref(w)}"${S.p === w && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${PART[w][0]}</a>`).join('')}
+<div class="h">Places</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
     }
 
@@ -679,7 +702,7 @@
       const r = rootAt(S.p);
       const title = S.p ? (r && r.kind !== 'mfs' ? rootLabel(r) : S.p.split('/').pop()) : 'data';
       $('.fcrumbs').innerHTML = crumbs(S.p) + (info ? `<span class="faint">${plural(info.n, 'item')} · ${bytes(info.bytes)}</span>` : '');
-      $('.scope').innerHTML = S.deep ? `<span class="pill on">In ${esc(S.p ? (title.length > 24 ? shortCID(title) : title) : 'the whole archive')}${S.p ? ' and below' : ''}${S.p ? ` <button type="button" data-unscope aria-label="Search the whole archive">×</button>` : ''}</span>` : '';
+      $('.scope').innerHTML = S.deep ? `<span class="pill on">In ${esc(S.p ? (title.length > 24 ? shortCID(title) : title) : REPOS ? 'all repos' : 'the whole archive')}${S.p ? ' and below' : ''}${S.p ? ` <button type="button" data-unscope aria-label="Search the whole archive">×</button>` : ''}</span>` : '';
       box.placeholder = S.deep ? 'Search names and CIDs' : `Search in ${S.p ? title.length > 24 ? shortCID(title) : title : 'data'} and below`;
       const chips = [['all', 'All', base.length]].concat(KINDS.filter((k) => counts[k]).map((k) => [k, KIND[k][3], counts[k]]));
       if (S.kind !== 'all' && !counts[S.kind]) chips.push([S.kind, kindOf(S.kind)[3], 0]);
@@ -1085,6 +1108,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     (m.pieces || []).forEach((p) => { PIECE[p.pieceCid] = p.index; });
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
+      REPOS = meta.repos || null;
       if (meta.format > 2) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
       return (pages[PAGE] || overview)();
     });

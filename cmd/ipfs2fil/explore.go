@@ -45,7 +45,10 @@ with the archive.
 It finds what 'ipfs2fil up' or 'pack' wrote: the archive in --out if given or
 if ./ipfs2fil-archive holds one, else the repos 'ipfs2fil repos add' listed in
 --home. Give a repo's name (or --repo with its path) to explore just that one;
-otherwise every packed repo is served, with a page listing them.
+otherwise every packed repo is served, each under /<name>/, and the address
+opens one explorer over all of them (/all/): files and search span every
+repo, a file several repos hold shows once with each folder it is in, and
+totals count it once.
 
 --demo writes a made-up archive and serves it.
 

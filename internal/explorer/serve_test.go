@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// TestServeMany: each archive's explorer is under /<name>/, with a page at /
-// linking to them.
+// TestServeMany: each archive's explorer is under /<name>/, and one over all
+// of them under /all/, where / leads.
 func TestServeMany(t *testing.T) {
 	var as []Archive
 	for _, name := range []string{"photos", "backup"} {
@@ -34,6 +34,9 @@ func TestServeMany(t *testing.T) {
 	get := func(path string) string {
 		t.Helper()
 		r, err := http.Get(strings.TrimSuffix(base, "/") + path)
+		if err == nil && r.Request.URL.Path != path && !strings.HasSuffix(path, "/") {
+			t.Errorf("GET %s went to %s", path, r.Request.URL.Path)
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,11 +47,17 @@ func TestServeMany(t *testing.T) {
 		}
 		return string(b)
 	}
-	if page := get("/"); !strings.Contains(page, `href="/photos/explorer/"`) || !strings.Contains(page, `href="/backup/explorer/"`) || !strings.Contains(page, "/home/me/photos") {
-		t.Errorf("index page lacks the archives:\n%s", page)
+	if page := get("/"); !strings.Contains(page, `data-page="overview"`) {
+		t.Errorf("/ is not the combined overview:\n%s", page)
 	}
-	for _, p := range []string{"/photos/", "/backup/explorer/", "/backup/explorer/explorer.css"} {
+	for _, p := range []string{"/photos/", "/backup/explorer/", "/backup/explorer/explorer.css", "/all/explorer/browse.html", "/all/index/manifest.json"} {
 		get(p)
+	}
+	if meta := get("/all/explorer/idx/meta.js"); !strings.Contains(meta, `"repos":[{"name":"photos","repo":"/home/me/photos"`) || !strings.Contains(meta, `"href":"../../backup/explorer/"`) {
+		t.Errorf("combined meta lacks the repos:\n%s", meta)
+	}
+	if info := get("/photos/_i2f/info"); !strings.Contains(info, `"all":"/all/explorer/"`) {
+		t.Errorf("info does not point at the combined explorer: %s", info)
 	}
 	cancel()
 	if err := <-done; err != nil {
