@@ -95,7 +95,7 @@ Keep a list of repos and archive them together:
     ipfs2fil repos add /Volumes/old/go-ipfs --name old-laptop
     ipfs2fil up --all          # pack and push every repo, one confirmation
     ipfs2fil status --all      # every repo, its copies, proofs and funding
-    ipfs2fil explore           # browse every packed repo (or: explore <name>)
+    ipfs2fil explore           # browse all packed repos together (or: explore <name>)
 
 Repos in the list share one set of data sets (one per copy), so setup is paid
 once, and a block an earlier repo already stores is not stored again by a later

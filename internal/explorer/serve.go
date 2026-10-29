@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"net"
 	"net/http"
@@ -135,22 +134,25 @@ type Archive struct {
 }
 
 // ServeMany serves several archive directories, each under /<name>/ the way
-// Serve serves one, with a page at / linking to their explorers.
+// Serve serves one, and one explorer over all of them under /all/ (or another
+// name no archive has), which / leads to. The combined index is built the
+// first time a page asks for it.
 func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url string), wraps ...Wrap) error {
-	type row struct {
-		Archive
-		Root   string
-		Pieces int
-		Bytes  string
-	}
-	var rows []row
 	mux := http.NewServeMux()
 	// One block index for all: an archive can share blocks with the others.
 	var dirs []string
+	names := map[string]bool{}
 	for _, a := range as {
 		dirs = append(dirs, a.Dir)
+		names[a.Name] = true
 	}
+	all := "all"
+	for names[all] {
+		all = "_" + all
+	}
+	allPrefix := "/" + url.PathEscape(all)
 	blocks := newCARBlocks(dirs)
+	blocks.all = allPrefix + "/explorer/"
 	defer blocks.close()
 	blocks.start()
 	for _, a := range as {
@@ -161,21 +163,75 @@ func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url st
 		mux.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), archiveFiles(a.Dir)))
 		blocks.handle(mux, strings.TrimSuffix(prefix, "/"))
 		mux.Handle(prefix+"{$}", http.RedirectHandler(prefix+"explorer/", http.StatusFound))
-		r := row{Archive: a}
-		if m, err := readManifest(a.Dir); err == nil {
-			var n int64
-			for _, p := range m.Pieces {
-				n += p.CARBytes
-			}
-			r.Root, r.Pieces, r.Bytes = m.Root, len(m.Pieces), humanBytes(n)
-		}
-		rows = append(rows, r)
 	}
-	mux.HandleFunc("/{$}", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		manyPage.Execute(w, rows)
-	})
+	mux.Handle(allPrefix+"/", http.StripPrefix(allPrefix, combinedFiles(as, func(a Archive) string {
+		return "../../" + url.PathEscape(a.Name) + "/explorer/"
+	})))
+	blocks.handle(mux, allPrefix)
+	mux.Handle(allPrefix+"/{$}", http.RedirectHandler(allPrefix+"/explorer/", http.StatusFound))
+	mux.Handle("/{$}", http.RedirectHandler(allPrefix+"/explorer/", http.StatusFound))
 	return listen(ctx, addr, wrap(mux, wraps), "/", ready)
+}
+
+// combinedFiles serves the explorer over all of as, laid out like one
+// archive: explorer/ with this build's pages and the combined index, and
+// index/manifest.json.
+func combinedFiles(as []Archive, href func(Archive) string) http.Handler {
+	pages, _ := fs.Sub(assets, "assets")
+	var (
+		once  sync.Once
+		files map[string][]byte
+		man   []byte
+		err   error
+	)
+	build := func() error {
+		once.Do(func() {
+			var m *manifest.Manifest
+			if files, m, err = combine(as, href); err == nil {
+				man, err = json.MarshalIndent(m, "", "  ")
+			}
+		})
+		return err
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		if r.URL.Path == "/index/manifest.json" {
+			if err := build(); err != nil {
+				http.Error(w, "combining the archives: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(man)
+			return
+		}
+		name, ok := strings.CutPrefix(r.URL.Path, "/explorer/")
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		if idx, ok := strings.CutPrefix(name, "idx/"); ok {
+			if err := build(); err != nil {
+				http.Error(w, "combining the archives: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			b, ok := files[idx]
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+			w.Write(b)
+			return
+		}
+		if name == "" {
+			name = "index.html"
+		}
+		if strings.Contains(name, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFileFS(w, r, pages, name)
+	})
 }
 
 func listen(ctx context.Context, addr string, h http.Handler, path string, ready func(url string)) error {
@@ -205,33 +261,3 @@ func readManifest(dir string) (*manifest.Manifest, error) {
 	}
 	return m, err
 }
-
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	d, e := int64(unit), 0
-	for m := n / unit; m >= unit; m /= unit {
-		d *= unit
-		e++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(d), "KMGTPE"[e])
-}
-
-var manyPage = template.Must(template.New("many").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ipfs2fil archives</title>
-{{with index . 0}}<link rel="stylesheet" href="/{{.Name}}/explorer/explorer.css">{{end}}
-<style>main{max-width:960px;margin:0 auto;padding:24px 16px}table{width:100%;border-collapse:collapse}
-td,th{text-align:left;padding:8px;border-bottom:1px solid var(--line,#ddd);vertical-align:top}
-.mono{font-family:var(--mono,monospace);font-size:13px;word-break:break-all}.muted{color:var(--muted,#555)}</style>
-</head><body><main>
-<h1>Archives</h1>
-<p class="muted">{{len .}} repos packed by ipfs2fil on this machine.</p>
-<table><thead><tr><th>Repo</th><th>Pieces</th><th>Archive root</th></tr></thead><tbody>
-{{range .}}<tr><td><a href="/{{.Name}}/explorer/">{{.Name}}</a>{{if .Repo}}<div class="muted mono">{{.Repo}}</div>{{end}}</td>
-<td>{{if .Pieces}}{{.Pieces}} ({{.Bytes}}){{end}}</td><td class="mono">{{.Root}}</td></tr>
-{{end}}</tbody></table>
-</main></body></html>
-`))
