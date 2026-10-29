@@ -351,7 +351,9 @@
   D.addEventListener('keydown', (ev) => {
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     const t = ev.target, k = ev.key;
-    const typing = t.matches && t.matches('input, select, textarea');
+    // Another widget's keys (explore --feedback's box) stay its own.
+    if ((t.closest && t.closest('.fbk')) || D.querySelector('.fbk [role="dialog"], dialog[open]')) return;
+    const typing = t.matches && (t.matches('input, select, textarea') || t.isContentEditable);
     if (k === 'Escape') {
       if (D.getElementById('help')) { help(false); ev.preventDefault(); return; }
       if (typing) {

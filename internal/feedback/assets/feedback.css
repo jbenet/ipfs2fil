@@ -1,0 +1,576 @@
+/*
+ * @jbenet/feedback-react — the stylesheet. Import it once: `import '@jbenet/feedback-react/styles.css'`.
+ *
+ * Everything is scoped under `.fbk`, the class on every root the kit draws (the launcher, the
+ * portalled drawer, the outbox list, the issue components), so the host's styles and these do
+ * not reach into each other. The look is PL LabOS tools': warm paper ground, ink, one accent colour.
+ *
+ * Re-skin with the variables below. They are declared on `:where(.fbk)`, which has no
+ * specificity, so any of these win without `!important`:
+ *   .fbk { --fbk-accent: #1E8F5E; }                     in your stylesheet, or
+ *   <FeedbackProvider theme={{ '--fbk-accent': '#1E8F5E' }}>  inline on every root.
+ *
+ * Two roles are deliberately separate: --fbk-accent is brand and selection (default: PLC green); --fbk-clay means
+ * refused / blocked and should not change with the brand. Colour is never the only signal —
+ * every state also carries a word.
+ *
+ * Fonts: the defaults name Fraunces, IBM Plex Sans and IBM Plex Mono with system fallbacks. Load
+ * them same-origin (e.g. @fontsource) — the automatic screenshot can only embed fonts it can
+ * read, and a cross-origin stylesheet (Google Fonts) leaves the picture in fallback fonts.
+ */
+:where(.fbk){
+  --fbk-ground:#F1F4F0; --fbk-surface:#FFFFFF; --fbk-ink:#16201B; --fbk-muted:#54605A; --fbk-line:#DAE3DC;
+  --fbk-clay:#BF4A16; --fbk-green:#0E7F55; --fbk-purple:#5F4B9E; --fbk-amber:#8A6410;
+  --fbk-rail:#11251D; --fbk-rail-ink:#E6F0E9; --fbk-rail-muted:#8FA298; --fbk-rail-line:#1F3B30;
+  --fbk-rail-hover:#1B3427; --fbk-rail-raise:#162C22; --fbk-rail-edge:#2E5040;
+  --fbk-rail-soft:#17301F; --fbk-rail-text:#BCCDC2; --fbk-rail-dim:#7D9187; --fbk-rail-av:#2A4A3A;
+  --fbk-hair:#EAF0EA; --fbk-tint:#F7FAF7;
+  /* Labels: darker than --fbk-muted, because small caps in a light weight read as texture. */
+  --fbk-label:#3A4740;
+  --fbk-accent:#1E8F5E; --fbk-accent-ink:#FFFFFF; --fbk-accent-soft:#EFF8F3;
+  --fbk-accent-line:#BFE0CE; --fbk-accent-wash:#F4F9F5; --fbk-accent-halo:#D8EEE2;
+  --fbk-display:'Fraunces','Fraunces Variable',Georgia,serif;
+  --fbk-sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --fbk-mono:'IBM Plex Mono',ui-monospace,monospace;
+  --fbk-drawer-w:420px;
+}
+
+.fbk{font-family:var(--fbk-sans);color:var(--fbk-ink);-webkit-font-smoothing:antialiased}
+.fbk *,.fbk *::before,.fbk *::after{box-sizing:border-box}
+.fbk a{color:inherit;text-decoration:none}
+.fbk button{font-family:inherit}
+/* The launcher's wrapper draws nothing: the button sits in the host's layout as if unwrapped. */
+.fbk-launch{display:contents}
+
+/* ---------------- extracted from PL LabOS tools ---------------- */
+.fbk .mono{font-family:var(--fbk-mono)}
+/* Issue 0016. Muted grey, 10px, regular weight, wide tracking: it passed the contrast ratio
+   and was still hard to see, because small uppercase mono in a light weight reads as a
+   texture rather than as words. One step darker, one step heavier, a half-point larger. */
+.fbk .lbl{font-family:var(--fbk-mono);font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--fbk-label)}
+.fbk .railfeedback{display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding:8px 10px;border:1px solid var(--fbk-rail-line);border-radius:7px;background:var(--fbk-rail-raise);color:var(--fbk-rail-ink);font-family:inherit;font-size:12.5px;cursor:pointer}
+.fbk .railfeedback:hover{background:var(--fbk-rail-hover);border-color:var(--fbk-rail-edge)}
+.fbk .btn{font-family:inherit;font-size:12px;border:1px solid var(--fbk-line);background:var(--fbk-surface);color:var(--fbk-ink);border-radius:6px;padding:5px 11px;cursor:pointer}
+.fbk .btn:hover{background:var(--fbk-accent-wash)}
+.fbk .btn.p{background:var(--fbk-ink);color:#fff;border-color:var(--fbk-ink)}
+.fbk .btn.p:hover{background:var(--fbk-rail-hover)}
+.fbk .btn.c{background:var(--fbk-accent);color:var(--fbk-accent-ink);border-color:var(--fbk-accent)}
+.fbk .btn:disabled{opacity:.45;cursor:not-allowed}
+.fbk h1{font-family:var(--fbk-display);font-size:28px;font-weight:600;margin:6px 0 4px;letter-spacing:-.005em}
+.fbk h2{font-family:var(--fbk-display)}
+.fbk .sublede{color:var(--fbk-muted);font-size:13.5px;margin:0 0 18px;max-width:92ch;line-height:1.5}
+.fbk .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+.fbk .kpi{background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:10px;padding:13px 15px}
+.fbk .kpi.soft{background:repeating-linear-gradient(135deg,#FFF,#FFF 6px,var(--fbk-tint) 6px,var(--fbk-tint) 12px);border-style:dashed}
+.fbk .kpi .n{font-family:var(--fbk-display);font-size:25px;font-weight:600;margin:5px 0 3px;letter-spacing:-.01em}
+.fbk .kpi .n.g{color:var(--fbk-green)}
+.fbk .kpi .n.q{color:var(--fbk-muted);font-size:20px}
+.fbk .kpi .f{font-size:11px;color:var(--fbk-muted);line-height:1.4}
+.fbk .tag{display:inline-block;font-family:var(--fbk-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid}
+.fbk .t-soft{color:var(--fbk-amber);border-color:#E0D2AE;background:#FDF8EC}
+.fbk .t-hard{color:var(--fbk-green);border-color:#BFE0D0;background:#EDF7F2}
+.fbk .t-plain{color:var(--fbk-muted);border-color:var(--fbk-line);background:var(--fbk-tint)}
+.fbk .t-clay{color:var(--fbk-clay);border-color:#E4D3C6;background:#FCF6F2}
+.fbk .card{background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:10px;margin-bottom:16px}
+.fbk .chead{padding:12px 15px;border-bottom:1px solid var(--fbk-line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.fbk .chead h2{font-family:var(--fbk-display);font-size:16px;font-weight:600;margin:0}
+/* A card's body lines up with its heading (the chead's 15px). An empty state brings its own padding. */
+.fbk .cbody{padding:14px 15px 15px}
+.fbk .cbody:has(> .empty){padding:0}
+.fbk .kind{font-family:var(--fbk-mono);font-size:9.5px;letter-spacing:.08em;padding:3px 7px;border-radius:4px;flex:none;text-align:center}
+.fbk .k-bug{background:#F5EAE4;color:var(--fbk-clay)}
+.fbk .k-request{background:#EAE6F4;color:var(--fbk-purple)}
+.fbk .k-question{background:#F6F0DF;color:var(--fbk-amber)}
+.fbk .k-chore{background:#EDEAE2;color:var(--fbk-muted)}
+.fbk .flag{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid}
+.fbk .f-block{color:var(--fbk-clay);border-color:#E4D3C6;background:#FCF6F2}
+.fbk .f-ev{color:var(--fbk-amber);border-color:#E0D2AE;background:#FDF8EC}
+.fbk .f-ok{color:var(--fbk-green);border-color:#BFE0D0;background:#EDF7F2}
+.fbk .f-mute{color:var(--fbk-muted);border-color:var(--fbk-line);background:var(--fbk-tint)}
+.fbk .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--fbk-hair);font-size:12.5px}
+.fbk .kv:last-child{border-bottom:0}
+.fbk .kv span:first-child{color:var(--fbk-muted)}
+.fbk .kv span:last-child{text-align:right;font-weight:500}
+.fbk .scope{margin:15px 0;padding:12px 13px;border:1px solid var(--fbk-line);border-radius:8px;background:var(--fbk-accent-wash)}
+.fbk .scope p{margin:6px 0 0;font-size:12.5px;line-height:1.5}
+.fbk .warn{border:1px solid #E4D3C6;background:#FCF6F2;border-radius:8px;padding:12px 13px}
+.fbk .warn p{margin:6px 0 0;font-size:12.5px;line-height:1.5}
+.fbk .acts{display:flex;gap:8px;margin-top:15px}
+.fbk .acts .btn{flex:1;text-align:center;padding:8px}
+.fbk .note{margin-top:14px;font-size:11.5px;color:var(--fbk-muted);line-height:1.55;padding-top:13px;border-top:1px solid var(--fbk-line)}
+.fbk .ihead{font-family:var(--fbk-display);font-size:18px;font-weight:600;margin:7px 0 3px;line-height:1.25}
+.fbk .imeta{font-size:12px;color:var(--fbk-muted);margin-bottom:15px}
+/* plain-language status pill; the dot is decoration, the word is the signal */
+.fbk .stat{display:inline-flex;align-items:center;gap:5px;font-size:11px;border:1px solid var(--fbk-line);border-radius:20px;padding:3px 9px;color:var(--fbk-muted);background:var(--fbk-surface)}
+.fbk .stat i{width:6px;height:6px;border-radius:50%;display:block;background:#B8B2A6;flex:none}
+.fbk .stat.ready i{background:var(--fbk-green)}
+.fbk .stat.waiting i{background:var(--fbk-amber)}
+.fbk .stat.evidence i{background:var(--fbk-clay)}
+.fbk .stat.verified i{background:var(--fbk-green)}
+.fbk .stat.unavailable i{background:#B8B2A6}
+/* inline source pointer — EvidenceRef */
+.fbk .cover{margin:0;padding:11px 15px;background:var(--fbk-tint);border-top:1px solid var(--fbk-line);font-size:11.5px;color:var(--fbk-muted);line-height:1.55}
+.fbk .cover b{color:var(--fbk-ink);font-weight:500}
+.fbk .empty{border:1px dashed var(--fbk-line);border-radius:10px;background:repeating-linear-gradient(135deg,#FFF,#FFF 6px,var(--fbk-tint) 6px,var(--fbk-tint) 12px);padding:20px 22px}
+.fbk .empty h3{font-family:var(--fbk-display);font-size:16px;font-weight:600;margin:8px 0 6px}
+.fbk .empty p{margin:0 0 8px;font-size:12.5px;color:var(--fbk-muted);line-height:1.55;max-width:70ch}
+.fbk .empty .who{font-size:12px;color:var(--fbk-ink)}
+.fbk .empty dl{margin:12px 0 0;display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12px}
+.fbk .empty dt{color:var(--fbk-muted)}
+.fbk .empty dd{margin:0}
+/* ---------------- forms ---------------- */
+.fbk label.field{display:block;margin-bottom:12px}
+.fbk label.field .lbl{display:block;margin-bottom:5px}
+.fbk input[type=text],.fbk textarea,.fbk select{width:100%;font-family:inherit;font-size:13px;color:var(--fbk-ink);background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:7px;padding:8px 10px}
+.fbk textarea{min-height:110px;resize:vertical;line-height:1.5}
+.fbk input:focus,.fbk textarea:focus,.fbk select:focus{outline:2px solid #E0CDBF;outline-offset:1px}
+.fbk .fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* feedback drawer */
+.fbk .scrim{position:fixed;inset:0;background:rgba(26,25,23,.28);z-index:40}
+.fbk .drawer{position:fixed;top:0;right:0;bottom:0;width:420px;background:var(--fbk-surface);border-left:1px solid var(--fbk-line);z-index:41;padding:20px 22px;overflow-y:auto;box-shadow:-18px 0 40px rgba(26,25,23,.12)}
+.fbk .drawer h2{font-family:var(--fbk-display);font-size:19px;font-weight:600;margin:8px 0 4px}
+.fbk .drawer .ctx{font-family:var(--fbk-mono);font-size:10.5px;color:var(--fbk-muted);background:var(--fbk-tint);border:1px solid var(--fbk-line);border-radius:7px;padding:9px 11px;line-height:1.6;margin:4px 0 14px;white-space:pre-wrap;word-break:break-all}
+.fbk table.list{width:100%;border-collapse:collapse;font-size:12.5px}
+.fbk table.list th{text-align:left;font-family:var(--fbk-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fbk-muted);font-weight:400;padding:10px 15px;border-bottom:1px solid var(--fbk-line)}
+.fbk table.list td{padding:10px 15px;border-bottom:1px solid var(--fbk-hair);vertical-align:top}
+.fbk table.list tr:last-child td{border-bottom:0}
+.fbk table.list tr.clickable:hover td{background:var(--fbk-accent-wash)}
+.fbk table.list td b{font-weight:500}
+.fbk .muted{color:var(--fbk-muted)}
+.fbk .nowrap{white-space:nowrap}
+.fbk .prose{font-size:13px;line-height:1.6;max-width:78ch}
+.fbk .prose p{margin:0 0 10px}
+.fbk .prose code{font-family:var(--fbk-mono);font-size:11.5px;background:var(--fbk-tint);border:1px solid var(--fbk-line);border-radius:4px;padding:1px 4px}
+.fbk pre.block{font-family:var(--fbk-mono);font-size:11px;line-height:1.55;background:var(--fbk-tint);border:1px solid var(--fbk-line);border-radius:8px;padding:12px 13px;overflow-x:auto;margin:0}
+.fbk .sorter{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:0 0 12px}
+.fbk .sorter button{font:inherit;font-size:11px;padding:3px 9px;border:1px solid var(--fbk-line);border-radius:5px;background:var(--fbk-surface);color:var(--fbk-muted);cursor:pointer}
+.fbk .sorter button:hover{border-color:#CFC8B8;color:var(--fbk-ink)}
+.fbk .sorter button.on{background:var(--fbk-ink);border-color:var(--fbk-ink);color:var(--fbk-ground)}
+.fbk .sorter .muted{font-size:11px;margin-left:4px}
+/* the screenshot in the feedback drawer */
+.fbk .shotlist{display:grid;gap:10px;margin-top:7px}
+.fbk .shotthumb{position:relative}
+.fbk .shotthumb .shotopen{display:block;width:100%;padding:0;border:1px solid var(--fbk-line);border-radius:8px; overflow:hidden;background:var(--fbk-ground);cursor:zoom-in;position:relative}
+.fbk .shotthumb .shotopen:hover{border-color:var(--fbk-accent)}
+.fbk .shotthumb img{display:block;width:100%;height:auto;max-height:190px;object-fit:cover;object-position:top}
+.fbk .feedbackkey{font-family:var(--fbk-mono);font-size:9px;opacity:.75;margin-left:auto;white-space:nowrap}
+.fbk .shotmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:5px}
+.fbk .misaligned{font-size:10.5px;color:var(--fbk-amber);border-bottom:1px dotted var(--fbk-amber); cursor:help;outline:none}
+.fbk .misaligned:focus{color:var(--fbk-clay);border-color:var(--fbk-clay)}
+/* the annotation editor */
+/* Dark native controls too: the size field's arrows and list, and the colour picker. */
+.fbk .shotedit{position:fixed;inset:0;z-index:60;background:rgba(20,19,18,.93);display:flex; flex-direction:column;padding:14px 18px 10px;color-scheme:dark}
+/* Sits directly on top of the image rather than at the top of the overlay, because a
+   toolbar a screen away from the thing it edits is a toolbar nobody finds. */
+/* The toolbar: icon buttons with tooltips, in one slim row, directly above the picture. A 32 px hit
+   area (44 px tall on a touch screen, where the buttons share the row's width), thin dividers
+   between the groups, and the active tool drawn inverted as well as announced (aria-pressed). */
+.fbk .setop{display:flex;gap:2px;align-items:center;flex-wrap:nowrap;margin-bottom:8px;position:relative;z-index:10;
+  background:#1F1C18;border:1px solid #3B3630;border-radius:9px;padding:4px}
+.fbk .setop .lbl{color:#9C968A}
+.fbk .settools,.fbk .setcols,.fbk .setacts,.fbk .setend{display:flex;gap:2px;align-items:center;min-width:0}
+.fbk .setend{margin-left:auto}
+.fbk .setcols{position:relative}
+.fbk .seticon{position:relative;display:grid;place-items:center;flex:0 1 32px;width:32px;min-width:26px;height:32px;padding:0;
+  border:1px solid transparent;border-radius:7px;background:none;color:#EFEBE2;cursor:pointer;font:inherit}
+.fbk .seticon svg{display:block}
+.fbk .seticon:hover{background:#312C25}
+.fbk .seticon:focus-visible{outline:2px solid #EFEBE2;outline-offset:1px}
+.fbk .seticon.on{background:#EFEBE2;color:#1A1917;border-color:#EFEBE2}
+.fbk .seticon.p{background:var(--fbk-accent);color:var(--fbk-accent-ink);border-color:var(--fbk-accent)}
+.fbk .seticon.p:hover{filter:brightness(1.1)}
+.fbk .seticon:disabled{opacity:.35;cursor:not-allowed;background:none}
+.fbk .setdiv{flex:none;width:1px;align-self:stretch;margin:5px 4px;background:#3B3630}
+.fbk .setdot{width:16px;height:16px;border-radius:50%;border:2px solid #EFEBE2;box-sizing:border-box}
+.fbk .setcolpop{position:absolute;top:calc(100% + 8px);left:0;z-index:5;display:flex;gap:7px;align-items:center;
+  padding:7px 9px;background:#1F1C18;border:1px solid #3B3630;border-radius:9px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+/* The tooltip: the button's name, and its shortcut when it has one. */
+.fbk .seticon[data-tip]:hover::after,.fbk .seticon[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;
+  top:calc(100% + 7px);left:50%;transform:translateX(-50%);z-index:6;white-space:nowrap;pointer-events:none;
+  background:#1A1917;color:#EFEBE2;border:1px solid #3B3630;font:500 11px/1.3 var(--fbk-sans);padding:4px 7px;border-radius:5px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5)}
+/* The toolbar sits above the picture (z-index on .setop), so its tooltips and popovers are never under it. */
+.fbk .setweight{display:block;width:18px;border-radius:2px;background:currentColor}
+.fbk .setcolour{grid-template-rows:auto auto;align-content:center;gap:3px}
+.fbk .setdotweight{display:block;width:14px;border-radius:2px}
+.fbk .setcolgrid{flex-direction:column;align-items:flex-start}
+.fbk .setcolrow{display:flex;gap:7px;align-items:center}
+.fbk .setweightpick{display:grid;place-items:center;width:30px;height:28px;padding:0;border:1px solid transparent;border-radius:6px;background:none;color:#EFEBE2;cursor:pointer}
+.fbk .setweightpick:hover{background:#312C25}
+.fbk .setweightpick.on{border-color:#EFEBE2}
+.fbk .setweightpick[data-tip]:hover::after,.fbk .setweightpick[data-tip]:focus-visible::after{background:#1A1917;color:#EFEBE2;border:1px solid #3B3630}
+.fbk .setend .seticon[data-tip]:hover::after,.fbk .setend .seticon[data-tip]:focus-visible::after{left:auto;right:0;transform:none}
+@media (pointer: coarse){
+  .fbk .seticon{height:44px;flex:1 1 44px;width:44px;max-width:44px;min-width:25px}
+  .fbk .setdot{width:20px;height:20px}
+  /* A finger has no hover: a tooltip would stay up after the tap. */
+  .fbk .seticon[data-tip]:hover::after{display:none}
+}
+@media (max-width: 480px){
+  .fbk .shotedit{padding:10px 8px 8px}
+  .fbk .setop{padding:3px}
+  .fbk .setdiv{margin:6px 2px}
+}
+.fbk .swatch{width:22px;height:22px;border-radius:50%;border:2px solid #3B3630;cursor:pointer;padding:0}
+.fbk .swatch.on{border-color:#EFEBE2;box-shadow:0 0 0 2px rgba(239,235,226,.35)}
+/* Any colour: the browser's own picker, drawn as one more swatch inside a ring of the palette. */
+.fbk input.swatch.any{appearance:none;-webkit-appearance:none;padding:3px;border:0;background: conic-gradient(#BF4A16,#8A6410,#0E7F55,#5F4B9E,#BF4A16)}
+.fbk input.swatch.any::-webkit-color-swatch-wrapper{padding:0}
+.fbk input.swatch.any::-webkit-color-swatch{border:2px solid #1F1C18;border-radius:50%}
+.fbk input.swatch.any::-moz-color-swatch{border:2px solid #1F1C18;border-radius:50%}
+.fbk input.swatch.any.on{box-shadow:0 0 0 2px #EFEBE2}
+.fbk .setpipette{display:grid;place-items:center;width:26px;height:26px;padding:0;border:1px solid #3B3630; border-radius:7px;background:#242119;color:#EFEBE2;cursor:pointer}
+.fbk .setpipette:hover{background:#312C25}
+.fbk .setstage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 0}
+.fbk .setwrap{position:relative;max-width:100%;max-height:100%;display:flex;flex-direction:column;align-items:stretch}
+/* Exactly the picture's box: a label's position is a share of the picture and nothing else. */
+.fbk .setimg{position:relative;align-self:center;max-width:100%}
+.fbk .setcanvas{display:block;max-width:100%;max-height:74vh;margin:0 auto;border-radius:8px; box-shadow:0 12px 44px rgba(0,0,0,.5);background:#fff;touch-action:none}
+.fbk .setcanvas.t-pen,.fbk .setcanvas.t-arrow,.fbk .setcanvas.t-line,.fbk .setcanvas.t-box,.fbk .setcanvas.t-crop{cursor:crosshair}
+.fbk .setcanvas.t-text{cursor:text}
+.fbk .setcanvas.t-select{cursor:default}
+/* A placed label is a real object: drag it, resize it, type in it again (issue 0014). The
+   offset is the padding and border, so the text itself starts where it will be saved. */
+.fbk .setlabel{position:absolute;transform:translate(-4px,-3px);z-index:2;font-family:var(--fbk-sans); padding:2px 3px;border:1px solid transparent;border-radius:3px;cursor:move}
+.fbk .setlabel.on{border-color:rgba(239,235,226,.55);background:rgba(26,25,23,.12)}
+.fbk .setlabel.editing{cursor:text;border-style:dashed}
+/* The text box, at the saved width. The text inside it sizes it; while typing, the field is
+   laid over that text, so the box grows with what is typed instead of scrolling. */
+.fbk .settextview{white-space:pre-wrap;word-break:break-word;user-select:none}
+.fbk .setlabel.editing .settextview{visibility:hidden}
+.fbk .setgrip{position:absolute;right:-5px;bottom:-5px;width:11px;height:11px;border-radius:2px; background:#EFEBE2;border:1px solid #1A1917;cursor:nwse-resize}
+/* Transparent, so the label reads against the screenshot rather than on a white card. No
+   minimum height and no focus ring of its own: the app's textarea rules give it both, and the
+   dashed border already says the label is being typed in. */
+.fbk .settext{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;margin:0;padding:0; background:transparent;border:0;border-radius:0;outline:none;resize:none;overflow:hidden; font:inherit;color:inherit;letter-spacing:inherit;white-space:pre-wrap;word-break:break-word}
+.fbk .settext:focus{outline:none}
+.fbk .settext::placeholder{color:currentColor;opacity:.45}
+.fbk .settextbar.floating{position:absolute;transform:translateY(-42px);z-index:4}
+.fbk .settextbar{display:flex;gap:3px;align-items:center;margin-top:6px;padding:4px 5px; background:#1F1C18;border:1px solid #3B3630;border-radius:7px;width:max-content}
+.fbk .settextbar button{min-width:22px;height:22px;padding:0 5px;border:1px solid transparent; border-radius:5px;background:none;color:#C6C0B4;font:inherit;font-size:11px; cursor:pointer}
+.fbk .settextbar button:hover{background:#312C25;color:#EFEBE2}
+.fbk .settextbar button.on{background:#EFEBE2;color:#1A1917}
+.fbk .settextbar .swatch{width:16px;height:16px;min-width:16px;border-radius:50%;border:2px solid #3B3630}
+.fbk .settextbar .swatch.on{border-color:#EFEBE2;box-shadow:0 0 0 2px rgba(239,235,226,.3)}
+.fbk .settextbar input.swatch.any{padding:2px}
+.fbk .settextbar input.swatch.any::-webkit-color-swatch{border-width:1.5px}
+.fbk .settextbar .setpipette{width:22px;height:22px;padding:0;border-color:transparent;border-radius:5px;background:none;color:#C6C0B4}
+.fbk .settextbar .sep{width:1px;height:16px;background:#3B3630;margin:0 3px}
+/* The size, as a number: type it, step it with the arrow keys, or pick one from the list. */
+.fbk .setsize{display:inline-flex;align-items:center;height:22px;margin:0 3px 0 1px;border:1px solid #3B3630; border-radius:5px;background:#242119;font-family:var(--fbk-mono);font-size:11px;color:#9C968A}
+.fbk .setsize:focus-within{border-color:#EFEBE2}
+.fbk .setsize label{display:inline-flex;align-items:center;gap:2px;height:100%;padding:0 4px 0 6px;cursor:text}
+.fbk .setsize input{width:24px;padding:0;border:0;outline:none;background:none;color:#EFEBE2;font:inherit; appearance:textfield;-moz-appearance:textfield}
+.fbk .setsize input::-webkit-inner-spin-button,.fbk .setsize input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.fbk .setsize select{appearance:none;-webkit-appearance:none;width:17px;height:100%;padding:0;border:0; border-left:1px solid #3B3630;border-radius:0 4px 4px 0;color:transparent;cursor:pointer;background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23C6C0B4' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/8px 5px no-repeat}
+.fbk .setsize select:hover{background-color:#312C25}
+.fbk .setsize select:focus{outline:none}
+.fbk .setsize option{color:#EFEBE2;background:#242119}
+.fbk .setnote{flex:none;margin:0;color:#9C968A;font-size:11.5px;text-align:center}
+.fbk .issueshot{display:block;width:100%;max-width:900px;height:auto;border:1px solid var(--fbk-line); border-radius:8px;background:var(--fbk-ground)}
+/* rendered markdown, in the feedback preview and on an issue */
+.fbk .prose.md h3.mdh{font-family:var(--fbk-display);font-weight:600;margin:16px 0 6px}
+.fbk .prose.md .mdh1,.fbk .prose.md .mdh2{font-size:16px}
+.fbk .prose.md .mdh3{font-size:15px}
+.fbk .prose.md .mdh4,.fbk .prose.md .mdh5,.fbk .prose.md .mdh6{font-size:13.5px}
+.fbk .prose.md ul,.fbk .prose.md ol{margin:0 0 11px;padding-left:20px}
+.fbk .prose.md li{margin-bottom:4px}
+.fbk .prose.md blockquote{margin:0 0 12px;padding:9px 13px;background:var(--fbk-ground); border-left:3px solid var(--fbk-line);border-radius:0 6px 6px 0}
+.fbk .prose.md blockquote p{margin:0}
+.fbk .prose.md hr{border:0;border-top:1px solid var(--fbk-line);margin:16px 0}
+.fbk .mdimg{display:block;width:100%;max-width:560px;height:auto;border:1px solid var(--fbk-line); border-radius:8px;margin:8px 0;background:var(--fbk-ground)}
+.fbk .mdmissing{display:inline-block;font-family:var(--fbk-mono);font-size:10.5px;color:var(--fbk-clay); border:1px dashed var(--fbk-accent-line);border-radius:4px;padding:2px 6px}
+/* the markdown field */
+.fbk .mdfield{border:1px solid var(--fbk-line);border-radius:8px;background:var(--fbk-surface)}
+.fbk .mdfield.over{border-color:var(--fbk-accent);box-shadow:inset 0 0 0 1px var(--fbk-accent)}
+.fbk .mdbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-bottom:1px solid var(--fbk-line);padding:6px 8px}
+.fbk .mdtabs{display:flex;gap:3px}
+.fbk .mdtabs button,.fbk .mdtools button{font:inherit;font-size:11.5px;padding:3px 9px;border:1px solid transparent; border-radius:5px;background:none;color:var(--fbk-muted);cursor:pointer}
+.fbk .mdtabs button:hover,.fbk .mdtools button:hover{background:var(--fbk-ground);color:var(--fbk-ink)}
+.fbk .mdtabs button.on{background:var(--fbk-ink);color:var(--fbk-ground)}
+.fbk .mdtools{display:flex;gap:1px;margin-left:auto}
+.fbk .mdtools button{min-width:26px;font-family:var(--fbk-mono);font-size:11px;text-align:center}
+.fbk .mdfield textarea{display:block;width:100%;border:0;background:none;resize:vertical; padding:10px 11px;font:inherit;font-size:12.5px;line-height:1.6; color:var(--fbk-ink);outline:none;font-family:var(--fbk-mono)}
+.fbk .mdhint{margin:0;border-top:1px solid var(--fbk-hair);padding:6px 11px;font-size:10.5px; line-height:1.5;color:var(--fbk-muted)}
+.fbk .mdhint.refused{color:var(--fbk-clay);border-top:0;padding-top:0}
+/* the rich markdown editor */
+.fbk .mdrich{padding:10px 12px;font-size:13px;line-height:1.65;outline:none;min-height:120px}
+.fbk .mdrich:focus{outline:none}
+.fbk .mdrich > *:first-child{margin-top:0}
+.fbk .mdrich > *:last-child{margin-bottom:0}
+.fbk .mdrich p{margin:0 0 9px}
+.fbk .mdrich h3,.fbk .mdrich h4{font-family:var(--fbk-display);font-weight:600;margin:14px 0 6px}
+.fbk .mdrich h3{font-size:15px}
+.fbk .mdrich h4{font-size:13.5px}
+.fbk .mdrich ul,.fbk .mdrich ol{margin:0 0 9px;padding-left:20px}
+.fbk .mdrich li{margin-bottom:3px}
+.fbk .mdrich li > p{margin:0}
+.fbk .mdrich code{font-family:var(--fbk-mono);font-size:.88em;background:var(--fbk-ground); border:1px solid var(--fbk-line);border-radius:4px;padding:1px 4px}
+.fbk .mdrich pre{background:var(--fbk-ground);border:1px solid var(--fbk-line);border-radius:6px; padding:9px 11px;overflow-x:auto}
+.fbk .mdrich pre code{background:none;border:0;padding:0}
+.fbk .mdrich blockquote{margin:0 0 9px;padding:6px 12px;border-left:3px solid var(--fbk-line); color:var(--fbk-muted)}
+.fbk .mdrich img{display:block;max-width:100%;height:auto;border:1px solid var(--fbk-line); border-radius:7px;margin:8px 0}
+.fbk .mdrich img.ProseMirror-selectednode{outline:2px solid var(--fbk-accent)}
+.fbk .mdrich a{color:var(--fbk-accent);text-decoration:underline}
+.fbk .mdrich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:var(--fbk-muted); float:left;height:0;pointer-events:none}
+/* the region picker */
+/* touch-action and the rest: a finger drag must not scroll, zoom, select text or open a
+   callout on iPad Safari (issue 0117) */
+.fbk .regionpick{position:fixed;inset:0;z-index:70;cursor:crosshair; background:rgba(26,25,23,.34);touch-action:none;overscroll-behavior:contain; user-select:none;-webkit-user-select:none;-webkit-touch-callout:none; -webkit-tap-highlight-color:transparent}
+.fbk .regionhole{position:absolute;border:2px solid var(--fbk-accent);border-radius:3px; box-shadow:0 0 0 9999px rgba(26,25,23,.34);background:transparent}
+.fbk .regionsize{position:absolute;font-family:var(--fbk-mono);font-size:10px;color:#fff; background:var(--fbk-ink);border-radius:4px;padding:2px 6px}
+/* a 44 px target around a small visible dot: big enough for a finger */
+.fbk .regionhandle{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;touch-action:none}
+.fbk .regionhandle::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px; margin:-7px 0 0 -7px;border-radius:50%;background:var(--fbk-surface); border:2px solid var(--fbk-accent);box-sizing:border-box}
+.fbk .regionhandle[data-corner=nw],.fbk .regionhandle[data-corner=se]{cursor:nwse-resize}
+.fbk .regionhandle[data-corner=ne],.fbk .regionhandle[data-corner=sw]{cursor:nesw-resize}
+.fbk .regionbar{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);display:flex; gap:10px;align-items:center;font-size:12px;color:var(--fbk-rail-ink);background:var(--fbk-ink); border-radius:8px;padding:6px 6px 6px 14px;cursor:default;white-space:nowrap}
+.fbk .regionbar.top{bottom:auto;top:26px}
+.fbk .regionbar .btn{min-height:32px}
+@media(pointer:coarse){
+  .fbk .regionbar .btn{min-height:44px;min-width:44px;padding:0 16px;font-size:13px}
+}
+.fbk .shotpick{display:flex;gap:8px;align-items:center;margin-top:7px}
+.fbk .shotpick .btn{display:flex;gap:7px;align-items:center;padding:6px 11px}
+.fbk .shotpick .gl{font-size:13px;line-height:1}
+.fbk .shotpick .muted{font-size:10.5px;line-height:1.4}
+.fbk .scrim.away,.fbk .drawer.away{opacity:0;pointer-events:none}
+.fbk .linkish{background:none;border:0;padding:0;font:inherit;font-size:inherit;color:var(--fbk-accent); text-decoration:underline;cursor:pointer}
+/* feedback: keyboard hints and the shortcut card (issues 0009, 0012) */
+.fbk .keyhint{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:9px; padding-top:8px;border-top:1px solid var(--fbk-hair);font-size:10.5px;color:var(--fbk-muted)}
+.fbk .keyhint button{background:none;border:0;padding:0;font:inherit;color:var(--fbk-accent);cursor:pointer}
+.fbk kbd{font-family:var(--fbk-mono);font-size:9.5px;border:1px solid var(--fbk-line);border-bottom-width:2px; border-radius:3px;padding:1px 4px;background:var(--fbk-ground);color:var(--fbk-ink);margin-right:2px}
+.fbk .keycard{position:fixed;z-index:95;right:calc(var(--fbk-drawer-w, 420px) + 26px);top:80px;width:330px; background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:11px;padding:13px 15px; box-shadow:0 18px 44px rgba(26,25,23,.22)}
+.fbk .keycard dl{margin:4px 0 0;display:flex;flex-direction:column;gap:5px}
+.fbk .keycard dl div{display:grid;grid-template-columns:104px 1fr;gap:8px;align-items:baseline}
+.fbk .keycard dt{white-space:nowrap}
+.fbk .keycard dd{margin:0;font-size:11px;line-height:1.45;color:var(--fbk-muted)}
+.fbk .keycard .btn{margin-top:11px}
+@media (max-width: 900px){
+  .fbk .keycard{right:14px;top:14px}
+}
+.fbk .keycard{right:446px}
+/* Native modal supplies focus containment and makes the page behind it inert. */
+.fbk.shortcuts-dialog{width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 48px); box-sizing:border-box;margin:auto;padding:22px 26px;overflow:auto;border:1px solid var(--fbk-line); border-radius:12px;background:var(--fbk-surface);color:var(--fbk-ink);font-family:var(--fbk-sans); box-shadow:0 18px 60px rgba(26,25,23,.22)}
+.fbk.shortcuts-dialog::backdrop{background:rgba(26,25,23,.42)}
+.fbk .shortcuts-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.fbk .shortcuts-head h2{margin:0;font-family:var(--fbk-display);font-size:25px;font-weight:500}
+.fbk .shortcuts-note{font-size:12px;line-height:1.5;color:var(--fbk-muted);margin:12px 0 18px}
+.fbk.shortcuts-dialog section{border-top:1px solid var(--fbk-line);padding:12px 0}
+.fbk.shortcuts-dialog h3{margin:0 0 9px}
+.fbk.shortcuts-dialog .shortcut-list{margin:0;display:flex;flex-direction:column;gap:8px}
+.fbk.shortcuts-dialog .shortcut-list>div{display:grid;grid-template-columns:170px 1fr;gap:14px;align-items:baseline}
+.fbk .shortcut-list dt>span{white-space:nowrap}
+.fbk.shortcuts-dialog dd{margin:0;font-size:12px;line-height:1.5}
+@media(max-width:520px){
+  .fbk.shortcuts-dialog{padding:18px;max-height:calc(100dvh - 24px)}
+  .fbk.shortcuts-dialog .shortcut-list>div{grid-template-columns:1fr;gap:4px}
+}
+/* issue 0020 — a picture in the description carries its own buttons */
+.fbk .mdembed{position:relative;display:block;width:fit-content;max-width:100%;min-width:170px;margin:8px 0}
+.fbk .mdembed img{display:block;max-width:100%;height:auto;border-radius:6px;border:1px solid var(--fbk-line)}
+.fbk .mdembed.on img{outline:2px solid var(--fbk-accent);outline-offset:2px}
+/* Always visible, not on hover: a button nobody can see is the complaint that started this. */
+.fbk .mdembedbar{position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center}
+.fbk .mdembedbar button{background:rgba(26,25,23,.86);color:#EFEBE2;border:0;border-radius:5px;cursor:pointer; font-family:var(--fbk-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;line-height:1}
+.fbk .mdembedbar button:hover{background:#1A1917}
+.fbk .mdembedbar button.x{font-size:14px;letter-spacing:0;padding:3px 8px}
+.fbk .mdembedbar button.x:hover{background:var(--fbk-clay)}
+.fbk .mdembedflag{font-family:var(--fbk-mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase; color:var(--fbk-green);background:#EDF7F2;border:1px solid #BFE0D0;border-radius:4px;padding:3px 6px}
+/* issue 0020 — a wider drawer for a long report */
+.fbk .drawer{transition:width .18s ease}
+.fbk .drawerhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.fbk .drawerhead .lbl{margin-right:auto}
+.fbk .drawerwide{background:none;border:1px solid var(--fbk-line);border-radius:6px;padding:3px 8px;cursor:pointer; font-family:var(--fbk-mono);font-size:10px;letter-spacing:.04em;color:var(--fbk-label)}
+.fbk .drawerwide:hover{border-color:var(--fbk-accent);color:var(--fbk-accent)}
+/* Drafts started on other pages: pick one to carry on with it here. */
+.fbk .draftlist{margin:10px 0 4px;padding:10px 12px;border:1px solid var(--fbk-line);border-radius:8px;background:var(--fbk-ground)}
+.fbk .draftlist p{margin:8px 0 0;font-size:11.5px;line-height:1.5;color:var(--fbk-muted)}
+.fbk .draftrow{display:flex;gap:8px;align-items:stretch;margin-top:6px}
+.fbk .draftopen{flex:1;min-width:0;text-align:left;background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:6px;padding:6px 9px;cursor:pointer;font:inherit;color:var(--fbk-ink)}
+.fbk .draftopen:hover{border-color:var(--fbk-accent)}
+.fbk .draftopen b{display:block;font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbk .draftopen span{display:block;font-family:var(--fbk-mono);font-size:10px;color:var(--fbk-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbk .draftx{flex:none;background:none;border:1px solid var(--fbk-line);border-radius:6px;padding:0 9px;cursor:pointer;font:inherit;font-size:11.5px;color:var(--fbk-muted)}
+.fbk .draftx:hover{border-color:var(--fbk-clay);color:var(--fbk-clay)}
+.fbk .drawer.wide{width:min(1120px, 80vw)}
+.fbk .drawer.wide .fbcols{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:28px;align-items:start}
+.fbk .drawer.wide .fbtext{grid-column:1;grid-row:1}
+.fbk .drawer.wide .fbshots{grid-column:2;grid-row:1}
+/* The editor sets its own height inline when it is built, so the wide one has to insist. */
+.fbk .drawer.wide .mdrich{min-height:380px !important}
+.fbk .keycard.overdrawer{right:34px;top:72px;z-index:96}
+@media(pointer:coarse){
+  .fbk .mdembedbar button{min-width:44px;min-height:44px}
+}
+.fbk .feedbackkey{display:none}
+/* ---------------- added for the kit ---------------- */
+
+.fbk .floatfeedback{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));
+  z-index:39;display:flex;gap:8px;align-items:center;padding:9px 14px;border-radius:999px;
+  background:var(--fbk-ink);color:var(--fbk-rail-ink);border-color:var(--fbk-ink);font-size:13px;
+  box-shadow:0 8px 24px rgba(26,25,23,.22)}
+.fbk .floatfeedback:hover{background:var(--fbk-rail-hover)}
+.fbk .feedbackkey{display:none}
+.fbk .railfeedback .feedbackkey{font-family:var(--fbk-mono);font-size:9px;opacity:.75;margin-left:auto;white-space:nowrap}
+body:has(.shortcuts-dialog[open]) .fbk .feedbackkey{display:inline}
+
+/* The drawer's own type, so a host's body font does not decide it. */
+.fbk .drawer{font-family:var(--fbk-sans);color:var(--fbk-ink)}
+.fbk .drawer .field{display:block;margin-bottom:12px}
+.fbk .drawer .field > .lbl{display:block;margin-bottom:5px}
+.fbk .fbrestored{font-size:12px;margin:0 0 8px}
+.fbk .fbwho{margin-left:auto}
+.fbk .fbwho b{font-weight:500;color:var(--fbk-ink)}
+.fbk details.more summary{cursor:pointer;font-size:11.5px;color:var(--fbk-muted);margin-top:12px}
+
+/* "Misaligned? Tell us": a small toggle under an automatic screenshot. */
+.fbk button.misaligned{background:none;border:0;border-bottom:1px dotted var(--fbk-amber);padding:0;
+  font:inherit;font-size:10.5px;color:var(--fbk-amber);cursor:pointer}
+.fbk button.misaligned:hover,.fbk button.misaligned:focus-visible{color:var(--fbk-clay);border-color:var(--fbk-clay)}
+.fbk button.misaligned.on{color:var(--fbk-clay);border-bottom-style:solid}
+
+/* The rich editor's placeholder, drawn over the empty field. */
+.fbk .mdrichwrap{position:relative}
+.fbk .mdplaceholder{position:absolute;left:12px;top:10px;right:12px;pointer-events:none;
+  font-size:13px;line-height:1.65;color:var(--fbk-muted);white-space:pre-wrap}
+
+.fbk input[type=search]{width:100%;font-family:inherit;font-size:13px;color:var(--fbk-ink);background:var(--fbk-surface);
+  border:1px solid var(--fbk-line);border-radius:7px;padding:8px 10px}
+.fbk .linkish{background:none;border:0;padding:0;font:inherit;font-size:inherit;color:var(--fbk-accent);
+  text-decoration:underline;cursor:pointer}
+.fbk .scroller{overflow-x:auto}
+
+/* ---------------- the issues pages ---------------- */
+.fbk .issuesearch{position:relative;padding:12px 15px 0}
+.fbk .issuesearch input{padding-right:34px}
+.fbk .issuesearch kbd{position:absolute;right:24px;top:21px}
+.fbk .sortergroup{display:inline-flex;gap:6px;flex-wrap:wrap;margin-right:12px}
+.fbk .issuelist .sorter{padding-bottom:12px}
+.fbk .issuedetail{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px;align-items:start}
+.fbk .issueside{position:sticky;top:16px;background:var(--fbk-surface);border:1px solid var(--fbk-line);border-radius:10px;padding:16px}
+.fbk .issueside select{padding:3px 6px;font-size:12px;width:auto}
+@media (max-width: 1023px){
+  .fbk .issuedetail{grid-template-columns:1fr}
+  .fbk .issueside{position:static;order:-1}
+}
+
+/* ---------------- narrow screens ---------------- */
+@media (max-width: 760px){
+  /* The feedback box takes the whole width on a phone. */
+  .fbk .drawer.drawer{width:100%;left:0;border-left:0;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
+    padding-left:calc(16px + env(safe-area-inset-left));
+    padding-right:calc(16px + env(safe-area-inset-right))}
+  .fbk .drawer.wide{width:100%}
+  .fbk .drawer.wide .fbcols{display:block}
+  .fbk .fieldrow{grid-template-columns:1fr}
+  .fbk .keycard,.fbk .keycard.overdrawer{right:8px;left:8px;width:auto;top:12px;z-index:96}
+}
+@media (prefers-reduced-motion: reduce){ .fbk .drawer{transition:none} }
+
+/* ---------------- the outbox: a status line and its list ---------------- */
+.fbk .obchip{display:flex;align-items:center;gap:7px;width:100%;min-width:0;padding:6px 9px;min-height:30px;
+  border:1px dashed var(--fbk-rail-edge);border-radius:7px;background:none;color:var(--fbk-rail-text);
+  font-family:var(--fbk-mono);font-size:10.5px;letter-spacing:.02em;text-align:left;cursor:pointer}
+.fbk .obchip:hover{background:var(--fbk-rail-soft);color:var(--fbk-rail-ink)}
+.fbk .obmark{flex:none;width:15px;height:15px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:9.5px;line-height:1;border:1px solid currentColor}
+.fbk .obtext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbk .ob-send .obmark{animation:fbkpulse 1.4s ease-in-out infinite}
+@keyframes fbkpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){ .fbk .ob-send .obmark{animation:none} }
+.fbk .ob-done,.fbk .ob-server{border-style:solid;color:var(--fbk-rail-ink)}
+/* Not yet safe: solid, brighter, and the "!" mark. */
+.fbk .ob-device,.fbk .ob-refused{border-style:solid;border-color:var(--fbk-rail-ink);color:var(--fbk-rail-ink);font-weight:600}
+/* On a light bar rather than a dark rail. */
+.fbk .obchip.ob-bar{width:auto;max-width:58vw;border-color:var(--fbk-line);color:var(--fbk-muted)}
+.fbk .obchip.ob-bar:hover{background:var(--fbk-accent-wash);color:var(--fbk-ink)}
+.fbk .obchip.ob-bar.ob-device,.fbk .obchip.ob-bar.ob-refused{border-color:var(--fbk-clay);color:var(--fbk-clay)}
+.fbk .obchip.ob-bar.ob-done,.fbk .obchip.ob-bar.ob-server{border-color:var(--fbk-green);color:var(--fbk-green)}
+
+.fbk .obscrim{position:fixed;inset:0;z-index:90}
+.fbk .obpanel{position:fixed;z-index:91;left:var(--at-left, 14px);bottom:var(--at-bottom, 150px);
+  width:360px;max-height:min(560px, calc(100dvh - var(--at-bottom, 150px) - 16px));overflow-y:auto;overscroll-behavior:contain;
+  background:var(--fbk-surface);color:var(--fbk-ink);border:1px solid var(--fbk-line);border-radius:11px;padding:12px 14px 14px;
+  box-shadow:0 18px 44px rgba(26,25,23,.22);outline:none}
+.fbk .obhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fbk .obx{flex:none;width:30px;height:30px;border:0;border-radius:6px;background:none;color:var(--fbk-muted);font-size:18px;line-height:1;cursor:pointer}
+.fbk .obx:hover{background:var(--fbk-accent-wash);color:var(--fbk-ink)}
+.fbk .oblede{margin:4px 0 10px;font-size:12px;line-height:1.45;color:var(--fbk-muted)}
+.fbk .obrow{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--fbk-line);font-size:12.5px;line-height:1.4;color:var(--fbk-ink)}
+.fbk .obrow b{font-weight:600;overflow-wrap:anywhere}
+.fbk .obmeta{font-size:11.5px;color:var(--fbk-muted)}
+.fbk .obstate{font-family:var(--fbk-mono);font-size:10.5px;color:var(--fbk-muted)}
+.fbk .obbad{font-family:var(--fbk-mono);font-size:10.5px;color:var(--fbk-clay)}
+.fbk .obonserver b,.fbk .obfiled b{color:var(--fbk-green)}
+.fbk .obfiled:hover b{text-decoration:underline}
+.fbk .obacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.fbk .obacts .btn{min-height:30px}
+.fbk .obdiscard{margin-left:auto;color:var(--fbk-muted)}
+@media (max-width: 760px){
+  .fbk .obpanel{left:8px;right:8px;width:auto;top:calc(52px + env(safe-area-inset-top));bottom:auto;
+    max-height:calc(100dvh - 72px - env(safe-area-inset-top))}
+  .fbk .obacts .btn{min-height:36px;padding:6px 12px}
+}
+
+/* ---------------- issue velocity: the chart and its keyboard-readable daily list ---------------- */
+.fbk .velocity-stats,.fbk .velocity-legend{display:flex;flex-wrap:wrap;gap:8px 24px}
+.fbk .velocity-stats{font-size:13px;margin-bottom:12px}
+.fbk .velocity-stats b{font-family:var(--fbk-mono);font-size:20px}
+.fbk .velocity-legend{font-size:12px;margin-bottom:6px;color:var(--fbk-ink)}
+.fbk .velocity-closed{color:var(--fbk-green)}
+.fbk .velocity-chart{display:block;width:100%;height:auto}
+.fbk .velocity-chart text{fill:var(--fbk-muted);font:11px var(--fbk-mono)}
+.fbk .velocity-axis{stroke:var(--fbk-line)}
+.fbk .velocity-filed-bar{fill:var(--fbk-ink)}
+.fbk .velocity-closed-bar{fill:var(--fbk-surface);stroke:var(--fbk-green);stroke-width:1.5}
+.fbk .velocity-open{fill:none;stroke:var(--fbk-ink);stroke-width:2}
+.fbk .velocity-open.upper{stroke-dasharray:4 3;stroke:var(--fbk-muted)}
+.fbk .velocity-note{font-size:12px;margin:8px 0}
+
+/* 29 Sep 2026 (Juan): the panel's own heading, the (?) help beside the capture buttons, and a clear
+   focus state on the description so the eye goes straight to where you type. */
+.fbk .drawerhead .fbhead{margin:0 auto 0 0;font-size:20px;line-height:1.2;letter-spacing:0;text-transform:none}
+.fbk .fbhelp{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;
+  border:1px solid var(--fbk-line);color:var(--fbk-muted);font-size:12px;font-weight:600;cursor:help;
+  align-self:center;background:var(--fbk-surface)}
+.fbk .fbhelp:hover,.fbk .fbhelp:focus-visible{color:var(--fbk-ink);border-color:var(--fbk-accent);outline:none}
+.fbk .mdfield{transition:border-color .12s ease, box-shadow .12s ease}
+.fbk .mdfield:focus-within{border-color:var(--fbk-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--fbk-accent) 22%, transparent), 0 6px 18px color-mix(in srgb, var(--fbk-ink) 8%, transparent)}
+.fbk .mdfield:focus-within .mdbar{border-bottom-color:color-mix(in srgb, var(--fbk-accent) 35%, var(--fbk-line))}
+@media (prefers-reduced-motion: reduce){.fbk .mdfield{transition:none}}
+
+/* Immediate tooltips (29 Sep 2026, Juan: the browser's title tooltips are slow). Any element in the kit
+   with data-tip shows it at once on hover and on keyboard focus; long text wraps. data-tip-end aligns the
+   bubble to the element's right edge, for controls near the panel's edge. */
+.fbk [data-tip]{position:relative}
+.fbk [data-tip]:hover::after,.fbk [data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;z-index:40;
+  top:calc(100% + 6px);left:50%;transform:translateX(-50%);width:max-content;max-width:280px;white-space:pre-line;
+  text-align:left;padding:7px 9px;border-radius:6px;background:var(--fbk-ink);color:var(--fbk-surface);
+  font:500 11.5px/1.45 var(--fbk-sans);letter-spacing:0;text-transform:none;box-shadow:0 6px 18px rgba(0,0,0,.18);
+  pointer-events:none}
+.fbk [data-tip][data-tip-end]:hover::after,.fbk [data-tip][data-tip-end]:focus-visible::after{left:auto;right:0;transform:none}
+@media (hover:none){.fbk [data-tip]:hover::after{content:none}}
+
+/* ---------------- the filed screen: where the report stands, and another ---------------- */
+.fbk .fbfiled{padding:8px 0}
+.fbk .fbfiledhead{font-size:20px;line-height:28px;margin:4px 0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbk .fbfiledhead.refused{color:var(--fbk-clay)}
+.fbk .fbfiled p{margin:0}
+.fbk .fbfilednote{min-height:3em;margin-top:4px}
+.fbk .fbfiled .acts{margin-top:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fbk .fbfiled .acts .btn{display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;margin:0;box-sizing:border-box;text-decoration:none}
+.fbk .fbfiled .acts .btn[aria-disabled]{opacity:.45;pointer-events:none;cursor:default}
+.fbk .fbfiledlist{margin-top:20px;border-top:1px solid var(--fbk-line);padding-top:12px}
+.fbk .fbfiledlist ul{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:10px;row-gap:6px}
+.fbk .fbfiledlist li,.fbk .fbfiledlist li>a,.fbk .fbfiledlist li>span{display:grid;grid-column:1/-1;grid-template-columns:subgrid;color:inherit;text-decoration:none}
+.fbk .fbfiledno{font-family:var(--fbk-mono);text-align:right;font-size:13px;line-height:20px}
+.fbk .fbfiledtitle{font-size:13px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbk .fbfiledlist a .fbfiledtitle{text-decoration:underline;text-decoration-color:var(--fbk-line);text-underline-offset:3px}
+
+/* Inside the annotation editor every tooltip is the editor's own dark kind, like its floating bars. */
+.fbk .shotedit [data-tip]:hover::after,.fbk .shotedit [data-tip]:focus-visible::after{background:#1A1917;color:#EFEBE2;border:1px solid #3B3630;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:12;white-space:nowrap}
+.fbk .shotedit .seticon[aria-expanded="true"]:hover::after,.fbk .shotedit .seticon[aria-expanded="true"]:focus-visible::after{display:none}

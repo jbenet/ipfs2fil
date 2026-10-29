@@ -25,7 +25,7 @@ import (
 // gives them. It also serves file contents from the CARs in the pieces/ of
 // root and of the dirs in more, which may hold blocks root shares with other
 // archives. It calls ready with the explorer's URL once it is listening.
-func Serve(ctx context.Context, root string, more []string, addr string, ready func(url string)) error {
+func Serve(ctx context.Context, root string, more []string, addr string, ready func(url string), wraps ...Wrap) error {
 	if _, err := os.Stat(filepath.Join(root, "explorer", "index.html")); err != nil {
 		return fmt.Errorf("no explorer/ in %s; run ipfs2fil pack first, or pass --archive", root)
 	}
@@ -38,7 +38,19 @@ func Serve(ctx context.Context, root string, more []string, addr string, ready f
 		http.Redirect(w, r, "/explorer/", http.StatusFound)
 	})
 	blocks.handle(mux, "")
-	return listen(ctx, addr, mux, "/explorer/", ready)
+	return listen(ctx, addr, wrap(mux, wraps), "/explorer/", ready)
+}
+
+// Wrap adds to what Serve and ServeMany serve: routes on mux, and a handler
+// around everything (h, or one that calls it).
+type Wrap func(mux *http.ServeMux, h http.Handler) http.Handler
+
+func wrap(mux *http.ServeMux, wraps []Wrap) http.Handler {
+	var h http.Handler = mux
+	for _, w := range wraps {
+		h = w(mux, h)
+	}
+	return h
 }
 
 // archiveFiles serves an archive directory, with the explorer's pages from
@@ -124,7 +136,7 @@ type Archive struct {
 
 // ServeMany serves several archive directories, each under /<name>/ the way
 // Serve serves one, with a page at / linking to their explorers.
-func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url string)) error {
+func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url string), wraps ...Wrap) error {
 	type row struct {
 		Archive
 		Root   string
@@ -163,7 +175,7 @@ func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url st
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		manyPage.Execute(w, rows)
 	})
-	return listen(ctx, addr, mux, "/", ready)
+	return listen(ctx, addr, wrap(mux, wraps), "/", ready)
 }
 
 func listen(ctx context.Context, addr string, h http.Handler, path string, ready func(url string)) error {

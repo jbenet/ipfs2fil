@@ -13,6 +13,8 @@ serve the files and show what is where.
     ipfs2fil status            # copies, funding, proofs
     ipfs2fil explore           # browse the archive locally
     ipfs2fil explore --demo    # preview the explorer on a made-up archive
+    ipfs2fil explore --feedback  # developing the explorer: Alt+F files feedback
+                               # into ~/.ipfs2fil/feedback/issues (never in archives)
 
 The repo is only ever read. Running again after the repo changes uploads only
 the pieces that changed.
