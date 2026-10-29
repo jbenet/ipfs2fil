@@ -1,0 +1,1 @@
+I2F.put("d/3",{"mfs":{"cid":"bafymfs","n":3,"files":2,"folders":1,"bytes":3800,"lo":"bafkzcib1","hi":"bafkzcib2","types":{"folder":[1,0],"text":[1,300],"video":[1,3500]},"chunks":[["9a5a076dd67b9910",0,3]]},"pins/direct":{"cid":"","n":1,"files":1,"folders":0,"bytes":100,"lo":"bafkzcib1","hi":"bafkzcib1","types":{"other":[1,100]},"chunks":[["b5b0f639073e3f14",1,1]]}});

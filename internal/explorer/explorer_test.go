@@ -126,9 +126,11 @@ func TestEveryEntryReachable(t *testing.T) {
 	}
 	var mt meta
 	decode(t, files["meta.js"], &mt)
-	shards := make([]shard, mt.Shards)
-	for i := range shards {
-		decode(t, files["s/"+itoa(i)+".js"], &shards[i])
+	shards := map[string]shard{}
+	for _, name := range mt.Shards {
+		var s shard
+		decode(t, files["s/"+name+".js"], &s)
+		shards[name] = s
 	}
 	listed := map[string]bool{}
 	for i := 0; i < mt.Buckets; i++ {
@@ -140,8 +142,9 @@ func TestEveryEntryReachable(t *testing.T) {
 			}
 			n := 0
 			for _, c := range info.Chunks {
-				s := shards[c[0]]
-				for _, row := range s.Rows[c[1] : c[1]+c[2]] {
+				s := shards[c[0].(string)]
+				start, count := int(c[1].(float64)), int(c[2].(float64))
+				for _, row := range s.Rows[start : start+count] {
 					if got := s.Dirs[int(row[0].(float64))]; got != d {
 						t.Errorf("row %v of %q says dir %q", row, d, got)
 					}
@@ -165,6 +168,36 @@ func TestEveryEntryReachable(t *testing.T) {
 	}
 	if len(listed) != mt.Entries {
 		t.Errorf("%d listed, meta says %d", len(listed), mt.Entries)
+	}
+}
+
+// One more name changes the shards around it and its bucket, not the rest,
+// so a new snapshot of the archive reuses the others' blocks.
+func TestSmallChangeKeepsMostFiles(t *testing.T) {
+	r := shardRows
+	shardRows = 40
+	defer func() { shardRows = r }()
+	m, entries := Demo(3)
+	a, err := buildIndex(m, entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	more := append(entries[:len(entries):len(entries)], Entry{Name: "new.txt", Path: entries[len(entries)/2].Path + "-new.txt", CID: "bafknew", Kind: "text", Bytes: 10, Piece: 0})
+	b, err := buildIndex(m, more)
+	if err != nil {
+		t.Fatal(err)
+	}
+	same, shards := 0, 0
+	for k := range a {
+		if strings.HasPrefix(k, "s/") {
+			shards++
+			if bytes.Equal(a[k], b[k]) {
+				same++
+			}
+		}
+	}
+	if shards < 10 || shards-same > 2 {
+		t.Errorf("%d of %d shards changed", shards-same, shards)
 	}
 }
 

@@ -110,11 +110,14 @@ every machine's repos is read from your data sets on chain.
     ipfs2fil up --all              # on each machine
     ipfs2fil status --all          # on any machine: every repo on every machine
 
-Each archive's own pieces (its index, explorer and root) start with a small
-record naming its machine and repo, encrypted with a key derived from the
-wallet key. Another machine lists the data sets' pieces, reads the first
-bytes of each new one to find those records, and downloads only the index
-pieces of each repo's latest snapshot, into `~/.ipfs2fil/chain`. So a repo
+An archive's own blocks (its index, explorer and folders) are cut into
+small pieces by content, like the data, so a new snapshot re-uploads only
+the parts that changed, plus a head piece of a few MB: the root, the
+manifest, and a small record naming its machine and repo, encrypted with a
+key derived from the wallet key. Another machine lists the data sets'
+pieces, reads the first bytes of each new one to find those records, and
+downloads only each repo's latest head piece and the pieces holding its
+block lists, into `~/.ipfs2fil/chain`. So a repo
 shows up on other machines once its pieces are stored, and a machine leaves
 out blocks that repos on other machines already store. Repo paths never
 leave the machine. Machines are named by `--host`, else the name saved in `~/.ipfs2fil/host` on first use (on macOS the computer's local name, which, unlike its host name, does not change with the network).

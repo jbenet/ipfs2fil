@@ -290,16 +290,54 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// index/ and explorer/ see the manifest without them.
 	// Copies stay out too: a push adds piece ids, and the next pack must not
 	// change because of them (explorer.WriteManifest shows them locally).
-	inner := *m
-	inner.Copies, inner.Collection = nil, ""
-	inner.Snapshots = slices.Clone(m.Snapshots)
-	inner.Snapshots[snap].Root = ""
-	idx, err := l.indexDir(ctx, dag, outDir, &inner, dataPieces)
+	//
+	// Most of index/ and explorer/, and the data/ folders, depend on the repo
+	// alone. Those blocks go in pieces cut by content like data pieces, so a
+	// new snapshot keeps the pieces of the parts that did not change. The
+	// rest (the root, the record, and what reads the manifest) goes in the
+	// head pieces, small, which name the root. So index/ and explorer/ are
+	// made twice: once to find the stable blocks and cut their pieces, then
+	// with a manifest that lists those pieces.
+	innerOf := func() *manifest.Manifest {
+		inner := *m
+		inner.Copies, inner.Collection = nil, ""
+		inner.Snapshots = slices.Clone(m.Snapshots)
+		inner.Snapshots[snap].Root = ""
+		return &inner
+	}
+	entries := l.entries(roots, m)
+	idx, exp, err := l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries)
 	if err != nil {
 		return nil, err
 	}
-	exp, err := explorerDir(ctx, dag, outDir, &inner, l, roots)
+	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp)
 	if err != nil {
+		return nil, err
+	}
+	inMeta := map[string]bool{}
+	for _, sp := range cutMeta(stable, opts) {
+		first := stable[sp.start]
+		part := manifest.PartMeta
+		for _, n := range stable[sp.start:sp.end] {
+			inMeta[string(n.Cid().Hash())] = true
+			if inIndex[string(n.Cid().Hash())] {
+				part = manifest.PartIndex
+			}
+		}
+		path, sum, err := writePiece(pieceDir, []cid.Cid{first.Cid()}, func(w *car.Writer) error {
+			for _, n := range stable[sp.start:sp.end] {
+				if err := w.Put(n.Cid(), n.RawData()); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, addOwn(m, known, snap, sum, part, path))
+	}
+	if idx, exp, err = l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries); err != nil {
 		return nil, err
 	}
 	root, err := mkdir(ctx, dag, []child{{"data", dataRoot}, {"index", idx}, {"explorer", exp}})
@@ -308,13 +346,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	m.Root = root.Cid().String()
 
-	// The blocks the archive made, depth first from the root, in the last pieces.
+	// The rest of the blocks the archive made, depth first from the root, in
+	// the head pieces.
 	var made []format.Node
 	seen := map[string]bool{}
 	var walk func(c cid.Cid) error
 	walk = func(c cid.Cid) error {
 		k := string(c.Hash())
-		if _, inRepo := l.idx[k]; inRepo || seen[k] {
+		if _, inRepo := l.idx[k]; inRepo || seen[k] || inMeta[k] {
 			return nil
 		}
 		seen[k] = true
@@ -368,17 +407,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		if err != nil {
 			return nil, err
 		}
-		i := len(m.Pieces)
-		p := manifest.Piece{Index: i, PieceCID: sum.PieceCID.String(), CARBytes: sum.Bytes, Blocks: sum.Blocks, Snapshot: snap}
-		if s, ok := known[p.PieceCID]; ok {
-			p.Snapshot = s
-		}
-		// an unchanged re-run keeps its own meta pieces in its snapshot
-		if p.Snapshot == snap {
-			m.Snapshots[snap].NewPieces = append(m.Snapshots[snap].NewPieces, i)
-		}
-		m.Pieces = append(m.Pieces, p)
-		out = append(out, Piece{Piece: p, Path: path})
+		out = append(out, addOwn(m, known, snap, sum, manifest.PartHead, path))
 		start = end
 	}
 	l.progress("write", planned, planned)
@@ -484,6 +513,130 @@ func writePiece(dir string, roots []cid.Cid, fill func(*car.Writer) error) (stri
 
 // rootEntry describes rt. owned marks the blocks earlier roots hold; rt's
 // other blocks count as its Own and are marked.
+// addOwn adds one of the archive's own pieces to m, in the snapshot that
+// first stored it.
+func addOwn(m *manifest.Manifest, known map[string]int, snap int, sum car.Summary, part, path string) Piece {
+	i := len(m.Pieces)
+	p := manifest.Piece{Index: i, PieceCID: sum.PieceCID.String(), CARBytes: sum.Bytes, Blocks: sum.Blocks, Snapshot: snap, Part: part}
+	if s, ok := known[p.PieceCID]; ok {
+		p.Snapshot = s
+	}
+	// an unchanged re-run keeps its own pieces in its snapshot
+	if p.Snapshot == snap {
+		m.Snapshots[snap].NewPieces = append(m.Snapshots[snap].NewPieces, i)
+	}
+	m.Pieces = append(m.Pieces, p)
+	return Piece{Piece: p, Path: path}
+}
+
+// ownDirs makes index/ and explorer/ for inner.
+func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *manifest.Manifest, pieces []span,
+	entries []explorer.Entry) (idx, exp format.Node, err error) {
+	if idx, err = l.indexDir(ctx, dag, outDir, inner, pieces); err != nil {
+		return nil, nil, err
+	}
+	exp, err = explorerDir(ctx, dag, outDir, inner, entries)
+	return idx, exp, err
+}
+
+// stableBlocks lists, depth first, the blocks the archive made that do not
+// depend on the manifest and are not the repo's: index/pieces (inIndex),
+// the data/ folders, and explorer/ but for explorer/idx/manifest.js and
+// meta.js and the folders holding them.
+func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, exp format.Node) ([]format.Node, map[string]bool, error) {
+	var out []format.Node
+	seen := map[string]bool{}
+	var walk func(c cid.Cid) error
+	walk = func(c cid.Cid) error {
+		k := string(c.Hash())
+		if _, inRepo := l.idx[k]; inRepo || seen[k] {
+			return nil
+		}
+		seen[k] = true
+		n, err := dag.Get(ctx, c)
+		if err != nil {
+			return fmt.Errorf("archive block %s: %w", c, err)
+		}
+		out = append(out, n)
+		for _, ln := range n.Links() {
+			if err := walk(ln.Cid); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	// links of a small folder, but for skip
+	kids := func(n format.Node, skip ...string) []cid.Cid {
+		var cs []cid.Cid
+		for _, ln := range n.Links() {
+			if !slices.Contains(skip, ln.Name) {
+				cs = append(cs, ln.Cid)
+			}
+		}
+		return cs
+	}
+	find := func(n format.Node, name string) (format.Node, error) {
+		for _, ln := range n.Links() {
+			if ln.Name == name {
+				return dag.Get(ctx, ln.Cid)
+			}
+		}
+		return nil, fmt.Errorf("archive: no %s in folder %s", name, n.Cid())
+	}
+	lists, err := find(idx, "pieces")
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := walk(lists.Cid()); err != nil {
+		return nil, nil, err
+	}
+	inIndex := map[string]bool{}
+	for _, n := range out {
+		inIndex[string(n.Cid().Hash())] = true
+	}
+	if err := walk(dataRoot.Cid()); err != nil {
+		return nil, nil, err
+	}
+	ix, err := find(exp, "idx")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, c := range append(kids(exp, "idx"), kids(ix, "manifest.js", "meta.js")...) {
+		if err := walk(c); err != nil {
+			return nil, nil, err
+		}
+	}
+	return out, inIndex, nil
+}
+
+// Own pieces other than head pieces are cut like data pieces, but small: a
+// change rewrites the pieces it falls in, a MiB or two each.
+const (
+	metaMinPiece = 1 << 20
+	metaCutBits  = 3
+)
+
+// cutMeta cuts ns into pieces at content-defined points.
+func cutMeta(ns []format.Node, opts Options) []span {
+	minSize, bits := min(int64(metaMinPiece), opts.MinPiece), min(metaCutBits, opts.CutBits)
+	var out []span
+	start, size := -1, int64(0)
+	for i, n := range ns {
+		e := car.EntrySize(n.Cid(), len(n.RawData()))
+		if start < 0 || cutHere(n.Cid().Hash(), bits) && size >= minSize || size+e > opts.MaxPiece {
+			if start >= 0 {
+				out = append(out, span{start, i})
+			}
+			start, size = i, car.HeaderSize(n.Cid())
+		}
+		size += e
+	}
+	if start >= 0 {
+		out = append(out, span{start, len(ns)})
+	}
+	return out
+}
+
 // remap carries prev's copies over to m. Piece ids are kept by piece index,
 // and a new pack can put a stored piece at another index or a new piece at
 // a stored one's, so each id follows its PieceCID.
@@ -628,7 +781,7 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 }
 
 // explorerDir has the explorer write its pages into outDir and adds them.
-func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, l *layout, roots []root) (format.Node, error) {
+func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, entries []explorer.Entry) (format.Node, error) {
 	dir := filepath.Join(outDir, "explorer")
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, err
@@ -636,7 +789,7 @@ func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Man
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := explorer.Write(dir, m, l.entries(roots, m)); err != nil {
+	if err := explorer.Write(dir, m, entries); err != nil {
 		return nil, fmt.Errorf("explorer: %w", err)
 	}
 	return importDir(ctx, dag, dir)

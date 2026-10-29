@@ -332,9 +332,27 @@ func (c *Collection) cacheSnapshot(ctx context.Context, s store.Store, sets []st
 			}
 			own = append(own, manifest.Piece{PieceCID: p, CARBytes: b, Blocks: n})
 		}
+		// The block lists are in the snapshot's own pieces, or (archives
+		// with parts) in its index pieces, which the manifest names.
+		fetch := func(pieceCID string) error {
+			i, ok := where[pieceCID]
+			if !ok {
+				return fmt.Errorf("index piece %s is not stored", pieceCID)
+			}
+			if _, _, err := readPiece(ctx, s, sets[i], pieceCID, dag); err != nil {
+				return fmt.Errorf("piece %s: %w", pieceCID, err)
+			}
+			return nil
+		}
 		var err error
-		if m, err = readIndex(ctx, dag, sn.root, dir); err != nil {
+		if m, err = readIndex(ctx, dag, sn.root, dir, fetch); err != nil {
 			return err
+		}
+		head := ""
+		for _, p := range m.Pieces {
+			if p.Part != "" {
+				head = manifest.PartHead
+			}
 		}
 		snap := len(m.Snapshots) - 1
 		if snap < 0 {
@@ -343,7 +361,7 @@ func (c *Collection) cacheSnapshot(ctx context.Context, s store.Store, sets []st
 		m.Root, m.Collection = sn.root, c.Key
 		m.Snapshots[snap].Root = sn.root
 		for _, p := range own {
-			p.Index, p.Snapshot = len(m.Pieces), snap
+			p.Index, p.Snapshot, p.Part = len(m.Pieces), snap, head
 			m.Pieces = append(m.Pieces, p)
 		}
 		if err := writeFile(filepath.Join(dir, "root"), []byte(sn.root+"\n")); err != nil {
@@ -426,8 +444,9 @@ func (c *countReader) Read(b []byte) (int, error) {
 }
 
 // readIndex reads root/index/manifest.json and the block lists it names out of
-// dag, and writes the lists into dir/index.
-func readIndex(ctx context.Context, dag mapDAG, root, dir string) (*manifest.Manifest, error) {
+// dag, and writes the lists into dir/index. fetch adds a piece's blocks to
+// dag; it is called for the manifest's index pieces.
+func readIndex(ctx context.Context, dag mapDAG, root, dir string, fetch func(pieceCID string) error) (*manifest.Manifest, error) {
 	rc, err := cid.Decode(root)
 	if err != nil {
 		return nil, err
@@ -459,6 +478,13 @@ func readIndex(ctx context.Context, dag mapDAG, root, dir string) (*manifest.Man
 	var m manifest.Manifest
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("index/manifest.json: %w", err)
+	}
+	for _, p := range m.Pieces {
+		if p.Part == manifest.PartIndex {
+			if err := fetch(p.PieceCID); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if err := os.RemoveAll(filepath.Join(dir, "index")); err != nil {
 		return nil, err

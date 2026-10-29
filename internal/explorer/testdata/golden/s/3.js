@@ -1,1 +1,0 @@
-I2F.put("s/3",{"dirs":["pins/recursive/bafysite","pins/recursive/bafysite/img"],"rows":[[0,"index.html","page",1000,"bafkindex",0],[1,"a.png","image",3000,"bafka",0],[1,"B.png","image",1000,"bafkb",1]]});
