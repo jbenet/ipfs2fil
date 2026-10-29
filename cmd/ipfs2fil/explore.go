@@ -5,19 +5,24 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
+	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
+	"github.com/jbenet/ipfs2fil/internal/feedback"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
 type exploreOpts struct {
-	serve bool
-	addr  string
-	demo  bool
-	scale int
+	serve    bool
+	addr     string
+	demo     bool
+	scale    int
+	feedback bool
 }
 
 var exploreFlags exploreOpts
@@ -42,7 +47,14 @@ if ./ipfs2fil-archive holds one, else the repos 'ipfs2fil repos add' listed in
 --home. Give a repo's name (or --repo with its path) to explore just that one;
 otherwise every packed repo is served, with a page listing them.
 
---demo writes a made-up archive and serves it.`,
+--demo writes a made-up archive and serves it.
+
+--feedback is for developing the explorer: it adds a feedback button (Alt+F,
+Option+F on a Mac) to every page served, with screenshots, region capture and
+annotation (github.com/jbenet/feedback-dev-kit). Reports are saved as issues
+in feedback/issues/NNNN-slug.md under --home (~/.ipfs2fil), where a coding
+agent can pick them up, and listed at /_i2f/feedback/issues. Only this local
+server adds it: archives and gateways never show it.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "with no --out, the listed repo to explore, by path or name")
 			outFlag(fs, o)
@@ -52,6 +64,7 @@ otherwise every packed repo is served, with a page listing them.
 			fs.StringVar(&exploreFlags.addr, "addr", "127.0.0.1:8484", "address for --serve")
 			fs.BoolVar(&exploreFlags.demo, "demo", false, "write a made-up archive into --out (a new temp dir if unset) and serve it")
 			fs.IntVar(&exploreFlags.scale, "scale", 1, "with --demo, how big the made-up archive is")
+			fs.BoolVar(&exploreFlags.feedback, "feedback", false, "developer mode: add a feedback button to the pages, saving reports under --home/feedback")
 		},
 		run: func(ctx context.Context, o *opts, args []string) error {
 			if len(args) > 1 {
@@ -68,6 +81,14 @@ otherwise every packed repo is served, with a page listing them.
 func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 	dir := o.out
 	var more []string
+	var wraps []explorer.Wrap
+	if e.feedback && e.serve {
+		w, err := feedbackMode(ctx, o)
+		if err != nil {
+			return err
+		}
+		wraps = append(wraps, w)
+	}
 	if e.demo {
 		if !o.set["out"] && !o.set["archive"] {
 			d, err := os.MkdirTemp("", "ipfs2fil-demo-")
@@ -105,7 +126,7 @@ func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 			}
 			return explorer.ServeMany(ctx, archives, e.addr, func(url string) {
 				fmt.Fprintf(o.stdout, "serving %d archives at %s (ctrl-c stops)\n", len(archives), url)
-			})
+			}, wraps...)
 		}
 		dir = archives[0].Dir
 		// The one repo asked for can share blocks with the other listed repos.
@@ -126,7 +147,34 @@ func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 	}
 	return explorer.Serve(ctx, dir, more, e.addr, func(url string) {
 		fmt.Fprintf(o.stdout, "serving %s at %s (ctrl-c stops)\n", dir, url)
-	})
+	}, wraps...)
+}
+
+// feedbackMode starts filing feedback into --home/feedback and returns what
+// adds the feedback kit to the served pages.
+func feedbackMode(ctx context.Context, o *opts) (explorer.Wrap, error) {
+	home := o.home
+	if home == "" {
+		d, err := collection.DefaultDir()
+		if err != nil {
+			return nil, err
+		}
+		home = d
+	}
+	who := "me"
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		who = u.Username
+	}
+	fb, err := feedback.New(filepath.Join(home, "feedback"), who, ctx.Done())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(o.stdout, "feedback mode: Alt+F (Option+F on a Mac) on any page; reports go to %s, listed at %s/issues\n",
+		filepath.Join(fb.Dir, "issues"), feedback.Base)
+	return func(mux *http.ServeMux, h http.Handler) http.Handler {
+		fb.Handle(mux)
+		return feedback.Inject(h)
+	}, nil
 }
 
 // hasArchive says whether dir holds a packed archive.
