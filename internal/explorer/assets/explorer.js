@@ -801,7 +801,7 @@
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
-      const all = [e].concat(e.also || []), cap = 8;
+      const all = [e].concat(e.also || []).sort((a, b) => a.path < b.path ? -1 : 1), cap = 8;
       const link = (o) => `<a href="${esc('browse.html?' + qs({ p: o.dir, sel: o.path }))}" title="${esc(showPath(o.path) || o.path)}">${esc(where(o))}/${o.name !== e.name ? esc(o.name) : ''}</a>`;
       if (all.length === 1) return link(e);
       const rest = all.length > cap ? `<details><summary class="faint">${num(all.length - cap)} more</summary>${all.slice(cap).map(link).join('')}</details>` : '';
