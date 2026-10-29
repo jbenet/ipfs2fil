@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -683,5 +685,47 @@ func TestPushResumeSendsNothingTwice(t *testing.T) {
 	}
 	if n := r.count(func(e store.PushEvent) bool { return e.Done > 0 && !e.Staged && !e.Final }); n != 0 {
 		t.Errorf("re-run sent bytes %d times", n)
+	}
+}
+
+func TestPushSendsAStalledUploadAgain(t *testing.T) {
+	// An upload that stopped moving is sent again from the start, and the
+	// copy carries on.
+	s := memstore.New(1)
+	var mu sync.Mutex
+	stalls := 0
+	s.BeforeStage = func(context.Context, store.DataSet, string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if stalls < 2 {
+			stalls++
+			return &store.StalledError{Sent: 10, After: 5 * time.Minute}
+		}
+		return nil
+	}
+	m, pieces := fixture(t, 2)
+	var again atomic.Int32
+	err := store.Push(context.Background(), s, m, pieces, 1, func(*manifest.Manifest) error { return nil }, func(ev store.PushEvent) {
+		if ev.Stalled != nil {
+			again.Add(1)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Load() != 2 || len(m.Copies[0].PieceIDs) != 2 {
+		t.Fatalf("%d resends, %d pieces stored", again.Load(), len(m.Copies[0].PieceIDs))
+	}
+
+	// One that keeps stalling stops the copy.
+	s = memstore.New(1)
+	s.BeforeStage = func(context.Context, store.DataSet, string) error {
+		return &store.StalledError{After: 5 * time.Minute}
+	}
+	m, pieces = fixture(t, 1)
+	err = store.Push(context.Background(), s, m, pieces, 1, func(*manifest.Manifest) error { return nil }, nil)
+	var stall *store.StalledError
+	if !errors.As(err, &stall) {
+		t.Fatalf("err = %v", err)
 	}
 }

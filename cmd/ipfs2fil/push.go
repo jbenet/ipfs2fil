@@ -125,6 +125,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 				fmt.Fprintf(o.stderr, "data sets ready in %s\n", roundDur(time.Since(start)))
 			}
 			bar = newProgress(o.stderr, "uploading", total*int64(o.copies), true)
+			bar.idle = "nothing sent from here"
 			logTo(bar)
 		}
 		k := [2]int{ev.Copy, ev.Piece}
@@ -162,6 +163,9 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 			return
 		}
 		switch {
+		case ev.Stalled != nil:
+			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d: %v; sending it again",
+				ev.Copy+1, ev.Provider, ev.Piece, ev.Stalled))
 		case ev.Dropped:
 			bar.Log(fmt.Sprintf("copy %d (provider %s): piece %d was dropped by the provider while it waited to go on chain; sending it again",
 				ev.Copy+1, ev.Provider, ev.Piece))

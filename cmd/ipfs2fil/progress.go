@@ -28,6 +28,9 @@ type progress struct {
 	// than the terminal wraps, and redrawing in place then clears only its
 	// last row, so lines are cut to fit.
 	width func() int
+	// idle names a stretch with nothing moved, shown after the bar once it
+	// passes idleAfter; empty says "no progress".
+	idle string
 
 	mu      sync.Mutex
 	suffix  string
@@ -36,7 +39,10 @@ type progress struct {
 	start   time.Time
 	last    time.Time
 	drawn   bool
-	samples []sample // moved units over time, for the speed
+	samples []sample  // moved units over time, for the speed
+	movedAt time.Time // when moved units last grew
+	quit    chan struct{}
+	ended   bool
 }
 
 type sample struct {
@@ -45,6 +51,9 @@ type sample struct {
 }
 
 const speedWindow = 20 * time.Second
+
+// idleAfter is how long nothing must move before the bar says so.
+const idleAfter = 30 * time.Second
 
 func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
 	p := &progress{w: w, label: label, total: total, bytes: bytes, tty: isTerminal(w), now: time.Now,
@@ -64,35 +73,75 @@ func newProgress(w io.Writer, label string, total int64, bytes bool) *progress {
 	}
 	p.start = p.now()
 	p.last = p.start
+	p.movedAt = p.start
+	if p.tty {
+		// Redraw while nothing is reported, so the speed and ETA fall when
+		// the bytes stop instead of showing the last ones for good.
+		p.quit = make(chan struct{})
+		go func() {
+			t := time.NewTicker(time.Second)
+			defer t.Stop()
+			for {
+				select {
+				case <-p.quit:
+					return
+				case <-t.C:
+					p.tick()
+				}
+			}
+		}()
+	}
 	return p
+}
+
+// tick redraws a bar already drawn.
+func (p *progress) tick() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.drawn && !p.ended {
+		p.last = p.now()
+		p.draw(false)
+	}
 }
 
 // Add records n more units done.
 func (p *progress) Add(n int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.done += n
-	if t := p.now(); !p.drawn || t.Sub(p.last) >= p.interval {
-		p.last = t
-		p.draw(false)
-	}
+	p.add(n, true)
 }
 
 // Skip records n more units done that did not move through here, such as
 // pieces a provider already held. They fill the bar but not the speed.
 func (p *progress) Skip(n int64) {
 	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.skipped += n
-	p.mu.Unlock()
-	p.Add(n)
+	p.add(n, false)
+}
+
+func (p *progress) add(n int64, moved bool) {
+	p.done += n
+	t := p.now()
+	if moved && n > 0 {
+		p.movedAt = t
+	}
+	if !p.drawn || t.Sub(p.last) >= p.interval {
+		p.last = t
+		p.draw(false)
+	}
 }
 
 // Set records done units out of total, for callers that report running totals.
 func (p *progress) Set(done, total int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	t := p.now()
+	if done > p.done {
+		p.movedAt = t
+	}
 	p.done, p.total = done, total
-	if t := p.now(); t.Sub(p.last) >= p.interval {
+	if t.Sub(p.last) >= p.interval {
 		p.last = t
 		p.draw(false)
 	}
@@ -130,6 +179,10 @@ func (p *progress) Log(line string) {
 func (p *progress) Done() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.quit != nil && !p.ended {
+		close(p.quit)
+	}
+	p.ended = true
 	if p.tty || p.drawn {
 		p.draw(true)
 	}
@@ -196,6 +249,13 @@ func (p *progress) draw(final bool) {
 		if final {
 			line += " in " + roundDur(el)
 		}
+	}
+	if idle := t.Sub(p.movedAt); !final && p.total > 0 && p.done < p.total && idle >= idleAfter {
+		word := p.idle
+		if word == "" {
+			word = "no progress"
+		}
+		line += " · " + word + " for " + roundDur(idle)
 	}
 	if p.suffix != "" && !final {
 		line += " · " + p.suffix

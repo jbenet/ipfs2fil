@@ -250,9 +250,91 @@ func (b *synapseBackend) Stage(ctx context.Context, ds dataSet, pieceCID string,
 		return nil
 	}
 	return sendPiece(ctx, func() error {
-		_, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
-		return err
+		return watched(ctx, r, func(ctx context.Context, r io.Reader) error {
+			_, err := dsc.Store(ctx, r, &storage.StoreOptions{PieceCID: pc})
+			return err
+		})
 	}, func(ctx context.Context) (bool, error) { return parked(ctx, dsc.ServiceURL(), pc) })
+}
+
+// stallAfter is how long an upload may go without the provider taking a
+// byte before it is given up as stalled. synapse-go's upload has no timeout
+// of its own, so a connection that goes quiet would otherwise wait forever.
+var stallAfter = 5 * time.Minute
+
+// parkAfter is how long the provider may take, once every byte is sent, to
+// check the piece and hold it ready to add.
+var parkAfter = 30 * time.Minute
+
+// watchEvery is how often watched checks on an upload.
+var watchEvery = 10 * time.Second
+
+// watched runs send, an upload reading r, and ends it with a
+// *store.StalledError if r goes unread for stallAfter, or the provider has not
+// finished taking the piece in parkAfter after the last byte.
+func watched(ctx context.Context, r io.Reader, send func(context.Context, io.Reader) error) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	w := &watchReader{r: r, last: time.Now()}
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		t := time.NewTicker(watchEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				if err := w.stalled(time.Now()); err != nil {
+					cancel(err)
+					return
+				}
+			}
+		}
+	}()
+	err := send(ctx, w)
+	var stall *store.StalledError
+	if err != nil && errors.As(context.Cause(ctx), &stall) {
+		return stall
+	}
+	return err
+}
+
+// watchReader records when it was last read and when it reached EOF.
+type watchReader struct {
+	r    io.Reader
+	mu   sync.Mutex
+	last time.Time
+	eof  bool
+	n    int64
+}
+
+func (w *watchReader) Read(b []byte) (int, error) {
+	n, err := w.r.Read(b)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if n > 0 || err != nil {
+		w.last = time.Now()
+	}
+	w.n += int64(n)
+	if err == io.EOF {
+		w.eof = true
+	}
+	return n, err
+}
+
+func (w *watchReader) stalled(now time.Time) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	idle := now.Sub(w.last)
+	switch {
+	case w.eof && idle >= parkAfter:
+		return &store.StalledError{Sent: w.n, After: idle, All: true}
+	case !w.eof && idle >= stallAfter:
+		return &store.StalledError{Sent: w.n, After: idle}
+	}
+	return nil
 }
 
 // Await waits until ds's provider holds the piece parked, ready to add: a
