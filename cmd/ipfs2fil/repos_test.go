@@ -245,8 +245,8 @@ func TestReposCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
 		t.Fatalf("server up: %v\n%s", err, out)
 	}
-	if got := ms.Uploads() - afterLaptop; got != 3 {
-		t.Errorf("server uploaded %d pieces, want 3 (its meta piece in 3 copies)", got)
+	if got := ms.Uploads() - afterLaptop; got != 6 {
+		t.Errorf("server uploaded %d pieces, want 6 (its explorer and head pieces in 3 copies)", got)
 	}
 
 	for _, m := range [][]string{laptop, server} {
@@ -294,8 +294,8 @@ func TestReposGitCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
 		t.Fatalf("server up: %v\n%s", err, out)
 	}
-	if got := ms.Uploads() - before; got != 3 {
-		t.Errorf("server uploaded %d pieces, want 3", got)
+	if got := ms.Uploads() - before; got != 6 {
+		t.Errorf("server uploaded %d pieces, want 6", got)
 	}
 	// The laptop pulls the server's repo.
 	out, err = on(laptop, "status", "--all")
@@ -336,8 +336,8 @@ func TestReposChainCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") || strings.Contains(errOut, "warning") {
 		t.Fatalf("server up: %v\n%s\n%s", err, out, errOut)
 	}
-	if got := ms.Uploads() - afterLaptop; got != 3 {
-		t.Errorf("server uploaded %d pieces, want 3 (its own piece in 3 copies)", got)
+	if got := ms.Uploads() - afterLaptop; got != 6 {
+		t.Errorf("server uploaded %d pieces, want 6 (its explorer and head pieces in 3 copies)", got)
 	}
 	afterServer := ms.Uploads()
 	if out, _, err := on(server, "up", "--all", "--yes"); err != nil || !strings.Contains(out, "nothing to upload") {

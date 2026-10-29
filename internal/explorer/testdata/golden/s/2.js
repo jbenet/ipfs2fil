@@ -1,1 +1,0 @@
-I2F.put("s/2",{"dirs":["pins","pins/direct","pins/recursive","pins/recursive/bafysite"],"rows":[[0,"recursive","folder",5000,"",0],[1,"QmBlob","other",100,"QmBlob",1],[2,"my site","folder",5000,"bafysite",0,"bafysite"],[3,"img","folder",4000,"bafyimg",0]]});

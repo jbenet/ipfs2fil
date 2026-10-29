@@ -5,17 +5,27 @@ package explorer
 // <script> tag, which works from file:// where fetch does not.
 //
 //	manifest.js  key "manifest": index/manifest.json as written by pack
-//	meta.js      key "meta": counts, totals by kind and part, one summary per piece
-//	s/<n>.js     key "s/<n>": shard n, up to shardRows entries grouped by directory:
-//	             {"dirs": [path, ...], "rows": [[dir, name, kind, bytes, cid, piece, seg?], ...]}
-//	             dir indexes "dirs"; seg is the last path element when it differs from name
+//	meta.js      key "meta": counts, totals by kind and part, one summary per
+//	             piece, and the names of the shards
+//	s/<name>.js  key "s/<name>": a shard of entries grouped by directory:
+//	             {"dirs": [path, ...], "pieces": [PieceCID, ...], "rows": [[dir, name, kind, bytes, cid, piece, seg?], ...]}
+//	             dir indexes "dirs" and piece "pieces" (-1 for none); seg is the
+//	             last path element when it differs from name
 //	d/<n>.js     key "d/<n>": bucket n, the directories whose path hashes to n
 //	             (FNV-1a 32 of the UTF-8 path, mod meta.buckets), each with its
 //	             totals and the shard ranges holding its entries:
 //	             {"<path>": {"cid", "n", "files", "folders", "bytes", "lo", "hi", "types", "chunks": [[shard, start, count], ...]}}
+//	             lo and hi are the PieceCIDs of the lowest and highest piece among its entries
 //
 // Browse loads one bucket and the shards its directory spans. Search streams
 // every shard and shows matches as they arrive. The data/ directory is path "".
+//
+// Only manifest.js and meta.js depend on the manifest. Shards and buckets
+// depend on the entries and the data pieces alone, and are cut so that a
+// small change to the repo changes few of them: shards end where an entry's
+// path hashes to a cut point and are named by their contents, entries name
+// pieces by PieceCID, and the bucket count only grows in powers of two. The
+// archive then stores the unchanged ones in the same pieces as before.
 
 import (
 	"encoding/json"
@@ -29,11 +39,11 @@ import (
 )
 
 // IndexFormat is bumped when the index changes in a way old pages cannot read.
-const IndexFormat = 1
+const IndexFormat = 2
 
 var (
-	shardRows     = 4000 // entries per shard
-	dirsPerBucket = 128
+	shardRows     = 4000 // entries per shard, on average
+	dirsPerBucket = 128  // at most, until the bucket count doubles
 )
 
 type dirInfo struct {
@@ -42,10 +52,11 @@ type dirInfo struct {
 	Files   int              `json:"files"`
 	Folders int              `json:"folders"`
 	Bytes   int64            `json:"bytes"`
-	Lo      int              `json:"lo"` // lowest and highest piece among its entries
-	Hi      int              `json:"hi"`
+	Lo      string           `json:"lo"` // lowest and highest piece among its entries
+	Hi      string           `json:"hi"`
 	Types   map[string]tally `json:"types"`
-	Chunks  [][3]int         `json:"chunks"`
+	Chunks  [][3]any         `json:"chunks"` // [shard name, start, count]
+	chunks  [][3]int         // [shard index, start, count]
 }
 
 // tally is [count, bytes].
@@ -63,7 +74,7 @@ type meta struct {
 	Format  int              `json:"format"`
 	Entries int              `json:"entries"`
 	Dirs    int              `json:"dirs"`
-	Shards  int              `json:"shards"`
+	Shards  []string         `json:"shards"`
 	Buckets int              `json:"buckets"`
 	Types   map[string]tally `json:"types"`
 	Parts   map[string]tally `json:"parts"`
@@ -71,8 +82,41 @@ type meta struct {
 }
 
 type shard struct {
-	Dirs []string `json:"dirs"`
-	Rows [][]any  `json:"rows"`
+	Dirs   []string    `json:"dirs"`
+	Pieces []string    `json:"pieces"`
+	Rows   [][]any     `json:"rows"`
+	at     map[int]int // piece index -> position in Pieces
+}
+
+// piece returns the shard's number for data piece i, or -1.
+func (s *shard) piece(m *manifest.Manifest, i int) int {
+	if i < 0 || i >= len(m.Pieces) {
+		return -1
+	}
+	if s.at == nil {
+		s.at = map[int]int{}
+	}
+	if k, ok := s.at[i]; ok {
+		return k
+	}
+	s.at[i] = len(s.Pieces)
+	s.Pieces = append(s.Pieces, m.Pieces[i].PieceCID)
+	return s.at[i]
+}
+
+// endsShard says whether a shard holding n rows ends after the entry at p:
+// at a content-defined point once it has a quarter of shardRows, and always
+// at twice shardRows.
+func endsShard(p string, n int) bool {
+	if n >= 2*shardRows {
+		return true
+	}
+	if n < max(1, shardRows/4) {
+		return false
+	}
+	h := fnv.New32a()
+	h.Write([]byte(p))
+	return h.Sum32()%uint32(max(1, shardRows*3/4)) == 0
 }
 
 // buildIndex returns the index files, keyed by path under idx/.
@@ -147,32 +191,41 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 
 	dirs := sortedKeys(children)
 	mt.Dirs = len(dirs)
-	mt.Buckets = (len(dirs) + dirsPerBucket - 1) / dirsPerBucket
+	mt.Buckets = 1
+	for mt.Buckets*dirsPerBucket < len(dirs) {
+		mt.Buckets *= 2
+	}
 	buckets := make([]map[string]*dirInfo, mt.Buckets)
 	var shards []*shard
 	cur := &shard{}
+	var infos []*dirInfo
 	for _, d := range dirs {
 		kids := children[d]
 		sort.Slice(kids, func(i, j int) bool { return less(kids[i], kids[j]) })
-		info := &dirInfo{N: len(kids), Lo: -1, Hi: -1, Types: map[string]tally{}, Chunks: [][3]int{}}
+		info := &dirInfo{N: len(kids), Types: map[string]tally{}, Chunks: [][3]any{}}
+		infos = append(infos, info)
 		if d == "" {
 			info.CID = m.DataRoot
 		} else {
 			info.CID = byPath[d].CID
 		}
-		for i := 0; i < len(kids); {
-			if len(cur.Rows) == shardRows {
-				shards, cur = append(shards, cur), &shard{}
+		start := len(cur.Rows)
+		di := -1
+		for _, e := range kids {
+			if di < 0 {
+				di = len(cur.Dirs)
+				cur.Dirs = append(cur.Dirs, d)
 			}
-			n := min(shardRows-len(cur.Rows), len(kids)-i)
-			info.Chunks = append(info.Chunks, [3]int{len(shards), len(cur.Rows), n})
-			di := len(cur.Dirs)
-			cur.Dirs = append(cur.Dirs, d)
-			for _, e := range kids[i : i+n] {
-				cur.Rows = append(cur.Rows, row(di, e))
+			cur.Rows = append(cur.Rows, row(di, cur.piece(m, e.Piece), e))
+			if endsShard(e.Path, len(cur.Rows)) {
+				info.chunks = append(info.chunks, [3]int{len(shards), start, len(cur.Rows) - start})
+				shards, cur, start, di = append(shards, cur), &shard{}, 0, -1
 			}
-			i += n
 		}
+		if n := len(cur.Rows) - start; n > 0 {
+			info.chunks = append(info.chunks, [3]int{len(shards), start, n})
+		}
+		lo, hi := -1, -1
 		for _, e := range kids {
 			info.Bytes += e.Bytes
 			if e.Kind == "folder" {
@@ -181,12 +234,15 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 				info.Files++
 			}
 			info.Types[e.Kind] = add(info.Types[e.Kind], e.Bytes)
-			if e.Piece >= 0 {
-				if info.Lo < 0 || e.Piece < info.Lo {
-					info.Lo = e.Piece
+			if e.Piece >= 0 && e.Piece < len(m.Pieces) {
+				if lo < 0 || e.Piece < lo {
+					lo = e.Piece
 				}
-				info.Hi = max(info.Hi, e.Piece)
+				hi = max(hi, e.Piece)
 			}
+		}
+		if lo >= 0 {
+			info.Lo, info.Hi = m.Pieces[lo].PieceCID, m.Pieces[hi].PieceCID
 		}
 		b := bucketOf(d, mt.Buckets)
 		if buckets[b] == nil {
@@ -197,7 +253,29 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 	if len(cur.Rows) > 0 || len(shards) == 0 {
 		shards = append(shards, cur)
 	}
-	mt.Shards = len(shards)
+	// Shards are named by their contents, so an unchanged one keeps its file.
+	names := make([]string, len(shards))
+	shardFiles := map[string][]byte{}
+	for i, sh := range shards {
+		if sh.Pieces == nil {
+			sh.Pieces = []string{}
+		}
+		b, err := json.Marshal(sh)
+		if err != nil {
+			return nil, err
+		}
+		h := fnv.New64a()
+		h.Write(b)
+		names[i] = fmt.Sprintf("%016x", h.Sum64())
+		key := "s/" + names[i]
+		shardFiles[key+".js"] = []byte(fmt.Sprintf("I2F.put(%q,%s);\n", key, b))
+	}
+	for _, info := range infos {
+		for _, c := range info.chunks {
+			info.Chunks = append(info.Chunks, [3]any{names[c[0]], c[1], c[2]})
+		}
+	}
+	mt.Shards = names
 	mt.Pieces = summarizePieces(m, byPath)
 
 	files := map[string][]byte{}
@@ -212,10 +290,8 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 	if err := put("meta.js", "meta", mt); err != nil {
 		return nil, err
 	}
-	for i, s := range shards {
-		if err := put(fmt.Sprintf("s/%d.js", i), fmt.Sprintf("s/%d", i), s); err != nil {
-			return nil, err
-		}
+	for name, b := range shardFiles {
+		files[name] = b
 	}
 	for i, b := range buckets {
 		if b == nil {
@@ -272,7 +348,7 @@ func summarizePieces(m *manifest.Manifest, byPath map[string]*Entry) []pieceInfo
 		}
 		switch len(in) {
 		case 0:
-			pi.Where, pi.Label, pi.Kind = "index", "index/ and explorer/", "code"
+			pi.Where, pi.Label, pi.Kind = "index", partLabel[m.Pieces[i].Part], "code"
 		case 1:
 			r := in[0]
 			pi.Where, pi.Path, pi.CID = where(r.Path), r.Path, r.CID
@@ -306,8 +382,15 @@ func summarizePieces(m *manifest.Manifest, byPath map[string]*Entry) []pieceInfo
 	return out
 }
 
-func row(dir int, e *Entry) []any {
-	r := []any{dir, e.Name, e.Kind, e.Bytes, e.CID, e.Piece}
+var partLabel = map[string]string{
+	"":                 "index/ and explorer/",
+	manifest.PartIndex: "index/: block lists",
+	manifest.PartMeta:  "explorer/ and data/ folders",
+	manifest.PartHead:  "the archive root and manifest",
+}
+
+func row(dir, piece int, e *Entry) []any {
+	r := []any{dir, e.Name, e.Kind, e.Bytes, e.CID, piece}
 	if seg := path.Base(e.Path); seg != e.Name {
 		r = append(r, seg)
 	}

@@ -87,6 +87,20 @@ type Root struct {
 	LastPiece  int `json:"lastPiece"`
 }
 
+// The parts of an archive's own blocks. Head pieces hold the root, the
+// catalog record and what depends on the manifest (index/manifest.json, the
+// explorer's copy of it and its summary), and name the root in their CAR
+// headers. The rest depends on the repo alone, so it is cut like data
+// pieces and an unchanged part keeps its piece: index pieces hold the block
+// lists under index/pieces (a catalog reader needs those), meta pieces the
+// data/ folders and the rest of explorer/. Archives packed before parts
+// existed have pieces with no part after their data pieces, holding all of it.
+const (
+	PartIndex = "index"
+	PartMeta  = "meta"
+	PartHead  = "head"
+)
+
 type Piece struct {
 	Index    int    `json:"index"`
 	PieceCID string `json:"pieceCid"` // v2 PieceCID
@@ -94,6 +108,9 @@ type Piece struct {
 	Blocks   int64  `json:"blocks"`
 	// BlockList is the path under index/ listing this piece's multihashes in order.
 	BlockList string `json:"blockList"`
+	// Part is "" for a piece of repo blocks, else which of the archive's own
+	// blocks it holds (PartIndex, PartMeta, PartHead).
+	Part string `json:"part,omitempty"`
 	// Snapshot is the index of the snapshot that first stored this piece.
 	Snapshot int `json:"snapshot"`
 }

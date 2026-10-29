@@ -424,10 +424,74 @@ func TestEditChangesNearbyPieces(t *testing.T) {
 	if n := len(m.Snapshots[1].NewPieces); n < changed {
 		t.Fatalf("snapshot 1 lists %d new pieces, %d data pieces changed", n, changed)
 	}
+	before := map[string]bool{}
+	for _, p := range a.Manifest.Pieces {
+		before[p.PieceCID] = true
+	}
+	var own, ownChanged int
 	for _, p := range m.Pieces {
-		if old[p.PieceCID] != (p.Snapshot == 0) {
+		if before[p.PieceCID] != (p.Snapshot == 0) {
 			t.Errorf("piece %d: snapshot %d", p.Index, p.Snapshot)
 		}
+		if p.Part == manifest.PartIndex || p.Part == manifest.PartMeta {
+			own++
+			if !before[p.PieceCID] {
+				ownChanged++
+			}
+		}
+	}
+	// index/ and explorer/ change near the edit only (TestEditKeepsMostOwnPieces)
+	t.Logf("%d of %d index and explorer pieces changed", ownChanged, own)
+	if ownChanged == own {
+		t.Errorf("all %d index and explorer pieces changed after a one-file edit", own)
+	}
+}
+
+// manyFiles makes a repo of 150 folders of 150 small files in MFS, so the
+// explorer has several shards; edit changes one file.
+func manyFiles(t *testing.T, edit bool) *fakeRepo {
+	f := newFake()
+	top := map[string]format.Node{}
+	for d := range 150 {
+		files := map[string]format.Node{}
+		for i := range 150 {
+			data := random(int64(d*1000+i), 300)
+			if edit && d == 75 && i == 50 {
+				copy(data, "edited")
+			}
+			files[fmt.Sprintf("file-%03d.txt", i)] = f.file(t, data, true)
+		}
+		top[fmt.Sprintf("dir-%03d", d)] = f.dir(t, files)
+	}
+	f.mfs = f.dir(t, top).Cid()
+	return f
+}
+
+// A one-file edit stores most of index/ and explorer/ in the same pieces
+// as before; the head pieces, which hold the manifest, are new.
+func TestEditKeepsMostOwnPieces(t *testing.T) {
+	dir := t.TempDir()
+	a := build(t, manyFiles(t, false), dir)
+	before := map[string]bool{}
+	for _, p := range a.Manifest.Pieces {
+		before[p.PieceCID] = true
+	}
+	b := build(t, manyFiles(t, true), dir)
+	var own, changed, head int64
+	for _, p := range b.Manifest.Pieces {
+		switch p.Part {
+		case manifest.PartIndex, manifest.PartMeta:
+			own += p.CARBytes
+			if !before[p.PieceCID] {
+				changed += p.CARBytes
+			}
+		case manifest.PartHead:
+			head += p.CARBytes
+		}
+	}
+	t.Logf("index and explorer: %d of %d bytes changed; head %d bytes", changed, own, head)
+	if own == 0 || changed*2 > own || head*4 > own {
+		t.Errorf("index and explorer: %d of %d bytes changed; head %d bytes", changed, own, head)
 	}
 }
 
@@ -823,9 +887,10 @@ func TestRecord(t *testing.T) {
 		}
 		c, data, _ := r.Next()
 		f.Close()
-		if p.BlockList != "" {
-			if len(r.Roots) != 1 || p.PieceCID != plain.Pieces[i].PieceCID {
-				t.Errorf("data piece %d: roots %v, changed: %v", i, r.Roots, p.PieceCID != plain.Pieces[i].PieceCID)
+		if p.Part != manifest.PartHead {
+			// data, index and explorer pieces name their first block alone
+			if len(r.Roots) != 1 || !r.Root.Equals(c) || p.PieceCID != plain.Pieces[i].PieceCID {
+				t.Errorf("piece %d (%q): roots %v, changed: %v", i, p.Part, r.Roots, p.PieceCID != plain.Pieces[i].PieceCID)
 			}
 			continue
 		}

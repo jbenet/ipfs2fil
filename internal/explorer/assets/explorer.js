@@ -56,9 +56,12 @@
     const b = await load('d/' + bucketOf(p, meta.buckets));
     return b[p] || null;
   }
+  // Shards name pieces by PieceCID; PIECE maps them to their index here.
+  let PIECE = {};
+  const pieceAt = (cid) => (cid && PIECE[cid] != null ? PIECE[cid] : -1);
   function entryOf(s, r) {
     const dir = s.dirs[r[0]], seg = r.length > 6 ? r[6] : r[1];
-    return { dir, name: r[1], kind: r[2], bytes: r[3], cid: r[4], piece: r[5], path: dir ? dir + '/' + seg : seg };
+    return { dir, name: r[1], kind: r[2], bytes: r[3], cid: r[4], piece: r[5] >= 0 ? pieceAt(s.pieces[r[5]]) : -1, path: dir ? dir + '/' + seg : seg };
   }
   async function listDir(info) {
     const parts = await Promise.all(info.chunks.map(async (c) => {
@@ -520,7 +523,7 @@ ${cid ? `<div class="actions"><a class="btn" href="${esc(gw(cid))}" target="_bla
       <span>Kind</span><span>${esc(kindLabel)}</span>
       <span>Files</span><span>${num(info.files)}</span>
       <span>Folders</span><span>${num(info.folders)}</span>
-      ${info.lo >= 0 ? `<span>Spread over</span><a href="pieces.html?n=${info.lo}">${info.lo === info.hi ? 'piece ' + info.lo : 'pieces ' + info.lo + ' to ' + info.hi}</a>` : ''}
+      ${pieceAt(info.lo) >= 0 ? `<span>Spread over</span><a href="pieces.html?n=${pieceAt(info.lo)}">${info.lo === info.hi ? 'piece ' + pieceAt(info.lo) : 'pieces ' + pieceAt(info.lo) + ' to ' + pieceAt(info.hi)}</a>` : ''}
       ${r && r.kind !== 'mfs' ? `<span>Pin</span><a href="pin.html?cid=${encodeURIComponent(r.cid)}">Details and pieces</a>` : ''}
     </div></section>
     ${typeRows.length ? `<section class="card"><h2>By file type</h2>${bar(typeRows.map((t) => [KIND[t[0]][3], t[1][1], KIND[t[0]][1]]), typeRows.map((t) => KIND[t[0]][3] + ' ' + bytes(t[1][1])).join(', '))}
@@ -677,8 +680,8 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     const items = [];
     let next = 0, last = 0;
     const work = async () => {
-      while (next < meta.shards) {
-        const s = await load('s/' + next++);
+      while (next < meta.shards.length) {
+        const s = await load('s/' + meta.shards[next++]);
         for (const r of s.rows) items.push(entryOf(s, r));
         if (Date.now() - last > 250) { last = Date.now(); list.setItems(items.slice(), true); title(); }
       }
@@ -695,9 +698,11 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
   const pages = { overview, browse, pin, pieces: piecesPage, search };
   manifest().then((m) => {
     ROOTS = {};
+    PIECE = {};
+    (m.pieces || []).forEach((p) => { PIECE[p.pieceCid] = p.index; });
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
-      if (meta.format > 1) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
+      if (meta.format > 2) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
       return (pages[PAGE] || overview)();
     });
   }).catch(fail);
