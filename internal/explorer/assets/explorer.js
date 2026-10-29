@@ -84,6 +84,10 @@
   }
   const count = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + ' M' : n >= 1e4 ? (n / 1e3).toFixed(0) + ' K' : num(n);
   const shortCID = (c) => c && c.length > 20 ? c.slice(0, 11) + '…' + c.slice(-5) : (c || '');
+  // A shortened CID that shows all of itself when clicked, with a copy
+  // button when cp is set. One listener below handles every page's.
+  const COPYIC = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M5.5 5.5h7v8h-7zM3.5 10.5v-8h7" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  const cidx = (c, cp) => c ? `<button type="button" class="cidx" data-cid="${esc(c)}" title="${esc(c)}" aria-label="Show the whole CID">${esc(shortCID(c))}</button>${cp ? `<button type="button" class="cpy" data-copy="${esc(c)}" title="Copy the CID" aria-label="Copy the CID">${COPYIC}</button>` : ''}` : '';
   const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
@@ -173,6 +177,15 @@
       t.remove();
     }
   }
+  D.addEventListener('click', (ev) => {
+    const t = ev.target.closest && ev.target.closest('.cidx, [data-copy]');
+    if (!t) return;
+    ev.preventDefault();
+    if (t.dataset.copy) return void copy(t.dataset.copy);
+    const open = t.classList.toggle('open');
+    t.textContent = open ? t.dataset.cid : shortCID(t.dataset.cid);
+    t.setAttribute('aria-label', open ? 'Shorten the CID' : 'Show the whole CID');
+  });
   const openTab = (url) => url && window.open(url, '_blank', 'noopener');
 
   // ---- Page frame: header, bottom rail, shortcuts dialog
@@ -400,7 +413,7 @@
   const kindCol = { key: 'kind', label: 'Kind', cls: 'muted hide-sm', sort: (e) => kindOf(e.kind)[2], html: (e) => esc(kindOf(e.kind)[2]) };
   const sizeCol = { key: 'size', label: 'Size', cls: 'r', sort: (e) => e.bytes, html: (e) => bytes(e.bytes) };
   const pieceCol = { key: 'piece', label: 'Piece', cls: 'r hide-sm', sort: (e) => e.piece, html: (e) => e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : '' };
-  const cidCol = { key: 'cid', label: 'CID', cls: 'cid hide-sm', html: (e) => e.cid ? `${esc(shortCID(e.cid))}<a href="${esc(gw(e.cid))}" target="_blank" rel="noopener" title="Open in an IPFS gateway" aria-label="Open ${esc(e.name)} in an IPFS gateway">↗</a>` : '' };
+  const cidCol = { key: 'cid', label: 'CID', cls: 'cid hide-sm', html: (e) => e.cid ? `${cidx(e.cid, true)}<a href="${esc(gw(e.cid))}" target="_blank" rel="noopener" title="Open in an IPFS gateway" aria-label="Open ${esc(e.name)} in an IPFS gateway">↗</a>` : '' };
   const SIZES = [['any', 'Any'], ['small', 'Under 1 MiB'], ['mid', '1 to 100 MiB'], ['big', 'Over 100 MiB']];
   const sizeTest = (e, v) => v === 'small' ? e.bytes < 1 << 20 : v === 'mid' ? e.bytes >= 1 << 20 && e.bytes <= 100 << 20 : e.bytes > 100 << 20;
   const kindChips = (exclude) => KINDS.filter((k) => k !== exclude).map((k) => [k, KIND[k][3]]);
@@ -422,7 +435,7 @@
       const sub = parts.slice(0, i + 1).join('/'), r = rootAt(sub);
       const label = r && r.kind !== 'mfs' && i === start ? rootLabel(r) : parts[i];
       const shown = label.length > 40 ? shortCID(label) : label;
-      out += '<span aria-hidden="true">/</span>' + (i === parts.length - 1 ? `<span aria-current="page">${esc(shown)}</span>` : `<a href="${esc(r && r.kind !== 'mfs' ? 'pin.html?cid=' + encodeURIComponent(r.cid) : browseHref(sub))}">${esc(shown)}</a>`);
+      out += '<span aria-hidden="true">/</span>' + (i === parts.length - 1 ? `<span aria-current="page">${shown !== label ? cidx(label) : esc(shown)}</span>` : `<a href="${esc(r && r.kind !== 'mfs' ? 'pin.html?cid=' + encodeURIComponent(r.cid) : browseHref(sub))}">${esc(shown)}</a>`);
     }
     return `<nav class="crumbs" aria-label="Path">${out}</nav>`;
   }
@@ -457,8 +470,8 @@
   <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}`}</div>
   <h1>${bytes(total)}, ${plural(pins.length, 'pin')}, ${stored}</h1>
   <div class="meta">
-    ${REPOS ? '<span>Each file a repo shares with an earlier one counts once</span>' : `<span>Archive root ${root ? `<code class="chipcode" title="${esc(root)}">${esc(shortCID(root))}</code> <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>`}
-    ${m.dataRoot ? `<span>Data root <code class="mono" title="${esc(m.dataRoot)}">${esc(shortCID(m.dataRoot))}</code> <button type="button" class="link" data-copy="${esc(m.dataRoot)}">Copy</button></span>` : ''}
+    ${REPOS ? '<span>Each file a repo shares with an earlier one counts once</span>' : `<span>Archive root ${root ? `${cidx(root)} <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>`}
+    ${m.dataRoot ? `<span>Data root ${cidx(m.dataRoot)} <button type="button" class="link" data-copy="${esc(m.dataRoot)}">Copy</button></span>` : ''}
     ${last ? `<span>Snapshot ${day(last.time)}${snaps.length > 1 ? ` · ${plural(snaps.length - 1, 'earlier snapshot')}` : ''}</span>` : ''}
   </div>
 </section>
@@ -487,7 +500,6 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     <div class="faint" id="pnote"></div></section>
 </div>`;
     function stat(k, v, s) { return `<div class="card tight stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
-    D.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(b.dataset.copy); });
     const once = new Set();
     const largest = roots.filter((r) => !REPOS || (!once.has(r.cid) && once.add(r.cid))).sort((a, b) => b.bytes - a.bytes).slice(0, 10).map((r) => ({ ...r, name: rootLabel(r), path: r.path, dir: '', piece: r.firstPiece, kind: kindAt(r), root: r }));
     function kindAt(r) { return r.kind === 'mfs' ? 'folder' : 'other'; }
@@ -630,7 +642,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       const parts = meta.parts || {}, t = meta.types || {};
       const libOn = S.deep && !S.q && !S.p;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => k[0] === 'all' || t[k[0]]).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${k[0] === 'all' ? count(meta.entries) : count(t[k[0]][0])}</span></a>`).join('')}
-<div class="h">Places</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
+<div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
     }
 
@@ -701,7 +713,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       main().querySelectorAll('[data-ly]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.ly === S.ly));
       const r = rootAt(S.p);
       const title = S.p ? (r && r.kind !== 'mfs' ? rootLabel(r) : S.p.split('/').pop()) : 'data';
-      $('.fcrumbs').innerHTML = crumbs(S.p) + (info ? `<span class="faint">${plural(info.n, 'item')} · ${bytes(info.bytes)}</span>` : '');
+      $('.fcrumbs').innerHTML = crumbs(S.p) + (info ? `<span class="faint">${plural(info.n, 'item')} · ${bytes(info.bytes)}</span>${info.cid ? `<span class="fcid">${cidx(info.cid, true)}<a href="${esc(gw(info.cid))}" target="_blank" rel="noopener" title="Open this folder in an IPFS gateway">↗</a></span>` : ''}` : '');
       $('.scope').innerHTML = S.deep ? `<span class="pill on">In ${esc(S.p ? (title.length > 24 ? shortCID(title) : title) : REPOS ? 'all repos' : 'the whole archive')}${S.p ? ' and below' : ''}${S.p ? ` <button type="button" data-unscope aria-label="Search the whole archive">×</button>` : ''}</span>` : '';
       box.placeholder = S.deep ? 'Search names and CIDs' : `Search in ${S.p ? title.length > 24 ? shortCID(title) : title : 'data'} and below`;
       const chips = [['all', 'All', base.length]].concat(KINDS.filter((k) => counts[k]).map((k) => [k, KIND[k][3], counts[k]]));
@@ -817,13 +829,16 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   <div><span>Piece</span><b>${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">#${e.piece}</a>` : '—'}</b></div><div><span>Copies</span><b>${stored.length || (piece ? '0' : '—')}</b></div>
 </div>
 <div class="facts dl">
-  <span>CID</span><span><code title="${esc(e.cid)}">${esc(shortCID(e.cid))}</code> <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
-  ${S.deep || e.dir !== S.p ? `<span>In${e.also && e.also.length ? ` (${num(e.also.length + 1)})` : ''}</span>${places(e)}` : ''}
-  ${piece ? `<span>Stored</span><span><code title="${esc(piece.pieceCid)}">${esc(shortCID(piece.pieceCid))}</code> ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
+  <span>CID</span><span>${cidx(e.cid)} <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
+  <span>In${e.also && e.also.length ? ` (${num(e.also.length + 1)})` : ''}</span>${places(e)}
+  <span>Folder</span><span class="pdir faint">…</span>
+  ${piece ? `<span>Stored</span><span>${cidx(piece.pieceCid, true)} ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
   <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
       fill(pane, e, url);
       warmAround();
+      const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
+      if (pd && current() === e) pd.outerHTML = di && di.cid ? `<span>${cidx(di.cid, true)} <span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span></span>` : '<span class="faint">—</span>';
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
@@ -923,7 +938,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 <div class="facts2"><div><span>Items</span><b>${num(di.n)}</b></div><div><span>Size</span><b>${bytes(di.bytes)}</b></div><div><span>Files</span><b>${num(di.files)}</b></div><div><span>Folders</span><b>${num(di.folders)}</b></div></div>
 ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3], t[1][1], KIND[t[0]][1]]), typeRows.map((t) => KIND[t[0]][3] + ' ' + bytes(t[1][1])).join(', '))}<div class="legend sm">${typeRows.map((t) => `<a href="browse.html?${qs({ p, kind: t[0], deep: '1' })}"><span class="sw" style="background:${KIND[t[0]][1]}"></span>${KIND[t[0]][3]} ${num(t[1][0])}</a>`).join('')}</div></div>` : ''}
 <div class="facts dl">
-  ${di.cid ? `<span>CID</span><span><code title="${esc(di.cid)}">${esc(shortCID(di.cid))}</code> <button type="button" class="link" data-copy="${esc(di.cid)}">Copy</button></span>` : ''}
+  ${di.cid ? `<span>CID</span><span>${cidx(di.cid)} <button type="button" class="link" data-copy="${esc(di.cid)}">Copy</button></span>` : ''}
   ${r ? `<span>Root</span><span>${esc(ROOTKIND[r.kind] || r.kind)}${r.kind !== 'mfs' ? ` · <a href="pin.html?cid=${encodeURIComponent(r.cid)}">details</a>` : ''}</span>` : ''}
   ${pieceAt(di.lo) >= 0 ? `<span>Pieces</span><a href="pieces.html?n=${pieceAt(di.lo)}">${di.lo === di.hi ? '#' + pieceAt(di.lo) : '#' + pieceAt(di.lo) + ' to #' + pieceAt(di.hi)}</a>` : ''}
   ${di.cid ? `<span>Open in</span><span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(di.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
@@ -971,7 +986,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (b.hasAttribute('data-unscope')) { S.p = ''; enter('').catch(fail); return; }
       if (b.hasAttribute('data-more')) { S.limit += 300; update(); return; }
       if (b.hasAttribute('data-public')) { PUBLIC = true; update(true); return; }
-      if (b.dataset.copy) { copy(b.dataset.copy); return; }
+      if (b.dataset.copy || b.classList.contains('cidx')) return;
       if (b.dataset.step) { sel((S.cur < 0 ? -1 : S.cur) + +b.dataset.step); return; }
       if (b.dataset.tw != null) { const e = rows[+b.dataset.tw]; if (e) toggle(e); return; }
       if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (e && e.kind === 'folder') open(e); else sel(+b.dataset.open); return; }
@@ -1069,13 +1084,12 @@ ${crumbs(r.path)}
     ${info ? '<section class="card"><h2>Top level</h2><div class="stack" id="top"></div></section>' : ''}
   </aside>
 </div>`;
-    D.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(b.dataset.copy); });
     const rows = [];
     for (let i = r.firstPiece; i <= r.lastPiece && i < (m.pieces || []).length; i++) rows.push(m.pieces[i]);
     const list = new List(D.getElementById('list'), {
       label: 'Pieces of this root', step: 100, sort0: 'n', filter: null, sortSelect: false,
       cols: [{ key: 'n', label: 'Piece', sort: (p) => p.index, html: (p) => `<a href="pieces.html?n=${p.index}">#${p.index}</a>` },
-        { key: 'cid', label: 'PieceCID', cls: 'cid', html: (p) => esc(shortCID(p.pieceCid)) },
+        { key: 'cid', label: 'PieceCID', cls: 'cid', html: (p) => cidx(p.pieceCid, true) },
         { key: 'size', label: 'Size', cls: 'r', sort: (p) => p.carBytes, html: (p) => bytes(p.carBytes) },
         { key: 'copies', label: 'Copies', cls: 'hide-sm', html: (p) => `<span class="tags">${copies.filter((c) => c.pieceIds && c.pieceIds[p.index] != null).map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('') || '<span class="faint">not stored yet</span>'}</span>` }],
       href: (p) => 'pieces.html?n=' + p.index, cid: (p) => p.pieceCid, gateway: false, statusOf: (p) => '#' + p.index + ' · ' + (meta.pieces[p.index] || {}).label
@@ -1110,7 +1124,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
       selects: [{ key: 'holds', label: 'Holds', options: [['any', 'Anything'], ['pins', 'Pins'], ['mfs', 'MFS'], ['orphans', 'Orphans'], ['index', 'Index and explorer']], test: (p, v) => p.info.where === v },
         { key: 'size', label: 'Size', options: [['any', 'Any'], ['full', 'Full'], ['part', 'Partly full']], test: (p, v) => (p.carBytes >= full) === (v === 'full') }],
       cols: [{ key: 'n', label: '#', sort: (p) => p.index, html: (p) => String(p.index) },
-        { key: 'cid', label: 'PieceCID', cls: 'cid', html: (p) => `<span title="${esc(p.pieceCid)}">${esc(shortCID(p.pieceCid))}</span>` },
+        { key: 'cid', label: 'PieceCID', cls: 'cid', html: (p) => cidx(p.pieceCid, true) },
         { key: 'size', label: 'Size', cls: 'r', sort: (p) => p.carBytes, html: (p) => bytes(p.carBytes) },
         { key: 'blocks', label: 'Blocks', cls: 'r hide-sm', sort: (p) => p.blocks, html: (p) => num(p.blocks) },
         { key: 'holds', label: 'Holds', sort: (p) => p.info.label.toLowerCase(), html: (p) => `<span class="nm">${icon(p.info.kind)}<a href="${esc(holdsHref(p))}">${esc(p.info.label)}</a></span>` },
