@@ -39,6 +39,8 @@ import (
 )
 
 // IndexFormat is bumped when the index changes in a way old pages cannot read.
+// explorer.js asks for idx files with ?f=<IndexFormat>, so browsers do not
+// reuse ones cached from an older index; bump it there too.
 const IndexFormat = 2
 
 var (
