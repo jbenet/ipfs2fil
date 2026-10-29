@@ -163,3 +163,28 @@ func samePieces(t *testing.T, a, b *Result) {
 		}
 	}
 }
+
+// Without a cache (lost, or a pack from before it), pieces whose block
+// lists match the last pack's keep their CARs: an edit reads no more blocks
+// than it does with the cache.
+func TestNoCacheMatchesBlockLists(t *testing.T) {
+	withCache, noCache := t.TempDir(), t.TempDir()
+	build(t, sample(t, false), withCache)
+	build(t, sample(t, false), noCache)
+	os.Remove(filepath.Join(noCache, CacheFile))
+
+	a := &countingRepo{fakeRepo: sample(t, true)}
+	x := build(t, a, withCache)
+	b := &countingRepo{fakeRepo: sample(t, true)}
+	y := build(t, b, noCache)
+	if b.gets != a.gets {
+		t.Errorf("without the cache the edit read %d blocks, with it %d", b.gets, a.gets)
+	}
+	samePack(t, x, y)
+
+	// The matches are cached for next time.
+	r := &countingRepo{fakeRepo: sample(t, true)}
+	if res := build(t, r, noCache); !res.Reused || r.gets != 0 {
+		t.Errorf("the next pack read %d blocks (reused %v)", r.gets, res.Reused)
+	}
+}
