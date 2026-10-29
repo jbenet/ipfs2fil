@@ -150,6 +150,32 @@ func TestPushResumesWithLostManifest(t *testing.T) {
 	}
 }
 
+func TestRecordAdoptedCopies(t *testing.T) {
+	// Another archive with the same key stored these pieces; this one only
+	// knows the data sets. Record fills in the ids without uploading.
+	ctx := context.Background()
+	s := memstore.New(3)
+	m, pieces := fixture(t, 3)
+	if err := store.Push(ctx, s, m, pieces, 2, func(*manifest.Manifest) error { return nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprint(m.Copies)
+	for i := range m.Copies {
+		m.Copies[i].PieceIDs, m.Copies[i].Service = map[int]string{}, ""
+	}
+	var r recorder
+	if err := store.Record(ctx, s, m, pieces, 2, r.save); err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(m.Copies) != want || r.saves != 1 || s.Uploads() != 6 {
+		t.Fatalf("got %v after %d saves and %d uploads, want %v", m.Copies, r.saves, s.Uploads(), want)
+	}
+	// nothing left to fill in: no save
+	if err := store.Record(ctx, s, m, pieces, 2, r.save); err != nil || r.saves != 1 {
+		t.Fatalf("second Record: %v, %d saves", err, r.saves)
+	}
+}
+
 func TestPushReportsMissingCAR(t *testing.T) {
 	s := memstore.New(3)
 	m, pieces := fixture(t, 2)

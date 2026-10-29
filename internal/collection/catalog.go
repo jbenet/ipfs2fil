@@ -1,10 +1,13 @@
 package collection
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -228,10 +231,36 @@ func stored(m *manifest.Manifest, i int) bool {
 	return true
 }
 
+// HostFile keeps this machine's catalog name in the collection's directory,
+// so a host name that changes does not split its repos in two.
+const HostFile = "host"
+
+// SavedHostName is the name in dir's HostFile. Without one it is HostName,
+// saved there for next time if it can be.
+func SavedHostName(dir string) string {
+	if b, err := os.ReadFile(filepath.Join(dir, HostFile)); err == nil {
+		if h := strings.TrimSpace(string(b)); hostOK.MatchString(h) {
+			return h
+		}
+	}
+	h := HostName()
+	if os.MkdirAll(dir, 0o700) == nil {
+		os.WriteFile(filepath.Join(dir, HostFile), []byte(h+"\n"), 0o600)
+	}
+	return h
+}
+
 // HostName is a usable catalog name for this machine: its host name up to
-// the first dot, with anything else turned into '-'.
+// the first dot, with anything else turned into '-'. On macOS it is the
+// computer's local name (System Settings, Sharing): the host name there comes
+// from the network and changes with it, to names like unknownc2de1a094ea0.
 func HostName() string {
 	h, err := os.Hostname()
+	if runtime.GOOS == "darwin" {
+		if out, serr := exec.Command("scutil", "--get", "LocalHostName").Output(); serr == nil && len(bytes.TrimSpace(out)) > 0 {
+			h, err = string(bytes.TrimSpace(out)), nil
+		}
+	}
 	if err != nil || h == "" {
 		return "this-machine"
 	}

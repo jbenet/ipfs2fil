@@ -187,6 +187,7 @@ func (c *Collection) SyncChain(ctx context.Context, s store.Store, secret []byte
 			}
 		}
 	}
+	mine := c.ownArchives()
 	for _, ss := range repos {
 		slices.SortFunc(ss, func(a, b *snapshot) int { return cmp.Or(cmp.Compare(a.set, b.set), -cmpID(a.last, b.last)) })
 		r := ss[0].record
@@ -194,11 +195,19 @@ func (c *Collection) SyncChain(ctx context.Context, s store.Store, secret []byte
 			continue // this machine's own list says what it has
 		}
 		dir := filepath.Join(c.Catalog, r.Host, r.Name)
+		if mine.packed(r.Name, ss) {
+			os.RemoveAll(dir) // this machine's, from before its host name changed
+			continue
+		}
 		var err error
 		for _, sn := range ss {
 			if err = c.cacheSnapshot(ctx, s, sets, held, where, sn, dir); err == nil {
 				break
 			}
+		}
+		if err == nil && mine.sameData(r.Name, dir) {
+			os.RemoveAll(dir)
+			continue
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("repo %s/%s: %w", r.Host, r.Name, err))
@@ -220,6 +229,57 @@ func (c *Collection) SyncChain(ctx context.Context, s store.Store, secret []byte
 		errs = append(errs, o.Save())
 	}
 	return errors.Join(errs...)
+}
+
+// ownArchives is what this machine's archives were, by repo name, to tell
+// its own records under an earlier host name from another machine's.
+type ownArchives map[string]ownArchive
+
+type ownArchive struct {
+	roots    map[string]bool // the archive root and every snapshot's
+	dataRoot string
+}
+
+func (c *Collection) ownArchives() ownArchives {
+	out := ownArchives{}
+	for _, r := range c.Repos {
+		m, err := manifest.Read(filepath.Join(c.OutDir(r), archive.ManifestFile))
+		if err != nil {
+			continue
+		}
+		a := ownArchive{roots: map[string]bool{m.Root: true}, dataRoot: m.DataRoot}
+		for _, sn := range m.Snapshots {
+			a.roots[sn.Root] = true
+		}
+		out[r.Name] = a
+	}
+	return out
+}
+
+// packed says whether one of these snapshots is an archive this machine
+// packed of the repo name.
+func (o ownArchives) packed(name string, ss []*snapshot) bool {
+	a, ok := o[name]
+	if !ok {
+		return false
+	}
+	for _, sn := range ss {
+		if a.roots[sn.root] {
+			return true
+		}
+	}
+	return false
+}
+
+// sameData says whether the archive cached in dir holds the same data as
+// this machine's archive of the repo name.
+func (o ownArchives) sameData(name, dir string) bool {
+	a, ok := o[name]
+	if !ok || a.dataRoot == "" {
+		return false
+	}
+	m, err := manifest.Read(filepath.Join(dir, archive.ManifestFile))
+	return err == nil && m.DataRoot == a.dataRoot
 }
 
 // peek reads a piece's CAR header and, for an archive's own piece, its first

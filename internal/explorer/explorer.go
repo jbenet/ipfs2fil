@@ -22,6 +22,9 @@ type Entry struct {
 	CID   string
 	Kind  string // folder, image, video, audio, doc, page, text, code, archive, disk, other
 	Bytes int64
+	// Dup is the part of Bytes whose blocks an earlier entry holds too, so
+	// totals over many entries count each block once.
+	Dup   int64
 	Piece int
 }
 

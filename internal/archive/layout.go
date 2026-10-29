@@ -311,6 +311,21 @@ func (l *layout) own(p span) int64 {
 // itself, then every file and directory below it, depth first.
 func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 	var out []explorer.Entry
+	// seen marks the blocks an earlier file holds. Roots are in layout order,
+	// so a block pins and orphans share counts for the pin.
+	seen := make([]bool, len(l.tab))
+	var fresh func(i int32) int64
+	fresh = func(i int32) int64 {
+		if seen[i] {
+			return 0
+		}
+		seen[i] = true
+		n := int64(l.tab[i].size)
+		for _, k := range l.tab[i].kids {
+			n += fresh(k)
+		}
+		return n
+	}
 	var walk func(i int32, p, name string) int64
 	walk = func(i int32, p, name string) int64 {
 		b := &l.tab[i]
@@ -322,6 +337,7 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 			if b.ufs.kind == ufsNone {
 				out[at].Bytes = int64(b.size)
 			}
+			out[at].Dup = max(0, out[at].Bytes-fresh(i))
 			return out[at].Bytes
 		}
 		var total int64
@@ -361,8 +377,13 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		if rt.kind == manifest.KindPinDirect {
 			// a direct pin holds only its own block
 			b := &l.tab[i]
-			out = append(out, explorer.Entry{Name: name, Path: p, CID: rt.c.String(), Kind: explorer.KindOf(name, false),
-				Bytes: int64(b.size), Piece: int(b.piece)})
+			e := explorer.Entry{Name: name, Path: p, CID: rt.c.String(), Kind: explorer.KindOf(name, false),
+				Bytes: int64(b.size), Piece: int(b.piece)}
+			if seen[i] {
+				e.Dup = e.Bytes
+			}
+			seen[i] = true
+			out = append(out, e)
 			continue
 		}
 		walk(i, p, name)

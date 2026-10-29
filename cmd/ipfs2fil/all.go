@@ -207,6 +207,11 @@ func pushListed(ctx context.Context, o *opts, skip *packFailures) error {
 		}
 		if n == 0 {
 			fmt.Fprintf(o.stdout, "%s: all %d pieces already stored in %d copies\n", a.repo.Name, len(a.pieces), o.copies)
+			// the copies may be adopted, or a failed run may not have saved
+			// them: write them down so status and the explorer see them
+			if err := store.Record(ctx, s, a.m, a.pieces, o.copies, saveManifest(a.o.out)); err != nil {
+				return fmt.Errorf("%s: %w", a.repo.Name, err)
+			}
 			publish(o, c, a.repo)
 			continue
 		}

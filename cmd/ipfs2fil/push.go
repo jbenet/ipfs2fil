@@ -76,7 +76,7 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		return err
 	} else if n == 0 {
 		fmt.Fprintf(o.stdout, "all %d pieces are already stored in %d copies; nothing to upload\n", len(pieces), o.copies)
-		return nil
+		return store.Record(ctx, s, m, pieces, o.copies, saveManifest(o.out))
 	}
 	sizes := map[string]int64{}
 	var total int64

@@ -169,8 +169,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 
 	m := &manifest.Manifest{Format: manifest.Format, Tool: opts.Tool, DataRoot: dataRoot.Cid().String(),
 		Source: manifest.Source{RepoVersion: int(r.Version()), Blocks: l.repoBlocks, Bytes: l.repoBytes}, Shared: shared}
+	owned := make([]bool, len(l.tab))
 	for _, rt := range roots {
-		m.Roots = append(m.Roots, l.rootEntry(rt))
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
 	}
 	for i, p := range dataPieces {
 		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: l.own(p),
@@ -377,6 +378,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if newSnap {
 		m.Snapshots[snap].Root = m.Root
 	}
+	if prev != nil {
+		m.Copies = remap(prev, m)
+	}
 	if err := m.Write(filepath.Join(outDir, ManifestFile)); err != nil {
 		return nil, err
 	}
@@ -469,7 +473,31 @@ func writePiece(dir string, roots []cid.Cid, fill func(*car.Writer) error) (stri
 	return path, sum, os.Rename(f.Name(), path)
 }
 
-func (l *layout) rootEntry(rt root) manifest.Root {
+// rootEntry describes rt. owned marks the blocks earlier roots hold; rt's
+// other blocks count as its Own and are marked.
+// remap carries prev's copies over to m. Piece ids are kept by piece index,
+// and a new pack can put a stored piece at another index or a new piece at
+// a stored one's, so each id follows its PieceCID.
+func remap(prev, m *manifest.Manifest) []manifest.Copy {
+	at := map[string]int{}
+	for _, p := range prev.Pieces {
+		at[p.PieceCID] = p.Index
+	}
+	var out []manifest.Copy
+	for _, c := range prev.Copies {
+		ids := map[int]string{}
+		for _, p := range m.Pieces {
+			if j, ok := at[p.PieceCID]; ok && c.PieceIDs[j] != "" {
+				ids[p.Index] = c.PieceIDs[j]
+			}
+		}
+		c.PieceIDs = ids
+		out = append(out, c)
+	}
+	return out
+}
+
+func (l *layout) rootEntry(rt root, owned []bool) manifest.Root {
 	e := manifest.Root{CID: rt.c.String(), Kind: rt.kind, Name: rt.name, Path: rt.path(), FirstPiece: -1, LastPiece: -1}
 	l.gen++
 	var walk func(i int32)
@@ -481,6 +509,10 @@ func (l *layout) rootEntry(rt root) manifest.Root {
 		b.mark = l.gen
 		e.Blocks++
 		e.Bytes += int64(b.size)
+		if !owned[i] {
+			owned[i] = true
+			e.Own += int64(b.size)
+		}
 		// a shared block (piece -1) is in another archive's piece
 		if b.piece >= 0 && (e.FirstPiece < 0 || int(b.piece) < e.FirstPiece) {
 			e.FirstPiece = int(b.piece)

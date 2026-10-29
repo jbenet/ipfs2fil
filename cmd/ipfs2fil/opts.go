@@ -96,7 +96,7 @@ func jsonFlag(fs *flag.FlagSet, o *opts) {
 func homeFlag(fs *flag.FlagSet, o *opts) {
 	fs.StringVar(&o.home, "home", "", "directory holding the list of repos and their archives (default $"+collection.EnvHome+", else ~/.ipfs2fil)")
 	fs.StringVar(&o.catalog, "catalog", "", "where repos on all your machines are tracked: filecoin (read from your data sets on chain), a git repository URL, or a shared folder; remembered once given (default $"+collection.EnvCatalog+", else filecoin)")
-	fs.StringVar(&o.host, "host", "", "this machine's name in the catalog (default $"+collection.EnvHost+", else the host name)")
+	fs.StringVar(&o.host, "host", "", "this machine's name in the catalog (default $"+collection.EnvHost+", else the name saved in the home directory on first use)")
 }
 
 // allFlag adds --all and --home: run over every repo 'ipfs2fil repos add' listed.

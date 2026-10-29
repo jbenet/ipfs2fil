@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -360,6 +361,22 @@ func TestPushThenRepack(t *testing.T) {
 	if s := b.Manifest.Snapshots; len(s) != 1 || s[0].Root != a.Manifest.Root || len(b.Manifest.Copies) != 1 {
 		t.Fatalf("snapshots %+v, copies %d", s, len(b.Manifest.Copies))
 	}
+	if got := b.Manifest.Copies[0].PieceIDs; fmt.Sprint(got) != fmt.Sprint(ids) {
+		t.Errorf("piece ids %v, want %v", got, ids)
+	}
+
+	// An edit moves pieces: each stored piece keeps its id wherever it lands,
+	// and a new piece gets none.
+	c := build(t, sample(t, true), dir)
+	at := map[string]string{}
+	for _, p := range a.Pieces {
+		at[p.PieceCID] = ids[p.Index]
+	}
+	for _, p := range c.Pieces {
+		if got := c.Manifest.Copies[0].PieceIDs[p.Index]; got != at[p.PieceCID] {
+			t.Errorf("piece %d (%s) has id %q, want %q", p.Index, p.PieceCID, got, at[p.PieceCID])
+		}
+	}
 }
 
 func TestEditChangesNearbyPieces(t *testing.T) {
@@ -511,8 +528,9 @@ func TestEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
 	for _, rt := range roots {
-		m.Roots = append(m.Roots, l.rootEntry(rt))
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
 	}
 	got := map[string]explorer.Entry{}
 	for _, e := range l.entries(roots, m) {
@@ -531,6 +549,52 @@ func TestEntries(t *testing.T) {
 	}
 	if got[sp].Name != "site" || got[sp+"/photo.jpg"].Bytes != 3000 || got[sp].Bytes != 3004 || got["mfs"].Bytes != 70 {
 		t.Errorf("site %+v, photo %+v, mfs %+v", got[sp], got[sp+"/photo.jpg"], got["mfs"])
+	}
+}
+
+// Roots and names that share blocks, like the same file added twice or a
+// folder kept in several versions, count those blocks once in the totals.
+func TestSharedBlocksCountOnce(t *testing.T) {
+	f := newFake()
+	big := f.file(t, random(1, 20000), true)
+	small := f.file(t, random(2, 3000), true)
+	f.pins = []repo.Pin{{Root: f.dir(t, map[string]format.Node{"big.mp4": big}).Cid(), Mode: repo.Recursive}}
+	f.dir(t, map[string]format.Node{"a.mp4": big, "b.mp4": big})   // an orphan version of it
+	f.dir(t, map[string]format.Node{"c.mp4": big, "d.txt": small}) // and another
+
+	l := newLayout(f)
+	if err := l.list(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	roots, err := l.walkRoots(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(roots) != 3 {
+		t.Fatalf("%d roots, want 3", len(roots))
+	}
+	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
+	var own, stored, bytes int64
+	for _, rt := range roots {
+		e := l.rootEntry(rt, owned)
+		m.Roots = append(m.Roots, e)
+		own, bytes = own+e.Own, bytes+e.Bytes
+	}
+	for _, b := range l.tab {
+		stored += int64(b.size)
+	}
+	if own != stored || bytes <= stored {
+		t.Errorf("roots own %d bytes and list %d, want own = the %d stored and more listed", own, bytes, stored)
+	}
+	files := map[string]int64{}
+	for _, e := range l.entries(roots, m) {
+		if e.Kind != "folder" {
+			files[path.Base(e.Path)] = e.Bytes - e.Dup
+		}
+	}
+	if files["big.mp4"] != 20000 || files["a.mp4"]+files["b.mp4"]+files["c.mp4"] != 0 || files["d.txt"] != 3000 {
+		t.Errorf("files count %v; want big.mp4 20000 and its copies 0, d.txt 3000", files)
 	}
 }
 
@@ -800,8 +864,9 @@ func TestOddLinkNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
 	for _, rt := range roots {
-		m.Roots = append(m.Roots, l.rootEntry(rt))
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
 	}
 	sp := "pins/recursive/" + d.Cid().String()
 	got := map[string]string{}
