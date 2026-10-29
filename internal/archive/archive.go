@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/ipld/merkledag"
+	uio "github.com/ipfs/boxo/ipld/unixfs/io"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
@@ -310,7 +311,11 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
-	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp)
+	shards, err := explorer.Shards(filepath.Join(outDir, "explorer"))
+	if err != nil {
+		return nil, err
+	}
+	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp, shards)
 	if err != nil {
 		return nil, err
 	}
@@ -542,8 +547,10 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 // stableBlocks lists, depth first, the blocks the archive made that do not
 // depend on the manifest and are not the repo's: index/pieces (inIndex),
 // the data/ folders, and explorer/ but for explorer/idx/manifest.js and
-// meta.js and the folders holding them.
-func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, exp format.Node) ([]format.Node, map[string]bool, error) {
+// meta.js and the folders holding them. The explorer's shards go last, in
+// shards order (by path, not by file name), so a change to nearby names
+// falls in one piece.
+func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, exp format.Node, shards []string) ([]format.Node, map[string]bool, error) {
 	var out []format.Node
 	seen := map[string]bool{}
 	var walk func(c cid.Cid) error
@@ -601,7 +608,37 @@ func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, ex
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, c := range append(kids(exp, "idx"), kids(ix, "manifest.js", "meta.js")...) {
+	for _, c := range append(kids(exp, "idx"), kids(ix, "manifest.js", "meta.js", "s")...) {
+		if err := walk(c); err != nil {
+			return nil, nil, err
+		}
+	}
+	sdir, err := find(ix, "s")
+	if err != nil {
+		return nil, nil, err
+	}
+	d, err := uio.NewDirectoryFromNode(dag, sdir)
+	if err != nil {
+		return nil, nil, err
+	}
+	links, err := d.Links(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	files := map[string]cid.Cid{}
+	for _, ln := range links {
+		files[ln.Name] = ln.Cid
+		seen[string(ln.Cid.Hash())] = true // walked below, in order
+	}
+	if err := walk(sdir.Cid()); err != nil {
+		return nil, nil, err
+	}
+	for _, name := range shards {
+		c, ok := files[name]
+		if !ok {
+			return nil, nil, fmt.Errorf("archive: no shard %s in explorer/idx/s", name)
+		}
+		delete(seen, string(c.Hash()))
 		if err := walk(c); err != nil {
 			return nil, nil, err
 		}
@@ -609,11 +646,13 @@ func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, ex
 	return out, inIndex, nil
 }
 
-// Own pieces other than head pieces are cut like data pieces, but small: a
-// change rewrites the pieces it falls in, a MiB or two each.
+// Own pieces other than head pieces are cut like data pieces, but smaller:
+// a change rewrites the pieces it falls in, 32 to about 40 MiB each. Each
+// piece added costs about the same whatever its size (store.Estimate), so
+// smaller would cost more for less upload.
 const (
-	metaMinPiece = 1 << 20
-	metaCutBits  = 3
+	metaMinPiece = 32 << 20
+	metaCutBits  = 5
 )
 
 // cutMeta cuts ns into pieces at content-defined points.

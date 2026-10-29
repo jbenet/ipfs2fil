@@ -6,7 +6,9 @@
 package explorer
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -55,6 +57,30 @@ func Write(dir string, m *manifest.Manifest, entries []Entry) error {
 		}
 	}
 	return nil
+}
+
+// Shards lists the shard files of the explorer Write made in dir
+// (idx/s/<name>.js), in the order of the paths they hold, so that blocks laid
+// out in this order keep nearby names together.
+func Shards(dir string) ([]string, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "idx", "meta.js"))
+	if err != nil {
+		return nil, err
+	}
+	b = bytes.TrimSpace(b)
+	b = bytes.TrimPrefix(b, []byte(`I2F.put("meta",`))
+	b = bytes.TrimSuffix(b, []byte(");"))
+	var mt struct {
+		Shards []string `json:"shards"`
+	}
+	if err := json.Unmarshal(b, &mt); err != nil {
+		return nil, fmt.Errorf("reading %s: %w", filepath.Join(dir, "idx", "meta.js"), err)
+	}
+	out := make([]string, len(mt.Shards))
+	for i, n := range mt.Shards {
+		out[i] = n + ".js"
+	}
+	return out, nil
 }
 
 // WriteManifest refreshes only the explorer's copy of the manifest, for when
