@@ -628,7 +628,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       <div class="selects"><label class="deep"><input type="checkbox" id="fdeep"> Include subfolders</label>
         <label>Size<select id="fsize">${SIZES.map((s) => `<option value="${s[0]}">${s[1]}</option>`).join('')}</select></label>
         <label>Sort<select id="fsort"><option value="name">Name</option><option value="size">Size</option><option value="kind">Kind</option><option value="piece">Piece</option><option value="where">Folder</option></select></label><button type="button" class="flip" id="fflip" aria-label="Reverse the order"></button></div></div>
-    <div class="fbody"><div class="flist" tabindex="0" aria-label="Files. J and K move, Enter opens."></div><aside class="fprev" aria-label="Preview and details"></aside></div>
+    <div class="fbody"><div class="flist" tabindex="0" aria-label="Files. J and K move, Enter opens."></div><aside class="fprev" aria-label="Preview and details"><div class="pv"></div><div class="deck"></div></aside></div>
   </section></div>`;
     const $ = (s) => main().querySelector(s);
     const box = $('#fq');
@@ -812,10 +812,11 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     // ---- the preview pane
     let shownPrev = null;
     async function preview(full) {
-      const e = current(), pane = $('.fprev');
+      const e = current(), pane = $('.fprev .pv');
       const key = e ? e.path + e.kind : 'dir:' + S.p;
       if (!full && key === shownPrev) return;
       shownPrev = key;
+      deck.hide();
       if (!e) return folderPane(pane, info, S.p, true);
       if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
       const url = contentURL(e), copies = m.copies || [];
@@ -836,6 +837,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
       fill(pane, e, url);
+      if (isPDF(e) && url) deck.show(url, pane.querySelector('.stage'), e.name);
       warmAround();
       const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
       if (pd && current() === e) pd.outerHTML = di && di.cid ? `<span>${cidx(di.cid, true)} <span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span></span>` : '<span class="faint">—</span>';
@@ -856,7 +858,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
         case 'video': return `<video src="${esc(url)}" controls preload="metadata"></video>`;
         case 'audio': return `<div class="none">${icon('audio')}<audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
         case 'page': return `<iframe sandbox="" src="${esc(url)}" title="${esc(e.name)}"></iframe>`;
-        case 'doc': return x === 'pdf' || !x ? `<iframe src="${esc(url)}" title="${esc(e.name)}"></iframe>` : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
+        case 'doc': return x === 'pdf' || !x ? '' : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
         case 'text': case 'code': return '<pre class="code"><code>Loading…</code></pre>';
         case 'folder': return '';
       }
@@ -889,10 +891,13 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       if (!canShow() || S.view === 'tree') return;
       warmT = setTimeout(() => {
         const a = across(), offs = a > 1 ? [1, -1, a, -a, 2, -2, a + 1, a - 1, 1 - a, -a - 1] : [1, -1, 2, -2];
+        // PDFs next to the cursor (the nearest four) load in the deck.
+        deck.keep(offs.map((d) => shown[S.cur + d]).filter((e) => isPDF(e) && e.bytes <= 64 << 20 && contentURL(e)).slice(0, 4).map((e) => [contentURL(e), e.name]));
         for (const d of offs) {
           const e = shown[S.cur + d], url = e && contentURL(e);
           if (!url || e.kind === 'folder' || warmed.has(url)) continue;
-          const doc = e.kind === 'page' || (e.kind === 'doc' && (ext(e.name) === 'pdf' || !ext(e.name)));
+          if (isPDF(e)) continue;
+          const doc = e.kind === 'page';
           if (e.kind === 'text' || e.kind === 'code') head(url, 256 << 10).catch(() => {});
           else if (e.kind === 'image' && e.bytes <= 32 << 20) new Image().src = url;
           else if (doc && e.bytes <= 64 << 20) fetch(url, { priority: 'low' }).then((r) => r.arrayBuffer()).catch(() => {});
@@ -902,6 +907,57 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
         }
       }, 120);
     }
+    // PDFs show in iframes kept in a deck laid over the stage, so the ones
+    // next to the cursor can load hidden and be shown without starting the
+    // browser's PDF viewer again. An iframe reloads when moved in the page,
+    // so the deck stays put and only its frames come and go.
+    const isPDF = (e) => e && e.kind === 'doc' && (ext(e.name) === 'pdf' || !ext(e.name));
+    const deck = (() => {
+      const frames = new Map(); // url -> iframe, oldest first
+      let on = null, stageEl = null;
+      const el = () => $('.fprev .deck');
+      const place = () => {
+        const d = el();
+        if (!d || !stageEl || !stageEl.isConnected) return;
+        d.style.top = stageEl.offsetTop + 'px';
+        d.style.height = stageEl.clientHeight + 'px';
+      };
+      const ro = 'ResizeObserver' in window ? new ResizeObserver(place) : null;
+      function frame(url, title) {
+        let f = frames.get(url);
+        if (f) { frames.delete(url); frames.set(url, f); return f; }
+        f = D.createElement('iframe');
+        f.src = url; f.title = title || ''; f.tabIndex = -1;
+        el().appendChild(f);
+        frames.set(url, f);
+        return f;
+      }
+      return {
+        show(url, st, title) {
+          const d = el();
+          if (!d || !st) return;
+          stageEl = st;
+          if (ro) { ro.disconnect(); ro.observe(st); }
+          place();
+          on = frame(url, title);
+          on.tabIndex = 0;
+          frames.forEach((f) => f.classList.toggle('on', f === on));
+          d.hidden = false;
+        },
+        hide() {
+          if (on) { on.classList.remove('on'); on.tabIndex = -1; }
+          on = null;
+          if (ro) ro.disconnect();
+        },
+        // Load these hidden and drop the rest, beyond the one showing.
+        keep(urls) {
+          if (!el()) return;
+          urls.forEach((u) => frame(u[0], u[1]));
+          const want = new Set(urls.map((u) => u[0]));
+          frames.forEach((f, u) => { if (f !== on && !want.has(u)) { f.remove(); frames.delete(u); } });
+        },
+      };
+    })();
     async function fill(pane, e, url) {
       const st = pane.querySelector('.stage');
       if (!url || !st) return;
