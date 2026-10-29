@@ -564,7 +564,11 @@ func TestEntries(t *testing.T) {
 	ctx := context.Background()
 	f := newFake()
 	sub := f.dir(t, map[string]format.Node{"a.md": f.file(t, []byte("# hi"), true)})
-	site := f.dir(t, map[string]format.Node{"photo.jpg": f.file(t, random(1, 3000), false), "sub": sub})
+	// files named only by CID get a kind from their first bytes
+	jpeg := append([]byte("\xff\xd8\xff\xe0"), random(2, 300000)...) // more than one block
+	pdf := append([]byte("%PDF-1.7\n"), random(3, 100)...)
+	site := f.dir(t, map[string]format.Node{"photo.jpg": f.file(t, random(1, 3000), false), "sub": sub,
+		"QmJpeg": f.file(t, jpeg, true), "QmPdf": f.file(t, pdf, false), "QmText": f.file(t, []byte("plain words\n"), true)})
 	// a sharded directory, as kubo makes for big folders
 	d, err := uio.NewHAMTDirectory(f.dag(), 0, uio.WithMaxHAMTFanout(8))
 	if err != nil {
@@ -602,16 +606,17 @@ func TestEntries(t *testing.T) {
 	}
 	sp := "pins/recursive/" + site.Cid().String()
 	want := map[string]string{sp: "folder", sp + "/photo.jpg": "image", sp + "/sub": "folder", sp + "/sub/a.md": "text",
+		sp + "/QmJpeg": "image", sp + "/QmPdf": "doc", sp + "/QmText": "text",
 		"mfs": "folder", "mfs/n07.txt": "text", "mfs/n39.txt": "text"}
 	for p, k := range want {
 		if got[p].Kind != k {
 			t.Errorf("%s: kind %q, want %q", p, got[p].Kind, k)
 		}
 	}
-	if len(got) != 5+40 {
-		t.Errorf("%d entries, want 45", len(got))
+	if len(got) != 8+40 {
+		t.Errorf("%d entries, want 48", len(got))
 	}
-	if got[sp].Name != "site" || got[sp+"/photo.jpg"].Bytes != 3000 || got[sp].Bytes != 3004 || got["mfs"].Bytes != 70 {
+	if got[sp].Name != "site" || got[sp+"/photo.jpg"].Bytes != 3000 || got[sp].Bytes != 3004+300004+109+12 || got["mfs"].Bytes != 70 {
 		t.Errorf("site %+v, photo %+v, mfs %+v", got[sp], got[sp+"/photo.jpg"], got["mfs"])
 	}
 }

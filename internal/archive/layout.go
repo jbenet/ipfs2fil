@@ -308,7 +308,8 @@ func (l *layout) own(p span) int64 {
 }
 
 // entries lists every UnixFS name under each root for the explorer: the root
-// itself, then every file and directory below it, depth first.
+// itself, then every file and directory below it, depth first. A file whose
+// name says nothing about its type gets one from its first bytes.
 func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 	var out []explorer.Entry
 	// seen marks the blocks an earlier file holds. Roots are in layout order,
@@ -334,6 +335,9 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		out = append(out, explorer.Entry{Name: name, Path: p, CID: b.c.String(), Kind: explorer.KindOf(name, isDir),
 			Bytes: b.ufs.size, Piece: int(b.piece)})
 		if !isDir {
+			if k := l.sniffed(i); out[at].Kind == "other" && k != "" {
+				out[at].Kind = k
+			}
 			if b.ufs.kind == ufsNone {
 				out[at].Bytes = int64(b.size)
 			}
@@ -379,6 +383,9 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 			b := &l.tab[i]
 			e := explorer.Entry{Name: name, Path: p, CID: rt.c.String(), Kind: explorer.KindOf(name, false),
 				Bytes: int64(b.size), Piece: int(b.piece)}
+			if k := l.sniffed(i); e.Kind == "other" && k != "" {
+				e.Kind = k
+			}
 			if seen[i] {
 				e.Dup = e.Bytes
 			}
@@ -389,6 +396,25 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		walk(i, p, name)
 	}
 	return out
+}
+
+// sniffed says what the file at i looks like from its first bytes: the
+// kind its first block of data sniffed as, or "".
+func (l *layout) sniffed(i int32) string {
+	for range 64 {
+		b := &l.tab[i]
+		if b.ufs.kind != ufsFile {
+			return ""
+		}
+		if b.ufs.data > 0 {
+			return explorer.Kinds[b.ufs.data-1]
+		}
+		if len(b.kids) == 0 {
+			return ""
+		}
+		i = b.kids[0]
+	}
+	return ""
 }
 
 // segment turns a link name into a path segment no other link in the same

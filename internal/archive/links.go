@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 
 	mdag "github.com/ipfs/boxo/ipld/merkledag"
 	"github.com/ipfs/boxo/ipld/unixfs"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/explorer"
 )
 
 // links returns the CIDs a block links to. dag-pb and dag-cbor are read;
@@ -47,14 +50,24 @@ const (
 // ufsInfo is what the explorer index needs from one block.
 type ufsInfo struct {
 	kind  byte
+	data  byte     // for file data: 1 + its sniffed kind's index in explorer.Kinds
 	size  int64    // file bytes
 	names []string // per link, for directories; "" marks a HAMT sub-shard
+}
+
+// sniffed records what file data looks like, so the explorer can type a file
+// its name says nothing about without reading its first block again.
+func sniffed(d []byte) byte {
+	if len(d) == 0 {
+		return 0
+	}
+	return byte(slices.Index(explorer.Kinds, explorer.Sniff(d)) + 1)
 }
 
 // unixfsInfo reads a block's UnixFS type, file size and link names.
 func unixfsInfo(c cid.Cid, data []byte) ufsInfo {
 	if c.Type() == cid.Raw {
-		return ufsInfo{kind: ufsFile, size: int64(len(data))}
+		return ufsInfo{kind: ufsFile, data: sniffed(data), size: int64(len(data))}
 	}
 	if c.Type() != cid.DagProtobuf {
 		return ufsInfo{}
@@ -69,7 +82,7 @@ func unixfsInfo(c cid.Cid, data []byte) ufsInfo {
 	}
 	switch fs.Type() {
 	case unixfs.TFile, unixfs.TRaw:
-		return ufsInfo{kind: ufsFile, size: int64(fs.FileSize())}
+		return ufsInfo{kind: ufsFile, data: sniffed(fs.Data()), size: int64(fs.FileSize())}
 	case unixfs.TDirectory, unixfs.THAMTShard:
 		info := ufsInfo{kind: ufsDir}
 		pad := 0

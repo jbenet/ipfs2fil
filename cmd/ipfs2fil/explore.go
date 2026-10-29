@@ -32,7 +32,10 @@ func init() {
 Serves the archive's HTML explorer on --addr, after refreshing explorer/ from
 the manifest so it shows the latest copies and proofs. The same pages work
 from any IPFS gateway once the archive is stored. --serve=false only
-refreshes the pages.
+refreshes the pages. It also serves the files themselves, read from the
+pieces on this machine, so the explorer can show photos, play videos and open
+documents, and it serves this version's explorer pages over the ones packed
+with the archive.
 
 It finds what 'ipfs2fil up' or 'pack' wrote: the archive in --out if given or
 if ./ipfs2fil-archive holds one, else the repos 'ipfs2fil repos add' listed in
@@ -64,6 +67,7 @@ otherwise every packed repo is served, with a page listing them.
 
 func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 	dir := o.out
+	var more []string
 	if e.demo {
 		if !o.set["out"] && !o.set["archive"] {
 			d, err := os.MkdirTemp("", "ipfs2fil-demo-")
@@ -104,11 +108,23 @@ func runExplore(ctx context.Context, o *opts, e exploreOpts) error {
 			})
 		}
 		dir = archives[0].Dir
+		// The one repo asked for can share blocks with the other listed repos.
+		if o.repo != "" {
+			all := *o
+			all.repo = ""
+			if as, err := exploreArchives(&all); err == nil {
+				for _, a := range as {
+					if a.Dir != dir {
+						more = append(more, a.Dir)
+					}
+				}
+			}
+		}
 	}
 	if !e.serve {
 		return nil
 	}
-	return explorer.Serve(ctx, dir, e.addr, func(url string) {
+	return explorer.Serve(ctx, dir, more, e.addr, func(url string) {
 		fmt.Fprintf(o.stdout, "serving %s at %s (ctrl-c stops)\n", dir, url)
 	})
 }

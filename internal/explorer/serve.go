@@ -1,10 +1,13 @@
 package explorer
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -18,17 +21,69 @@ import (
 
 // Serve serves the archive directory root (the one holding explorer/ and
 // index/) on addr until ctx ends, so the pages see the same layout a gateway
-// gives them. It calls ready with the explorer's URL once it is listening.
-func Serve(ctx context.Context, root, addr string, ready func(url string)) error {
+// gives them. It also serves file contents from the CARs in the pieces/ of
+// root and of the dirs in more, which may hold blocks root shares with other
+// archives. It calls ready with the explorer's URL once it is listening.
+func Serve(ctx context.Context, root string, more []string, addr string, ready func(url string)) error {
 	if _, err := os.Stat(filepath.Join(root, "explorer", "index.html")); err != nil {
 		return fmt.Errorf("no explorer/ in %s; run ipfs2fil pack first, or pass --archive", root)
 	}
+	blocks := newCARBlocks(append([]string{root}, more...))
+	defer blocks.close()
+	blocks.start()
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir(root)))
+	mux.Handle("/", archiveFiles(root))
 	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/explorer/", http.StatusFound)
 	})
+	blocks.handle(mux, "")
 	return listen(ctx, addr, mux, "/explorer/", ready)
+}
+
+// archiveFiles serves an archive directory, with the explorer's pages from
+// this build rather than the copy packed with the archive when the archive's
+// index is in the format they read, so archives get a newer explorer without
+// a new pack.
+func archiveFiles(dir string) http.Handler {
+	disk := http.FileServer(http.Dir(dir))
+	if indexFormat(filepath.Join(dir, "explorer")) != IndexFormat {
+		return disk
+	}
+	pages, err := fs.Sub(assets, "assets")
+	if err != nil {
+		return disk
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name, ok := strings.CutPrefix(r.URL.Path, "/explorer/")
+		if name == "" {
+			name = "index.html"
+		}
+		if ok && !strings.Contains(name, "/") {
+			if _, err := fs.Stat(pages, name); err == nil {
+				http.ServeFileFS(w, r, pages, name)
+				return
+			}
+		}
+		disk.ServeHTTP(w, r)
+	})
+}
+
+// indexFormat reads the format of the index in the explorer at dir, or 0.
+func indexFormat(dir string) int {
+	b, err := os.ReadFile(filepath.Join(dir, "idx", "meta.js"))
+	if err != nil {
+		return 0
+	}
+	b = bytes.TrimSpace(b)
+	b = bytes.TrimPrefix(b, []byte(`I2F.put("meta",`))
+	b = bytes.TrimSuffix(b, []byte(");"))
+	var mt struct {
+		Format int `json:"format"`
+	}
+	if json.Unmarshal(b, &mt) != nil {
+		return 0
+	}
+	return mt.Format
 }
 
 // Archive is one archive ServeMany serves: Name is its URL path and title,
@@ -50,12 +105,21 @@ func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url st
 	}
 	var rows []row
 	mux := http.NewServeMux()
+	// One block index for all: an archive can share blocks with the others.
+	var dirs []string
+	for _, a := range as {
+		dirs = append(dirs, a.Dir)
+	}
+	blocks := newCARBlocks(dirs)
+	defer blocks.close()
+	blocks.start()
 	for _, a := range as {
 		if _, err := os.Stat(filepath.Join(a.Dir, "explorer", "index.html")); err != nil {
 			return fmt.Errorf("no explorer/ in %s; run ipfs2fil pack first", a.Dir)
 		}
 		prefix := "/" + url.PathEscape(a.Name) + "/"
-		mux.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), http.FileServer(http.Dir(a.Dir))))
+		mux.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), archiveFiles(a.Dir)))
+		blocks.handle(mux, strings.TrimSuffix(prefix, "/"))
 		mux.Handle(prefix+"{$}", http.RedirectHandler(prefix+"explorer/", http.StatusFound))
 		r := row{Archive: a}
 		if m, err := readManifest(a.Dir); err == nil {
