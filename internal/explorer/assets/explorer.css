@@ -289,3 +289,12 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
   .pmap { grid-template-columns: repeat(12, minmax(0, 1fr)); }
   .actions { margin-left: 0; }
 }
+/* shortened CIDs: click to show all of one, the icon next to it copies it */
+.cidx { font: 12px/1.5 var(--mono); color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted var(--faint); text-underline-offset: 3px; text-align: left; }
+.cidx:hover { color: var(--text); }
+.cidx.open { overflow-wrap: anywhere; white-space: normal; }
+.cpy { background: none; border: 0; padding: 0 2px; margin-left: 4px; color: var(--faint); cursor: pointer; vertical-align: -2px; }
+.cpy:hover { color: var(--accent, var(--text)); }
+.crumbs .cidx { font-size: inherit; }
+.fcid { margin-left: 10px; color: var(--muted); }
+.fcid a { margin-left: 6px; }
