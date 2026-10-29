@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"math/rand"
 	"net/http"
@@ -132,5 +136,40 @@ func TestServeContent(t *testing.T) {
 	cancel()
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestThumbnail(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 400, 200))
+	for x := 0; x < 200; x++ {
+		for y := 0; y < 200; y++ {
+			src.Set(x, y, color.RGBA{255, 0, 0, 255}) // left half red
+		}
+	}
+	var b bytes.Buffer
+	if err := png.Encode(&b, src); err != nil {
+		t.Fatal(err)
+	}
+	out := newThumbs().thumbnail(bytes.NewReader(b.Bytes()), 100)
+	img, err := jpeg.Decode(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.Bounds().Dx() != 100 || img.Bounds().Dy() != 50 {
+		t.Errorf("thumbnail is %v, want 100x50", img.Bounds())
+	}
+	if r, g, _, _ := img.At(10, 25).RGBA(); r < 0xe000 || g > 0x2000 {
+		t.Errorf("left is not red")
+	}
+	// EXIF orientation 6: the stored picture turns a quarter clockwise
+	if x, y := upright(0, 0, 200, 400, 6); x != 0 || y != 199 {
+		t.Errorf("upright(0,0) for orientation 6 = %d,%d", x, y)
+	}
+	exif := []byte("\xff\xd8\xff\xe1\x00\x22Exif\x00\x00MM\x00\x2a\x00\x00\x00\x08\x00\x01\x01\x12\x00\x03\x00\x00\x00\x01\x00\x06\x00\x00\x00\x00\x00\x00\xff\xda")
+	if o := orientation(exif); o != 6 {
+		t.Errorf("orientation = %d, want 6", o)
+	}
+	if newThumbs().thumbnail(strings.NewReader("not an image"), 100) != nil {
+		t.Error("made a thumbnail of text")
 	}
 }

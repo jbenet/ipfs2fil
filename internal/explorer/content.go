@@ -6,7 +6,8 @@ package explorer
 // pages fetch the same things from the gateway instead.
 //
 //	GET  _i2f/info             {"content": true}
-//	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads
+//	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads,
+//	                           ?w=<px> gets a JPEG thumbnail of a photo
 //	POST _i2f/kinds            CIDs, one per line -> {"<cid>": "<kind>"} for the files among them
 
 import (
@@ -23,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +46,7 @@ type carBlocks struct {
 	at    map[string]blockAt // multihash -> where
 	files []*os.File
 	err   error
+	thumb *thumbs
 }
 
 type blockAt struct {
@@ -55,7 +58,7 @@ type blockAt struct {
 var errNoBlock = errors.New("block not in this archive's pieces")
 
 func newCARBlocks(dirs []string) *carBlocks {
-	return &carBlocks{dirs: dirs, ready: make(chan struct{}), at: map[string]blockAt{}}
+	return &carBlocks{dirs: dirs, ready: make(chan struct{}), at: map[string]blockAt{}, thumb: newThumbs()}
 }
 
 func (s *carBlocks) start() {
@@ -299,6 +302,25 @@ func (s *carBlocks) serveContent(w http.ResponseWriter, r *http.Request) {
 		head := make([]byte, 512)
 		k, _ := io.ReadFull(rd, head)
 		ctype = http.DetectContentType(head[:k])
+		if _, err := rd.Seek(0, io.SeekStart); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	if tw, _ := strconv.Atoi(r.URL.Query().Get("w")); tw >= 16 && tw <= 2048 && (ctype == "image/jpeg" || ctype == "image/png" || ctype == "image/gif") {
+		key := c.String() + "/" + strconv.Itoa(tw)
+		b, ok := s.thumb.get(key)
+		if !ok {
+			if b = s.thumb.thumbnail(rd, tw); b != nil {
+				s.thumb.put(key, b)
+			}
+		}
+		if b != nil {
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			w.Write(b)
+			return
+		}
 		if _, err := rd.Seek(0, io.SeekStart); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
