@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/ipld/merkledag"
+	uio "github.com/ipfs/boxo/ipld/unixfs/io"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
@@ -248,6 +249,25 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		out = append(out, Piece{Piece: m.Pieces[i], Path: path})
 	}
 
+	// The same data as the last pack: keep its index/, explorer/ and root,
+	// so a new ipfs2fil version, or a new layout for them, does not make
+	// pieces to upload until the repo changes.
+	if sameData(prev, m, len(dataPieces), opts.Record, pieceDir) && reusable(outDir, prev) {
+		res, err := reuse(outDir, prev, cache)
+		if err != nil {
+			return nil, err
+		}
+		res.Missing = l.missing
+		done := &packCache{Format: cacheFormat, Inputs: inputs, Root: prev.Root, Missing: l.missing, Pieces: map[string]cachedPiece{}}
+		for i, k := range keys {
+			done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+		}
+		if err := done.write(outDir); err != nil {
+			return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
+		}
+		return res, nil
+	}
+
 	// History: a piece keeps the snapshot that first stored it. A run that
 	// changes nothing adds no snapshot, so it rebuilds the same archive.
 	snap, known := 0, map[string]int{}
@@ -310,7 +330,11 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
-	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp)
+	shards, err := explorer.Shards(filepath.Join(outDir, "explorer"))
+	if err != nil {
+		return nil, err
+	}
+	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp, shards)
 	if err != nil {
 		return nil, err
 	}
@@ -436,6 +460,61 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	return res, nil
 }
 
+// sameData reports whether prev holds the same data as m's first n pieces:
+// the same data root and data pieces, and its own pieces start with the
+// same catalog record.
+func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string) bool {
+	if prev == nil || prev.DataRoot != m.DataRoot {
+		return false
+	}
+	var data []manifest.Piece
+	head := ""
+	for _, p := range prev.Pieces {
+		if p.BlockList != "" {
+			data = append(data, p)
+		} else if head == "" {
+			head = p.PieceCID
+		}
+	}
+	if len(data) != n || head == "" {
+		return false
+	}
+	for i, p := range data {
+		if p.PieceCID != m.Pieces[i].PieceCID {
+			return false
+		}
+	}
+	// The record is the second root in the CAR header of the piece that
+	// names the archive root: the head piece, or an old layout's own piece.
+	var want cid.Cid
+	if record != nil {
+		c, err := RecordCID(record)
+		if err != nil {
+			return false
+		}
+		want = c
+	}
+	for _, p := range prev.Pieces {
+		if p.BlockList != "" || p.Part == manifest.PartIndex || p.Part == manifest.PartMeta {
+			continue
+		}
+		f, err := os.Open(filepath.Join(pieceDir, p.PieceCID+".car"))
+		if err != nil {
+			return false
+		}
+		r, err := car.NewReader(f)
+		f.Close()
+		if err != nil {
+			return false
+		}
+		if record == nil {
+			return len(r.Roots) == 1
+		}
+		return len(r.Roots) == 2 && r.Roots[1].Equals(want)
+	}
+	return false
+}
+
 // reuse returns the last pack in outDir as this one's result, its inputs
 // being the same.
 func reuse(outDir string, prev *manifest.Manifest, cache *packCache) (*Result, error) {
@@ -542,8 +621,10 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 // stableBlocks lists, depth first, the blocks the archive made that do not
 // depend on the manifest and are not the repo's: index/pieces (inIndex),
 // the data/ folders, and explorer/ but for explorer/idx/manifest.js and
-// meta.js and the folders holding them.
-func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, exp format.Node) ([]format.Node, map[string]bool, error) {
+// meta.js and the folders holding them. The explorer's shards go last, in
+// shards order (by path, not by file name), so a change to nearby names
+// falls in one piece.
+func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, exp format.Node, shards []string) ([]format.Node, map[string]bool, error) {
 	var out []format.Node
 	seen := map[string]bool{}
 	var walk func(c cid.Cid) error
@@ -601,7 +682,37 @@ func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, ex
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, c := range append(kids(exp, "idx"), kids(ix, "manifest.js", "meta.js")...) {
+	for _, c := range append(kids(exp, "idx"), kids(ix, "manifest.js", "meta.js", "s")...) {
+		if err := walk(c); err != nil {
+			return nil, nil, err
+		}
+	}
+	sdir, err := find(ix, "s")
+	if err != nil {
+		return nil, nil, err
+	}
+	d, err := uio.NewDirectoryFromNode(dag, sdir)
+	if err != nil {
+		return nil, nil, err
+	}
+	links, err := d.Links(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	files := map[string]cid.Cid{}
+	for _, ln := range links {
+		files[ln.Name] = ln.Cid
+		seen[string(ln.Cid.Hash())] = true // walked below, in order
+	}
+	if err := walk(sdir.Cid()); err != nil {
+		return nil, nil, err
+	}
+	for _, name := range shards {
+		c, ok := files[name]
+		if !ok {
+			return nil, nil, fmt.Errorf("archive: no shard %s in explorer/idx/s", name)
+		}
+		delete(seen, string(c.Hash()))
 		if err := walk(c); err != nil {
 			return nil, nil, err
 		}
@@ -609,11 +720,14 @@ func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, ex
 	return out, inIndex, nil
 }
 
-// Own pieces other than head pieces are cut like data pieces, but small: a
-// change rewrites the pieces it falls in, a MiB or two each.
+// Own pieces other than head pieces are cut like data pieces, but smaller:
+// a change rewrites the pieces it falls in, 128 to about 140 MiB each. Each
+// piece added costs about the same whatever its size (store.Estimate), while
+// storing more bytes costs little, so this favours few pieces over small
+// uploads.
 const (
-	metaMinPiece = 1 << 20
-	metaCutBits  = 3
+	metaMinPiece = 128 << 20
+	metaCutBits  = 6
 )
 
 // cutMeta cuts ns into pieces at content-defined points.

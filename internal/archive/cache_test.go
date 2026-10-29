@@ -66,20 +66,20 @@ func TestUnchangedRepackReadsNothing(t *testing.T) {
 	check(t, again)
 	samePack(t, first, again)
 
-	// Without the cache, the full pack gives the same archive.
+	// Without the cache, the full pack finds the same data and keeps the
+	// same archive.
 	os.Remove(filepath.Join(dir, CacheFile))
 	full := build(t, sample(t, false), dir)
-	if full.Reused {
-		t.Fatal("reused without a cache")
-	}
 	samePack(t, again, full)
 
 	// A missing piece CAR means packing again.
 	os.Remove(full.Pieces[2].Path)
 	r = &countingRepo{fakeRepo: sample(t, false)}
-	if res := build(t, r, dir); res.Reused || r.gets == 0 {
-		t.Fatalf("a pack with a CAR gone reused the last one")
+	res := build(t, r, dir)
+	if r.gets == 0 {
+		t.Fatalf("a pack with a CAR gone read no blocks")
 	}
+	samePack(t, full, res)
 }
 
 func TestOptionsChangeRepacks(t *testing.T) {
@@ -92,11 +92,9 @@ func TestOptionsChangeRepacks(t *testing.T) {
 		t.Fatalf("a pack without orphans reused the one with them (%v)", err)
 	}
 	opts.Shared = func(multihash.Multihash) (SharedBlock, bool) { return SharedBlock{}, false }
-	if res, err = Build(context.Background(), sample(t, false), dir, opts); err != nil || res.Reused {
-		t.Fatalf("a pack with a shared lookup reused one without (%v)", err)
-	}
+	// A lookup that finds nothing gives the same data, so the same archive.
 	if res, err = Build(context.Background(), sample(t, false), dir, opts); err != nil || !res.Reused {
-		t.Fatalf("the same lookup again did not reuse (%v)", err)
+		t.Fatalf("a lookup that finds nothing re-made the archive (%v)", err)
 	}
 	opts.Shared = func(multihash.Multihash) (SharedBlock, bool) { return SharedBlock{Archive: "x", PieceCID: "y"}, true }
 	if res, err = Build(context.Background(), sample(t, false), dir, opts); err != nil || res.Reused {
@@ -186,5 +184,26 @@ func TestNoCacheMatchesBlockLists(t *testing.T) {
 	r := &countingRepo{fakeRepo: sample(t, true)}
 	if res := build(t, r, noCache); !res.Reused || r.gets != 0 {
 		t.Errorf("the next pack read %d blocks (reused %v)", r.gets, res.Reused)
+	}
+}
+
+func TestNewVersionKeepsUnchangedArchive(t *testing.T) {
+	dir := t.TempDir()
+	first := build(t, sample(t, false), dir)
+	opts := testOptions()
+	opts.Tool = "ipfs2fil v9"
+	for _, cached := range []bool{true, false} {
+		if !cached {
+			os.Remove(filepath.Join(dir, CacheFile))
+		}
+		res, err := Build(context.Background(), sample(t, false), dir, opts)
+		if err != nil || !res.Reused {
+			t.Fatalf("a new version re-made an unchanged archive (cache %v, %v)", cached, err)
+		}
+		samePack(t, first, res)
+	}
+	// A changed repo still packs again.
+	if res, err := Build(context.Background(), sample(t, true), dir, opts); err != nil || res.Reused {
+		t.Fatalf("an edited repo reused the last pack (%v)", err)
 	}
 }

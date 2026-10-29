@@ -490,7 +490,7 @@ func TestEditKeepsMostOwnPieces(t *testing.T) {
 		}
 	}
 	t.Logf("index and explorer: %d of %d bytes changed; head %d bytes", changed, own, head)
-	if own == 0 || changed*2 > own || head*4 > own {
+	if own == 0 || changed*3 > own || head*4 > own {
 		t.Errorf("index and explorer: %d of %d bytes changed; head %d bytes", changed, own, head)
 	}
 }
