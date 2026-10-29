@@ -823,6 +823,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
       fill(pane, e, url);
+      warmAround();
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
@@ -846,15 +847,51 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       }
       return '<pre class="hex">Loading…</pre>';
     }
+    // The first n bytes of url, kept for the last few files so that moving
+    // back and forth, and the prefetch below, do not ask again.
+    const heads = new Map();
+    function head(url, n) {
+      const k = n + ' ' + url;
+      let p = heads.get(k);
+      if (!p) {
+        p = fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } }).then((r) => {
+          if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
+          return r.arrayBuffer();
+        });
+        p.catch(() => heads.delete(k));
+        heads.set(k, p);
+        if (heads.size > 40) heads.delete(heads.keys().next().value);
+      }
+      return p;
+    }
+    // Prefetch the files around the cursor (up and down a list, every way in
+    // a grid) so the preview is ready when the cursor gets there. Images and
+    // documents go into the browser's cache; text and other files into heads.
+    const warmed = new Set();
+    let warmT = 0;
+    function warmAround() {
+      clearTimeout(warmT);
+      if (!canShow() || S.view === 'tree') return;
+      warmT = setTimeout(() => {
+        const a = across(), offs = a > 1 ? [1, -1, a, -a, 2, -2, a + 1, a - 1, 1 - a, -a - 1] : [1, -1, 2, -2];
+        for (const d of offs) {
+          const e = shown[S.cur + d], url = e && contentURL(e);
+          if (!url || e.kind === 'folder' || warmed.has(url)) continue;
+          const doc = e.kind === 'page' || (e.kind === 'doc' && (ext(e.name) === 'pdf' || !ext(e.name)));
+          if (e.kind === 'text' || e.kind === 'code') head(url, 256 << 10).catch(() => {});
+          else if (e.kind === 'image' && e.bytes <= 32 << 20) new Image().src = url;
+          else if (doc && e.bytes <= 64 << 20) fetch(url, { priority: 'low' }).then((r) => r.arrayBuffer()).catch(() => {});
+          else if (!['image', 'video', 'audio', 'doc', 'page'].includes(e.kind)) head(url, 512).catch(() => {});
+          else continue;
+          warmed.add(url);
+        }
+      }, 120);
+    }
     async function fill(pane, e, url) {
       const st = pane.querySelector('.stage');
       if (!url || !st) return;
       const want = e.path;
-      const range = async (n) => {
-        const r = await fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } });
-        if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
-        return r.arrayBuffer();
-      };
+      const range = (n) => head(url, n);
       try {
         if (e.kind === 'text' || e.kind === 'code') {
           const buf = await range(256 << 10);

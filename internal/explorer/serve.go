@@ -57,6 +57,28 @@ func wrap(mux *http.ServeMux, wraps []Wrap) http.Handler {
 // newer explorer without a new pack. An index older than the pages read is
 // rebuilt in memory, the first time a page asks for it.
 func archiveFiles(dir string) http.Handler {
+	h := archivePages(dir)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The manifest inside the archive was written before push, so it
+		// has no copies; the pages read the one pack and push keep up to date.
+		if r.URL.Path == "/index/manifest.json" {
+			if full := filepath.Join(dir, "manifest.json"); fileExists(full) {
+				w.Header().Set("Cache-Control", "no-cache")
+				w.Header().Set("Content-Type", "application/json")
+				http.ServeFile(w, r, full)
+				return
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func fileExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.Mode().IsRegular()
+}
+
+func archivePages(dir string) http.Handler {
 	disk := http.FileServer(http.Dir(dir))
 	f := indexFormat(filepath.Join(dir, "explorer"))
 	if f != IndexFormat && f != 1 {

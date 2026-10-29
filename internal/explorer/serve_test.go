@@ -2,11 +2,16 @@ package explorer
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
 // TestServeMany: each archive's explorer is under /<name>/, and one over all
@@ -62,5 +67,43 @@ func TestServeMany(t *testing.T) {
 	cancel()
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestServeFullManifest: explore hands the pages the manifest push keeps,
+// with the copies, not the one packed into the archive before any upload.
+func TestServeFullManifest(t *testing.T) {
+	dir := t.TempDir()
+	m, entries := sample()
+	if err := Write(filepath.Join(dir, "explorer"), m, entries); err != nil {
+		t.Fatal(err)
+	}
+	packed := *m
+	packed.Copies = nil
+	if err := os.MkdirAll(filepath.Join(dir, "index"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := packed.Write(filepath.Join(dir, "index", "manifest.json")); err != nil {
+		t.Fatal(err)
+	}
+	get := func() *manifest.Manifest {
+		t.Helper()
+		w := httptest.NewRecorder()
+		archiveFiles(dir).ServeHTTP(w, httptest.NewRequest("GET", "/index/manifest.json", nil))
+		var got manifest.Manifest
+		if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%v: %s", err, w.Body)
+		}
+		return &got
+	}
+	if got := get(); len(got.Copies) != 0 {
+		t.Fatalf("with no full manifest, got %d copies, want the packed one's 0", len(got.Copies))
+	}
+	m.Copies = []manifest.Copy{{Provider: "f04", DataSetID: "1", PieceIDs: map[int]string{0: "1"}}}
+	if err := m.Write(filepath.Join(dir, "manifest.json")); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(); len(got.Copies) != len(m.Copies) {
+		t.Errorf("got %d copies, want %d from the full manifest", len(got.Copies), len(m.Copies))
 	}
 }
