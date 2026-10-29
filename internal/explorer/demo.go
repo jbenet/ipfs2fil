@@ -50,9 +50,18 @@ func Demo(scale int) (*manifest.Manifest, []Entry) {
 		{manifest.KindPinRecursive, "wikipedia-en-2021-snapshot", wiki, false},
 		{manifest.KindPinRecursive, "ubuntu-24.04-desktop-amd64.iso", file("ubuntu-24.04-desktop-amd64.iso", "disk", int64(scale)*700*MiB), false},
 		{manifest.KindPinRecursive, "", dir("site", file("index.html", "page", 700_000), file("style.css", "code", 4_000)), true},
+	}
+	// Three versions of a blog share a logo and a stylesheet, so a search
+	// finds the same CIDs in several places.
+	for v := 1; v <= 3; v++ {
+		blog := dir("blog", file(fmt.Sprintf("index-v%d.html", v), "page", int64(30_000*v)),
+			same(file("logo.png", "image", 35_000), "blog/logo.png"), same(file("style.css", "code", 6_000), "blog/style.css"))
+		roots = append(roots, root{manifest.KindPinRecursive, fmt.Sprintf("blog-v%d", v), blog, false})
+	}
+	roots = append(roots, []root{
 		{manifest.KindPinDirect, "", file("block", "other", 12_000), false},
 		{manifest.KindMFS, "", mfs, false},
-	}
+	}...)
 	for i := 0; i < 3*scale; i++ {
 		roots = append(roots, root{manifest.KindOrphan, "", file("orphan", "other", int64(1+i)*200_000), false})
 	}
@@ -127,7 +136,11 @@ type node struct {
 	name, kind string
 	bytes      int64
 	kids       []*node
+	seed       string // when set, the CID comes from it instead of the path
 }
+
+// same gives n a CID that does not depend on where it sits.
+func same(n *node, seed string) *node { n.seed = seed; return n }
 
 func file(name, kind string, bytes int64) *node { return &node{name: name, kind: kind, bytes: bytes} }
 
@@ -159,8 +172,11 @@ func (n *node) flatten(p, name, c string, off *int64, pieceSize int64, entries *
 	}
 	var blocks int64 = 1
 	for _, k := range n.kids {
-		kp := path.Join(p, k.name)
-		blocks += k.flatten(kp, k.name, fakeCID(kp, k.kind == "folder", false), off, pieceSize, entries)
+		kp, seed := path.Join(p, k.name), k.seed
+		if seed == "" {
+			seed = kp
+		}
+		blocks += k.flatten(kp, k.name, fakeCID(seed, k.kind == "folder", false), off, pieceSize, entries)
 	}
 	return blocks
 }
