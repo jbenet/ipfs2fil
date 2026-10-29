@@ -639,6 +639,7 @@
       const ql = S.q.trim().toLowerCase();
       const src = S.deep ? (all || []).filter(under(S.p)) : kids;
       base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
+      if (S.deep) base = once(base);
       counts = {};
       base.forEach((e) => { counts[e.kind] = (counts[e.kind] || 0) + 1; });
       let list = S.kind === 'all' ? base : base.filter((e) => e.kind === S.kind);
@@ -649,7 +650,18 @@
       shown = keyed.map((x) => x[3]);
       // a grid of results groups them by folder
       if (S.view === 'grid' && S.deep && S.sort === 'name') shown = shown.map((e, i) => [e, i]).sort((a, b) => a[0].dir < b[0].dir ? -1 : a[0].dir > b[0].dir ? 1 : a[1] - b[1]).map((x) => x[0]);
-      if (S.sel) { const i = shown.findIndex((e) => e.path === S.sel); if (i >= 0) { S.cur = i; S.limit = Math.max(S.limit, i + 50); } }
+      if (S.sel) { const i = shown.findIndex((e) => e.path === S.sel || (e.also && e.also.some((o) => o.path === S.sel))); if (i >= 0) { S.cur = i; S.limit = Math.max(S.limit, i + 50); } }
+    }
+    // A search shows each CID once; the other places it sits go in .also.
+    function once(es) {
+      const by = new Map(), out = [];
+      for (const e of es) {
+        const k = e.kind + ' ' + e.cid, first = by.get(k);
+        if (first) { first.also.push(e); continue; }
+        const r = Object.assign({}, e, { also: [] });
+        by.set(k, r); out.push(r);
+      }
+      return out;
     }
     const current = () => (S.view === 'tree' ? rows[S.cur] : shown[S.cur]) || null;
 
@@ -684,7 +696,7 @@
     const where = (e) => showPath(e.dir) || 'data';
     function listView() {
       const deepCols = S.deep;
-      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(e.name)}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a></td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
+      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(e.name)}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a>${e.also && e.also.length ? ` <span class="faint">+${num(e.also.length)}</span>` : ''}</td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
     }
     function grid() {
       let out = '', lastDir = null;
@@ -781,11 +793,19 @@
 </div>
 <div class="facts dl">
   <span>CID</span><span><code title="${esc(e.cid)}">${esc(shortCID(e.cid))}</code> <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
-  ${S.deep || e.dir !== S.p ? `<span>In</span><a href="${esc('browse.html?' + qs({ p: e.dir, sel: e.path }))}">${esc(where(e))}/</a>` : ''}
+  ${S.deep || e.dir !== S.p ? `<span>In${e.also && e.also.length ? ` (${num(e.also.length + 1)})` : ''}</span>${places(e)}` : ''}
   ${piece ? `<span>Stored</span><span><code title="${esc(piece.pieceCid)}">${esc(shortCID(piece.pieceCid))}</code> ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
   <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
       fill(pane, e, url);
+    }
+    // Every folder the file sits in, under its name there.
+    function places(e) {
+      const all = [e].concat(e.also || []).sort((a, b) => a.path < b.path ? -1 : 1), cap = 8;
+      const link = (o) => `<a href="${esc('browse.html?' + qs({ p: o.dir, sel: o.path }))}" title="${esc(showPath(o.path) || o.path)}">${esc(where(o))}/${o.name !== e.name ? esc(o.name) : ''}</a>`;
+      if (all.length === 1) return link(e);
+      const rest = all.length > cap ? `<details><summary class="faint">${num(all.length - cap)} more</summary>${all.slice(cap).map(link).join('')}</details>` : '';
+      return `<span class="places">${all.slice(0, cap).map(link).join('')}${rest}</span>`;
     }
     function stage(e, url) {
       if (!url) return `<div class="none"><p>Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see the file here.</p><button type="button" class="btn sm" data-public>Load from ${GATEWAYS[0][0]}</button></div>`;
