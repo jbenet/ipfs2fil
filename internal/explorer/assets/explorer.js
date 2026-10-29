@@ -420,7 +420,9 @@
   async function overview() {
     const [m, meta] = await Promise.all([manifest(), load('meta')]);
     const roots = m.roots || [], pieces = m.pieces || [], copies = m.copies || [];
-    const sum = (f) => roots.filter(f).reduce((a, r) => a + r.bytes, 0);
+    // own counts each block once across roots; archives packed before it was added have only bytes
+    const hasOwn = roots.some((r) => r.own != null);
+    const sum = (f) => roots.filter(f).reduce((a, r) => a + (hasOwn ? r.own || 0 : r.bytes), 0);
     const isPin = (r) => r.kind === 'pin-recursive' || r.kind === 'pin-direct';
     const pins = roots.filter(isPin), rec = pins.filter((r) => r.kind === 'pin-recursive').length;
     const orphans = roots.filter((r) => r.kind === 'orphan');

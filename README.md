@@ -117,7 +117,7 @@ bytes of each new one to find those records, and downloads only the index
 pieces of each repo's latest snapshot, into `~/.ipfs2fil/chain`. So a repo
 shows up on other machines once its pieces are stored, and a machine leaves
 out blocks that repos on other machines already store. Repo paths never
-leave the machine. Machines are named by their host name, or `--host`.
+leave the machine. Machines are named by `--host`, else the name saved in `~/.ipfs2fil/host` on first use (on macOS the computer's local name, which, unlike its host name, does not change with the network).
 
 If two machines push for the very first time at the same moment, both may
 create data sets; each then uses the oldest ones, and `status --all` lists

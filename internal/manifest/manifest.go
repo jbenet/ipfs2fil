@@ -77,6 +77,10 @@ type Root struct {
 	Path   string `json:"path"`           // where it sits under data/, e.g. "pins/recursive/<cid>"
 	Bytes  int64  `json:"bytes"`
 	Blocks int64  `json:"blocks"`
+	// Own is the bytes of its blocks that no earlier root holds, so Own adds
+	// up across roots where Bytes counts shared blocks once per root. Archives
+	// packed before Own was added have none.
+	Own int64 `json:"own,omitempty"`
 	// FirstPiece and LastPiece bound the pieces holding this root's blocks.
 	// Blocks are laid out depth first, so a root's pieces are contiguous.
 	FirstPiece int `json:"firstPiece"`

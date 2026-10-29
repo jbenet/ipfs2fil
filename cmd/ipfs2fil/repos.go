@@ -56,7 +56,7 @@ every machine.
 A git repository URL (http, https or ssh) or a shared folder can be the
 catalog instead (--catalog): ipfs2fil clones, pulls, commits and pushes a git
 catalog itself. The catalog is remembered; --catalog filecoin goes back to
-chain. Machines are named by --host, default the host name.`,
+chain. Machines are named by --host, default the name saved in the home directory on first use.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "for add: the IPFS repo to add (or give it as the argument)")
 			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name)")
@@ -131,7 +131,7 @@ func openCollection(o *opts) (*collection.Collection, error) {
 		host = os.Getenv(collection.EnvHost)
 	}
 	if host == "" {
-		host = collection.HostName()
+		host = collection.SavedHostName(dir)
 	}
 	catalog, err := collection.ResolveCatalog(dir, catalog)
 	if err != nil {

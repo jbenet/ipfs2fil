@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jbenet/ipfs2fil/internal/archive"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -368,6 +369,65 @@ func TestReposChainCatalog(t *testing.T) {
 	out, errOut, err = on(other, "status", "--all")
 	if err == nil || strings.Contains(out, "photos") {
 		t.Errorf("another wallet's status --all: %v\n%s\n%s", err, out, errOut)
+	}
+}
+
+// TestHostRenamedAndCopiesLost: a run leaves the archive's manifest without
+// its copies, and a Mac's host name changes between runs. A re-run records
+// the copies without uploading and the explorer shows them, and the repo
+// still lists once.
+func TestHostRenamedAndCopiesLost(t *testing.T) {
+	ms := useMemStore(t, 5)
+	home := t.TempDir()
+	on := func(host string, args ...string) (string, error) {
+		t.Helper()
+		out, _, err := ipfs2fil(t, append(args, "--home", home, "--host", host)...)
+		return out, err
+	}
+	// backup shares the data sets, so photos adopts them once its own are lost
+	for name, f := range map[string]string{"photos": "v18", "backup": "v17"} {
+		if _, err := on("unknownc2de", "repos", "add", fixture(t, f), "--name", name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := on("unknownc2de", "up", "--all", "--yes"); err != nil {
+		t.Fatalf("up: %v\n%s", err, out)
+	}
+	uploads := ms.Uploads()
+	mpath := filepath.Join(home, "archives", "photos", archive.ManifestFile)
+	m, err := manifest.Read(mpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Copies = nil
+	if err := m.Write(mpath); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := on("unknownc2de", "up", "--all", "--yes"); err != nil || ms.Uploads() != uploads {
+		t.Fatalf("up again: %v, %d uploads\n%s", err, ms.Uploads()-uploads, out)
+	}
+	if m, err = manifest.Read(mpath); err != nil || len(m.Copies) != 3 {
+		t.Fatalf("copies after the re-run: %v %+v", err, m)
+	}
+	for _, c := range m.Copies {
+		if len(c.PieceIDs) != len(m.Pieces) {
+			t.Errorf("copy on %s has ids for %d of %d pieces", c.Provider, len(c.PieceIDs), len(m.Pieces))
+		}
+	}
+	js, err := os.ReadFile(filepath.Join(home, "archives", "photos", "explorer", "idx", "manifest.js"))
+	if err != nil || !strings.Contains(string(js), `"copies":[`) {
+		t.Errorf("the explorer does not show the copies: %v", err)
+	}
+
+	// Renamed: the records sealed under the old name are this machine's.
+	if out, err := on("Synnax", "repos", "ls"); err != nil || strings.Count(out, "photos") != 1 {
+		t.Errorf("repos ls after the rename lists photos other than once: %v\n%s", err, out)
+	}
+	if out, err := on("Synnax", "up", "--all", "--yes"); err != nil {
+		t.Fatalf("up after the rename: %v\n%s", err, out)
+	}
+	if out, err := on("Synnax", "repos", "ls"); err != nil || strings.Count(out, "photos") != 1 {
+		t.Errorf("repos ls after up under the new name lists photos other than once: %v\n%s", err, out)
 	}
 }
 

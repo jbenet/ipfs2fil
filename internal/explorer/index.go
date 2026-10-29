@@ -137,9 +137,11 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 		if e.Kind == "folder" {
 			continue
 		}
-		mt.Types[e.Kind] = add(mt.Types[e.Kind], e.Bytes)
+		// totals count each block once, however many names reach it
+		own := max(0, e.Bytes-e.Dup)
+		mt.Types[e.Kind] = add(mt.Types[e.Kind], own)
 		if w := where(e.Path); w != "" {
-			mt.Parts[w] = add(mt.Parts[w], e.Bytes)
+			mt.Parts[w] = add(mt.Parts[w], own)
 		}
 	}
 

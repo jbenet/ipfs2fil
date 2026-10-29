@@ -197,6 +197,55 @@ func Push(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.P
 	return errors.Join(errs...)
 }
 
+// Record fills in the piece ids m's first copies lack for pieces their data
+// sets already hold, and saves m if any changed. Push records ids as it goes,
+// but a run that finds every piece stored has nothing to push, and an
+// archive can get its copies from another archive with the same key. Held
+// pieces commit without going on chain.
+func Record(ctx context.Context, s Store, m *manifest.Manifest, pieces []archive.Piece, copies int,
+	save func(*manifest.Manifest) error) error {
+	changed := false
+	for i := range m.Copies[:min(len(m.Copies), copies)] {
+		c := &m.Copies[i]
+		ds := DataSet{Provider: c.Provider, ID: c.DataSetID}
+		var todo []archive.Piece
+		var cids []string
+		for _, p := range pieces {
+			if c.PieceIDs[p.Index] != "" {
+				continue
+			}
+			if ok, err := s.Has(ctx, ds, p.PieceCID); err != nil {
+				return fmt.Errorf("checking provider %s for piece %d: %w", c.Provider, p.Index, err)
+			} else if ok {
+				todo, cids = append(todo, p), append(cids, p.PieceCID)
+			}
+		}
+		if len(todo) == 0 {
+			continue
+		}
+		ids, err := s.Commit(ctx, ds, cids, map[string]string{"ipfsRootCID": m.Root})
+		if err != nil {
+			return fmt.Errorf("reading piece ids from provider %s: %w", c.Provider, err)
+		}
+		if c.PieceIDs == nil {
+			c.PieceIDs = map[int]string{}
+		}
+		if c.Service == "" {
+			if n, ok := s.(interface{ Service() string }); ok {
+				c.Service = n.Service()
+			}
+		}
+		for j, p := range todo {
+			c.PieceIDs[p.Index] = ids[j]
+		}
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return save(m)
+}
+
 // copyRecord finds or adds m's Copy for ds and returns its index.
 func copyRecord(m *manifest.Manifest, ds DataSet, service string) int {
 	for i := range m.Copies {
