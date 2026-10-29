@@ -143,8 +143,7 @@
     const r = rootAt(e.path);
     if (r && r.kind !== 'mfs') return 'pin.html?cid=' + encodeURIComponent(r.cid);
     if (e.kind === 'folder') return browseHref(e.path);
-    if (HERE) return '../data/' + segs(e.path);
-    return e.cid ? gw(e.cid) : browseHref(e.dir);
+    return 'browse.html?p=' + encodeURIComponent(e.dir) + '&sel=' + encodeURIComponent(e.path);
   }
 
   // ---- Clipboard and messages
@@ -175,23 +174,23 @@
   const LOGO = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>';
   const kbd = (...ks) => ks.map((k) => `<kbd>${esc(k)}</kbd>`).join('');
   const RAIL = {
-    overview: [[['j', 'k'], 'move'], [['↵'], 'open'], [['/'], 'search'], [['g', 'b'], 'browse'], [['g', 'p'], 'pieces'], [['y'], 'copy root']],
-    browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['o'], 'open in gateway'], [['y'], 'copy CID']],
-    pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'b'], 'browse']],
+    overview: [[['j', 'k'], 'move'], [['↵'], 'open'], [['/'], 'search'], [['g', 'f'], 'files'], [['g', 'p'], 'pieces'], [['y'], 'copy root']],
+    browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['d'], 'download'], [['y'], 'copy CID']],
+    pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'files']],
     pieces: [[['j', 'k'], 'move'], [['↵'], 'open'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['y'], 'copy PieceCID'], [['g', 'o'], 'overview']],
     search: [[['↓'], 'into results'], [['j', 'k'], 'move'], [['↵'], 'open'], [['1', '…', '9'], 'kind'], [['0'], 'all kinds'], [['esc'], 'clear'], [['y'], 'copy CID']]
   };
   const GROUPS = [
-    ['Anywhere', [['Search', ['/']], ['This list', ['?']], ['Go to overview', ['g', 'o']], ['Go to browse', ['g', 'b']], ['Go to pieces', ['g', 'p']], ['Close or cancel', ['esc']]]],
+    ['Anywhere', [['Search', ['/']], ['This list', ['?']], ['Go to overview', ['g', 'o']], ['Go to files', ['g', 'f']], ['Go to pieces', ['g', 'p']], ['Close or cancel', ['esc']]]],
     ['Lists', [['Next or previous row', ['j', 'k']], ['Same, with arrows', ['↓', '↑']], ['Open the row', ['↵']], ['Up a level', ['u', '⌫']], ['Filter the list', ['f']], ['Copy the CID', ['y']], ['Open in a gateway', ['o']], ['Sort by the next column', ['s']], ['Reverse the order', ['r']]]],
-    ['Search', [['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['Clear the query', ['esc']], ['Open the result', ['↵']]]]
+    ['Files', [['Search this folder and below', ['/']], ['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['List, grid, tree, columns', ['v']], ['Wide list, split, wide file', ['l']], ['Give the file the room', ['space']], ['Download the file', ['d']], ['Open a tree folder', ['→']], ['Close a tree folder', ['←']]]]
   ];
   let statusEl;
   function frame() {
-    const nav = [['overview', 'index.html', 'Overview'], ['browse', 'browse.html', 'Browse'], ['pieces', 'pieces.html', 'Pieces']]
+    const nav = [['overview', 'index.html', 'Overview'], ['browse', 'browse.html', 'Files'], ['pieces', 'pieces.html', 'Pieces']]
       .map((n) => `<a href="${n[1]}"${n[0] === PAGE ? ' aria-current="page"' : ''}>${n[2]}</a>`).join('');
     const q = PAGE === 'search' ? esc(params.get('q') || '') : '';
-    D.body.insertAdjacentHTML('afterbegin', `<header class="top"><div class="bar"><a class="brand" href="index.html">${LOGO}<span>ipfs2fil</span></a><nav class="pages" aria-label="Explorer">${nav}</nav><form class="search" action="search.html" role="search"><label class="sr" for="q">Search names and CIDs</label><input id="q" name="q" type="search" value="${q}" placeholder="Search names and CIDs" autocomplete="off" spellcheck="false"><kbd>/</kbd></form></div></header>`);
+    D.body.insertAdjacentHTML('afterbegin', `<header class="top"><div class="bar"><a class="brand" href="index.html">${LOGO}<span>ipfs2fil</span></a><nav class="pages" aria-label="Explorer">${nav}</nav><form class="search" action="browse.html" role="search"><label class="sr" for="q">Search names and CIDs</label><input id="q" name="q" type="search" value="${q}" placeholder="Search names and CIDs" autocomplete="off" spellcheck="false"><kbd>/</kbd></form></div></header>`);
     const rail = (RAIL[PAGE] || []).map((r) => `<span>${kbd(...r[0])} ${r[1]}</span>`).join('');
     D.body.insertAdjacentHTML('beforeend', `<footer class="rail-wrap"><div class="rail">${rail}<button type="button" data-act="help">${kbd('?')} all shortcuts</button><span class="status"></span></div></footer>`);
     statusEl = D.querySelector('.rail .status');
@@ -360,19 +359,19 @@
       return;
     }
     if (typing) {
-      if (t.type === 'search' && (k === 'ArrowDown' || k === 'Enter') && active && pageKeys.fromBox) { if (pageKeys.fromBox(k, t)) ev.preventDefault(); }
+      if (t.type === 'search' && (k === 'ArrowDown' || k === 'Enter') && pageKeys.fromBox) { if (pageKeys.fromBox(k, t)) ev.preventDefault(); }
       return;
     }
     if (D.getElementById('help') && k !== '?') return;
     if (pendingG && Date.now() - pendingG < 1500) {
       pendingG = 0;
-      const to = { o: 'index.html', b: 'browse.html', p: 'pieces.html', s: 'search.html' }[k];
+      const to = { o: 'index.html', b: 'browse.html', f: 'browse.html', p: 'pieces.html', s: 'search.html' }[k];
       if (to) { location.href = to; ev.preventDefault(); }
       return;
     }
     pendingG = 0;
     let done = true;
-    if (k === '/') { const q = D.getElementById('q'); q.focus(); q.select(); }
+    if (k === '/') { const q = D.getElementById('fq') || D.getElementById('q'); q.focus(); q.select(); }
     else if (k === '?') help(!D.getElementById('help'));
     else if (k === 'g') { pendingG = Date.now(); status('g…'); }
     else if (pageKeys[k] && pageKeys[k]()) { /* handled */ }
@@ -462,7 +461,7 @@
     <div class="legend">${partBars.filter((p) => p[1] > 0).map((p) => `<span><span class="sw" style="background:${p[2]}"></span>${p[0]} ${bytes(p[1])}</span>`).join('')}</div></div>
   <div class="stack"><div class="faint" style="font-weight:500">By file type <span style="font-weight:400">(guessed from names and first bytes)</span></div>
     ${bar(types.map((t) => [t[3], t[1], t[2]]), types.map((t) => t[3] + ' ' + bytes(t[1])).join(', '))}
-    <div class="legend">${types.map((t) => `<a href="search.html?kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
+    <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
@@ -498,49 +497,454 @@
     status(bytes(total) + ' · ' + num(pieces.length) + ' pieces' + (copies.length ? ' × ' + copies.length : '') + ' · ' + (m.tool || 'ipfs2fil'));
   }
 
-  // ---- Browse a directory
-  async function browse() {
-    const p = params.get('p') || '';
-    const [m, info] = await Promise.all([manifest(), dirInfo(p)]);
-    if (!info) throw new Error(`There is no folder data/${p} in this archive.`);
-    const r = rootAt(p);
-    const title = p ? (r && r.kind !== 'mfs' ? rootLabel(r) : p.split('/').pop()) : 'data';
-    const kindLabel = r ? ROOTKIND[r.kind] : p === '' ? 'Everything in the archive' : whereOf(p) === 'mfs' ? 'MFS folder' : 'Folder';
-    const cid = info.cid;
-    const up = () => { if (p) location.href = browseHref(p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : ''); return !!p; };
-    pageKeys.u = pageKeys.Backspace = up;
-    pageKeys.cid = () => cid;
-    const typeRows = KINDS.filter((k) => k !== 'folder' && info.types[k]).map((k) => [k, info.types[k]]).sort((a, b) => b[1][1] - a[1][1]);
-    main().innerHTML = `
-${crumbs(p)}
-<div class="titlebar"><div class="head" style="gap:4px"><h1>${esc(title)}</h1><div class="muted" style="font-size:14px">${plural(info.n, 'entry', 'entries')} · ${bytes(info.bytes)} · ${esc(kindLabel)}</div></div>
-${cid ? `<div class="actions"><a class="btn" href="${esc(gw(cid))}" target="_blank" rel="noopener">Open in gateway ↗ ${kbd('o')}</a><a class="btn" href="${esc(gw(cid) + '?format=car')}" target="_blank" rel="noopener">Download as CAR</a></div>` : ''}</div>
-<div class="split">
-  <section class="card wide" id="list"></section>
-  <aside class="side">
-    <section class="card"><h2>This folder</h2><div class="facts">
-      ${cid ? `<span>CID</span><span><code>${esc(cid)}</code>${gwLinks(cid)}</span>` : ''}
-      <span>Kind</span><span>${esc(kindLabel)}</span>
-      <span>Files</span><span>${num(info.files)}</span>
-      <span>Folders</span><span>${num(info.folders)}</span>
-      ${pieceAt(info.lo) >= 0 ? `<span>Spread over</span><a href="pieces.html?n=${pieceAt(info.lo)}">${info.lo === info.hi ? 'piece ' + pieceAt(info.lo) : 'pieces ' + pieceAt(info.lo) + ' to ' + pieceAt(info.hi)}</a>` : ''}
-      ${r && r.kind !== 'mfs' ? `<span>Pin</span><a href="pin.html?cid=${encodeURIComponent(r.cid)}">Details and pieces</a>` : ''}
-    </div></section>
-    ${typeRows.length ? `<section class="card"><h2>By file type</h2>${bar(typeRows.map((t) => [KIND[t[0]][3], t[1][1], KIND[t[0]][1]]), typeRows.map((t) => KIND[t[0]][3] + ' ' + bytes(t[1][1])).join(', '))}
-      <div>${typeRows.map((t) => `<button type="button" class="typerow" data-kind="${t[0]}"><span class="sw" style="background:${KIND[t[0]][1]}"></span><span>${KIND[t[0]][3]}</span><span class="n">${num(t[1][0])} · ${bytes(t[1][1])}</span></button>`).join('')}</div>
-      <span class="faint">Click a type to filter the list.</span></section>` : ''}
-  </aside>
+  // ---- Files: browse folders, search under one, view what is in them.
+  // Layout from the round 2 boards: the library by type on the left, search
+  // scoped to this folder and below at the top, a list (or grid, tree or
+  // columns) in the middle and the selected file with its details on the right.
+  //
+  // File bytes come from `ipfs2fil explore` (../_i2f/content/<cid>) or, through
+  // a gateway, from ../data/ in this archive. From file:// there are none
+  // unless the viewer asks for a public gateway.
+  let LOCAL = false, PUBLIC = false;
+  async function probeLocal() {
+    if (HERE || !/^https?:$/.test(location.protocol)) return false;
+    try { const r = await fetch('../_i2f/info'); return r.ok && !!(await r.json()).content; } catch (e) { return false; }
+  }
+  const qs = (o) => Object.keys(o).filter((k) => o[k] !== '' && o[k] != null).map((k) => k + '=' + encodeURIComponent(o[k])).join('&');
+  function contentURL(e, extra) {
+    if (!e || !e.cid) return null;
+    if (LOCAL) return '../_i2f/content/' + encodeURIComponent(e.cid) + '?' + qs({ name: e.name, ...extra });
+    if (HERE) return '../data/' + segs(e.path) + (extra && extra.dl ? '?download=true&filename=' + encodeURIComponent(e.name) : '');
+    if (PUBLIC) return gw(e.cid) + '?filename=' + encodeURIComponent(e.name) + (extra && extra.dl ? '&download=true' : '');
+    return null;
+  }
+  const thumbURL = (e, w) => contentURL(e, LOCAL ? { w: w || 320 } : null);
+  const canShow = () => LOCAL || HERE || PUBLIC;
+
+  // Kinds an older pack could not tell from names; explore sniffs them.
+  const KOVER = {}, asked = new Set();
+  async function fixKinds(items, then) {
+    if (!LOCAL) return;
+    const want = items.filter((e) => e.kind === 'other' && e.cid && !asked.has(e.cid)).map((e) => e.cid);
+    if (!want.length) return;
+    want.forEach((c) => asked.add(c));
+    for (let i = 0; i < want.length; i += 2000) {
+      try {
+        const r = await fetch('../_i2f/kinds', { method: 'POST', body: want.slice(i, i + 2000).join('\n') });
+        if (r.ok) Object.assign(KOVER, await r.json());
+      } catch (e) { return; }
+      then();
+    }
+  }
+  const kindFix = (e) => { if (e.kind === 'other' && KOVER[e.cid]) e.kind = KOVER[e.cid]; return e; };
+
+  // Every entry, streamed once from all shards, for search and the library.
+  let allP = null;
+  function allEntries(progress) {
+    return allP || (allP = (async () => {
+      const meta = await load('meta'), out = [];
+      let next = 0, last = 0;
+      const work = async () => {
+        while (next < meta.shards.length) {
+          const s = await load('s/' + meta.shards[next++]);
+          for (const r of s.rows) out.push(entryOf(s, r));
+          if (progress && Date.now() - last > 250) { last = Date.now(); progress(out); }
+        }
+      };
+      await Promise.all([work(), work(), work(), work()]);
+      return out;
+    })());
+  }
+  const under = (p) => (e) => !p || e.path.startsWith(p + '/');
+  const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
+  const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
+  const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
+  const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
+  const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
+  const ext = (n) => { const i = n.lastIndexOf('.'); return i > 0 ? n.slice(i + 1).toLowerCase() : ''; };
+
+  async function files() {
+    const [m, meta] = await Promise.all([manifest(), load('meta')]);
+    LOCAL = await probeLocal();
+    const S = {
+      p: params.get('p') || '', q: params.get('q') || '', kind: params.get('kind') || 'all', deep: params.get('deep') === '1' || !!params.get('q'),
+      size: params.get('size') || 'any', sort: params.get('sort') || 'name', dir: params.get('dir') === '-1' ? -1 : 1,
+      view: pref('view', 'list'), ly: pref('layout', 'split'), sel: params.get('sel') || '', cur: -1, limit: 300, open: new Set()
+    };
+    if (S.kind !== 'all' && !params.has('deep')) S.deep = true;
+    let info = null, kids = [], all = null, loadingAll = false, shown = [], rows = [], counts = {}, base = [];
+
+    main().className = 'files-main';
+    main().innerHTML = `<div class="files">
+  <nav class="lib" aria-label="Library"></nav>
+  <section class="fmain">
+    <div class="fbar"><div class="fcrumbs"></div>
+      <div class="seg" role="group" aria-label="View">${VIEWS.map((v) => `<button type="button" data-view="${v[0]}" title="${v[1]} view (v)" aria-label="${v[1]}">${svg(v[2])}</button>`).join('')}</div>
+      <div class="seg ly" role="group" aria-label="Layout">${LAYOUTS.map((v) => `<button type="button" data-ly="${v[0]}" title="${v[1]} (l)" aria-label="${v[1]}">${svg(v[2], 18)}</button>`).join('')}</div></div>
+    <div class="fsearch"><div class="sbox"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5l3.5 3.5"></path></svg>
+      <span class="scope"></span><label class="sr" for="fq">Search names and CIDs</label><input id="fq" type="search" autocomplete="off" spellcheck="false"><kbd>/</kbd></div></div>
+    <div class="fchips"><div class="chips" role="group" aria-label="Filter by kind"></div>
+      <div class="selects"><label class="deep"><input type="checkbox" id="fdeep"> Include subfolders</label>
+        <label>Size<select id="fsize">${SIZES.map((s) => `<option value="${s[0]}">${s[1]}</option>`).join('')}</select></label>
+        <label>Sort<select id="fsort"><option value="name">Name</option><option value="size">Size</option><option value="kind">Kind</option><option value="piece">Piece</option><option value="where">Folder</option></select></label><button type="button" class="flip" id="fflip" aria-label="Reverse the order"></button></div></div>
+    <div class="fbody"><div class="flist" tabindex="0" aria-label="Files. J and K move, Enter opens."></div><aside class="fprev" aria-label="Preview and details"></aside></div>
+  </section></div>`;
+    const $ = (s) => main().querySelector(s);
+    const box = $('#fq');
+    box.value = S.q;
+    box.placeholder = 'Search names and CIDs';
+    D.getElementById('q').closest('form').hidden = true; // this page has its own box
+
+    // ---- the library sidebar
+    const libHref = (k) => 'browse.html?' + qs({ kind: k === 'all' ? '' : k, deep: '1' });
+    function lib() {
+      const parts = meta.parts || {}, t = meta.types || {};
+      const libOn = S.deep && !S.q && !S.p;
+      $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => k[0] === 'all' || t[k[0]]).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${k[0] === 'all' ? count(meta.entries) : count(t[k[0]][0])}</span></a>`).join('')}
+<div class="h">Places</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}All of data/</a>${['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => `<a href="${browseHref(w)}"${S.p === w && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${PART[w][0]}</a>`).join('')}
+<div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
+    }
+
+    // ---- data for the current folder and scope
+    async function enter(p, keepSel) {
+      S.p = p;
+      info = await dirInfo(p);
+      if (!info) {
+        // a file path: show its folder with it selected
+        const d = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
+        if (d !== p && await dirInfo(d)) { S.sel = p; return enter(d, true); }
+        throw new Error(`There is no folder data/${p} in this archive.`);
+      }
+      if (!keepSel) S.sel = '';
+      kids = (await listDir(info)).map(kindFix);
+      pageKeys.cid = () => (current() || {}).cid || info.cid;
+      S.cur = -1; S.limit = 300;
+      update(true);
+      fixKinds(kids, () => { kids.forEach(kindFix); update(); });
+      if (S.deep) needAll();
+    }
+    function needAll() {
+      if (all || loadingAll) return;
+      loadingAll = true;
+      allEntries((part) => { all = part; update(); }).then((es) => {
+        all = es.map(kindFix); loadingAll = false; update();
+        if (S.deep) fixKinds(all.filter(under(S.p)), () => { all.forEach(kindFix); update(); });
+      });
+    }
+    function compute() {
+      const ql = S.q.trim().toLowerCase();
+      const src = S.deep ? (all || []).filter(under(S.p)) : kids;
+      base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
+      counts = {};
+      base.forEach((e) => { counts[e.kind] = (counts[e.kind] || 0) + 1; });
+      let list = S.kind === 'all' ? base : base.filter((e) => e.kind === S.kind);
+      if (S.deep && S.kind === 'all' && !ql && S.size === 'any') list = list.filter((e) => e.kind !== 'folder');
+      const key = SORTS[S.sort] || SORTS.name, dir = S.dir;
+      const keyed = list.map((e) => [S.deep ? 0 : e.kind === 'folder' ? 0 : 1, key(e), e.path, e]);
+      keyed.sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -dir : a[1] > b[1] ? dir : a[2] < b[2] ? -1 : 1));
+      shown = keyed.map((x) => x[3]);
+      // a grid of results groups them by folder
+      if (S.view === 'grid' && S.deep && S.sort === 'name') shown = shown.map((e, i) => [e, i]).sort((a, b) => a[0].dir < b[0].dir ? -1 : a[0].dir > b[0].dir ? 1 : a[1] - b[1]).map((x) => x[0]);
+      if (S.sel) { const i = shown.findIndex((e) => e.path === S.sel); if (i >= 0) { S.cur = i; S.limit = Math.max(S.limit, i + 50); } }
+    }
+    const current = () => (S.view === 'tree' ? rows[S.cur] : shown[S.cur]) || null;
+
+    // ---- render
+    let lastURL = '';
+    function update(full) {
+      compute();
+      lib();
+      $('.files').dataset.ly = S.ly;
+      $('.files').dataset.view = S.view;
+      main().querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === S.view));
+      main().querySelectorAll('[data-ly]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.ly === S.ly));
+      const r = rootAt(S.p);
+      const title = S.p ? (r && r.kind !== 'mfs' ? rootLabel(r) : S.p.split('/').pop()) : 'data';
+      $('.fcrumbs').innerHTML = crumbs(S.p) + (info ? `<span class="faint">${plural(info.n, 'item')} · ${bytes(info.bytes)}</span>` : '');
+      $('.scope').innerHTML = S.deep ? `<span class="pill on">In ${esc(S.p ? (title.length > 24 ? shortCID(title) : title) : 'the whole archive')}${S.p ? ' and below' : ''}${S.p ? ` <button type="button" data-unscope aria-label="Search the whole archive">×</button>` : ''}</span>` : '';
+      box.placeholder = S.deep ? 'Search names and CIDs' : `Search in ${S.p ? title.length > 24 ? shortCID(title) : title : 'data'} and below`;
+      const chips = [['all', 'All', base.length]].concat(KINDS.filter((k) => counts[k]).map((k) => [k, KIND[k][3], counts[k]]));
+      if (S.kind !== 'all' && !counts[S.kind]) chips.push([S.kind, kindOf(S.kind)[3], 0]);
+      $('.chips').innerHTML = chips.map((c) => `<button type="button" class="pill" data-k="${c[0]}" aria-pressed="${c[0] === S.kind}">${esc(c[1])} <span class="n">${num(c[2])}${S.deep && loadingAll ? '+' : ''}</span></button>`).join('');
+      $('#fdeep').checked = S.deep;
+      $('#fsize').value = S.size; $('#fsort').value = S.sort; $('#fflip').textContent = S.dir > 0 ? '▲' : '▼';
+      if (S.view === 'grid') grid(); else if (S.view === 'tree') tree(); else if (S.view === 'cols' && !S.deep) cols(); else listView();
+      preview(full);
+      const u = 'browse.html?' + qs({ p: S.p, q: S.q, kind: S.kind === 'all' ? '' : S.kind, deep: S.deep && !S.q ? '1' : '', size: S.size === 'any' ? '' : S.size, sort: S.sort === 'name' ? '' : S.sort, dir: S.dir < 0 ? '-1' : '', sel: S.sel });
+      if (u !== lastURL) { history.replaceState(null, '', u); lastURL = u; }
+      status((S.deep ? `${num(shown.length)}${loadingAll ? '+' : ''} found` : showPath(S.p) || 'data') + (current() ? ' · ' + current().name : ''));
+    }
+    const more = () => shown.length > S.limit ? `<div class="foot"><button type="button" class="more" data-more>Show ${num(Math.min(300, shown.length - S.limit))} more</button><span>${num(S.limit)} of ${num(shown.length)}</span></div>` : '';
+    const empty = () => `<p class="muted pad">${S.deep && loadingAll ? 'Searching…' : S.q ? 'No names match.' : S.kind !== 'all' ? `No ${esc(kindOf(S.kind)[3].toLowerCase())} here.` : 'This folder is empty.'}</p>`;
+    const thumbOr = (e, cls) => e.kind === 'image' && canShow() ? `<img class="${cls}" loading="lazy" alt="" src="${esc(thumbURL(e, cls === 'tt' ? 320 : 96))}">` : `<span class="${cls} ic">${icon(e.kind)}</span>`;
+    const where = (e) => showPath(e.dir) || 'data';
+    function listView() {
+      const deepCols = S.deep;
+      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(e.name)}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a></td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
+    }
+    function grid() {
+      let out = '', lastDir = null;
+      const group = S.deep && S.sort === 'name', list = shown;
+      list.slice(0, S.limit).forEach((e, i) => {
+        if (group && e.dir !== lastDir) { out += `${lastDir !== null ? '</div>' : ''}<div class="gh"><a href="${esc(browseHref(e.dir))}">${esc(where(e))}</a></div><div class="tiles">`; lastDir = e.dir; }
+        else if (!group && i === 0) out += '<div class="tiles">';
+        out += `<button type="button" class="tile" data-i="${i}" aria-selected="${i === S.cur}" title="${esc(e.name)}">${thumbOr(e, 'tt')}<span class="tn">${esc(e.name)}</span></button>`;
+      });
+      $('.flist').innerHTML = list.length ? out + '</div>' + more() : empty();
+    }
+    // Tree: the folder's contents, folders opening in place; when searching,
+    // only the branches that hold matches, all open.
+    function tree() {
+      rows = [];
+      if (S.deep) {
+        const keepDirs = new Set();
+        shown.forEach((e) => { for (let d = e.dir; d && d !== S.p && d.startsWith(S.p); d = d.includes('/') ? d.slice(0, d.lastIndexOf('/')) : '') keepDirs.add(d); });
+        const byDir = {};
+        shown.forEach((e) => { (byDir[e.dir] = byDir[e.dir] || []).push(e); });
+        (all || []).forEach((e) => { if (keepDirs.has(e.path)) (byDir[e.dir] = byDir[e.dir] || []).push(e); });
+        const below = {};
+        shown.forEach((e) => { for (let d = e.dir; d && d !== S.p; d = d.includes('/') ? d.slice(0, d.lastIndexOf('/')) : '') below[d] = (below[d] || 0) + 1; });
+        const nOf = (d) => below[d] || 0;
+        const walk = (d, depth) => (byDir[d] || []).sort((a, b) => (a.kind === 'folder' ? 0 : 1) - (b.kind === 'folder' ? 0 : 1) || (a.name < b.name ? -1 : 1)).forEach((e) => {
+          if (rows.length > S.limit) return;
+          const isDir = keepDirs.has(e.path);
+          rows.push({ ...e, depth, open: isDir, n: isDir ? nOf(e.path) : 0, branch: isDir });
+          if (isDir) walk(e.path, depth + 1);
+        });
+        walk(S.p, 0);
+      } else {
+        const walk = (list, depth) => list.forEach((e) => {
+          const open = S.open.has(e.path);
+          rows.push({ ...e, depth, open, branch: e.kind === 'folder' });
+          if (open && TREE[e.path]) walk(TREE[e.path], depth + 1);
+        });
+        walk(shown, 0);
+      }
+      if (S.sel) { const i = rows.findIndex((e) => e.path === S.sel); if (i >= 0) S.cur = i; }
+      $('.flist').innerHTML = rows.length ? `<div class="tree" role="tree">${rows.slice(0, S.limit + 200).map((e, i) => `<div class="tr" role="treeitem" data-i="${i}" aria-selected="${i === S.cur}"${e.branch ? ` aria-expanded="${e.open}"` : ''} style="padding-left:${8 + e.depth * 18}px"><button type="button" class="tw" data-tw="${i}" tabindex="-1" aria-hidden="true">${e.branch ? (e.open ? '▾' : '▸') : ''}</button>${thumbOr(e, 'th')}<span class="tnm">${esc(e.name)}</span><span class="n">${e.n ? num(e.n) : e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</span></div>`).join('')}</div>` : empty();
+    }
+    const TREE = {};
+    async function toggle(e) {
+      if (e.kind !== 'folder' || S.deep) return;
+      if (S.open.has(e.path)) S.open.delete(e.path);
+      else {
+        S.open.add(e.path);
+        if (!TREE[e.path]) {
+          const di = await dirInfo(e.path);
+          TREE[e.path] = di ? (await listDir(di)).map(kindFix).sort((a, b) => (a.kind === 'folder' ? 0 : 1) - (b.kind === 'folder' ? 0 : 1) || (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1)) : [];
+          fixKinds(TREE[e.path], () => { TREE[e.path].forEach(kindFix); update(); });
+        }
+      }
+      update();
+    }
+    // Columns: one per folder from data/ down to here, then the selection.
+    let COLS = [];
+    async function cols() {
+      const parts = S.p ? S.p.split('/') : [];
+      const want = [''].concat(parts.map((_, i) => parts.slice(0, i + 1).join('/')));
+      const key = want.join('\n');
+      if (COLS.key !== key) {
+        $('.flist').innerHTML = '<p class="muted pad">Loading…</p>';
+        const got = await Promise.all(want.slice(0, -1).map(async (d) => { const di = await dirInfo(d); return di ? (await listDir(di)).sort((a, b) => (a.kind === 'folder' ? 0 : 1) - (b.kind === 'folder' ? 0 : 1) || (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1)) : []; }));
+        COLS = got.map((items, i) => ({ dir: want[i], items, cur: items.findIndex((e) => e.path === want[i + 1]) }));
+        COLS.key = key;
+      }
+      const last = { dir: S.p, items: shown, cur: S.cur };
+      const all = COLS.concat([last]);
+      $('.flist').innerHTML = `<div class="cols">${all.map((c, ci) => `<div class="col" data-c="${ci}">${c.items.slice(0, ci === all.length - 1 ? S.limit : 2000).map((e, i) => `<div class="ci" data-c="${ci}" data-i="${i}" aria-selected="${i === c.cur}">${icon(e.kind)}<span class="tnm">${esc(e.name)}</span>${e.kind === 'folder' ? '<span class="n">›</span>' : ''}</div>`).join('') || '<p class="muted pad">Empty</p>'}</div>`).join('')}</div>`;
+      const c = $('.cols');
+      c.scrollLeft = c.scrollWidth;
+    }
+
+    // ---- the preview pane
+    let shownPrev = null;
+    async function preview(full) {
+      const e = current(), pane = $('.fprev');
+      const key = e ? e.path + e.kind : 'dir:' + S.p;
+      if (!full && key === shownPrev) return;
+      shownPrev = key;
+      if (!e) return folderPane(pane, info, S.p, true);
+      if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
+      const url = contentURL(e), copies = m.copies || [];
+      const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
+      const stored = piece ? copies.filter((c) => c.pieceIds && c.pieceIds[e.piece] != null) : [];
+      const nav = `<button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>`;
+      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${esc(e.name)}</strong>${nav}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">Download</a>` : ''}</div>
+<div class="stage" data-kind="${esc(e.kind)}">${stage(e, url)}</div>
+<div class="facts2">
+  <div><span>Size</span><b>${bytes(e.bytes)}</b></div><div><span>Kind</span><b>${esc(kindOf(e.kind)[2])}${ext(e.name) ? ' · ' + esc(ext(e.name).toUpperCase()) : ''}</b></div>
+  <div><span>Piece</span><b>${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">#${e.piece}</a>` : '—'}</b></div><div><span>Copies</span><b>${stored.length || (piece ? '0' : '—')}</b></div>
+</div>
+<div class="facts dl">
+  <span>CID</span><span><code title="${esc(e.cid)}">${esc(shortCID(e.cid))}</code> <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
+  ${S.deep || e.dir !== S.p ? `<span>In</span><a href="${esc('browse.html?' + qs({ p: e.dir, sel: e.path }))}">${esc(where(e))}/</a>` : ''}
+  ${piece ? `<span>Stored</span><span><code title="${esc(piece.pieceCid)}">${esc(shortCID(piece.pieceCid))}</code> ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
+  <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
-    const list = new List(D.getElementById('list'), {
-      label: 'Folder entries', step: 200, sort0: 'name', group: folderFirst, filter: 'Filter this folder',
-      kinds: kindChips(), kindOf: (e) => e.kind, text: (e) => e.name + ' ' + e.cid,
-      selects: [{ key: 'size', label: 'Size', options: SIZES, test: sizeTest }],
-      cols: [nameCol(), kindCol, { ...sizeCol, html: (e) => e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes) }, cidCol, pieceCol],
-      href: entryHref, cid: (e) => e.cid, empty: 'This folder is empty.'
+      fill(pane, e, url);
+    }
+    function stage(e, url) {
+      if (!url) return `<div class="none"><p>Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see the file here.</p><button type="button" class="btn sm" data-public>Load from ${GATEWAYS[0][0]}</button></div>`;
+      const x = ext(e.name);
+      switch (e.kind) {
+        case 'image': return `<img src="${esc(url)}" alt="${esc(e.name)}">`;
+        case 'video': return `<video src="${esc(url)}" controls preload="metadata"></video>`;
+        case 'audio': return `<div class="none">${icon('audio')}<audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
+        case 'page': return `<iframe sandbox="" src="${esc(url)}" title="${esc(e.name)}"></iframe>`;
+        case 'doc': return x === 'pdf' || !x ? `<iframe src="${esc(url)}" title="${esc(e.name)}"></iframe>` : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
+        case 'text': case 'code': return '<pre class="code"><code>Loading…</code></pre>';
+        case 'folder': return '';
+      }
+      return '<pre class="hex">Loading…</pre>';
+    }
+    async function fill(pane, e, url) {
+      const st = pane.querySelector('.stage');
+      if (!url || !st) return;
+      const want = e.path;
+      const range = async (n) => {
+        const r = await fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } });
+        if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
+        return r.arrayBuffer();
+      };
+      try {
+        if (e.kind === 'text' || e.kind === 'code') {
+          const buf = await range(256 << 10);
+          if (current() && current().path !== want) return;
+          const lines = new TextDecoder().decode(buf).split('\n');
+          const cut = buf.byteLength >= 256 << 10 || e.bytes > buf.byteLength;
+          st.innerHTML = `<pre class="code"><code>${lines.slice(0, 5000).map((l) => `<span>${esc(l)}</span>`).join('\n')}</code></pre>${cut || lines.length > 5000 ? '<p class="faint pad">Showing the start. Download for all of it.</p>' : ''}`;
+        } else if (st.querySelector('.hex')) {
+          const b = new Uint8Array(await range(512));
+          if (current() && current().path !== want) return;
+          let out = '';
+          for (let i = 0; i < b.length; i += 16) {
+            const row = Array.from(b.slice(i, i + 16));
+            out += i.toString(16).padStart(6, '0') + '  ' + row.map((x) => x.toString(16).padStart(2, '0')).join(' ').padEnd(48) + '  ' + row.map((x) => x >= 32 && x < 127 ? String.fromCharCode(x) : '.').join('') + '\n';
+          }
+          st.innerHTML = `<pre class="hex">${esc(out)}</pre><p class="faint pad">The first ${num(b.length)} bytes. No preview for this kind of file.</p>`;
+        }
+      } catch (err) { st.innerHTML = `<div class="none"><p>${esc(err.message)}</p></div>`; }
+      const media = st.querySelector('img, video, audio');
+      if (media) media.onerror = () => { st.innerHTML = `<div class="none"><p>${LOCAL ? 'This file is not in the pieces on this machine, or the browser cannot show it.' : 'The browser could not load or show this file.'}</p></div>`; };
+    }
+    async function folderPane(pane, di, p, here, e) {
+      if (!di) { pane.innerHTML = ''; return; }
+      const r = rootAt(p);
+      const name = p ? (r && r.kind !== 'mfs' ? rootLabel(r) : p.split('/').pop()) : 'data';
+      const typeRows = KINDS.filter((k) => k !== 'folder' && di.types[k]).map((k) => [k, di.types[k]]).sort((a, b) => b[1][1] - a[1][1]);
+      pane.innerHTML = `<div class="ph"><strong title="${esc(name)}">${esc(name.length > 40 ? shortCID(name) : name)}/</strong>${here ? '' : `<a class="btn sm" href="${esc(browseHref(p))}">Open</a>`}</div>
+<div class="stage folder"><div class="mosaic"></div></div>
+<div class="facts2"><div><span>Items</span><b>${num(di.n)}</b></div><div><span>Size</span><b>${bytes(di.bytes)}</b></div><div><span>Files</span><b>${num(di.files)}</b></div><div><span>Folders</span><b>${num(di.folders)}</b></div></div>
+${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3], t[1][1], KIND[t[0]][1]]), typeRows.map((t) => KIND[t[0]][3] + ' ' + bytes(t[1][1])).join(', '))}<div class="legend sm">${typeRows.map((t) => `<a href="browse.html?${qs({ p, kind: t[0], deep: '1' })}"><span class="sw" style="background:${KIND[t[0]][1]}"></span>${KIND[t[0]][3]} ${num(t[1][0])}</a>`).join('')}</div></div>` : ''}
+<div class="facts dl">
+  ${di.cid ? `<span>CID</span><span><code title="${esc(di.cid)}">${esc(shortCID(di.cid))}</code> <button type="button" class="link" data-copy="${esc(di.cid)}">Copy</button></span>` : ''}
+  ${r ? `<span>Root</span><span>${esc(ROOTKIND[r.kind] || r.kind)}${r.kind !== 'mfs' ? ` · <a href="pin.html?cid=${encodeURIComponent(r.cid)}">details</a>` : ''}</span>` : ''}
+  ${pieceAt(di.lo) >= 0 ? `<span>Pieces</span><a href="pieces.html?n=${pieceAt(di.lo)}">${di.lo === di.hi ? '#' + pieceAt(di.lo) : '#' + pieceAt(di.lo) + ' to #' + pieceAt(di.hi)}</a>` : ''}
+  ${di.cid ? `<span>Open in</span><span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(di.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
+</div>`;
+      if (canShow() && di.types.image) {
+        const ks = here ? kids : await listDir(di);
+        const imgs = ks.filter((x) => x.kind === 'image').slice(0, 6);
+        const mo = pane.querySelector('.mosaic');
+        if (mo && imgs.length) mo.innerHTML = imgs.map((x) => `<img loading="lazy" alt="" src="${esc(thumbURL(x))}">`).join('');
+      }
+      if (!pane.querySelector('.mosaic img')) { const s = pane.querySelector('.stage'); if (s) s.remove(); }
+    }
+
+    // ---- events
+    const sel = (i) => {
+      const n = (S.view === 'tree' ? rows : shown).length;
+      if (!n) return;
+      S.cur = Math.max(0, Math.min(n - 1, i));
+      if (S.cur >= S.limit - 5 && n > S.limit) S.limit += 300;
+      S.sel = (S.view === 'tree' ? rows : shown)[S.cur].path;
+      update();
+      const el = $(`.flist [data-i="${S.cur}"]${S.view === 'cols' ? `[data-c="${COLS.length}"]` : ''}`);
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    };
+    function open(e) {
+      if (!e) return;
+      if (e.kind === 'folder') { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
+      if (S.ly !== 'file') { S.ly = 'file'; keep('layout', S.ly); update(true); }
+    }
+    function up() {
+      if (!S.p) return false;
+      const d = S.p.includes('/') ? S.p.slice(0, S.p.lastIndexOf('/')) : '';
+      const from = S.p;
+      S.deep = false; S.q = ''; box.value = '';
+      enter(d).then(() => { const i = shown.findIndex((e) => e.path === from); if (i >= 0) sel(i); }).catch(fail);
+      return true;
+    }
+    main().addEventListener('click', (ev) => {
+      const t = ev.target;
+      const b = t.closest('button, a, [data-i]');
+      if (!b) return;
+      if (b.dataset.view) { S.view = b.dataset.view; keep('view', S.view); S.cur = -1; update(true); return; }
+      if (b.dataset.ly) { S.ly = b.dataset.ly; keep('layout', S.ly); update(); return; }
+      if (b.dataset.k) { S.kind = b.dataset.k; S.cur = -1; S.limit = 300; update(); return; }
+      if (b.hasAttribute('data-unscope')) { S.p = ''; enter('').catch(fail); return; }
+      if (b.hasAttribute('data-more')) { S.limit += 300; update(); return; }
+      if (b.hasAttribute('data-public')) { PUBLIC = true; update(true); return; }
+      if (b.dataset.copy) { copy(b.dataset.copy); return; }
+      if (b.dataset.step) { sel((S.cur < 0 ? -1 : S.cur) + +b.dataset.step); return; }
+      if (b.dataset.tw != null) { const e = rows[+b.dataset.tw]; if (e) toggle(e); return; }
+      if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (e && e.kind === 'folder') open(e); else sel(+b.dataset.open); return; }
+      if (b.dataset.c != null && b.dataset.i != null) {
+        const ci = +b.dataset.c, e = ci < COLS.length ? COLS[ci].items[+b.dataset.i] : shown[+b.dataset.i];
+        if (!e) return;
+        if (e.kind === 'folder') { enter(e.path).catch(fail); return; }
+        if (ci < COLS.length) { S.sel = e.path; enter(COLS[ci].dir, true).catch(fail); return; }
+        sel(+b.dataset.i); return;
+      }
+      if (b.dataset.i != null && b.tagName !== 'A') { sel(+b.dataset.i); }
     });
-    D.querySelectorAll('[data-kind]').forEach((b) => { b.onclick = () => list.set({ kind: b.dataset.kind }); });
-    list.setItems(await listDir(info));
-    status(showPath(p) || 'data');
+    main().addEventListener('dblclick', (ev) => {
+      const r = ev.target.closest('[data-i]');
+      if (r && !r.dataset.c) open(S.view === 'tree' ? rows[+r.dataset.i] : shown[+r.dataset.i]);
+    });
+    let typing;
+    box.oninput = () => {
+      clearTimeout(typing);
+      typing = setTimeout(() => {
+        S.q = box.value; S.cur = -1; S.limit = 300; S.sel = '';
+        if (S.q.trim()) { S.deep = true; needAll(); }
+        update();
+      }, all ? 60 : 150);
+    };
+    $('#fdeep').onchange = (ev) => { S.deep = ev.target.checked; S.cur = -1; if (S.deep) needAll(); update(); };
+    $('#fsize').onchange = (ev) => { S.size = ev.target.value; S.cur = -1; update(); };
+    $('#fsort').onchange = (ev) => { S.sort = ev.target.value; S.dir = S.sort === 'size' ? -1 : 1; update(); };
+    $('#fflip').onclick = () => { S.dir = -S.dir; update(); };
+    $('.flist').addEventListener('scroll', (ev) => {
+      const el = ev.target;
+      if (el.scrollTop + el.clientHeight > el.scrollHeight - 400 && shown.length > S.limit) { S.limit += 300; update(); }
+    });
+    pageKeys.fromBox = (k) => {
+      if (k === 'Enter') {
+        const q = box.value.trim(), r = (m.roots || []).find((x) => x.cid === q);
+        if (r) { location.href = 'pin.html?cid=' + encodeURIComponent(r.cid); return true; }
+      }
+      box.blur(); $('.flist').focus(); if (S.cur < 0) sel(0);
+      return true;
+    };
+    const step = (d) => () => { sel((S.cur < 0 ? -1 : S.cur) + d); return true; };
+    const across = () => S.view === 'grid' ? Math.max(1, Math.round($('.flist').clientWidth / 150)) : 1;
+    Object.assign(pageKeys, {
+      j: step(1), k: step(-1), ArrowDown: () => step(across())(), ArrowUp: () => step(-across())(),
+      ArrowRight: () => { if (S.view === 'grid') return step(1)(); const e = current(); if (S.view === 'tree' && e && e.branch && !e.open) { toggle(e); return true; } return false; },
+      ArrowLeft: () => { if (S.view === 'grid') return step(-1)(); const e = current(); if (S.view === 'tree' && e && e.open) { toggle(e); return true; } return false; },
+      Enter: () => { open(current()); return true; }, ' ': () => { S.ly = S.ly === 'file' ? 'split' : 'file'; keep('layout', S.ly); update(); return true; },
+      u: up, Backspace: up, f: () => { box.focus(); box.select(); return true; }, '/': () => { box.focus(); box.select(); return true; },
+      v: () => { S.view = VIEWS[(VIEWS.findIndex((v) => v[0] === S.view) + 1) % VIEWS.length][0]; keep('view', S.view); update(true); toast(VIEWS.find((v) => v[0] === S.view)[1] + ' view'); return true; },
+      l: () => { S.ly = LAYOUTS[(LAYOUTS.findIndex((v) => v[0] === S.ly) + 1) % LAYOUTS.length][0]; keep('layout', S.ly); update(); return true; },
+      d: () => { const e = current(), u = e && e.kind !== 'folder' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
+      s: () => { const ks = Object.keys(SORTS); S.sort = ks[(ks.indexOf(S.sort) + 1) % ks.length]; update(); toast('Sorted by ' + $('#fsort').selectedOptions[0].textContent); return true; },
+      r: () => { S.dir = -S.dir; update(); return true; }
+    });
+    for (let i = 0; i <= 9; i++) pageKeys[String(i)] = () => { const c = main().querySelectorAll('.chips [data-k]')[i]; if (c) c.click(); return !!c; };
+    await enter(S.p, !!S.sel);
   }
 
   // ---- A pin (or any root)
@@ -641,61 +1045,16 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     status(num(pieces.length) + ' pieces');
   }
 
-  // ---- Search
-  async function search() {
-    const [m, meta] = await Promise.all([manifest(), load('meta')]);
-    const box = D.getElementById('q');
-    D.querySelector('form.search').onsubmit = (ev) => ev.preventDefault();
-    main().innerHTML = `<div class="head" style="gap:6px"><h1 id="title"></h1><span class="faint">Results update as you type, from the name index inside this archive. Nothing leaves your browser. Paste a CID to jump to it.</span></div><section class="card" id="list"></section>`;
-    const kinds = kindChips();
-    const list = new List(D.getElementById('list'), {
-      label: 'Results', step: 100, sort0: 'name', filter: null, digits: true,
-      kinds, kindOf: (e) => e.kind, text: (e) => e.name + ' ' + e.cid,
-      selects: [{ key: 'where', label: 'Where', value: params.get('where') || 'any', options: [['any', 'Anywhere'], ['pins', 'Pins'], ['mfs', 'MFS'], ['orphans', 'Orphans']], test: (e, v) => whereOf(e.path) === v },
-        { key: 'size', label: 'Size', options: SIZES, test: sizeTest }],
-      cols: [nameCol(), kindCol, sizeCol, { key: 'path', label: 'Where', cls: 'muted', sort: (e) => e.dir, html: (e) => `<a class="muted" href="${esc(browseHref(e.dir))}">${esc(showPath(e.dir) || 'data')}/</a>` }, pieceCol],
-      href: entryHref, cid: (e) => e.cid, empty: 'No names match.', onChange: title
-    });
-    list.s.q = box.value;
-    if (params.get('kind')) list.s.kind = params.get('kind');
-    function title() {
-      const q = list.s.q.trim();
-      D.getElementById('title').textContent = q ? `${num(list.shown.length)}${list.loading ? '+' : ''} ${list.shown.length === 1 ? 'match' : 'matches'} for “${q}”` : `Search ${num(meta.entries)} names`;
-      const u = new URL(location.href);
-      u.searchParams.set('q', q);
-      history.replaceState(null, '', u.search ? u : location.pathname);
-    }
-    box.oninput = () => list.set({ q: box.value });
-    pageKeys.fromBox = (k) => {
-      if (k === 'Enter') {
-        const q = box.value.trim(), r = (m.roots || []).find((x) => x.cid === q);
-        if (r) { location.href = 'pin.html?cid=' + encodeURIComponent(r.cid); return true; }
-        if (list.shown.length === 1) { location.href = entryHref(list.shown[0]); return true; }
-      }
-      box.blur(); list.el.querySelector('.scroll').focus(); active = list; list.mark();
-      return true;
-    };
-    if (!params.has('q') && !params.has('kind')) box.focus();
-    // Stream every shard; results show as they arrive.
-    const items = [];
-    let next = 0, last = 0;
-    const work = async () => {
-      while (next < meta.shards.length) {
-        const s = await load('s/' + meta.shards[next++]);
-        for (const r of s.rows) items.push(entryOf(s, r));
-        if (Date.now() - last > 250) { last = Date.now(); list.setItems(items.slice(), true); title(); }
-      }
-    };
-    await Promise.all([work(), work(), work(), work()]);
-    list.setItems(items, false);
-    title();
-    status(num(items.length) + ' names');
+  // ---- Search: now part of Files, which searches under any folder.
+  function search() {
+    const q = params.get('q') || '', w = params.get('where');
+    location.replace('browse.html?' + qs({ p: w && w !== 'any' ? w : '', q, kind: params.get('kind') || '', deep: '1' }));
   }
 
   // ---- Start
   frame();
   D.querySelector('footer').before(Object.assign(D.createElement('main'), { innerHTML: '<p class="muted">Loading…</p>' }));
-  const pages = { overview, browse, pin, pieces: piecesPage, search };
+  const pages = { overview, browse: files, pin, pieces: piecesPage, search };
   manifest().then((m) => {
     ROOTS = {};
     PIECE = {};

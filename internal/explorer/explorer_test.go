@@ -333,3 +333,27 @@ func TestKindOf(t *testing.T) {
 		}
 	}
 }
+
+func TestSniff(t *testing.T) {
+	zip := func(first, data string) string {
+		h := "PK\x03\x04" + strings.Repeat("\x00", 22)
+		return h + string([]byte{byte(len(first)), 0, 0, 0}) + first + data
+	}
+	for _, c := range []struct{ head, want string }{
+		{"\xff\xd8\xff\xe1....Exif", "image"}, {"\x89PNG\r\n\x1a\n....", "image"}, {"GIF89a..", "image"},
+		{"RIFF\x00\x00\x00\x00WEBPVP8 ", "image"}, {"\x00\x00\x00\x18ftypheic....", "image"},
+		{"\x00\x00\x00\x18ftypisom....", "video"}, {"\x00\x00\x00\x14ftypqt  ....", "video"},
+		{"\x00\x00\x00\x1cftypM4A ....", "audio"}, {"\x1a\x45\xdf\xa3....webm", "video"},
+		{"ID3\x04\x00....", "audio"}, {"fLaC....", "audio"}, {"OggS\x00\x02", "audio"}, {"\xff\xfb\x90\x64", "audio"},
+		{"RIFF\x00\x00\x00\x00WAVEfmt ", "audio"}, {"%PDF-1.4\n", "doc"},
+		{zip("mimetype", "application/epub+zip"), "doc"}, {zip("[Content_Types].xml", ""), "doc"}, {zip("photos/a.jpg", "\xff\xd8"), "archive"},
+		{"\x1f\x8b\x08\x00", "archive"}, {"7z\xbc\xaf\x27\x1c", "archive"},
+		{"<!DOCTYPE html><html>", "page"}, {"\ufeff  <html lang=en>", "page"}, {"<?xml version=\"1.0\"?><svg>", "image"},
+		{"#!/bin/sh\necho hi\n", "code"}, {"Dear Juan,\nhello\n", "text"}, {"caf\xc3", "text"},
+		{"\x00\x01\x02\x03binary", "other"}, {"", "other"}, {"\x7fELF\x02\x01", "other"},
+	} {
+		if got := Sniff([]byte(c.head)); got != c.want {
+			t.Errorf("Sniff(%q) = %q, want %q", c.head, got, c.want)
+		}
+	}
+}
