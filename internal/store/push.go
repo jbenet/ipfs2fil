@@ -67,6 +67,9 @@ type PushEvent struct {
 	// Dropped marks a non-final event: the provider dropped the staged piece
 	// before it could be added, so it is sent again.
 	Dropped bool
+	// Stalled says why an upload of the piece from here stopped moving, on a
+	// non-final event: it is sent again from the start.
+	Stalled error
 	Err     error // this copy stopped at this piece
 }
 
@@ -773,9 +776,23 @@ func (c *copyPush) room(ctx context.Context) bool {
 	return !c.failed && !c.halted.Load() && ctx.Err() == nil
 }
 
+// stallTries is how many times a piece whose upload stalls is sent.
+const stallTries = 3
+
 // upload sends the piece's CAR from this machine, telling note (if set) the
-// bytes sent so far.
+// bytes sent so far. An upload that stalls is sent again from the start.
 func (c *copyPush) upload(ctx context.Context, p archive.Piece, ev *PushEvent, note func(int64)) error {
+	for try := 1; ; try++ {
+		err := c.upload1(ctx, p, ev, note)
+		var stall *StalledError
+		if !errors.As(err, &stall) || try == stallTries || ctx.Err() != nil {
+			return err
+		}
+		c.progress(PushEvent{Copy: ev.Copy, Provider: ev.Provider, Piece: ev.Piece, Total: ev.Total, Stalled: err})
+	}
+}
+
+func (c *copyPush) upload1(ctx context.Context, p archive.Piece, ev *PushEvent, note func(int64)) error {
 	f, err := os.Open(p.Path)
 	if err != nil {
 		return fmt.Errorf("piece %d: %w", p.Index, err)

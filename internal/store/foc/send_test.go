@@ -3,12 +3,15 @@ package foc
 import (
 	"context"
 	"errors"
+	"io"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	pdpclient "github.com/strahe/synapse-go/pdp"
+
+	"github.com/jbenet/ipfs2fil/internal/store"
 )
 
 func quickSend(t *testing.T) {
@@ -70,5 +73,51 @@ func TestSendPieceRetriesASession(t *testing.T) {
 	err = sendPiece(context.Background(), func() error { sends++; return put }, nil)
 	if err == nil || sends != 1 {
 		t.Fatalf("err = %v after %d sends", err, sends)
+	}
+}
+
+func quickWatch(t *testing.T) {
+	t.Helper()
+	oldStall, oldPark, oldEvery := stallAfter, parkAfter, watchEvery
+	stallAfter, parkAfter, watchEvery = 30*time.Millisecond, 60*time.Millisecond, time.Millisecond
+	t.Cleanup(func() { stallAfter, parkAfter, watchEvery = oldStall, oldPark, oldEvery })
+}
+
+func TestWatchedEndsAStalledUpload(t *testing.T) {
+	// The provider stops taking bytes and the upload never returns on its
+	// own: it ends as stalled.
+	quickWatch(t)
+	err := watched(context.Background(), strings.NewReader("abcdef"), func(ctx context.Context, r io.Reader) error {
+		r.Read(make([]byte, 2))
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	var stall *store.StalledError
+	if !errors.As(err, &stall) || stall.All || stall.Sent != 2 {
+		t.Fatalf("err = %v (%+v)", err, stall)
+	}
+
+	// Every byte is sent but the provider never finishes taking it in.
+	err = watched(context.Background(), strings.NewReader("abcdef"), func(ctx context.Context, r io.Reader) error {
+		io.ReadAll(r)
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	if !errors.As(err, &stall) || !stall.All {
+		t.Fatalf("err = %v", err)
+	}
+
+	// An upload that keeps moving, however slowly, is left alone.
+	err = watched(context.Background(), strings.NewReader("abcdef"), func(ctx context.Context, r io.Reader) error {
+		b := make([]byte, 1)
+		for {
+			time.Sleep(10 * time.Millisecond)
+			if _, err := r.Read(b); err == io.EOF {
+				return nil
+			}
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

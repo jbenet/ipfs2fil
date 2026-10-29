@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 )
 
 // DataSet is one provider's set of pieces for one archive. One data set per
@@ -93,6 +94,22 @@ type GoneError struct {
 func (e *GoneError) Error() string {
 	return fmt.Sprintf("provider %s dropped %d staged pieces before they were added: %s",
 		e.Provider, len(e.PieceCIDs), strings.Join(e.PieceCIDs, ", "))
+}
+
+// StalledError says an upload stopped moving: the provider took no bytes
+// for After, or with All, took them all but had not finished taking the piece
+// in after After. Nothing was staged, so the piece can be sent again.
+type StalledError struct {
+	Sent  int64 // bytes the provider took
+	After time.Duration
+	All   bool
+}
+
+func (e *StalledError) Error() string {
+	if e.All {
+		return fmt.Sprintf("the provider took every byte but had not finished taking the piece in after %s", e.After.Round(time.Second))
+	}
+	return fmt.Sprintf("the upload stalled: the provider took no bytes for %s, %d bytes in", e.After.Round(time.Second), e.Sent)
 }
 
 // Lister is a Store that can read what an archive's data sets hold without

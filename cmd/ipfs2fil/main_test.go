@@ -178,6 +178,32 @@ func TestProgressDrawsAtOnce(t *testing.T) {
 	}
 }
 
+func TestProgressSaysWhenNothingMoves(t *testing.T) {
+	// With the bytes stopped, redraws drop the speed and ETA and say how
+	// long nothing has moved, instead of showing the last speed for good.
+	var b bytes.Buffer
+	now := time.Unix(0, 0)
+	p := newProgress(&b, "uploading", 1000, true)
+	p.idle = "nothing sent from here"
+	p.now = func() time.Time { return now }
+	p.start, p.last, p.movedAt = now, now, now
+	now = now.Add(10 * time.Second)
+	p.Add(500)
+	now = now.Add(2 * time.Minute)
+	p.Skip(100) // a pull landing does not count as sent
+	p.tick()
+	got := b.String()
+	last := got[strings.LastIndex(got, "uploading"):]
+	if !strings.Contains(last, " 60% 600 B/1000 B · nothing sent from here for 2m0s") || strings.Contains(last, "ETA") {
+		t.Errorf("bar while stalled: %q", last)
+	}
+	p.Done()
+	p.tick() // a finished bar is not drawn again
+	if b.String() != got+"uploading [==============          ]  60% 600 B/1000 B in 2m0s (3 B/s)\n" {
+		t.Errorf("after Done: %q", b.String()[len(got):])
+	}
+}
+
 func TestProgressFitsTheTerminal(t *testing.T) {
 	// A line wider than the terminal wraps, and each redraw then leaves a
 	// row behind, so the bar is cut to fit.
