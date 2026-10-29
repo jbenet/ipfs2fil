@@ -16,6 +16,7 @@ import (
 
 	"github.com/multiformats/go-multihash"
 
+	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -231,4 +232,55 @@ func (l *layout) pieceKey(p span) string {
 		}
 	}
 	return h.sum()
+}
+
+// blockLists maps a hash of each of the last pack's data pieces' block
+// lists (index/pieces/NNNN, one base58 multihash per line) to the piece.
+type blockLists map[string]manifest.Piece
+
+// lastLists reads the block lists the last pack left in outDir/index. It
+// is empty when there is no last pack or its lists are gone.
+func (l *layout) lastLists(outDir string, prev *manifest.Manifest) blockLists {
+	out := blockLists{}
+	if prev == nil {
+		return out
+	}
+	for _, p := range prev.Pieces {
+		if p.BlockList == "" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(outDir, "index", filepath.FromSlash(p.BlockList)))
+		if err != nil {
+			continue
+		}
+		sum := sha256.Sum256(b)
+		out[string(sum[:])] = p
+	}
+	return out
+}
+
+// match finds the last pack's CAR for piece p by its block list, checks
+// it is still on disk at the size p's blocks make, and returns it as a
+// cache entry. No block is read.
+func (bl blockLists) match(l *layout, p span, pieceDir string) (cachedPiece, bool) {
+	if len(bl) == 0 {
+		return cachedPiece{}, false
+	}
+	var sb strings.Builder
+	size := car.HeaderSize(l.tab[p.start].c)
+	for j := p.start; j < p.end; j++ {
+		if b := &l.tab[j]; b.shared == 0 {
+			sb.WriteString(b.c.Hash().B58String())
+			sb.WriteByte('\n')
+			size += car.EntrySize(b.c, b.size)
+		}
+	}
+	sum := sha256.Sum256([]byte(sb.String()))
+	prev, ok := bl[string(sum[:])]
+	if !ok || prev.CARBytes != size {
+		return cachedPiece{}, false
+	}
+	c := cachedPiece{PieceCID: prev.PieceCID, CARBytes: prev.CARBytes}
+	fi, err := os.Stat(filepath.Join(pieceDir, c.PieceCID+".car"))
+	return c, err == nil && fi.Mode().IsRegular() && fi.Size() == c.CARBytes
 }

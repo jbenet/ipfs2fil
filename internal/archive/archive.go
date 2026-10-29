@@ -195,8 +195,17 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	l.progress("write", 0, planned)
 	var out []Piece
 	keys := make([]string, len(dataPieces))
+	lists := l.lastLists(outDir, prev)
 	for i, p := range dataPieces {
 		keys[i] = l.pieceKey(p)
+		if _, _, ok := cache.piece(pieceDir, keys[i]); !ok {
+			// No cache entry (a pack from before the cache, or a lost
+			// cache): a CAR the last pack wrote for the same block list
+			// is the same bytes.
+			if c, ok := lists.match(l, p, pieceDir); ok {
+				cache.Pieces[keys[i]] = c
+			}
+		}
 		if c, path, ok := cache.piece(pieceDir, keys[i]); ok {
 			// The same blocks as a CAR already on disk: keep it.
 			m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = c.PieceCID, c.CARBytes
