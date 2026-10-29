@@ -249,6 +249,25 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		out = append(out, Piece{Piece: m.Pieces[i], Path: path})
 	}
 
+	// The same data as the last pack: keep its index/, explorer/ and root,
+	// so a new ipfs2fil version, or a new layout for them, does not make
+	// pieces to upload until the repo changes.
+	if sameData(prev, m, len(dataPieces), opts.Record, pieceDir) && reusable(outDir, prev) {
+		res, err := reuse(outDir, prev, cache)
+		if err != nil {
+			return nil, err
+		}
+		res.Missing = l.missing
+		done := &packCache{Format: cacheFormat, Inputs: inputs, Root: prev.Root, Missing: l.missing, Pieces: map[string]cachedPiece{}}
+		for i, k := range keys {
+			done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+		}
+		if err := done.write(outDir); err != nil {
+			return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
+		}
+		return res, nil
+	}
+
 	// History: a piece keeps the snapshot that first stored it. A run that
 	// changes nothing adds no snapshot, so it rebuilds the same archive.
 	snap, known := 0, map[string]int{}
@@ -439,6 +458,61 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
 	}
 	return res, nil
+}
+
+// sameData reports whether prev holds the same data as m's first n pieces:
+// the same data root and data pieces, and its own pieces start with the
+// same catalog record.
+func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string) bool {
+	if prev == nil || prev.DataRoot != m.DataRoot {
+		return false
+	}
+	var data []manifest.Piece
+	head := ""
+	for _, p := range prev.Pieces {
+		if p.BlockList != "" {
+			data = append(data, p)
+		} else if head == "" {
+			head = p.PieceCID
+		}
+	}
+	if len(data) != n || head == "" {
+		return false
+	}
+	for i, p := range data {
+		if p.PieceCID != m.Pieces[i].PieceCID {
+			return false
+		}
+	}
+	// The record is the second root in the CAR header of the piece that
+	// names the archive root: the head piece, or an old layout's own piece.
+	var want cid.Cid
+	if record != nil {
+		c, err := RecordCID(record)
+		if err != nil {
+			return false
+		}
+		want = c
+	}
+	for _, p := range prev.Pieces {
+		if p.BlockList != "" || p.Part == manifest.PartIndex || p.Part == manifest.PartMeta {
+			continue
+		}
+		f, err := os.Open(filepath.Join(pieceDir, p.PieceCID+".car"))
+		if err != nil {
+			return false
+		}
+		r, err := car.NewReader(f)
+		f.Close()
+		if err != nil {
+			return false
+		}
+		if record == nil {
+			return len(r.Roots) == 1
+		}
+		return len(r.Roots) == 2 && r.Roots[1].Equals(want)
+	}
+	return false
 }
 
 // reuse returns the last pack in outDir as this one's result, its inputs
