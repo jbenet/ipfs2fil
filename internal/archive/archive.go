@@ -647,12 +647,13 @@ func (l *layout) stableBlocks(ctx context.Context, dag memDAG, dataRoot, idx, ex
 }
 
 // Own pieces other than head pieces are cut like data pieces, but smaller:
-// a change rewrites the pieces it falls in, 32 to about 40 MiB each. Each
-// piece added costs about the same whatever its size (store.Estimate), so
-// smaller would cost more for less upload.
+// a change rewrites the pieces it falls in, 128 to about 140 MiB each. Each
+// piece added costs about the same whatever its size (store.Estimate), while
+// storing more bytes costs little, so this favours few pieces over small
+// uploads.
 const (
-	metaMinPiece = 32 << 20
-	metaCutBits  = 5
+	metaMinPiece = 128 << 20
+	metaCutBits  = 6
 )
 
 // cutMeta cuts ns into pieces at content-defined points.
