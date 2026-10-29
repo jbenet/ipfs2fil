@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -41,24 +42,51 @@ func Serve(ctx context.Context, root string, more []string, addr string, ready f
 }
 
 // archiveFiles serves an archive directory, with the explorer's pages from
-// this build rather than the copy packed with the archive when the archive's
-// index is in the format they read, so archives get a newer explorer without
-// a new pack.
+// this build rather than the copy packed with the archive, so archives get a
+// newer explorer without a new pack. An index older than the pages read is
+// rebuilt in memory, the first time a page asks for it.
 func archiveFiles(dir string) http.Handler {
 	disk := http.FileServer(http.Dir(dir))
-	if indexFormat(filepath.Join(dir, "explorer")) != IndexFormat {
+	f := indexFormat(filepath.Join(dir, "explorer"))
+	if f != IndexFormat && f != 1 {
 		return disk
 	}
 	pages, err := fs.Sub(assets, "assets")
 	if err != nil {
 		return disk
 	}
+	var (
+		once     sync.Once
+		upgraded map[string][]byte
+		upErr    error
+	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name, ok := strings.CutPrefix(r.URL.Path, "/explorer/")
+		if !ok {
+			disk.ServeHTTP(w, r)
+			return
+		}
+		// Pages and index change with ipfs2fil, not with the archive.
+		w.Header().Set("Cache-Control", "no-cache")
+		if idx, ok := strings.CutPrefix(name, "idx/"); ok && f != IndexFormat {
+			once.Do(func() { upgraded, upErr = upgradeIndex(filepath.Join(dir, "explorer")) })
+			if upErr != nil {
+				http.Error(w, "reading this archive's older index: "+upErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			b, ok := upgraded[idx]
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+			w.Write(b)
+			return
+		}
 		if name == "" {
 			name = "index.html"
 		}
-		if ok && !strings.Contains(name, "/") {
+		if !strings.Contains(name, "/") {
 			if _, err := fs.Stat(pages, name); err == nil {
 				http.ServeFileFS(w, r, pages, name)
 				return
