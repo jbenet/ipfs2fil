@@ -2,6 +2,7 @@ package explorer
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -50,6 +51,8 @@ func TestUpgradeIndex(t *testing.T) {
 	}
 	if got := get("/explorer/explorer.js"); got == "old script" {
 		t.Fatal("served the packed script, not this build's")
+	} else if !strings.Contains(got, fmt.Sprintf(".js?f=%d'", IndexFormat)) {
+		t.Error("explorer.js does not ask for idx files with ?f=IndexFormat")
 	}
 	metaJS := get("/explorer/idx/meta.js")
 	var mt meta

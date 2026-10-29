@@ -22,7 +22,9 @@
       if (waits[key]) return void waits[key].push([res, rej]);
       waits[key] = [[res, rej]];
       const s = D.createElement('script');
-      s.src = 'idx/' + key + '.js';
+      // ?f= keeps a browser from using an index file it cached from an
+      // older explorer at the same path.
+      s.src = 'idx/' + key + '.js?f=2';
       s.onerror = () => {
         const w = waits[key] || [];
         delete waits[key];
