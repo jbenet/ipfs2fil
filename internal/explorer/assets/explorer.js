@@ -831,10 +831,10 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 </div>
 <div class="facts dl">
   <span>CID</span><span>${cidx(e.cid)} <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
+  <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
   <span>In${e.also && e.also.length ? ` (${num(e.also.length + 1)})` : ''}</span>${places(e)}
   <span>Folder</span><span class="pdir faint">…</span>
   ${piece ? `<span>Stored</span><span>${cidx(piece.pieceCid, true)} ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
-  <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
 </div>`;
       fill(pane, e, url);
       if (isPDF(e) && url) deck.show(url, pane.querySelector('.stage'), e.name);
@@ -995,9 +995,9 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3], t[1][1], KIND[t[0]][1]]), typeRows.map((t) => KIND[t[0]][3] + ' ' + bytes(t[1][1])).join(', '))}<div class="legend sm">${typeRows.map((t) => `<a href="browse.html?${qs({ p, kind: t[0], deep: '1' })}"><span class="sw" style="background:${KIND[t[0]][1]}"></span>${KIND[t[0]][3]} ${num(t[1][0])}</a>`).join('')}</div></div>` : ''}
 <div class="facts dl">
   ${di.cid ? `<span>CID</span><span>${cidx(di.cid)} <button type="button" class="link" data-copy="${esc(di.cid)}">Copy</button></span>` : ''}
+  ${di.cid ? `<span>Open in</span><span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(di.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
   ${r ? `<span>Root</span><span>${esc(ROOTKIND[r.kind] || r.kind)}${r.kind !== 'mfs' ? ` · <a href="pin.html?cid=${encodeURIComponent(r.cid)}">details</a>` : ''}</span>` : ''}
   ${pieceAt(di.lo) >= 0 ? `<span>Pieces</span><a href="pieces.html?n=${pieceAt(di.lo)}">${di.lo === di.hi ? '#' + pieceAt(di.lo) : '#' + pieceAt(di.lo) + ' to #' + pieceAt(di.hi)}</a>` : ''}
-  ${di.cid ? `<span>Open in</span><span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(di.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
 </div>`;
       if (canShow() && di.types.image) {
         const ks = here ? kids : await listDir(di);
