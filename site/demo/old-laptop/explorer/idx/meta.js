@@ -1,0 +1,1 @@
+I2F.put("meta",{"format":2,"entries":23,"dirs":11,"shards":["12cbec41a7c20c6b"],"buckets":1,"types":{"code":[1,76],"image":[3,415598],"page":[3,477],"text":[6,455]},"parts":{"mfs":[5,419],"orphans":[1,36],"pins":[7,416151]},"pieces":[{"where":"mfs","kind":"text","label":"data (2 roots)","path":""},{"where":"index","kind":"code","label":"index/: block lists","path":""}]});

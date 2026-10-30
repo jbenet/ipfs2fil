@@ -1,0 +1,136 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeiakumldikcag7hftdogexgfrv5xyrpgrl7rk5xhwpbbvu4vbebnum",
+  "dataRoot": "bafybeidzwqbrafp6qnxbzg4iguxjq5bqsxhfsn3bv7bgip4gpwphw5lkua",
+  "source": {
+    "repoVersion": 18,
+    "blocks": 20,
+    "bytes": 417626
+  },
+  "roots": [
+    {
+      "cid": "QmQMa7jdeMrz6BSH8pthNUBB86HP2CPMdvABeFcUhnfwZo",
+      "kind": "pin-recursive",
+      "path": "pins/recursive/QmQMa7jdeMrz6BSH8pthNUBB86HP2CPMdvABeFcUhnfwZo",
+      "bytes": 415822,
+      "blocks": 4,
+      "own": 415822,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+      "kind": "pin-recursive",
+      "path": "pins/recursive/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+      "bytes": 4,
+      "blocks": 1,
+      "own": 4,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
+      "kind": "pin-recursive",
+      "path": "pins/recursive/QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
+      "bytes": 863,
+      "blocks": 6,
+      "own": 863,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmRjgDnQcchDCV1pPLAdxcyWYaUQdtaByGGJVPpi2ftbx8",
+      "kind": "mfs",
+      "path": "mfs",
+      "bytes": 801,
+      "blocks": 7,
+      "own": 801,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafybeigjyc3tplum4cn7zqelxukpx3kw4nhpmfz2r7ukd4evpods3pw3zi",
+      "kind": "orphan",
+      "path": "orphans/bafybeigjyc3tplum4cn7zqelxukpx3kw4nhpmfz2r7ukd4evpods3pw3zi",
+      "bytes": 136,
+      "blocks": 2,
+      "own": 136,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibdsyaqigvpss2ako2wzpdy34giidbscp4o2mr53yupafdbdhttbpnyixyl",
+      "carBytes": 358,
+      "blocks": 3,
+      "blockList": "pieces/0000",
+      "snapshot": 0
+    },
+    {
+      "index": 1,
+      "pieceCid": "bafkzcibd7vkay4murfyubirie36erltf3na7va2xdeqobave4k6cavqlfgod2tzc",
+      "carBytes": 119171,
+      "blocks": 17,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 0
+    },
+    {
+      "index": 2,
+      "pieceCid": "bafkzcibdtuhqrchpcrn3nrnawcripceg4ifisst7uidis72i3447ktf5s3aaklyh",
+      "carBytes": 6179,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "48253",
+      "pieceIds": {
+        "0": "5",
+        "1": "3",
+        "2": "4"
+      },
+      "service": "foc-fwss"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "48254",
+      "pieceIds": {
+        "0": "3",
+        "1": "4",
+        "2": "5"
+      },
+      "service": "foc-fwss"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-10-30T00:11:23Z",
+      "root": "bafybeiakumldikcag7hftdogexgfrv5xyrpgrl7rk5xhwpbbvu4vbebnum",
+      "newPieces": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "shared": {
+    "blocks": 17,
+    "bytes": 417433,
+    "pieces": [
+      {
+        "pieceCid": "bafkzcibf7l5mudavekndfdefukhdk5lrzcyigd5w2pve3zyuy27msvjflka4gtcbpqbq",
+        "archive": "bafybeidvhu4aqf6mgewifhkdkazr5uxbi6p6xxwhkngdn6tmwlcieunrla",
+        "blocks": 17
+      }
+    ]
+  },
+  "collection": "repos:default"
+}

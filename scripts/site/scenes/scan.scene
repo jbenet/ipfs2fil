@@ -1,0 +1,4 @@
+PR = r'\$\x1b\[0m $'
+[
+ ('type', 'ipfs2fil scan'), ('wait', PR), ('sleep', 3),
+]
