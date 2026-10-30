@@ -134,6 +134,18 @@ clones, pulls, commits to and pushes it itself, each machine writing only its
 own subfolder. A folder every machine sees works too. The catalog is
 remembered; `--catalog filecoin` goes back to reading it from chain.
 
+## Privacy
+
+Everything ipfs2fil stores on Filecoin is public: storage providers serve
+the pieces to anyone, and anyone who has a CID can fetch its blocks,
+including the archive's index and explorer with their file names. Only
+the small catalog records naming your machines and repos are encrypted. To
+keep something private, encrypt it before adding it to IPFS.
+
+`ipfs2fil explore` listens on 127.0.0.1 and answers only requests addressed
+to localhost or an IP address, so web pages cannot reach it through DNS
+rebinding.
+
 ## Releases
 
 To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
