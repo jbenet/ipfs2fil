@@ -107,3 +107,22 @@ func TestServeFullManifest(t *testing.T) {
 		t.Errorf("got %d copies, want %d from the full manifest", len(got.Copies), len(m.Copies))
 	}
 }
+
+// TestLocalHosts: a loopback server answers localhost and IP addresses, and
+// refuses other names, which a DNS rebinding page would send.
+func TestLocalHosts(t *testing.T) {
+	h := localHosts(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for host, ok := range map[string]bool{
+		"127.0.0.1:8484": true, "localhost:8484": true, "LOCALHOST.": true, "[::1]:8484": true,
+		"app.localhost:8484": true, "192.168.1.5:8484": true, "127.0.0.1": true,
+		"evil.example:8484": false, "127.0.0.1.nip.io:8484": false, "": false,
+	} {
+		r := httptest.NewRequest("GET", "/explorer/", nil)
+		r.Host = host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Code == http.StatusOK; got != ok {
+			t.Errorf("Host %q: status %d, want allowed=%v", host, w.Code, ok)
+		}
+	}
+}
