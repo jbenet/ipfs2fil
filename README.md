@@ -137,3 +137,7 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
 ## Releases
 
 To cut a release: `git tag v0.1.0 && git push origin v0.1.0`.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
