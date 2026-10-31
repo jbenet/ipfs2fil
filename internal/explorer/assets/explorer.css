@@ -451,3 +451,11 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .tt.av { width: 70%; margin: 0 auto; aspect-ratio: 1; }
 .ctable td:first-child a { display: inline-flex; align-items: center; gap: 8px; }
 .ctable td.r, .ctable th.r { text-align: right; white-space: nowrap; }
+/* Full screen: the pane's header and stage fill the screen; the facts go */
+.fprev.full { position: fixed; inset: 0; z-index: 60; overflow: hidden; width: auto; height: auto; }
+.fprev.full .facts2, .fprev.full .facts, .fprev.full .pv > :not(.ph):not(.stage) { display: none; }
+.fprev.full .stage { flex: 1 1 auto; min-height: 0; }
+.fprev.full .stage iframe { min-height: 0; }
+.fprev.full .stage.folder { flex: 0 0 auto; }
+.ib.fs { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.fprev.full .stage > img, .fprev.full .stage > video { width: 100%; height: 100%; }

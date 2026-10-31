@@ -9,6 +9,11 @@ where to add another kind of file.
 itself: photos, video, sound, web pages, PDFs (in a deck of frames) and EPUBs
 (its own reader), and other files as hex.
 
+The pane's Full screen button (or Shift-F) puts its header and stage on the
+whole screen, so every viewer gets it for free; j and k keep moving through
+the list there. Browsers with no element full screen (iPhone Safari) get the
+pane laid over the window instead, closed with Esc or the button.
+
 Everything else is in `internal/explorer/assets/viewers.js`, one viewer per
 sort of file. A viewer is
 
