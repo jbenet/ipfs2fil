@@ -1892,9 +1892,11 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     const byKey = new Map(all.map((x) => [x.k, x]));
     const kids = new Map(); // rkey -> replies to it in the archive, oldest first
     all.forEach((x) => { const k = own(x.r); if (k) { if (!kids.has(k)) kids.set(k, []); kids.get(k).unshift(x); } });
-    // A post's record, as JSON: explore serves dag-cbor as JSON, a gateway on request.
-    const recHref = (x) => !x.c ? '' : LOCAL ? blob(x.c, x.k + '.json') : HERE || PUBLIC ? gw(x.c) + '?format=dag-json' : '';
     const pathOf = (k) => x0.path ? x0.path + '/app.bsky.feed.post/' + k + '.json' : '';
+    // A post's record: selected in Content, which shows it as JSON (a raw
+    // link downloads it from a static copy). Else as JSON from explore or a
+    // gateway.
+    const recHref = (x) => pathOf(x.k) ? browseHref(pathOf(x.k)) : !x.c ? '' : LOCAL ? blob(x.c, x.k + '.json') : HERE || PUBLIC ? gw(x.c) + '?format=dag-json' : '';
     const self = (k) => appHref(n, k);
     const name = esc(p.displayName || handle || a.name);
 
@@ -1956,7 +1958,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     ${ctx ? `<div class="at-ctx">${ctx}</div>` : ''}
     ${x.x ? `<div class="at-text${opt.focus ? ' big' : ''}">${rich(x.x, x.f)}</div>` : ''}
     ${media(x)}
-    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${rh ? `<a href="${esc(rh)}" target="_blank" rel="noopener">Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
+    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${rh ? `<a href="${esc(rh)}"${pathOf(x.k) ? '' : ' target="_blank" rel="noopener"'}>Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
   </div>
 </article>`;
     }
