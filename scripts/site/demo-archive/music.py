@@ -21,7 +21,7 @@ def render(name, secs, build, fmt):
     with wave.open(wav, 'wb') as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((st * 32767).astype('<i2').tobytes())
     if fmt != 'wav':
-        args = {'mp3': ['-b:a', '192k'], 'ogg': ['-c:a', 'libvorbis', '-q:a', '6'], 'flac': [], 'm4a': ['-c:a', 'aac', '-b:a', '192k']}[fmt]
+        args = {'mp3': ['-b:a', '192k'], 'ogg': ['-c:a', 'libopus', '-b:a', '160k'], 'flac': [], 'm4a': ['-c:a', 'aac', '-b:a', '192k']}[fmt]
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', wav, *args, '-metadata', f'title={name.split("-", 1)[1].replace("-", " ").title()}',
                         '-metadata', 'artist=ipfs2fil demo', '-metadata', 'album=Pieces', '-metadata', 'copyright=CC0', os.path.join(out, name + '.' + fmt)], check=True)
         os.remove(wav)
@@ -51,7 +51,7 @@ def drift(t):
         for i in range(8): mix(t, bar * 8 * b / 2 + i * b / 2, .3 * tone(note(root + [0, 7, 12, 7, 10, 7, 12, 14][i]), .4, 'saw', r=.12))
         mix(t, bar * 4 * b, .4 * tone(note(root - 12), 4 * b, 'sine', a=.05, r=1.2))
 render('01-pieces-in-motion', 24 * 4 * b + 2, arps, 'mp3')
-render('02-slow-proofs', 130, pad, 'ogg')
+render('02-slow-proofs', 130, pad, 'ogg')  # Opus in Ogg: Homebrew's ffmpeg has no libvorbis
 render('03-content-addressed', 20 * 4 * b * .75 + 1, chip, 'flac')
 render('04-data-set-drift', 18 * 4 * b + 2, drift, 'm4a')
 render('05-short-chime', 4, lambda t: [mix(t, i * .15, .3 * tone(note(m), 2, 'sine', r=.8)) for i, m in enumerate([72, 76, 79, 84])], 'wav')
