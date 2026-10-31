@@ -56,8 +56,24 @@
   async function dirInfo(p) {
     const meta = await load('meta');
     const b = await load('d/' + bucketOf(p, meta.buckets));
-    return b[p] || null;
+    return b[p] || inArchive(p);
   }
+  // A folder inside a .tar, .tar.gz or zip, read in the browser (arc in
+  // viewers.js); null when p is not in one.
+  async function inArchive(p) {
+    const A = window.I2FV && window.I2FV.arc;
+    if (!A || !p.split('/').some(A.type)) return null;
+    const entry = async (q) => {
+      const d = q.includes('/') ? q.slice(0, q.lastIndexOf('/')) : '';
+      const di = await dirInfo(d);
+      return di ? (await listDir(di)).find((x) => x.path === q) || null : null;
+    };
+    try {
+      return await A.dir(p, { entry, url: (e) => contentURL(e) });
+    } catch (err) { toast(err.message); return null; }
+  }
+  // Archives open like folders.
+  const isDir = (e) => !!e && (e.kind === 'folder' || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
   // Shards name pieces by PieceCID; PIECE maps them to their index here.
   let PIECE = {};
   const pieceAt = (cid) => (cid && PIECE[cid] != null ? PIECE[cid] : -1);
@@ -66,6 +82,7 @@
     return { dir, name: r[1], kind: r[2], bytes: r[3], cid: r[4], piece: r[5] >= 0 ? pieceAt(s.pieces[r[5]]) : -1, path: dir ? dir + '/' + seg : seg };
   }
   async function listDir(info) {
+    if (info.kids) return info.kids;
     const parts = await Promise.all(info.chunks.map(async (c) => {
       const s = await load('s/' + c[0]);
       return s.rows.slice(c[1], c[1] + c[2]).map((r) => entryOf(s, r));
@@ -598,6 +615,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   let ATPATHS = [];
   const byCID = (e) => isCBOR(e.cid) || ATPATHS.some((p) => e.path.startsWith(p + '/'));
   function contentURL(e, extra) {
+    if (e && e.blob && V) return V.arc.url(e); // a file read out of an archive
     if (!e || !e.cid) return null;
     if (LOCAL) return CONTENT + encodeURIComponent(e.cid) + '?' + qs({ name: e.name, ...extra });
     const dl = extra && extra.dl;
@@ -693,7 +711,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       const i = acctOf(e);
       return i < 0 ? '' : accHref(i, e.name.replace(/\.json$/, ''));
     };
-    if (V) V.use({ esc, icon, recordHref });
+    if (V) V.use({ esc, icon, bytes, recordHref, show: showIn });
     LOCAL = await probeLocal();
     // Posts draw from the account summaries, loaded when a post shows up.
     const KX = {};
@@ -785,7 +803,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     }
     function compute() {
       const ql = S.q.trim().toLowerCase();
-      const src = S.deep ? (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p))) : kids;
+      const src = S.deep ? (info && info.virtual ? info.flat : (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p)))) : kids;
       base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
       if (S.deep) base = once(base);
       counts = {};
@@ -806,7 +824,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     function once(es) {
       const by = new Map(), out = [];
       for (const e of es) {
-        const k = e.kind + ' ' + e.cid, first = by.get(k);
+        const k = e.kind + ' ' + (e.cid || e.path), first = by.get(k);
         if (first) { first.also.push(e); continue; }
         const r = Object.assign({}, e, { also: [] });
         by.set(k, r); out.push(r);
@@ -861,12 +879,14 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
         if (P && cls === 'tt') return `<span class="${cls} ptxt">${esc(P.K.snippet(P.x))}</span>`;
       }
       if (PARTS[e.cid] && e.kind !== 'image') return `<span class="${cls} ic">${icon(e.kind)}</span>` + badge;
-      if ((e.kind === 'image' && canShow()) || (LOCAL && THUMBS.has(e.kind))) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(e.cid)}" src="${esc(thumbURL(e, w))}">` + badge;
-      if (V && canShow() && e.kind === 'video') return `<span class="${cls} ic" data-gen="v" data-c="${esc(e.cid)}">${icon(e.kind)}</span>`;
-      if (V && canShow() && cls === 'tt' && (e.kind === 'text' || e.kind === 'code') && e.bytes) return `<span class="${cls} ic" data-gen="t" data-c="${esc(e.cid)}">${icon(e.kind)}</span>`;
+      // files read out of an archive have no CID: they go by path
+      const c = e.cid || e.path, mine = canShow() || e.blob;
+      if ((e.kind === 'image' && mine) || (LOCAL && THUMBS.has(e.kind) && !e.blob)) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(c)}" src="${esc(thumbURL(e, w))}">` + badge;
+      if (V && mine && e.kind === 'video') return `<span class="${cls} ic" data-gen="v" data-c="${esc(c)}">${icon(e.kind)}</span>`;
+      if (V && mine && cls === 'tt' && (e.kind === 'text' || e.kind === 'code') && e.bytes) return `<span class="${cls} ic" data-gen="t" data-c="${esc(c)}">${icon(e.kind)}</span>`;
       return `<span class="${cls} ic">${icon(e.kind)}</span>`;
     };
-    const byCID = (c) => shown.find((e) => e.cid === c) || rows.find((e) => e.cid === c);
+    const byCID = (c) => shown.find((e) => (e.cid || e.path) === c) || rows.find((e) => (e.cid || e.path) === c);
     D.addEventListener('error', (ev) => {
       const x = ev.target;
       if (x.localName !== 'img' || !x.dataset || !x.dataset.k || x.dataset.k === 'image' || !x.closest('.flist')) return;
@@ -880,13 +900,13 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     async function fillGen(el) {
       const e = byCID(el.dataset.c), url = e && contentURL(e);
       if (!url) return;
-      const key = el.dataset.gen + ' ' + e.cid;
+      const key = el.dataset.gen + ' ' + (e.cid || e.path);
       if (!made.has(key)) {
         made.set(key, el.dataset.gen === 'v'
           ? V.frame(url, 320).then((b) => {
             if (!b) return null;
             // explore keeps what the browser made, for next time
-            if (LOCAL) fetch('../_i2f/thumb/' + encodeURIComponent(e.cid) + '?w=320', { method: 'POST', headers: { 'X-I2F-Thumb': '1' }, body: b }).catch(() => {});
+            if (LOCAL && e.cid) fetch('../_i2f/thumb/' + encodeURIComponent(e.cid) + '?w=320', { method: 'POST', headers: { 'X-I2F-Thumb': '1' }, body: b }).catch(() => {});
             return URL.createObjectURL(b);
           })
           : V.lines((n) => head(url, n)).catch(() => null));
@@ -899,7 +919,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     const where = (e) => showPath(e.dir) || 'data';
     function listView() {
       const deepCols = S.deep;
-      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(label(e))}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a>${e.also && e.also.length ? ` <span class="faint">+${num(e.also.length)}</span>` : ''}</td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
+      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(isDir(e) ? browseHref(e.path) : '#')}" data-open="${i}">${esc(label(e))}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a>${e.also && e.also.length ? ` <span class="faint">+${num(e.also.length)}</span>` : ''}</td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
     }
     function grid() {
       let out = '', lastDir = null;
@@ -934,7 +954,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       } else {
         const walk = (list, depth) => list.forEach((e) => {
           const open = S.open.has(e.path);
-          rows.push({ ...e, depth, open, branch: e.kind === 'folder' });
+          rows.push({ ...e, depth, open, branch: isDir(e) });
           if (open && TREE[e.path]) walk(TREE[e.path], depth + 1);
         });
         walk(shown, 0);
@@ -944,7 +964,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     }
     const TREE = {};
     async function toggle(e) {
-      if (e.kind !== 'folder' || S.deep) return;
+      if (!isDir(e) || S.deep) return;
       if (S.open.has(e.path)) S.open.delete(e.path);
       else {
         S.open.add(e.path);
@@ -970,7 +990,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       }
       const last = { dir: S.p, items: shown, cur: S.cur };
       const all = COLS.concat([last]);
-      $('.flist').innerHTML = `<div class="cols">${all.map((c, ci) => `<div class="col" data-c="${ci}">${c.items.slice(0, ci === all.length - 1 ? S.limit : 2000).map((e, i) => `<div class="ci" data-c="${ci}" data-i="${i}" aria-selected="${i === c.cur}">${icon(e.kind)}<span class="tnm">${esc(e.name)}</span>${e.kind === 'folder' ? '<span class="n">›</span>' : ''}</div>`).join('') || '<p class="muted pad">Empty</p>'}</div>`).join('')}</div>`;
+      $('.flist').innerHTML = `<div class="cols">${all.map((c, ci) => `<div class="col" data-c="${ci}">${c.items.slice(0, ci === all.length - 1 ? S.limit : 2000).map((e, i) => `<div class="ci" data-c="${ci}" data-i="${i}" aria-selected="${i === c.cur}">${icon(e.kind)}<span class="tnm">${esc(e.name)}</span>${isDir(e) ? '<span class="n">›</span>' : ''}</div>`).join('') || '<p class="muted pad">Empty</p>'}</div>`).join('')}</div>`;
       const c = $('.cols');
       c.scrollLeft = c.scrollWidth;
     }
@@ -1019,28 +1039,49 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
       const stored = piece ? copies.filter((c) => c.pieceIds && c.pieceIds[e.piece] != null) : [];
       const nav = `<button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>`;
-      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${P ? `${P.K.name} · ${esc(P.x.t ? day(P.x.t) : e.name)}` : esc(e.name)}</strong>${nav}${P ? `<a class="btn sm" href="${esc(accHref(P.n, P.x.k))}">Open in Bluesky App</a>` : ''}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">${P ? 'Record' : 'Download'}</a>` : ''}${url ? fullBtn() : ''}</div>
+      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${P ? `${P.K.name} · ${esc(P.x.t ? day(P.x.t) : e.name)}` : esc(e.name)}</strong>${nav}${P ? `<a class="btn sm" href="${esc(accHref(P.n, P.x.k))}">Open in Bluesky App</a>` : ''}${isDir(e) ? `<a class="btn sm" href="${esc(browseHref(e.path))}" data-enter title="Open the archive like a folder (Enter)">Open</a>` : ''}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">${P ? 'Record' : 'Download'}</a>` : ''}${url ? fullBtn() : ''}</div>
 <div class="stage" data-kind="${esc(e.kind)}">${P ? `<div class="at-thread">${P.K.thread(P.x).html}</div>` : stage(e, url)}</div>
 <div class="facts2">
   <div><span>Size</span><b>${bytes(e.bytes)}</b></div><div><span>Kind</span><b>${esc(kindOf(e.kind)[2])}${ext(e.name) ? ' · ' + esc(ext(e.name).toUpperCase()) : ''}</b></div>
   <div><span>Piece</span><b>${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">#${e.piece}</a>` : '—'}</b></div><div><span>Copies</span><b>${stored.length || (piece ? '0' : '—')}</b></div>
 </div>
-<div class="facts dl">
+${e.va ? arcFacts(e) : `<div class="facts dl">
   <span>CID</span><span>${cidx(e.cid)} <button type="button" class="link" data-copy="${esc(e.cid)}">Copy</button></span>
   <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + e.cid)}" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${GATEWAYS.map((g) => `<a href="${esc(g[1] + e.cid + '?filename=' + encodeURIComponent(e.name))}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}<a href="${esc(gw(e.cid) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>
   <span>In${e.also && e.also.length ? ` (${num(e.also.length + 1)})` : ''}</span>${places(e)}
   <span>Folder</span><span class="pdir faint">…</span>
   ${piece ? `<span>Stored</span><span>${cidx(piece.pieceCid, true)} ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
-</div>`;
-      if (P) lightbox(pane); else fill(pane, e, url);
-      if (isPDF(e) && url) {
-        if (pdfInline) deck.show(url, pane.querySelector('.stage'), e.name);
-        else pane.querySelector('.stage').innerHTML = `<div class="none">${icon('doc')}<p>This browser saves PDFs instead of showing them. Use Download to open this one.</p></div>`;
-      }
-      if (isEPUB(e) && url) book.show(pane.querySelector('.stage'), url, e);
+</div>`}`;
+      if (P) lightbox(pane); else render(pane, e, url);
       warmAround();
       const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
       if (pd && current() === e) pd.outerHTML = di && di.cid ? `<span>${cidx(di.cid, true)} <span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span></span>` : '<span class="faint">—</span>';
+    }
+    function render(pane, e, url) {
+      fill(pane, e, url);
+      if (isPDF(e) && url) {
+        if (url.startsWith('blob:')) pane.querySelector('.stage').innerHTML = `<iframe title="${esc(e.name)}" src="${esc(url)}"></iframe>`;
+        else if (pdfInline) deck.show(url, pane.querySelector('.stage'), e.name);
+        else pane.querySelector('.stage').innerHTML = `<div class="none">${icon('doc')}<p>This browser saves PDFs instead of showing them. Use Download to open this one.</p></div>`;
+      }
+      if (isEPUB(e) && url) book.show(pane.querySelector('.stage'), url, e);
+    }
+    // A file unpacked from a .gz, shown in el as if it were the one selected
+    // (viewers.js, the gz viewer).
+    function showIn(el, e) {
+      const url = contentURL(e);
+      el.innerHTML = `<div class="stage" data-kind="${esc(e.kind)}">${stage(e, url)}</div>`;
+      render(el, e, url);
+    }
+    // Where a file read out of an archive came from.
+    function arcFacts(e) {
+      const a = e.va.arc, ad = a.includes('/') ? a.slice(0, a.lastIndexOf('/')) : '';
+      return `<div class="facts dl">
+  <span>In</span><span><a href="${esc('browse.html?' + qs({ p: ad, sel: a }))}" title="${esc(showPath(a) || a)}">${esc(a.split('/').pop())}</a> <span class="faint">${e.va.gz ? 'unpacked here' : 'read out of the archive here'}</span></span>
+  ${e.va.gz ? '' : `<span>Path</span><span>${esc(e.va.inner)}</span>`}
+  ${e.time ? `<span>Modified</span><span>${esc(new Date(e.time).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }))} UTC</span>` : ''}
+  ${e.note ? `<span>Note</span><span class="faint">${esc(e.note)}</span>` : ''}
+</div>`;
     }
     // An account: its profile and what the archive holds of it.
     function accountPane(pane, e) {
@@ -1082,7 +1123,8 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       const k = n + ' ' + url;
       let p = heads.get(k);
       if (!p) {
-        p = fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } }).then((r) => {
+        // (blob URLs, for files read out of archives, take no Range)
+        p = url.startsWith('blob:') ? fetch(url).then((r) => r.arrayBuffer()).then((b) => b.slice(0, n)) : fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } }).then((r) => {
           if (!r.ok) throw new Error(missing(null, r));
           return r.arrayBuffer();
         });
@@ -1143,7 +1185,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       // checked first and, if need be, shown from a blob typed as a PDF.
       // f.ready is the URL in the frame, or null when it is not a PDF.
       function load(url) {
-        return fetch(url, { method: 'HEAD' }).then((r) => {
+        return (url.startsWith('blob:') ? Promise.resolve({ ok: false }) : fetch(url, { method: 'HEAD' })).then((r) => {
           if (r.ok && /^application\/pdf/i.test(r.headers.get('content-type') || '')) return url;
           return fetch(url).then((r) => r.ok ? r.blob() : null).then(async (b) => b && await b.slice(0, 5).text() === '%PDF-' ? URL.createObjectURL(new Blob([b], { type: 'application/pdf' })) : null);
         }).catch(() => null);
@@ -1421,6 +1463,7 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
     // storage and fonts and cannot reach the explorer; see pageHost in
     // content.go.
     async function baseOf(e, page) {
+      if (e.blob) return '';
       if (HERE) return contentURL(e).replace(/[^/]*$/, '');
       if (!LOCAL) return '';
       const di = await dirInfo(e.dir);
@@ -1434,7 +1477,7 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
       if (!url || !st || PARTS[e.cid]) return;
       const want = e.path, x = ext(e.name);
       const still = () => st.isConnected && (!current() || current().path === want);
-      const range = (n) => head(url, n);
+      const range = (n) => e.blob ? e.blob.slice(0, n).arrayBuffer() : head(url, n);
       const viewer = V && V.find(e, x);
       try {
         if (viewer) {
@@ -1446,9 +1489,9 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
           const v = {
             e, x, url, still, base: await baseOf(e), esc, icon, bytes, num,
             head: (n) => range(n),
-            all: (max) => { if (e.bytes > max) throw new Error(`This file is ${bytes(e.bytes)}, too big to open here. Download it to see it.`); return get((r) => r.arrayBuffer()); },
-            range: (a, b) => get((r) => r.arrayBuffer(), { Range: `bytes=${a}-${b - 1}` }).then((buf) => buf.byteLength > b - a ? buf.slice(a, b) : buf),
-            tail: (n) => get(async (r) => { const buf = await r.arrayBuffer(); return r.status === 206 ? [buf, e.bytes] : [buf.slice(Math.max(0, buf.byteLength - n)), buf.byteLength]; }, { Range: `bytes=-${n}` })
+            all: (max) => { if (e.bytes > max) throw new Error(`This file is ${bytes(e.bytes)}, too big to open here. Download it to see it.`); return e.blob ? e.blob.arrayBuffer() : get((r) => r.arrayBuffer()); },
+            range: (a, b) => e.blob ? e.blob.slice(a, b).arrayBuffer() : get((r) => r.arrayBuffer(), { Range: `bytes=${a}-${b - 1}` }).then((buf) => buf.byteLength > b - a ? buf.slice(a, b) : buf),
+            tail: (n) => e.blob ? e.blob.slice(Math.max(0, e.blob.size - n)).arrayBuffer().then((buf) => [buf, e.blob.size]) : get(async (r) => { const buf = await r.arrayBuffer(); return r.status === 206 ? [buf, e.bytes] : [buf.slice(Math.max(0, buf.byteLength - n)), buf.byteLength]; }, { Range: `bytes=-${n}` })
           };
           await viewer.show(st, v);
           return;
@@ -1480,7 +1523,7 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
           const cut = buf.byteLength >= 256 << 10 || e.bytes > buf.byteLength;
           st.innerHTML = `<pre class="code"><code>${lines.slice(0, 5000).map((l) => `<span>${esc(l)}</span>`).join('\n')}</code></pre>${cut || lines.length > 5000 ? '<p class="faint pad">Showing the start. Download for all of it.</p>' : ''}`;
           const lang = V && V.runs(x);
-          if (lang) V.runner(st, { all: async () => { const r = await fetch(url); if (!r.ok) throw new Error(r.statusText); return r.arrayBuffer(); } }, lang);
+          if (lang) V.runner(st, { all: async () => { if (e.blob) return e.blob.arrayBuffer(); const r = await fetch(url); if (!r.ok) throw new Error(r.statusText); return r.arrayBuffer(); } }, lang);
         } else if (st.querySelector('.hex')) {
           const b = new Uint8Array(await range(512));
           if (current() && current().path !== want) return;
@@ -1551,7 +1594,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
     };
     function open(e) {
       if (!e) return;
-      if (e.kind === 'folder') { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
+      if (isDir(e)) { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
       if (e.kind === 'account') { location.href = accHref(e.acct); return; }
       if (S.ly !== 'file') { S.ly = 'file'; keep('layout', S.ly); update(true); }
     }
@@ -1577,11 +1620,12 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (b.dataset.step) { sel((S.cur < 0 ? -1 : S.cur) + +b.dataset.step); return; }
       if (b.hasAttribute('data-full')) { full(); return; }
       if (b.dataset.tw != null) { const e = rows[+b.dataset.tw]; if (e) toggle(e); return; }
-      if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (e && e.kind === 'folder') open(e); else sel(+b.dataset.open); return; }
+      if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (isDir(e)) open(e); else sel(+b.dataset.open); return; }
+      if (b.hasAttribute('data-enter')) { ev.preventDefault(); open(current()); return; }
       if (b.dataset.c != null && b.dataset.i != null) {
         const ci = +b.dataset.c, e = ci < COLS.length ? COLS[ci].items[+b.dataset.i] : shown[+b.dataset.i];
         if (!e) return;
-        if (e.kind === 'folder') { enter(e.path).catch(fail); return; }
+        if (isDir(e)) { enter(e.path).catch(fail); return; }
         if (ci < COLS.length) { S.sel = e.path; enter(COLS[ci].dir, true).catch(fail); return; }
         sel(+b.dataset.i); return;
       }
