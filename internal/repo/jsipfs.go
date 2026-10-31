@@ -26,7 +26,10 @@ import (
 //     multihash: {depth: 0 or Infinity, version?, codec?, metadata?};
 //   - the MFS root is the file local/filesroot up to repo 10, then the
 //     datastore key /local/filesroot;
-//   - there is no datastore_spec, which kubo writes from repo 6 on.
+//   - js-ipfs's flatfs (datastore-fs) names every file with .data, so blocks/
+//     has SHARDING.data where kubo's has SHARDING. Older js-ipfs repos may
+//     have neither SHARDING.data nor a datastore_spec, which kubo writes from
+//     repo 6 on.
 const (
 	jsMinVersion Version = 7
 	jsMaxVersion Version = 12
@@ -39,10 +42,14 @@ type jsRepo struct {
 }
 
 // isJSIPFS says whether the fs-repo at path, of version v, was written by
-// js-ipfs: version 7 or later with no datastore_spec.
+// js-ipfs: version 7 or later, with blocks/SHARDING.data or no
+// datastore_spec.
 func isJSIPFS(path string, v Version) bool {
 	if v < jsMinVersion {
 		return false
+	}
+	if _, err := os.Stat(filepath.Join(path, "blocks", "SHARDING.data")); err == nil {
+		return true
 	}
 	if _, err := os.Stat(filepath.Join(path, "datastore_spec")); err == nil {
 		return false

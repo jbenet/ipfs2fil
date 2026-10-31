@@ -36,3 +36,19 @@ made. Everything shows two made-up repos, never anyone's real data.
    papers and RFCs, music, NASA photos and video, HTML games, and generated
    images and tracks. `demo-archive/content-README.md` lists every source
    and its license.
+7. **More-kinds demo** (site/demo-kinds/). Real stores made by the projects'
+   own code, from the step 1 content, under a throwaway `$HOME`. Install
+   Helia and js-ipfs in separate folders (their dependencies clash):
+   `npm i helia @helia/unixfs @helia/mfs @helia/car blockstore-fs datastore-fs`
+   in one, `npm i ipfs-core@0.18.1` in the other, then
+
+       node demo-kinds/helia.mjs $HOME/apps/photo-app/data <content> $HOME/exports/art.car
+       node demo-kinds/jsipfs.mjs $HOME/.jsipfs <content>
+
+   That gives a Helia store, a CAR exported from it, and a js-ipfs repo 12.
+   With the sim build: `repos add` each (`--name js-ipfs`, `--name
+   helia-photo-app`, `--name art.car`) and `at://atproto.com`, `up --all
+   --yes`, `explore`, then `node mirror.js http://127.0.0.1:8484
+   ../../site/demo-kinds 1572864`. To keep the site small, images over
+   120 KB in all/_i2f/content/ were then scaled to 700 to 900 px with Pillow,
+   so those copies no longer match their CIDs.

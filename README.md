@@ -221,6 +221,10 @@ A running node on another machine works through an ssh tunnel:
     ssh -N -L 5001:127.0.0.1:5001 you@server &
     ipfs2fil up --repo http://127.0.0.1:5001
 
+A [demo explorer](https://jbenet.github.io/ipfs2fil/demo-kinds/) holds one
+of each: a js-ipfs repo and a Helia store made by their own code, a CAR
+exported from it, and the @atproto.com account with its posts.
+
 `scan` says what it found (`kubo RPC 0.40.0`, `js-ipfs repo 12`, `Helia
 blockstore and datastore`, ...), and the explorer labels the archive the same
 way. A Helia store with no datastore beside it archives every block as an

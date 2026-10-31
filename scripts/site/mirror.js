@@ -33,7 +33,9 @@ const save = (u, body) => {
   const meta = await (await fetch(base + '/all/explorer/idx/meta.js')).text();
   const repos = [...new Set([...meta.matchAll(/"href":"\.\.\/\.\.\/([^/"]+)\/explorer\/"/g)].map((m) => m[1]))];
   const visit = async (u) => { await p.goto(base + u, { waitUntil: 'networkidle' }); await p.waitForTimeout(800); };
-  for (const page of ['index.html', 'browse.html', 'pieces.html', 'browse.html?deep=1']) {
+  const pages = ['index.html', 'browse.html', 'pieces.html', 'browse.html?deep=1'];
+  if (meta.includes('"accounts"')) pages.push('posts.html'); // Bluesky accounts
+  for (const page of pages) {
     await visit('/all/explorer/' + page);
     for (const r of repos) await visit(`/${r}/explorer/${page}`);
   }
@@ -42,7 +44,7 @@ const save = (u, body) => {
   for (const r of repos) save(`${base}/${r}/_i2f/info`, JSON.stringify({ all: info.all ? '../../all/explorer/' : undefined }));
   // Every CID the index names; only files come back from content.
   const cids = new Set();
-  const walk = (d) => { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); if (fs.statSync(q).isDirectory()) walk(q); else for (const m of fs.readFileSync(q, 'utf8').matchAll(/\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[a-z2-7]{50,})\b/g)) cids.add(m[1]); } };
+  const walk = (d) => { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); if (fs.statSync(q).isDirectory()) walk(q); else for (const m of fs.readFileSync(q, 'utf8').matchAll(/\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z2-7]{52,})\b/g)) cids.add(m[1]); } };
   walk(path.join(out, 'all/explorer'));
   let n = 0, bytes = 0, skipped = 0;
   for (const c of cids) {

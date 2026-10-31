@@ -35,6 +35,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		entries  []Entry
 		repos    []repoInfo
 		accounts []accountInfo
+		atFiles  = map[int]json.RawMessage{} // at/<n>.js, n in accounts
 		types    = map[string]tally{}
 		parts    = map[string]tally{}
 		seen     = map[string]bool{} // CIDs of files in earlier repos
@@ -175,8 +176,17 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		}
 		entries = append(entries, folder)
 		entries = append(entries, es...)
+		// Each Bluesky account's posts come along, so the combined explorer
+		// shows them with the files of every repo; an archive without them
+		// links to its own Posts page.
 		for i, ac := range mt.Accounts {
-			ac.Href = href(a) + fmt.Sprintf("posts.html?a=%d", i)
+			b, err := os.ReadFile(filepath.Join(a.Dir, "explorer", "idx", "at", fmt.Sprintf("%d.js", i)))
+			if err != nil {
+				ac.Href = href(a) + fmt.Sprintf("posts.html?a=%d", i)
+			} else {
+				atFiles[len(accounts)] = jsValue(b, fmt.Sprintf("at/%d", i))
+				ac.Href = fmt.Sprintf("posts.html?a=%d", len(accounts))
+			}
 			accounts = append(accounts, ac)
 		}
 		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
@@ -208,6 +218,12 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		return nil, nil, err
 	}
 	mt.Types, mt.Parts, mt.Repos, mt.Accounts = types, parts, repos, accounts
+	for i, v := range atFiles {
+		k := fmt.Sprintf("at/%d", i)
+		if files[k+".js"], err = jsFile(k, v); err != nil {
+			return nil, nil, err
+		}
+	}
 	if files["meta.js"], err = jsFile("meta", mt); err != nil {
 		return nil, nil, err
 	}
