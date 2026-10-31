@@ -40,6 +40,24 @@ tar listings (a zip's directory is read from its end, so only that is
 fetched), Word text, Excel sheets, PowerPoint slide text, and WebAssembly
 imports and exports.
 
+A `.gz` file on its own shows what it unpacks to, as that kind of file
+(a log as text, an image as an image), with a switch to its compressed bytes
+in hex.
+
+## Archives as folders
+
+A `.tar`, `.tar.gz`/`.tgz` or zip (and zip-based `.jar`, `.whl`, `.apk`,
+`.cbz`, ...) opens like a folder: click its name, press Enter, or Open in
+its preview. `arc` in viewers.js reads it in the browser (GNU and pax tar
+headers, zip64, deflate through the browser's DecompressionStream) into blobs,
+so its files list, preview, search ("Include subfolders") and download like
+any other, in every view. Paths go on through the archive
+(`browse.html?p=dist/app.tar.gz/app/README.md`), so they can be linked and
+reloaded, and archives inside archives open the same way. `dirInfo` in
+explorer.js falls through to `arc.dir` when the index has no such folder.
+Nothing is unpacked at pack time and nothing changes on chain; archives up to
+2 GiB open, and the last four stay in memory.
+
 Highlighting is a small tokenizer per family of languages (`LANG` and `RX`
 in viewers.js: C-like, `#` comments, `--` comments, JSON, XML and HTML) that
 tells comments, strings, numbers, keywords and calls apart. Add an extension

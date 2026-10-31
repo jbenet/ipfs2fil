@@ -381,6 +381,334 @@
     }
   });
 
+  // ---- Archives as folders. A tar (gzipped or not) or a zip opens like a
+  // folder: it is read here, in the browser, and its files kept as blobs, so
+  // they list, preview and download like any other file. A path goes on
+  // through the archive (dist/app.tar.gz/app/README.md), and through
+  // archives inside archives. explorer.js asks arc.dir(path) when the index
+  // has no such folder.
+  const KINDX = {};
+  for (const [k, xs] of Object.entries({
+    image: 'jpg jpeg png gif webp avif heic heif bmp tif tiff svg ico raw cr2 nef arw dng psd jxl',
+    video: 'mp4 m4v mov webm mkv avi wmv flv mpg mpeg ts m2ts 3gp ogv',
+    audio: 'mp3 m4a aac flac wav ogg oga opus wma aiff aif mid midi',
+    doc: 'pdf doc docx odt rtf xls xlsx ods ppt pptx odp epub mobi djvu pages key numbers',
+    page: 'html htm xhtml mhtml',
+    text: 'txt md markdown rst org log csv tsv srt vtt tex nfo',
+    code: 'js mjs cjs ts tsx jsx css scss json yaml yml toml xml go rs py rb java c h cc cpp hpp cs swift kt sh bash zsh ps1 php pl lua sql wasm ipynb proto',
+    archive: 'zip tar gz tgz bz2 xz zst 7z rar car lz4 deb rpm apk jar',
+    disk: 'iso img dmg vhd vhdx vmdk qcow2'
+  })) for (const x of xs.split(' ')) KINDX[x] = k; // as in kind.go
+  const extOf = (n) => { const i = n.lastIndexOf('.'); return i > 0 ? n.slice(i + 1).toLowerCase() : ''; };
+  // What a file is from its first bytes, for names that do not say: as
+  // Sniff in kind.go, in short.
+  function sniff(b) {
+    const has = (at, s) => b.length >= at + s.length && [...s].every((c, i) => b[at + i] === c.charCodeAt(0));
+    if (has(0, '\xff\xd8\xff') || has(0, '\x89PNG') || has(0, 'GIF8') || (has(0, 'RIFF') && has(8, 'WEBP'))) return 'image';
+    if (has(0, '%PDF-')) return 'doc';
+    if (has(4, 'ftyp') || has(0, '\x1a\x45\xdf\xa3')) return 'video';
+    if (has(0, 'ID3') || has(0, 'fLaC') || has(0, 'OggS') || (has(0, 'RIFF') && has(8, 'WAVE'))) return 'audio';
+    if (has(0, 'PK\x03\x04') || has(0, '\x1f\x8b') || has(0, 'BZh') || has(0, '\xfd7zXZ') || has(257, 'ustar')) return 'archive';
+    if (has(0, '\x00asm')) return 'code';
+    let t;
+    try { t = new TextDecoder('utf-8', { fatal: true }).decode(b.length >= 1024 ? b.subarray(0, b.length - 4) : b); } catch (err) { return 'other'; }
+    if (/[\u0000-\u0008\u000e-\u001a\u001c-\u001f]/.test(t)) return 'other';
+    const low = t.trimStart().slice(0, 64).toLowerCase();
+    if (/^(<!doctype html|<html|<head)/.test(low)) return 'page';
+    if (/^(#!|package |<\?php|<\?xml)/.test(low)) return 'code';
+    return 'text';
+  }
+  const ZIPX = set('zip jar war apk ipa xpi whl nupkg cbz');
+  // 'tar', 'tgz', 'zip' or ''.
+  const arcType = (name) => /\.(tar\.gz|tgz)$/i.test(name) ? 'tgz' : /\.tar$/i.test(name) ? 'tar' : ZIPX.has(extOf(name)) ? 'zip' : '';
+  const gunzipStream = (blob) => new Response(blob.stream().pipeThrough(new DecompressionStream('gzip'))).blob();
+  const MAXARC = 2048 * MB;
+  async function arcBlob(e, url) {
+    if (e.blob) return e.blob;
+    if (e.bytes > MAXARC) throw new Error(`${e.name} is ${H.bytes(e.bytes)}, too big to open here. Download it to unpack it.`);
+    if (!url) throw new Error('Open this explorer with ipfs2fil explore or through an IPFS gateway to look inside archives.');
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status === 404 ? (await r.text()) || `${e.name} is not in the pieces on this machine.` : r.statusText);
+    return r.blob();
+  }
+  // Reads small parts of a blob through a 1 MiB window, so a tar of many
+  // small files takes few reads.
+  function reader(blob) {
+    let at = 0, win = null;
+    return async (off, n) => {
+      if (!win || off < at || off + n > at + win.length) { at = off; win = new Uint8Array(await blob.slice(off, off + Math.max(n, MB)).arrayBuffer()); }
+      return win.subarray(off - at, off - at + n);
+    };
+  }
+  // tar: ustar, GNU long names and pax headers. add(name, blob, time, isDir).
+  async function untar(blob, add) {
+    const read = reader(blob);
+    let off = 0, long = '', pax = null;
+    while (off + 512 <= blob.size) {
+      const h = await read(off, 512);
+      if (h.every((x) => x === 0)) break;
+      let sum = 0;
+      for (let i = 0; i < 512; i++) sum += i >= 148 && i < 156 ? 32 : h[i];
+      const str = (a, n) => dec(h.subarray(a, a + n)).replace(/\0[\s\S]*$/, '');
+      const oct = (a, n) => {
+        if (h[a] & 0x80) { let v = 0; for (let i = a + 1; i < a + n; i++) v = v * 256 + h[i]; return v; } // base-256, for big files
+        return parseInt(str(a, n).trim() || '0', 8) || 0;
+      };
+      if (oct(148, 8) !== sum) {
+        if (off === 0) throw new Error('This is not a tar file the explorer can read.');
+        break;
+      }
+      const type = h[156] ? String.fromCharCode(h[156]) : '0';
+      let len = oct(124, 12);
+      if (pax && pax.size != null && type !== 'x' && type !== 'g') len = +pax.size;
+      const data = off + 512;
+      off = data + Math.ceil(len / 512) * 512;
+      if (type === 'L') { long = dec(await read(data, Math.min(len, 65536))).replace(/\0[\s\S]*$/, ''); continue; }
+      if (type === 'x') {
+        // records of "<length in bytes> key=value\n"
+        pax = {};
+        const s = (await read(data, Math.min(len, MB))).slice();
+        for (let i = 0; i < s.length;) {
+          const sp = s.indexOf(32, i), n = parseInt(dec(s.subarray(i, sp)), 10);
+          if (!(n > 0)) break;
+          const kv = dec(s.subarray(sp + 1, i + n - 1)), eq = kv.indexOf('=');
+          pax[kv.slice(0, eq)] = kv.slice(eq + 1);
+          i += n;
+        }
+        continue;
+      }
+      if (type === 'g' || type === 'K') continue;
+      let name = (str(257, 5) === 'ustar' && str(345, 155) ? str(345, 155) + '/' : '') + str(0, 100);
+      if (long) name = long;
+      if (pax && pax.path) name = pax.path;
+      const time = pax && pax.mtime ? +pax.mtime * 1000 : oct(136, 12) * 1000;
+      long = ''; pax = null;
+      if (type === '5') add(name, null, time, true);
+      else if (type === '0' || type === '7') add(name, blob.slice(data, data + len), time);
+      // links, devices and fifos have no bytes of their own
+    }
+  }
+  // zip, zip64 too. Entries are inflated a few at a time.
+  async function unzipTo(blob, add) {
+    const tn = Math.min(blob.size, 65557 + 20);
+    const tail = new Uint8Array(await blob.slice(blob.size - tn).arrayBuffer()), t = new DataView(tail.buffer);
+    let end = -1;
+    for (let i = tail.length - 22; i >= 0; i--) if (t.getUint32(i, true) === 0x06054b50) { end = i; break; }
+    if (end < 0) throw new Error('This is not a zip file the explorer can read.');
+    let n = t.getUint16(end + 10, true), cdSize = t.getUint32(end + 12, true), cdOff = t.getUint32(end + 16, true);
+    if ((cdOff === 0xffffffff || n === 0xffff) && end >= 20 && t.getUint32(end - 20, true) === 0x07064b50) {
+      const z = new DataView(await blob.slice(Number(t.getBigUint64(end - 12, true))).slice(0, 56).arrayBuffer());
+      n = Number(z.getBigUint64(32, true)); cdSize = Number(z.getBigUint64(40, true)); cdOff = Number(z.getBigUint64(48, true));
+    }
+    const cd = new DataView(await blob.slice(cdOff, cdOff + cdSize).arrayBuffer()), read = reader(blob), jobs = [];
+    for (let p = 0, k = 0; k < n && p + 46 <= cd.byteLength && cd.getUint32(p, true) === 0x02014b50; k++) {
+      const flags = cd.getUint16(p + 8, true), method = cd.getUint16(p + 10, true), dt = cd.getUint16(p + 12, true), dd = cd.getUint16(p + 14, true);
+      let csize = cd.getUint32(p + 20, true), off = cd.getUint32(p + 42, true);
+      const nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+      const name = dec(new Uint8Array(cd.buffer, p + 46, nl)).replace(/\\/g, '/');
+      for (let x = p + 46 + nl; x + 4 <= p + 46 + nl + xl;) { // zip64 sizes and offset
+        const id = cd.getUint16(x, true), sz = cd.getUint16(x + 2, true);
+        if (id === 1) {
+          let q = x + 4;
+          if (cd.getUint32(p + 24, true) === 0xffffffff) q += 8;
+          if (csize === 0xffffffff) { csize = Number(cd.getBigUint64(q, true)); q += 8; }
+          if (off === 0xffffffff) off = Number(cd.getBigUint64(q, true));
+        }
+        x += 4 + sz;
+      }
+      p += 46 + nl + xl + cl;
+      const time = Date.UTC((dd >> 9) + 1980, ((dd >> 5) & 15) - 1, dd & 31, dt >> 11, (dt >> 5) & 63, (dt & 31) * 2);
+      if (name.endsWith('/')) { add(name, null, time, true); continue; }
+      const lh = await read(off, 30), lv = new DataView(lh.buffer, lh.byteOffset, 30);
+      const start = off + 30 + lv.getUint16(26, true) + lv.getUint16(28, true), raw = blob.slice(start, start + csize);
+      if (flags & 1) add(name, raw, time, false, 'This file is encrypted in the zip; shown as stored.');
+      else if (method === 0) add(name, raw, time);
+      else if (method === 8) jobs.push([name, raw, time]);
+      else add(name, raw, time, false, `This file is packed with zip method ${method}, which the browser cannot unpack; shown as stored.`);
+    }
+    let i = 0;
+    await Promise.all([0, 1, 2, 3, 4, 5].map(async () => {
+      while (i < jobs.length) {
+        const [name, raw, time] = jobs[i++];
+        try { add(name, await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob(), time); } catch (err) { add(name, raw, time, false, 'This file could not be unpacked; shown as stored.'); }
+      }
+    }));
+  }
+  // An archive read into a tree of entries shaped like explorer.js's:
+  // { dir, name, kind, bytes, cid: '', piece: -1, path } plus blob for a
+  // file (node for a folder) and va: { arc, inner } (which archive, and
+  // where in it).
+  async function readArc(e, url) {
+    const type = arcType(e.name);
+    if (!('DecompressionStream' in window) && type !== 'tar') throw new Error('This browser cannot unpack archives.');
+    let blob = await arcBlob(e, url);
+    if (type === 'tgz') blob = await gunzipStream(blob);
+    const root = { path: e.path, kids: new Map() };
+    const mk = (n, seg, inner) => {
+      const path = n.path + '/' + seg, node = { path, kids: new Map() };
+      const d = { dir: n.path, name: seg, kind: 'folder', bytes: 0, cid: '', piece: -1, path, node, va: { arc: e.path, inner } };
+      n.kids.set(seg, d);
+      return d;
+    };
+    const files = [];
+    const add = (name, b, time, isDir, note) => {
+      const segs = name.split('/').filter((s) => s && s !== '.' && s !== '..');
+      if (!segs.length) return;
+      let n = root;
+      const last = isDir ? segs.length : segs.length - 1;
+      for (let i = 0; i < last; i++) {
+        let k = n.kids.get(segs[i]);
+        if (!k || k.kind !== 'folder') k = mk(n, segs[i], segs.slice(0, i + 1).join('/'));
+        if (isDir && i === last - 1 && time) k.time = time;
+        n = k.node;
+      }
+      if (isDir) return;
+      const seg = segs[segs.length - 1];
+      if (n.kids.has(seg) && n.kids.get(seg).kind === 'folder') return;
+      const f = { dir: n.path, name: seg, kind: KINDX[extOf(seg)] || '', bytes: b.size, cid: '', piece: -1, path: n.path + '/' + seg, blob: b, time, note, va: { arc: e.path, inner: segs.join('/') } };
+      n.kids.set(seg, f);
+      files.push(f);
+    };
+    await (type === 'zip' ? unzipTo(blob, add) : untar(blob, add));
+    // names that do not say what a file is: look at its first bytes
+    const unknown = files.filter((f) => !f.kind);
+    let i = 0;
+    await Promise.all([0, 1, 2, 3].map(async () => {
+      while (i < unknown.length) {
+        const f = unknown[i++];
+        f.kind = i > 5000 || f.note ? 'other' : sniff(new Uint8Array(await f.blob.slice(0, 1024).arrayBuffer()));
+      }
+    }));
+    const size = (n) => { let s = 0; for (const k of n.kids.values()) s += k.kind === 'folder' ? (k.bytes = size(k.node)) : k.bytes; return s; };
+    size(root);
+    return root;
+  }
+  const arcs = new Map(); // archive path -> promise of its tree, the last few
+  function openArc(e, url) {
+    let p = arcs.get(e.path);
+    if (p) { arcs.delete(e.path); arcs.set(e.path, p); return p; }
+    p = readArc(e, url);
+    p.catch(() => arcs.delete(e.path));
+    arcs.set(e.path, p);
+    while (arcs.size > 4) arcs.delete(arcs.keys().next().value);
+    return p;
+  }
+  // A folder in an archive, shaped like an index folder (dirInfo in
+  // explorer.js), with its entries in kids.
+  function infoOf(node) {
+    if (node.info) return node.info;
+    const types = {};
+    let files = 0, folders = 0, bytes = 0;
+    const flat = [];
+    const walk = (n) => {
+      for (const k of n.kids.values()) {
+        flat.push(k);
+        if (k.kind === 'folder') { folders++; walk(k.node); continue; }
+        files++; bytes += k.bytes;
+        const t = types[k.kind] || (types[k.kind] = [0, 0]);
+        t[0]++; t[1] += k.bytes;
+      }
+    };
+    walk(node);
+    return (node.info = { virtual: true, cid: '', chunks: [], n: node.kids.size, bytes, files, folders, types, kids: [...node.kids.values()], flat });
+  }
+  const URLS = new WeakMap();
+  const TYPES = { svg: 'image/svg+xml', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac', txt: 'text/plain', json: 'application/json' };
+  const arc = {
+    type: arcType,
+    is: (e) => !!e && e.kind !== 'folder' && !!arcType(e.name),
+    // path is in an archive: its folder info, or null. ctx.entry(path) finds
+    // an entry in the index, ctx.url(e) is where its bytes are.
+    async dir(p, ctx) {
+      const parts = p.split('/');
+      for (let i = 1; i <= parts.length; i++) {
+        if (!arcType(parts[i - 1])) continue;
+        const e = await ctx.entry(parts.slice(0, i).join('/'));
+        if (!e || e.kind === 'folder') continue;
+        let node = await openArc(e, ctx.url(e));
+        for (let j = i; j < parts.length; j++) {
+          const k = node.kids.get(parts[j]);
+          if (!k) return null;
+          if (k.kind === 'folder') node = k.node;
+          else if (arcType(k.name)) node = await openArc(k, null);
+          else return null;
+        }
+        return infoOf(node);
+      }
+      return null;
+    },
+    // A blob URL for a file read out of an archive, made once.
+    url(e) {
+      let u = URLS.get(e);
+      if (!u) {
+        const ty = TYPES[extOf(e.name)];
+        URLS.set(e, u = URL.createObjectURL(ty && e.blob.type !== ty ? e.blob.slice(0, e.blob.size, ty) : e.blob));
+      }
+      return u;
+    },
+    sniff, kindOf: (name) => KINDX[extOf(name)] || ''
+  };
+
+  // ---- A .gz file on its own: what is in it, shown as that sort of file,
+  // or the compressed bytes.
+  function hexRows(b, from) {
+    let out = '';
+    for (let i = 0; i < b.length; i += 16) {
+      const row = Array.from(b.subarray(i, i + 16));
+      out += (from + i).toString(16).padStart(8, '0') + '  ' + row.map((x) => x.toString(16).padStart(2, '0')).join(' ').padEnd(48) + '  ' + row.map((x) => x >= 32 && x < 127 ? String.fromCharCode(x) : '.').join('') + '\n';
+    }
+    return out;
+  }
+  async function hexView(box, v, n) {
+    const b = new Uint8Array(await v.head(n));
+    if (!v.still()) return;
+    const all = b.length >= v.e.bytes;
+    box.innerHTML = `<pre class="hex">${H.esc(hexRows(b, 0))}</pre><p class="faint pad">${all ? `All ${v.num(b.length)} bytes, as stored.` : `The first ${v.num(b.length)} of ${v.num(v.e.bytes)} bytes, as stored. <button type="button" class="link" data-hexmore>Show more</button>`}</p>`;
+    const more = box.querySelector('[data-hexmore]');
+    if (more) more.onclick = () => hexView(box, v, n * 4);
+  }
+  async function gunzip(v) {
+    const raw = v.e.blob || new Blob([await v.all(512 * MB)]);
+    const h = new Uint8Array(await raw.slice(0, 1024).arrayBuffer());
+    if (h[0] !== 0x1f || h[1] !== 0x8b) throw new Error('This file is not gzip-compressed, though its name ends in .gz.');
+    if (!('DecompressionStream' in window)) throw new Error('This browser cannot unpack gzip.');
+    let fname = '';
+    if (h[3] & 8) { // FNAME, after FEXTRA if any
+      let p = 10;
+      if (h[3] & 4) p += 2 + (h[10] | (h[11] << 8));
+      const z = h.indexOf(0, p);
+      if (z > p) fname = new TextDecoder('latin1').decode(h.subarray(p, z)).split('/').pop();
+    }
+    const strip = v.e.name.replace(/\.gz$/i, '');
+    const name = extOf(strip) || !fname ? strip || fname || 'unpacked' : fname;
+    const out = await gunzipStream(raw);
+    const kind = arc.kindOf(name) || sniff(new Uint8Array(await out.slice(0, 1024).arrayBuffer()));
+    // the same path as the .gz, so the explorer still sees it as the one shown
+    return Object.assign({}, v.e, { name, kind, bytes: out.size, cid: '', piece: -1, blob: out, va: { arc: v.e.path, inner: name, gz: true } });
+  }
+  let gzMode = 'u';
+  view({
+    name: 'gz', test: (e, x) => x === 'gz' && !/\.tar\.gz$/i.test(e.name),
+    async show(st, v) {
+      st.innerHTML = `<div class="vbar"><button type="button" class="pill" data-gz="u">Uncompressed</button><button type="button" class="pill" data-gz="h">Compressed (hex)</button><span class="faint"></span></div><div class="gzin"></div>`;
+      const box = st.querySelector('.gzin'), say = st.querySelector('.vbar .faint');
+      let inner = null;
+      const mode = async (m) => {
+        gzMode = m;
+        st.querySelectorAll('[data-gz]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.gz === m));
+        box.className = 'gzin ' + m;
+        if (m === 'h') return hexView(box, v, 4096).catch((err) => { box.innerHTML = `<p class="muted pad">${H.esc(err.message)}</p>`; });
+        box.innerHTML = '<p class="muted pad">Unpacking…</p>';
+        try { inner = inner || await gunzip(v); } catch (err) { if (v.still()) box.innerHTML = `<div class="none">${H.icon('archive')}<p>${H.esc(err.message)}</p></div>`; return; }
+        if (!v.still() || gzMode !== 'u') return;
+        say.textContent = `${inner.name} · ${v.bytes(inner.bytes)} unpacked`;
+        H.show(box, inner);
+      };
+      st.querySelectorAll('[data-gz]').forEach((b) => { b.onclick = () => mode(b.dataset.gz); });
+      await mode(gzMode);
+    }
+  });
+
   // ---- Office documents: the text of a Word file, the cells of a
   // spreadsheet, the words on each slide.
   const office = async (v) => unzip(await v.all(64 * MB));
@@ -582,7 +910,7 @@ setTimeout(() => send('done', Math.round(performance.now() - t0) + ' ms'), 0);`}
   });
 
   window.I2FV = {
-    viewers, view, unzip, md,
+    viewers, view, unzip, md, arc,
     use(helpers) { H = helpers; },
     find(e, x) { return viewers.find((v) => v.test(e, x)) || null; },
     runs: (x) => RUN[x] || null,

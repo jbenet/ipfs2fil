@@ -459,3 +459,7 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .fprev.full .stage.folder { flex: 0 0 auto; }
 .ib.fs { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .fprev.full .stage > img, .fprev.full .stage > video { width: 100%; height: 100%; }
+/* A .gz file's preview: what it unpacks to, or its bytes (viewers.js) */
+.gzin { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 0; }
+.gzin > .stage { flex: 1 0 280px; }
+.gzin pre.hex { color: var(--text); }
