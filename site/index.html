@@ -56,17 +56,17 @@
 
 <section class="strip">
   <div class="wrap strip-grid">
-    <div><b>fs-repo 0 to 18</b><span>go-ipfs 0.2 through kubo 0.43, flatfs, leveldb, badger, pebble</span></div>
     <div><b>Read only</b><span>never writes to your repo; the daemon can keep running</span></div>
     <div><b>Incremental</b><span>content-defined pieces: run it again, only changes upload</span></div>
     <div><b>Self-describing</b><span>index and explorer travel inside every archive</span></div>
+    <div><b>Reads old repos</b><span>fs-repo 0 to 18: go-ipfs 0.2 through kubo 0.43, on flatfs, leveldb, badger or pebble</span></div>
   </div>
 </section>
 
 <section id="how" class="section">
   <div class="wrap">
     <h2 class="title">Three commands</h2>
-    <p class="sub">Everything below is a real run on two small demo repos, stored on the Filecoin Calibration testnet. Long waits on chain are sped up.</p>
+    <p class="sub">Below, two made-up repos of a few GiB go through the real ipfs2fil, with the storage simulated so nothing is paid for, and the waits sped up. The <a href="demo/all/explorer/">live demo</a> is a real archive.</p>
 
     <div class="step">
       <div class="step-text">
@@ -74,7 +74,7 @@
         <h3>See what you have, and what it costs</h3>
         <p><code>ipfs2fil scan</code> reads <code>$IPFS_PATH</code> (or <code>~/.ipfs</code>, or <code>--repo</code>) and tells you how many blocks, pins and pieces there are, and the monthly price. Nothing is written anywhere.</p>
       </div>
-      <div class="step-media"><div class="shot"><img src="media/scan.webp" width="1864" height="740" alt="ipfs2fil scan output: 211 blocks, 38.3 MiB, 7 pins, about 2 pieces, and the monthly cost" loading="lazy"></div></div>
+      <div class="step-media"><div class="shot"><img src="media/scan.webp" width="1864" height="740" alt="ipfs2fil scan output: 25080 blocks, 6.1 GiB, 9 pins, about 10 pieces, and the monthly cost" loading="lazy"></div></div>
     </div>
 
     <div class="step">
@@ -94,7 +94,7 @@
         <h3>Check on it, from the chain</h3>
         <p><code>ipfs2fil status</code> reads your data sets from chain: which providers hold a copy, when each last proved it, and how many days your deposit lasts. <code>ipfs2fil verify</code> fetches every piece back, checks every block against its CID, and asks the IPFS network whether the CIDs are announced.</p>
       </div>
-      <div class="step-media"><div class="shot"><video src="media/check.mp4" poster="media/check.webp" controls muted playsinline preload="metadata" aria-label="Terminal recording: status --all lists copies and funding, verify fetches 6 pieces and finds them all good"></video></div></div>
+      <div class="step-media"><div class="shot"><video src="media/check.mp4" poster="media/check.webp" controls muted playsinline preload="metadata" aria-label="Terminal recording: status lists both repos, their copies and funding; verify fetches every piece of both and finds them all good"></video></div></div>
     </div>
   </div>
 </section>
@@ -193,7 +193,7 @@ ipfs2fil explore       # http://127.0.0.1:8484/</code></pre></li>
     <details><summary>Will it touch my repo?</summary><p>No. Stores are opened read-only and migrations are never run, so it is safe while the daemon runs. Archives are written to <code>./ipfs2fil-archive</code>, or under <code>~/.ipfs2fil</code> for listed repos.</p></details>
     <details><summary>What if a provider loses a piece?</summary><p><code>verify</code> fetches every piece from every copy and lists any that are bad; <code>push</code> uploads again what a copy is missing. <code>status</code> shows when each copy last proved it holds your data.</p></details>
     <details><summary>Can I get my files back without ipfs2fil?</summary><p>Yes. Every file has a CID, so any IPFS gateway or node can fetch it, and the archive root opens the explorer in a browser. The pieces are plain CAR files, and the index lists which piece holds each block.</p></details>
-    <details><summary>Can I try it without spending anything?</summary><p>Yes: add <code>--network calibration</code> and fund a wallet from the Calibration faucets. The recordings on this page were made that way.</p></details>
+    <details><summary>Can I try it without spending anything?</summary><p>Yes: add <code>--network calibration</code> and fund a wallet from the Calibration faucets.</p></details>
   </div>
 </section>
 

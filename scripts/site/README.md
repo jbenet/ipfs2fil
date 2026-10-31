@@ -10,11 +10,15 @@ made. Everything shows two made-up repos, never anyone's real data.
    (`~/.ipfs` and `~/backups/old-laptop`), `ipfs add -r --pin-name <name>`
    folders into each (share a folder or two between them), and
    `ipfs files cp` a few into MFS.
-3. **Terminal recordings.** With `$HOME` set to that throwaway home, a
-   Calibration wallet in `$IPFS2FIL_KEY_FILE` and `IPFS2FIL_HOST=studio`:
+3. **Terminal recordings.** These use a build with simulated storage, so
+   repos of many GiB can be shown on mainnet without paying or uploading:
+   `go build -tags sim -o bin/ipfs2fil ./cmd/ipfs2fil` (see
+   cmd/ipfs2fil/sim.go; release builds leave it out). With `$HOME` set to
+   that throwaway home, `bin` first on `$PATH`, `IPFS2FIL_HOST=studio` and
+   `IPFS2FIL_SIM=$HOME/sim.json` (the simulated chain):
 
        COLS=100 ROWS=32 python3 rec.py scenes/up.scene up.cast
-       node render.js up.cast out-up "ipfs2fil up --all · Calibration testnet, waits sped up" 1.6 22 40
+       node render.js up.cast out-up "ipfs2fil up --all  ·  storage simulated, sped up" 1.6 11 8
 
    `rec.py` types each command like a person and waits for the output;
    `render.js` plays the cast in xterm.js and writes `out.mp4`, `out.gif` and

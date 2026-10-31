@@ -2,6 +2,6 @@ PR = r'\$\x1b\[0m $'
 [
  ('type', 'ipfs2fil repos add ~/.ipfs'), ('wait', PR), ('sleep', 1.2),
  ('type', 'ipfs2fil repos add ~/backups/old-laptop --name old-laptop'), ('wait', PR), ('sleep', 1.2),
- ('type', 'ipfs2fil up --all --network calibration --copies 2'), ('wait', r'\[y/N\] '), ('sleep', 2.5),
- ('type', 'y'), ('wait', PR, 1500), ('sleep', 3),
+ ('type', 'ipfs2fil up --all'), ('wait', r'\[y/N\] ', 900), ('sleep', 2.5),
+ ('type', 'y'), ('wait', PR, 3000), ('sleep', 3),
 ]

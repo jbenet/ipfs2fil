@@ -15,7 +15,7 @@ show what is where.
 
 ![ipfs2fil up --all packing two repos and storing them on Filecoin](site/media/up.gif)
 
-<sub>A real run on two small demo repos, stored on the Calibration testnet. Waits on chain are sped up.</sub>
+<sub>Two made-up repos of a few GiB. The storage is simulated (a test build) and the waits are sped up; everything else is the real tool.</sub>
 
 The explorer, served by `ipfs2fil explore` or by any gateway:
 
@@ -102,7 +102,7 @@ wallet holding some FIL for gas and USDFC to pay for storage. Add
                                   # check the CIDs are announced to IPFS
        ipfs2fil explore           # http://127.0.0.1:8484/
 
-   ![ipfs2fil status --all and verify](site/media/check.gif)
+   ![ipfs2fil status and verify](site/media/check.gif)
 
    Once stored, the archive root printed by `up` opens from any gateway,
    e.g. `https://dweb.link/ipfs/<root>/explorer/`.

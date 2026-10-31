@@ -1,5 +1,5 @@
 PR = r'\$\x1b\[0m $'
 [
- ('type', 'ipfs2fil status --all --network calibration'), ('wait', PR, 300), ('sleep', 3),
- ('type', 'ipfs2fil verify --out ~/.ipfs2fil/archives/ipfs --network calibration'), ('wait', PR, 1500), ('sleep', 3),
+ ('type', 'ipfs2fil status'), ('wait', PR, 300), ('sleep', 3),
+ ('type', 'ipfs2fil verify'), ('wait', PR, 3000), ('sleep', 3),
 ]
