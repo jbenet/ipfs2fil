@@ -202,6 +202,34 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
 
 </details>
 
+## Other kinds of repo
+
+`--repo` takes more than a kubo repo. Each works with `scan`, `pack`, `up`,
+`repos add` and the rest, and each opens read-only.
+
+    ipfs2fil up                                    # finds ~/.ipfs, or ~/.jsipfs
+    ipfs2fil up --repo ~/.jsipfs                   # a js-ipfs repo (7 to 12)
+    ipfs2fil up --repo ./my-app/data               # a Helia app's store: holds
+                                                   # blocks/ and datastore/
+    ipfs2fil up --repo export.car                  # a CAR file
+    ipfs2fil up --repo ./cars/                     # a folder of CAR files
+    ipfs2fil up --repo http://127.0.0.1:5001       # a running kubo node
+    ipfs2fil up --repo at://you.bsky.social        # a Bluesky account
+
+A running node on another machine works through an ssh tunnel:
+
+    ssh -N -L 5001:127.0.0.1:5001 you@server &
+    ipfs2fil up --repo http://127.0.0.1:5001
+
+A [demo explorer](https://jbenet.github.io/ipfs2fil/demo-kinds/) holds one
+of each: a js-ipfs repo and a Helia store made by their own code, a CAR
+exported from it, and the @atproto.com account with its posts.
+
+`scan` says what it found (`kubo RPC 0.40.0`, `js-ipfs repo 12`, `Helia
+blockstore and datastore`, ...), and the explorer labels the archive the same
+way. A Helia store with no datastore beside it archives every block as an
+orphan, since its pins live in the datastore.
+
 ## Bluesky accounts
 
 A Bluesky account's repo is content-addressed IPLD: a signed commit over a

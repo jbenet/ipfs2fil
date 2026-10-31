@@ -38,6 +38,8 @@ func makeJSRepo(t *testing.T, src *fsRepo, v Version) string {
 	}
 	write(filepath.Join(dir, "version"), []byte(strconv.Itoa(int(v))))
 	write(filepath.Join(dir, "config"), []byte(`{"Identity":{"PeerID":"12D3KooWtest"},"Datastore":{"Spec":{"type":"mount"}}}`))
+	// js-ipfs 0.18 (repo 12) writes a datastore_spec much like kubo's.
+	write(filepath.Join(dir, "datastore_spec"), []byte(`{"mounts":[{"mountpoint":"/blocks","path":"blocks","shardFunc":"/repo/flatfs/shard/v1/next-to-last/2","type":"flatfs"},{"mountpoint":"/","path":"datastore","type":"levelds"}],"type":"mount"}`))
 	write(filepath.Join(dir, "blocks", "SHARDING.data"), []byte("/repo/flatfs/shard/v1/next-to-last/2"))
 	write(filepath.Join(dir, "blocks", "_README.data"), []byte("This is a repository of IPLD objects."))
 	shard := shardNextToLast(2)
@@ -160,7 +162,7 @@ func TestJSIPFS(t *testing.T) {
 }
 
 func TestJSIPFSDetection(t *testing.T) {
-	// Kubo repos 6 and later have a datastore_spec; js-ipfs repos never do.
+	// Kubo's blocks/ has SHARDING, never SHARDING.data.
 	for _, name := range []string{"v07", "v12", "v18"} {
 		dir := filepath.Join(extractFixture(t, filepath.Join(fixtureDir, name+".tar.gz")), "repo")
 		r, err := Open(dir)

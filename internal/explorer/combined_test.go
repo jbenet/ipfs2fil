@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 )
 
 // TestCombine: two archives become one data/ with a folder per repo, one
@@ -22,7 +24,11 @@ func TestCombine(t *testing.T) {
 			}
 			entries = entries[:4]
 		}
-		if err := Write(filepath.Join(dir, "explorer"), m, entries); err != nil {
+		var accts []*atproto.Summary
+		if name == "server" {
+			accts = append(accts, &atproto.Summary{Name: "@alice.test", DID: "did:plc:alice", Posts: []atproto.Post{{Text: "hello"}}})
+		}
+		if err := Write(filepath.Join(dir, "explorer"), m, entries, accts...); err != nil {
 			t.Fatal(err)
 		}
 		as = append(as, Archive{Name: name, Dir: dir})
@@ -46,6 +52,14 @@ func TestCombine(t *testing.T) {
 	}
 	if len(mt.Repos) != 2 || mt.Repos[1].Name != "server" || mt.Repos[1].Href != "../../server/explorer/" {
 		t.Errorf("repos: %+v", mt.Repos)
+	}
+	// the server's account, with its posts, in the combined index
+	if len(mt.Accounts) != 1 || mt.Accounts[0].Name != "@alice.test" || mt.Accounts[0].Href != "posts.html?a=0" {
+		t.Errorf("accounts: %+v", mt.Accounts)
+	}
+	var at atproto.Summary
+	if err := json.Unmarshal(jsValue(files["at/0.js"], "at/0"), &at); err != nil || len(at.Posts) != 1 || at.Posts[0].Text != "hello" {
+		t.Errorf("at/0.js: %s %v", files["at/0.js"], err)
 	}
 	// a.png (3000 B) and index.html (1000 B) are in both; they count once
 	if got := mt.Types["image"]; got != (tally{3, 4000}) {
