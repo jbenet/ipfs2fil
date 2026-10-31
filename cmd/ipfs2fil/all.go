@@ -243,6 +243,8 @@ func pushListed(ctx context.Context, o *opts, skip *packFailures) error {
 
 	var errs []error
 	for i, a := range todo {
+		// an earlier push in this run made the data sets the later ones share
+		adoptCopies(todo[:i+1], nil)
 		fmt.Fprintf(o.stdout, "\n== %s (%d of %d)\n", a.repo.Name, i+1, len(todo))
 		var total int64
 		for _, p := range a.pieces {
