@@ -725,13 +725,19 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     const label = (e) => { const P = postOf(e); return P ? (P.x.t ? day(P.x.t) + ' · ' : '') + P.K.snippet(P.x) : e.name; };
     // The accounts, as entries of their own under Library > Accounts.
     const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
-    const S = {
-      p: params.get('p') || '', q: params.get('q') || '', kind: params.get('kind') || 'all', deep: params.get('deep') === '1' || !!params.get('q'),
-      size: params.get('size') || 'any', sort: params.get('sort') || 'name', dir: params.get('dir') === '-1' ? -1 : 1,
-      view: pref('view', 'list'), ly: pref('layout', 'split'), sel: params.get('sel') || '', cur: -1, limit: 300, open: new Set(),
-      app: params.get('app') || '', an: +params.get('a') || 0
-    };
-    if (S.kind !== 'all' && !params.has('deep')) S.deep = true;
+    const S = { view: pref('view', 'list'), ly: pref('layout', 'split'), cur: -1, limit: 300, open: new Set() };
+    // The folder, search and filters live in the URL: every page link and
+    // the back and forward buttons set them from it.
+    function fromURL() {
+      const P = new URLSearchParams(location.search);
+      Object.assign(S, {
+        p: P.get('p') || '', q: P.get('q') || '', kind: P.get('kind') || 'all', deep: P.get('deep') === '1' || !!P.get('q'),
+        size: P.get('size') || 'any', sort: P.get('sort') || 'name', dir: P.get('dir') === '-1' ? -1 : 1, sel: P.get('sel') || '',
+        app: P.get('app') || '', an: +P.get('a') || 0
+      });
+      if (S.kind !== 'all' && !P.has('deep')) S.deep = true;
+    }
+    fromURL();
     let info = null, kids = [], all = null, loadingAll = false, shown = [], rows = [], counts = {}, base = [];
 
     main().className = 'files-main';
@@ -834,7 +840,13 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     const current = () => (S.view === 'tree' ? rows[S.cur] : shown[S.cur]) || null;
 
     // ---- render
-    let lastURL = '';
+    // Going to another folder, search or kind adds a history entry, so back
+    // and forward step through them; moving the selection with the keys only
+    // updates the current one. A click on a file adds one too.
+    let lastURL = '', lastKey = null, pushSel = false;
+    const urlOf = () => 'browse.html?' + qs({ p: S.p, q: S.q, kind: S.kind === 'all' ? '' : S.kind, deep: S.deep && !S.q ? '1' : '', size: S.size === 'any' ? '' : S.size, sort: S.sort === 'name' ? '' : S.sort, dir: S.dir < 0 ? '-1' : '', sel: S.sel });
+    // A search being typed is one entry, not one per letter.
+    const navKey = () => qs({ p: S.p, q: S.q ? '1' : '', kind: S.kind, deep: S.deep ? '1' : '' });
     function update(full) {
       compute();
       lib();
@@ -856,8 +868,13 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       gen();
       findParts((S.view === 'tree' ? rows : shown).slice(0, S.limit), () => update(true));
       preview(full);
-      const u = 'browse.html?' + qs({ p: S.p, q: S.q, kind: S.kind === 'all' ? '' : S.kind, deep: S.deep && !S.q ? '1' : '', size: S.size === 'any' ? '' : S.size, sort: S.sort === 'name' ? '' : S.sort, dir: S.dir < 0 ? '-1' : '', sel: S.sel });
-      if (u !== lastURL) { history.replaceState(null, '', u); lastURL = u; }
+      const u = urlOf(), key = navKey();
+      if (u !== lastURL) {
+        if (lastKey !== null && (key !== lastKey || pushSel)) history.pushState(null, '', u); else history.replaceState(null, '', u);
+        lastURL = u; lastKey = key;
+      }
+      pushSel = false;
+      D.title = (S.q ? `“${S.q}”` : S.deep && !S.p && S.kind !== 'all' ? kindOf(S.kind)[3] : title.length > 40 ? shortCID(title) : title) + ' · ipfs2fil';
       status((S.deep ? `${num(shown.length)}${loadingAll ? '+' : ''} found` : showPath(S.p) || 'data') + (current() ? ' · ' + current().name : ''));
     }
     const more = () => shown.length > S.limit ? `<div class="foot"><button type="button" class="more" data-more>Show ${num(Math.min(300, shown.length - S.limit))} more</button><span>${num(S.limit)} of ${num(shown.length)}</span></div>` : '';
@@ -1620,17 +1637,37 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (b.dataset.step) { sel((S.cur < 0 ? -1 : S.cur) + +b.dataset.step); return; }
       if (b.hasAttribute('data-full')) { full(); return; }
       if (b.dataset.tw != null) { const e = rows[+b.dataset.tw]; if (e) toggle(e); return; }
-      if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (isDir(e)) open(e); else sel(+b.dataset.open); return; }
+      if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (isDir(e)) open(e); else { pushSel = true; sel(+b.dataset.open); } return; }
       if (b.hasAttribute('data-enter')) { ev.preventDefault(); open(current()); return; }
       if (b.dataset.c != null && b.dataset.i != null) {
         const ci = +b.dataset.c, e = ci < COLS.length ? COLS[ci].items[+b.dataset.i] : shown[+b.dataset.i];
         if (!e) return;
         if (isDir(e)) { enter(e.path).catch(fail); return; }
         if (ci < COLS.length) { S.sel = e.path; enter(COLS[ci].dir, true).catch(fail); return; }
-        sel(+b.dataset.i); return;
+        pushSel = true; sel(+b.dataset.i); return;
       }
-      if (b.dataset.i != null && b.tagName !== 'A') { sel(+b.dataset.i); }
+      if (b.dataset.i != null && b.tagName !== 'A') { pushSel = true; sel(+b.dataset.i); }
     });
+    // Links to this page (the sidebar, path, folder links) and the back and
+    // forward buttons change the folder in place, without a reload.
+    function route(push, to) {
+      if (push) { if (to !== location.href) history.pushState(null, '', to); else history.replaceState(null, '', to); }
+      fromURL();
+      box.value = S.q;
+      lastURL = urlOf(); lastKey = navKey();
+      enter(S.p, !!S.sel).catch(fail);
+    }
+    D.addEventListener('click', (ev) => {
+      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      const a = ev.target.closest && ev.target.closest('a[href]');
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const to = new URL(a.href, location.href);
+      // A viewer (?app=) replaces the file list, so it loads as a page.
+      if (to.origin !== location.origin || to.pathname !== location.pathname || to.searchParams.get('app') || (to.hash && to.search === location.search)) return;
+      ev.preventDefault();
+      route(true, to.href);
+    });
+    addEventListener('popstate', () => route(false));
     main().addEventListener('dblclick', (ev) => {
       const r = ev.target.closest('[data-i]');
       if (r && !r.dataset.c) open(S.view === 'tree' ? rows[+r.dataset.i] : shown[+r.dataset.i]);
@@ -1712,14 +1749,16 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
     const r = (m.roots || []).find((x) => x.cid === c);
     if (!r) throw new Error(`No root with CID ${c} in this archive.`);
     const info = await dirInfo(r.path);
-    const n = r.lastPiece - r.firstPiece + 1, copies = m.copies || [];
+    // A root whose blocks all sit in pieces another repo stored has no
+    // pieces of its own (firstPiece is -1).
+    const own = r.firstPiece >= 0, n = own ? r.lastPiece - r.firstPiece + 1 : 0, copies = m.copies || [];
     pageKeys.cid = () => r.cid;
     pageKeys.u = pageKeys.Backspace = () => { location.href = browseHref(r.path.includes('/') ? r.path.slice(0, r.path.lastIndexOf('/')) : ''); return true; };
     const ukind = info ? 'UnixFS directory' : r.cid.startsWith('bafyr') ? 'dag-cbor, not UnixFS' : 'File or single block';
     main().innerHTML = `
 ${crumbs(r.path)}
 <section class="head">
-  <div class="eyebrow"><span>${esc(ROOTKIND[r.kind] || r.kind)}</span><span>In ${plural(n, 'piece')}${copies.length ? `, ${plural(copies.length, 'copy', 'copies')} each` : ''}</span></div>
+  <div class="eyebrow"><span>${esc(ROOTKIND[r.kind] || r.kind)}</span><span>${own ? `In ${plural(n, 'piece')}${copies.length ? `, ${plural(copies.length, 'copy', 'copies')} each` : ''}` : 'Stored with another repo'}</span></div>
   <h1>${esc(r.name || shortCID(r.cid))}</h1>
   <div class="meta"><code class="chipcode">${esc(r.cid)}</code><button type="button" class="link" data-copy="${esc(r.cid)}">Copy CID</button></div>
   <p class="note">${r.name ? 'Older repos keep no pin names, so where there is none the explorer may guess one, such as an index page title. The CID is the real identity.' : 'This root has no name, so it is shown by its CID.'}</p>
@@ -1728,10 +1767,10 @@ ${crumbs(r.path)}
   <div class="card tight stat"><div class="k">Size</div><div class="v">${bytes(r.bytes)}</div></div>
   <div class="card tight stat"><div class="k">Blocks</div><div class="v">${count(r.blocks)}</div></div>
   <div class="card tight stat"><div class="k">Kind</div><div class="v" style="font-size:20px">${esc(ukind)}</div></div>
-  <div class="card tight stat"><div class="k">Pieces</div><div class="v">${n === 1 ? r.firstPiece : r.firstPiece + ' to ' + r.lastPiece}</div></div>
+  <div class="card tight stat"><div class="k">Pieces</div><div class="v">${!own ? '—' : n === 1 ? r.firstPiece : r.firstPiece + ' to ' + r.lastPiece}</div></div>
 </section>
 <div class="split">
-  <section class="card wide"><h2>Where it's stored</h2><div id="list"></div><a href="pieces.html?n=${r.firstPiece}">${n === 1 ? 'This piece' : 'These ' + num(n) + ' pieces'} among all pieces</a></section>
+  <section class="card wide"><h2>Where it's stored</h2>${own ? `<div id="list"></div><a href="pieces.html?n=${r.firstPiece}">${n === 1 ? 'This piece' : 'These ' + num(n) + ' pieces'} among all pieces</a>` : `<p class="faint">Every block of it is also in a repo packed before this one, so it is stored in that repo's pieces and adds none here.</p>`}</section>
   <aside class="side">
     <section class="card"><h2>Open it</h2><div class="stack">
       ${info ? `<a href="${esc(browseHref(r.path))}">Browse its files</a>` : ''}
@@ -1744,16 +1783,15 @@ ${crumbs(r.path)}
   </aside>
 </div>`;
     const rows = [];
-    for (let i = r.firstPiece; i <= r.lastPiece && i < (m.pieces || []).length; i++) rows.push(m.pieces[i]);
-    const list = new List(D.getElementById('list'), {
+    for (let i = r.firstPiece; own && i <= r.lastPiece && i < (m.pieces || []).length; i++) rows.push(m.pieces[i]);
+    if (own) new List(D.getElementById('list'), {
       label: 'Pieces of this root', step: 100, sort0: 'n', filter: null, sortSelect: false,
       cols: [{ key: 'n', label: 'Piece', sort: (p) => p.index, html: (p) => `<a href="pieces.html?n=${p.index}">#${p.index}</a>` },
         { key: 'cid', label: 'PieceCID', cls: 'cid', html: (p) => cidx(p.pieceCid, true) },
         { key: 'size', label: 'Size', cls: 'r', sort: (p) => p.carBytes, html: (p) => bytes(p.carBytes) },
         { key: 'copies', label: 'Copies', cls: 'hide-sm', html: (p) => `<span class="tags">${copies.filter((c) => c.pieceIds && c.pieceIds[p.index] != null).map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('') || '<span class="faint">not stored yet</span>'}</span>` }],
       href: (p) => 'pieces.html?n=' + p.index, cid: (p) => p.pieceCid, gateway: false, statusOf: (p) => '#' + p.index + ' · ' + (meta.pieces[p.index] || {}).label
-    });
-    list.setItems(rows);
+    }).setItems(rows);
     if (info) {
       const kids = await listDir(info);
       D.getElementById('top').innerHTML = kids.slice(0, 12).map((e) => `<a href="${esc(entryHref(e))}">${esc(e.name)}${e.kind === 'folder' ? '/' : ''} <span class="faint">· ${bytes(e.bytes)}</span></a>`).join('') + (kids.length > 12 ? `<a href="${esc(browseHref(r.path))}">${num(kids.length - 12)} more</a>` : '');
@@ -1854,9 +1892,11 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     const byKey = new Map(all.map((x) => [x.k, x]));
     const kids = new Map(); // rkey -> replies to it in the archive, oldest first
     all.forEach((x) => { const k = own(x.r); if (k) { if (!kids.has(k)) kids.set(k, []); kids.get(k).unshift(x); } });
-    // A post's record, as JSON: explore serves dag-cbor as JSON, a gateway on request.
-    const recHref = (x) => !x.c ? '' : LOCAL ? blob(x.c, x.k + '.json') : HERE || PUBLIC ? gw(x.c) + '?format=dag-json' : '';
     const pathOf = (k) => x0.path ? x0.path + '/app.bsky.feed.post/' + k + '.json' : '';
+    // A post's record: selected in Content, which shows it as JSON (a raw
+    // link downloads it from a static copy). Else as JSON from explore or a
+    // gateway.
+    const recHref = (x) => pathOf(x.k) ? browseHref(pathOf(x.k)) : !x.c ? '' : LOCAL ? blob(x.c, x.k + '.json') : HERE || PUBLIC ? gw(x.c) + '?format=dag-json' : '';
     const self = (k) => appHref(n, k);
     const name = esc(p.displayName || handle || a.name);
 
@@ -1918,7 +1958,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     ${ctx ? `<div class="at-ctx">${ctx}</div>` : ''}
     ${x.x ? `<div class="at-text${opt.focus ? ' big' : ''}">${rich(x.x, x.f)}</div>` : ''}
     ${media(x)}
-    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${rh ? `<a href="${esc(rh)}" target="_blank" rel="noopener">Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
+    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${rh ? `<a href="${esc(rh)}"${pathOf(x.k) ? '' : ' target="_blank" rel="noopener"'}>Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
   </div>
 </article>`;
     }
@@ -2011,8 +2051,17 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
       status(plural(list.length, 'post') + (list.length !== all.length ? ' of ' + num(all.length) : ''));
     }
     const q = el.querySelector('[data-q]');
-    q.oninput = () => { S.q = q.value; S.limit = 40; render(); };
-    el.querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 40; el.querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o === b)); render(); }; });
+    // The tab and filter go in the URL; a tab is a step back and forward.
+    const toURL = (push) => {
+      const u = new URL(location.href);
+      u.searchParams.set('show', S.show);
+      if (S.q) u.searchParams.set('q', S.q); else u.searchParams.delete('q');
+      if (u.href !== location.href) history[push ? 'pushState' : 'replaceState'](null, '', u.href);
+    };
+    const tab = (v) => { S.show = tabs.some((c) => c[0] === v) ? v : 'posts'; S.limit = 40; el.querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o.dataset.show === S.show)); render(); };
+    q.oninput = () => { S.q = q.value; S.limit = 40; toURL(false); render(); };
+    el.querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { tab(b.dataset.show); toURL(true); }; });
+    addEventListener('popstate', () => { const P = new URLSearchParams(location.search); q.value = S.q = P.get('q') || ''; tab(P.get('show') || 'posts'); });
     feed.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 100; render(); } });
     // Show more as the end comes into view.
     new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 100; render(); } }, { root: el, rootMargin: '600px' }).observe(feed);
