@@ -232,6 +232,12 @@ body[data-page="browse"] .bar, body[data-page="browse"] .rail { max-width: none;
 .stage img, .stage video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .stage video { width: 100%; }
 .stage iframe { width: 100%; height: 100%; min-height: 420px; border: 0; background: #FFFFFF; }
+.stage:has(> .book) { flex-basis: 560px; }
+.stage .book { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.stage .bkbar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.stage .bkbar select { flex: 1; min-width: 0; height: 28px; }
+.stage .bkbar .ib:disabled { opacity: .4; cursor: default; }
+.stage .book iframe { flex: 1; height: auto; }
 .stage[data-kind="text"], .stage[data-kind="code"], .stage[data-kind="doc"], .stage[data-kind="page"] { background: var(--card); align-items: stretch; flex-direction: column; justify-content: flex-start; }
 .stage[data-kind="other"], .stage[data-kind="archive"], .stage[data-kind="disk"] { flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .stage > .faint { color: #9AA1AD; }
