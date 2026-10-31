@@ -1,0 +1,28 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "tidepool",
+    "version": "1.4.0"
+  },
+  "paths": {
+    "/api/readings": {
+      "get": {
+        "parameters": [
+          {
+            "name": "gauge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest readings first"
+          }
+        }
+      }
+    }
+  }
+}

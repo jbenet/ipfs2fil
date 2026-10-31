@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2025-01-02T21:05:19.108Z","langs":["en"],"text":"📢 1.96.3 rolling out with some small features and fixes\n\n• Enabled landscape orientation when viewing an image\n• Crashfix for android video\n• Fixed mute words in trending\n• Updated localizations\n• Added Greek translation\n\n1/2"}

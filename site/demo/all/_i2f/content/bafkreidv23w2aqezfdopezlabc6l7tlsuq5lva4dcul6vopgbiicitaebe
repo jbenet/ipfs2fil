@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    ports: ["8080:8080"]
+    volumes: ["./data:/data"]
+    environment:
+      TIDEPOOL_DB: /data/tidepool.db
+  ingest:
+    build: .
+    command: python -m src.ingest.worker
+    depends_on: [api]
+  web:
+    image: nginx:1.27
+    volumes: ["./src/web:/usr/share/nginx/html:ro", "./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    ports: ["5173:80"]

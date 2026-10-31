@@ -173,15 +173,103 @@
     }
   });
 
-  // ---- JSON, pretty printed, and Jupyter notebooks.
+  // ---- Syntax highlighting: one small tokenizer per family of languages,
+  // enough to tell comments, strings, numbers, keywords and calls apart.
+  const LANG = {};
+  const langs = (fam, exts) => exts.split(' ').forEach((x) => { LANG[x] = fam; });
+  langs('c', 'js mjs cjs jsx ts tsx go rs c h cc cpp hpp cs swift kt kts java scala dart php css scss less proto zig groovy');
+  langs('hash', 'py rb sh bash zsh fish yaml yml toml pl r ps1 conf ini cfg env dockerfile makefile mk nix tf');
+  langs('dash', 'sql lua hs elm');
+  langs('json', 'json geojson webmanifest jsonl ndjson ipynb');
+  langs('xml', 'xml html htm xhtml svg plist vue');
+  const KW = new Set(('abstract and as async await break case catch class const continue def defer del do elif else enum export extends ' +
+    'extern false final finally fn for from func function go goto if impl import in instanceof interface is lambda let loop match mod module ' +
+    'mut new nil none not null of or package pass private protected pub public raise return select self static struct super switch then this ' +
+    'throw throws trait true try type typeof undefined unless until use var void while with yield begin end local elseif require echo fi esac ' +
+    'done select from where insert update delete into values create table join left right inner outer on group by order having limit ' +
+    'True False None chan map range string int bool float').split(' '));
+  const STR = '"(?:\\\\.|[^"\\\\\\n])*"|\'(?:\\\\.|[^\'\\\\\\n])*\'';
+  const NUM = '\\b(?:0x[0-9a-fA-F_]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)\\b';
+  const ID = '[A-Za-z_$][\\w$]*';
+  const RX = {
+    c: new RegExp(`(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)|(${STR}|\`(?:\\\\.|[^\`\\\\])*\`)|(${NUM})|(${ID})`, 'g'),
+    hash: new RegExp(`(#[^\\n]*)|("""[\\s\\S]*?"""|\'\'\'[\\s\\S]*?\'\'\'|${STR})|(${NUM})|(${ID})`, 'g'),
+    dash: new RegExp(`(--[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)|(${STR})|(${NUM})|(${ID})`, 'g'),
+    json: new RegExp(`()(${STR})|(-?${NUM})|(${ID})`, 'g'),
+    xml: /(<!--[\s\S]*?-->)|("[^"]*"|'[^']*')|(<\/?[\w:.-]+|\/?>)|([\w:.-]+(?==))/g
+  };
+  // hl returns the lines of text as HTML, each in its own span (for line
+  // numbers), a token cut across lines closed and reopened on each.
+  function hl(text, fam) {
+    const rx = RX[fam], out = [];
+    const put = (cls, t) => { const parts = t.split('\n'); parts.forEach((p, i) => { if (i) out.push('\n'); if (p) out.push(cls ? `<i class="t-${cls}">${H.esc(p)}</i>` : H.esc(p)); }); };
+    if (!rx) put('', text);
+    else {
+      let at = 0, m;
+      rx.lastIndex = 0;
+      while ((m = rx.exec(text))) {
+        if (m[0] === '') { rx.lastIndex++; continue; }
+        put('', text.slice(at, m.index));
+        let cls = '';
+        if (m[1]) cls = 'com';
+        else if (m[2]) cls = fam === 'json' && /^\s*:/.test(text.slice(rx.lastIndex, rx.lastIndex + 40)) ? 'key' : 'str';
+        else if (m[3]) cls = fam === 'xml' ? 'tag' : 'num';
+        else if (m[4]) cls = fam === 'xml' ? 'attr' : KW.has(m[4]) ? 'kw' : text[rx.lastIndex] === '(' ? 'fn' : '';
+        put(cls, m[0]);
+        at = rx.lastIndex;
+      }
+      put('', text.slice(at));
+    }
+    return out.join('').split('\n');
+  }
+  const famOf = (x) => LANG[x] || '';
+  // A code view with its options: highlighted or plain (pretty or the exact
+  // bytes for JSON), lines wrapped or not. The choices are kept.
+  const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
+  const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
+  function codeView(st, v, text, opts) {
+    const modes = opts.modes, key = 'code.' + opts.kind;
+    let mode = pref(key, modes[0][0]);
+    if (!modes.some((m) => m[0] === mode)) mode = modes[0][0];
+    let wrap = pref('code.wrap', '0') === '1';
+    st.innerHTML = `<div class="vbar">${modes.length > 1 ? modes.map((m) => `<button type="button" class="pill" data-m="${m[0]}">${m[1]}</button>`).join('') : ''}<button type="button" class="pill" data-wrap>Wrap</button><button type="button" class="pill" data-copy-text>Copy</button>${opts.extra || ''}<span class="faint">${H.esc(opts.note || '')}</span></div><div class="vbody"></div>`;
+    const body = st.querySelector('.vbody');
+    const draw = () => {
+      st.querySelectorAll('[data-m]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === mode));
+      st.querySelector('[data-wrap]').setAttribute('aria-pressed', wrap);
+      const m = modes.find((x) => x[0] === mode), t = m[2](text), fam = m[3];
+      const lines = fam ? hl(t.length > 2 * MB ? t.slice(0, 2 * MB) : t, fam) : t.split('\n').map(H.esc);
+      body.innerHTML = `<pre class="code${wrap ? ' wrap' : ''}"><code>${lines.slice(0, 20000).map((l) => `<span>${l}</span>`).join('\n')}</code></pre>${lines.length > 20000 || opts.cut ? '<p class="faint pad">Showing the start. Download for all of it.</p>' : ''}`;
+    };
+    st.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => { mode = b.dataset.m; keep(key, mode); draw(); }; });
+    st.querySelector('[data-wrap]').onclick = () => { wrap = !wrap; keep('code.wrap', wrap ? '1' : '0'); draw(); };
+    st.querySelector('[data-copy-text]').onclick = async (ev) => {
+      const m = modes.find((x) => x[0] === mode);
+      try { await navigator.clipboard.writeText(m[2](text)); ev.target.textContent = 'Copied'; } catch (err) { ev.target.textContent = 'Could not copy'; }
+      setTimeout(() => { ev.target.textContent = 'Copy'; }, 1200);
+    };
+    draw();
+  }
+
+  // ---- JSON: pretty printed and highlighted, or exactly as stored.
+  // Bluesky records come as JSON too; a post links to its place in Posts.
   view({
     name: 'json', test: (e, x) => set('json geojson webmanifest').has(x),
     async show(st, v) {
       const buf = await v.head(8 * MB);
       if (!v.still()) return;
-      let text = dec(buf);
-      try { if (v.e.bytes <= buf.byteLength) text = JSON.stringify(JSON.parse(text), null, 2); } catch (err) { /* show it as it is */ }
-      st.innerHTML = codeHTML(text);
+      const text = dec(buf), cut = v.e.bytes > buf.byteLength;
+      let parsed;
+      try { if (!cut) parsed = JSON.parse(text); } catch (err) { /* not JSON after all */ }
+      const pretty = (t) => parsed === undefined ? t : JSON.stringify(parsed, null, 2);
+      const type = parsed && typeof parsed === 'object' && typeof parsed.$type === 'string' ? parsed.$type : '';
+      const post = type && H.recordHref ? H.recordHref(v.e, parsed) : '';
+      codeView(st, v, text, {
+        kind: 'json', cut,
+        modes: [['pretty', 'Pretty', pretty, 'json'], ['raw', 'Exact', (t) => t, 'json'], ['plain', 'Plain', pretty, '']],
+        note: type ? 'Bluesky record · ' + type : parsed === undefined && !cut ? 'Not valid JSON' : '',
+        extra: post ? `<a class="pill" href="${H.esc(post)}">Show as a post</a>` : ''
+      });
     }
   });
   view({
@@ -478,11 +566,26 @@ setTimeout(() => send('done', Math.round(performance.now() - t0) + ' ms'), 0);`}
     return t.split('\n').slice(0, 14).map((l) => l.slice(0, 60)).join('\n');
   }
 
+  // ---- Code and plain text: highlighted, with line numbers. Scripts that
+  // can run (JavaScript, Python) get a Run bar too.
+  view({
+    name: 'code', test: (e) => e.kind === 'code' || e.kind === 'text',
+    async show(st, v) {
+      const buf = await v.head(4 * MB);
+      if (!v.still()) return;
+      const text = dec(buf), fam = famOf(v.x) || (v.e.kind === 'code' ? 'c' : '');
+      const modes = fam ? [['hl', 'Highlighted', (t) => t, fam], ['plain', 'Plain', (t) => t, '']] : [['plain', 'Plain', (t) => t, '']];
+      codeView(st, v, text, { kind: fam ? 'code' : 'text', modes, cut: v.e.bytes > buf.byteLength });
+      const lang = RUN[v.x];
+      if (lang) runner(st, v, lang);
+    }
+  });
+
   window.I2FV = {
     viewers, view, unzip, md,
     use(helpers) { H = helpers; },
     find(e, x) { return viewers.find((v) => v.test(e, x)) || null; },
     runs: (x) => RUN[x] || null,
-    runner, frame, lines
+    runner, frame, lines, hl
   };
 })();

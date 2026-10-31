@@ -1,0 +1,4 @@
+go vet ./...
+ruff check src/ingest
+All checks passed!
+tsc --noEmit

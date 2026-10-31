@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2023-12-14T00:25:21.037Z","langs":["en"],"text":"📢 1.59 is rolling out now with more bugfixes\n\n• Unread notifications now reliably clear after viewing\n• Images now crop correctly in the feed in all cases\n• Fixed an issue that might cause the wrong avatar to show on a post\n• \"View Full Thread\" link now works correctly\n\n1/2"}

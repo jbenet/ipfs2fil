@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2025-10-27T22:11:41.798Z","langs":["en"],"text":"Also new in v1.109: custom feed operators now receive more interaction events.\n\nIf you run a custom feed, now you'll know when people like, quote, repost, reply, and see posts in your feed. All valuable signals that can help you drive higher-quality recommendations in your feeds."}

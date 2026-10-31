@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.generator","acceptsInteractions":true,"avatar":{"$type":"blob","mimeType":"image/png","ref":{"$link":"bafkreidztvxbbdkakiarsshcwk6ctcagovwjd6fnxxeixwytfnlq3nbl6i"},"size":8393},"createdAt":"2023-05-19T23:19:20.545Z","description":"Posts from members of the Bluesky Team","did":"did:web:discover.bsky.app","displayName":"Bluesky Team"}

@@ -1,0 +1,14 @@
+{
+  "trip": "iceland-2024",
+  "days": 9,
+  "km": 1478,
+  "stops": [
+    "Vik",
+    "Hofn",
+    "Seydisfjordur",
+    "Myvatn",
+    "Akureyri",
+    "Snaefellsnes",
+    "Reykjavik"
+  ]
+}

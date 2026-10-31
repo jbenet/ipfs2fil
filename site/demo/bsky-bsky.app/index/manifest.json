@@ -1,0 +1,130 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeignwfxehbfa3nyfcwx3siwgbkmf7hggyhm4bpkuifkli24oubvjnu",
+  "dataRoot": "bafybeib3impmr277khqgk6ioewwbyr642px7s4rajzbkzz5fbmzllwzpam",
+  "source": {
+    "kind": "atproto",
+    "repoVersion": 0,
+    "blocks": 15176,
+    "bytes": 153744690
+  },
+  "roots": [
+    {
+      "cid": "bafyreihhjveqvavpogsvorvcjx4zlbhd2oskgvrrq3r5bxonbmdbf6gwt4",
+      "kind": "pin-recursive",
+      "name": "@bsky.app",
+      "path": "pins/recursive/bafyreihhjveqvavpogsvorvcjx4zlbhd2oskgvrrq3r5bxonbmdbf6gwt4",
+      "bytes": 153741237,
+      "blocks": 15174,
+      "own": 153741237,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreidydqwogxcjqybyvn7eekie3hpjhqknrmfv5vd362yvgrj6nurs6u",
+      "kind": "pin-direct",
+      "name": "@bsky.app did.json",
+      "path": "pins/direct/bafkreidydqwogxcjqybyvn7eekie3hpjhqknrmfv5vd362yvgrj6nurs6u",
+      "bytes": 554,
+      "blocks": 1,
+      "own": 554,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreifq4k4swvbggh5kfrolzwih5ld2wwlcp7nxx6vx5z2tgtnrze4pfy",
+      "kind": "pin-direct",
+      "name": "@bsky.app plc-audit-log.json",
+      "path": "pins/direct/bafkreifq4k4swvbggh5kfrolzwih5ld2wwlcp7nxx6vx5z2tgtnrze4pfy",
+      "bytes": 2899,
+      "blocks": 1,
+      "own": 2899,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibfq6roynix6wld4szngcug7xp7ykvq37b3zp42oj4p5jax54naob5ujpwc2uja",
+      "carBytes": 153415417,
+      "blocks": 15171,
+      "blockList": "pieces/0000",
+      "snapshot": 0
+    },
+    {
+      "index": 1,
+      "pieceCid": "bafkzcibewczvwekwk3cxketd7azh2bnf66voz5ttbmflb4wtedphe2hzkn7gkeqzce",
+      "carBytes": 2664016,
+      "blocks": 33,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 0
+    },
+    {
+      "index": 2,
+      "pieceCid": "bafkzcibdt4gqrobea6p6zqhc2ufhgxvtcm332ij2radszguad2ofm7dpivl44orq",
+      "carBytes": 6433,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "5310",
+      "pieceIds": {
+        "0": "8",
+        "1": "7",
+        "2": "6"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "5311",
+      "pieceIds": {
+        "0": "8",
+        "1": "6",
+        "2": "7"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "7",
+        "1": "8",
+        "2": "6"
+      },
+      "service": "unknown"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-10-31T21:12:29Z",
+      "root": "bafybeignwfxehbfa3nyfcwx3siwgbkmf7hggyhm4bpkuifkli24oubvjnu",
+      "newPieces": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "shared": {
+    "blocks": 5,
+    "bytes": 905918,
+    "pieces": [
+      {
+        "pieceCid": "bafkzcibfqhqpayyyxndm6q5peikcczmg3ub4ypjc2scp5ee3vik5hrx2grug6b3raetq",
+        "archive": "bafybeig3bukzaxmisxkwl7krrsi5dvrf5ctuv3locxzfuackb7glaxicoe",
+        "blocks": 5
+      }
+    ]
+  },
+  "collection": "repos:default"
+}

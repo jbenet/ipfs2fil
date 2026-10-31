@@ -70,6 +70,13 @@ func TestServeContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocks = append(blocks, [2]any{recCID, recData})
+	// a dag-json record, linking the dag-cbor one
+	djData := []byte(`{"build":{"/":"` + recCID.String() + `"},"version":"1.4.0"}`)
+	djCID, err := cid.Prefix{Version: 1, Codec: cid.DagJSON, MhType: 0x12, MhLength: -1}.Sum(djData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blocks = append(blocks, [2]any{djCID, djData})
 	var buf bytes.Buffer
 	w, err := car.NewWriter(&buf, file.Cid())
 	if err != nil {
@@ -127,6 +134,10 @@ func TestServeContent(t *testing.T) {
 	if r, got = do("GET", "/_i2f/content/"+recCID.String()+"?name=1.json", "", ""); r.StatusCode != 200 || got != `{"$type":"note","text":"hi"}` ||
 		r.Header.Get("Content-Type") != "application/json" {
 		t.Errorf("a record: %s %q %s", r.Status, got, r.Header.Get("Content-Type"))
+	}
+	if r, got = do("GET", "/_i2f/content/"+djCID.String()+"?name=r.json", "", ""); r.StatusCode != 200 || got != string(djData) ||
+		r.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("a dag-json record: %s %q %s", r.Status, got, r.Header.Get("Content-Type"))
 	}
 	missing, _ := cid.Decode("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy")
 	if r, _ = do("GET", "/_i2f/content/"+missing.String(), "", ""); r.StatusCode != 404 {

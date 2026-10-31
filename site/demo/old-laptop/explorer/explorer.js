@@ -90,6 +90,9 @@
   const cidx = (c, cp) => c ? `<button type="button" class="cidx" data-cid="${esc(c)}" title="${esc(c)}" aria-label="Show the whole CID">${esc(shortCID(c))}</button>${cp ? `<button type="button" class="cpy" data-copy="${esc(c)}" title="Copy the CID" aria-label="Copy the CID">${COPYIC}</button>` : ''}` : '';
   const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
+  // sourceLabel names the kind of repo an archive came from; archives with no
+  // kind came from kubo fs-repos.
+  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account', 'js-ipfs': `a js-ipfs repo · repo ${esc(s.repoVersion)}`, helia: 'a Helia blockstore' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
 
   // Kinds: icon path, color, label, plural label. From the boards.
@@ -107,6 +110,8 @@
     other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other', 'Other']
   };
   const kindOf = (k) => KIND[k] || KIND.other;
+  // Bluesky's butterfly, small.
+  const BSKY = '<svg width="16" height="16" viewBox="0 0 600 530" aria-hidden="true"><path fill="#1185FE" d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
   const KINDS = Object.keys(KIND);
   const icon = (k) => `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${kindOf(k)[1]}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${kindOf(k)[0]}"></path></svg>`;
   const PART = { pins: ['Pins', '#1B5FD6'], mfs: ['MFS', '#8DB2F0'], orphans: ['Orphans', '#C2410C'], index: ['Index and explorer', '#9AA1AD'] };
@@ -196,6 +201,7 @@
     browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['d'], 'download'], [['y'], 'copy CID']],
     pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'files']],
     pieces: [[['j', 'k'], 'move'], [['↵'], 'open'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['y'], 'copy PieceCID'], [['g', 'o'], 'overview']],
+    posts: [[['f'], 'filter'], [['y'], 'copy commit CID'], [['o'], 'open commit in gateway']],
     search: [[['↓'], 'into results'], [['j', 'k'], 'move'], [['↵'], 'open'], [['1', '…', '9'], 'kind'], [['0'], 'all kinds'], [['esc'], 'clear'], [['y'], 'copy CID']]
   };
   const GROUPS = [
@@ -467,7 +473,7 @@
     const partBars = [['pins', sum(isPin)], ['mfs', sum((r) => r.kind === 'mfs')], ['orphans', sum((r) => r.kind === 'orphan')], ['index', indexBytes]].map((p) => [PART[p[0]][0], p[1], PART[p[0]][1]]);
     main().innerHTML = `
 <section class="head">
-  <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}`}</div>
+  <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of ${sourceLabel(m.source)}`}</div>
   <h1>${bytes(total)}, ${plural(pins.length, 'pin')}, ${stored}</h1>
   <div class="meta">
     ${REPOS ? '<span>Each file a repo shares with an earlier one counts once</span>' : `<span>Archive root ${root ? `${cidx(root)} <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>`}
@@ -491,6 +497,7 @@
     ${bar(types.map((t) => [t[3], t[1], t[2]]), types.map((t) => t[3] + ' ' + bytes(t[1])).join(', '))}
     <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
+${(meta.accounts || []).map((x, i) => `<section class="card"><div class="titled"><h2>${BSKY} Bluesky account ${esc(x.name)}</h2><a href="${esc(x.href || 'posts.html?a=' + i)}">Read its ${plural(x.posts, 'post')}</a></div><p class="faint">An atproto repo is IPLD: its signed commit, records and media are stored here as IPFS blocks, under the pin ${esc(x.name)}.</p>${archivedHTML(x, null, x.path ? browseHref(x.path) : '')}</section>`).join('')}
 ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>` : ''}
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
@@ -544,20 +551,44 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   // File bytes come from `ipfs2fil explore` (../_i2f/content/<cid>) or, through
   // a gateway, from ../data/ in this archive. From file:// there are none
   // unless the viewer asks for a public gateway.
-  let LOCAL = false, PUBLIC = false;
+  // CONTENT is where explore serves file bytes; a static copy of the
+  // explorer (the website's demo) can point its _i2f/info elsewhere.
+  let LOCAL = false, PUBLIC = false, CONTENT = '../_i2f/content/';
   async function probeLocal() {
     if (HERE || !/^https?:$/.test(location.protocol)) return false;
-    try { const r = await fetch('../_i2f/info'); return r.ok && !!(await r.json()).content; } catch (e) { return false; }
+    try {
+      const r = await fetch('../_i2f/info');
+      const j = r.ok ? await r.json() : {};
+      if (typeof j.content === 'string') CONTENT = j.content;
+      return !!j.content;
+    } catch (e) { return false; }
   }
   const qs = (o) => Object.keys(o).filter((k) => o[k] !== '' && o[k] != null).map((k) => k + '=' + encodeURIComponent(o[k])).join('&');
+  // Bluesky records are dag-cbor, which gateways turn into JSON on request;
+  // the records and blobs under an account's folder are not UnixFS, so a
+  // gateway cannot find them by path, only by CID.
+  const isCBOR = (c) => /^bafyrei/.test(c || '');
+  let ATPATHS = [];
+  const byCID = (e) => isCBOR(e.cid) || ATPATHS.some((p) => e.path.startsWith(p + '/'));
   function contentURL(e, extra) {
     if (!e || !e.cid) return null;
-    if (LOCAL) return '../_i2f/content/' + encodeURIComponent(e.cid) + '?' + qs({ name: e.name, ...extra });
-    if (HERE) return '../data/' + segs(e.path) + (extra && extra.dl ? '?download=true&filename=' + encodeURIComponent(e.name) : '');
-    if (PUBLIC) return gw(e.cid) + '?filename=' + encodeURIComponent(e.name) + (extra && extra.dl ? '&download=true' : '');
+    if (LOCAL) return CONTENT + encodeURIComponent(e.cid) + '?' + qs({ name: e.name, ...extra });
+    const dl = extra && extra.dl;
+    if ((HERE || PUBLIC) && byCID(e)) return gw(e.cid) + '?' + qs({ format: isCBOR(e.cid) ? 'dag-json' : '', filename: e.name, download: dl ? 'true' : '' });
+    if (HERE) return '../data/' + segs(e.path) + (dl ? '?download=true&filename=' + encodeURIComponent(e.name) : '');
+    if (PUBLIC) return gw(e.cid) + '?filename=' + encodeURIComponent(e.name) + (dl ? '&download=true' : '');
     return null;
   }
   const thumbURL = (e, w) => contentURL(e, LOCAL ? { w: w || 320 } : null);
+  // Static hosts (the website demo on GitHub Pages) send files with no
+  // extension as application/octet-stream, which <img> refuses for SVG; such
+  // images are shown again from a blob typed as SVG.
+  D.addEventListener('error', (ev) => {
+    const im = ev.target;
+    if (!(im instanceof HTMLImageElement) || im.dataset.svg || !/[?&](file)?name=[^&]*\.svg(&|$)/i.test(im.src)) return;
+    im.dataset.svg = '1';
+    fetch(im.src).then((r) => r.ok ? r.blob() : null).then((b) => { if (b) im.src = URL.createObjectURL(new Blob([b], { type: 'image/svg+xml' })); }).catch(() => {});
+  }, true);
   const canShow = () => LOCAL || HERE || PUBLIC;
 
   // Kinds an older pack could not tell from names; explore sniffs them.
@@ -620,7 +651,15 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 
   async function files() {
     const [m, meta] = await Promise.all([manifest(), load('meta')]);
-    if (V) V.use({ esc, icon });
+    // A Bluesky post's record links to the post on the Posts page.
+    const recordHref = (e, rec) => {
+      if (rec.$type !== 'app.bsky.feed.post') return '';
+      const i = (meta.accounts || []).findIndex((a) => a.path && e.path.startsWith(a.path + '/app.bsky.feed.post/'));
+      if (i < 0) return '';
+      const a = meta.accounts[i];
+      return (a.href || 'posts.html?a=' + i).replace(/#.*/, '') + '#p-' + encodeURIComponent(e.name.replace(/\.json$/, ''));
+    };
+    if (V) V.use({ esc, icon, recordHref });
     LOCAL = await probeLocal();
     const S = {
       p: params.get('p') || '', q: params.get('q') || '', kind: params.get('kind') || 'all', deep: params.get('deep') === '1' || !!params.get('q'),
@@ -658,6 +697,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       const libOn = S.deep && !S.q && !S.p;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => k[0] === 'all' || t[k[0]]).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${k[0] === 'all' ? count(meta.entries) : count(t[k[0]][0])}</span></a>`).join('')}
 <div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
+${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.map((a, i) => `<a href="${esc(a.href || 'posts.html?a=' + i)}">${BSKY}${esc(a.name)} posts<span class="n">${count(a.posts)}</span></a>${a.path ? `<a href="${browseHref(a.path)}"${S.p === a.path && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(a.name)} records</a>` : ''}`).join('')}` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
     }
 
@@ -1603,6 +1643,219 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     status(num(pieces.length) + ' pieces');
   }
 
+  // ---- Posts: a Bluesky (atproto) account in the archive, shown the way
+  // Bluesky shows it. Its repo is IPLD like any other; pack summarizes its
+  // records into idx/at/<n>.js, and the images and video are blobs in the
+  // archive, fetched by CID. Replies the account made to itself are threads;
+  // posts by other accounts live in their repos, not here, and link out.
+  const COLLS = { 'app.bsky.feed.post': 'posts', 'app.bsky.feed.like': 'likes', 'app.bsky.feed.repost': 'reposts', 'app.bsky.graph.follow': 'follows', 'app.bsky.graph.block': 'blocks', 'app.bsky.graph.list': 'lists', 'app.bsky.graph.listitem': 'list entries', 'app.bsky.feed.generator': 'feeds', 'app.bsky.graph.starterpack': 'starter packs', 'app.bsky.feed.threadgate': 'thread rules', 'app.bsky.feed.postgate': 'quote rules', 'app.bsky.actor.profile': 'profile', 'app.bsky.graph.verification': 'verifications' };
+  const collName = (c) => COLLS[c] || c;
+  const when = (t) => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'; };
+  // What an archive holds of an account, in Bluesky's terms. x is the
+  // account's entry in meta.accounts, a its summary when loaded.
+  function archivedHTML(x, a, files) {
+    const b = x.blobs || {}, counts = (a && a.counts) || {};
+    const colls = Object.keys(counts).sort((p, q) => counts[q] - counts[p]);
+    const handle = x.handle || (a && a.handle) || x.name.replace(/^@/, '');
+    const pds = (x.pds || (a && a.pds) || '').replace(/^https?:\/\//, '');
+    const doc = x.didDoc || (a && a.didDoc), plc = x.plcLog || (a && a.plcLog);
+    return `<dl class="at-held">
+  <dt>Account</dt><dd><b>@${esc(handle)}</b> <code class="chipcode">${esc(x.did)}</code>${pds ? ` <span class="faint">on ${esc(pds)}</span>` : ''}</dd>
+  <dt>As of</dt><dd>${x.time ? `the repo as it was at ${esc(when(x.time))}` : 'the repo when it was fetched'}${a ? `, revision <code>${esc(a.rev)}</code>, signed commit ${cidx(a.commit, true)}` : ''}</dd>
+  <dt>Records</dt><dd>All ${num(x.records || 0)} public records${colls.length ? ': ' + colls.map((c) => `${num(counts[c])} ${esc(collName(c))}`).join(', ') : ''}${a && a.missing ? ` <span class="warn">(${plural(a.missing, 'record')} missing)</span>` : ''}${files ? ` · <a href="${esc(files)}">browse them as files</a>` : ''}</dd>
+  <dt>Media</dt><dd>${b.linked ? `${b.held === b.linked ? 'All' : num(b.held) + ' of the'} ${plural(b.linked, 'blob')} the records link: ${plural(b.images || 0, 'image')} and ${plural(b.videos || 0, 'video')}, ${bytes(b.bytes || 0)}${b.held < b.linked ? ` <span class="warn">(${num(b.linked - b.held)} the server no longer had)</span>` : ''}` : 'No images or video'}</dd>
+  <dt>Identity</dt><dd>${doc || plc ? `The DID document${plc ? ' and the PLC directory\'s signed log of every handle and key change' : ''}, so the commit's signature can be checked from the archive alone` : 'The DID, from the commit; no DID document was pinned with it'}</dd>
+  <dt>Not in it</dt><dd class="faint">What the account's server keeps outside the repo (preferences, mutes, direct messages), and other accounts' replies, likes and reposts, which live in their own repos.</dd>
+</dl>`;
+  }
+
+  async function posts() {
+    const meta = await load('meta');
+    const accts = meta.accounts || [];
+    if (!accts.length) { main().innerHTML = '<section class="head"><h1>No Bluesky accounts in this archive</h1></section>'; return; }
+    const n = Math.min(Math.max(0, +params.get('a') || 0), accts.length - 1);
+    const x0 = accts[n], a = await load('at/' + n);
+    if (V) V.use({ esc, icon });
+    LOCAL = await probeLocal();
+    PUBLIC = params.get('public') === '1';
+    const blob = (c, name) => !c ? null : LOCAL ? CONTENT + encodeURIComponent(c) + '?' + qs({ name: name || c }) : HERE || PUBLIC ? gw(c) : null;
+    const handle = x0.handle || a.handle || (a.name.startsWith('@') ? a.name.slice(1) : '');
+    const at = (uri) => (uri || '').match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);
+    const web = (uri) => { const m = at(uri); return m && m[2] === 'app.bsky.feed.post' ? `https://bsky.app/profile/${m[1]}/post/${m[3]}` : ''; };
+    const own = (uri) => { const m = at(uri); return m && (m[1] === a.did || (handle && m[1] === handle)) && m[2] === 'app.bsky.feed.post' ? m[3] : ''; };
+    const p = a.profile || {};
+    const all = a.posts || [];
+    const byKey = new Map(all.map((x) => [x.k, x]));
+    const kids = new Map(); // rkey -> replies to it in the archive, oldest first
+    all.forEach((x) => { const k = own(x.r); if (k) { if (!kids.has(k)) kids.set(k, []); kids.get(k).unshift(x); } });
+    const recHref = (k) => x0.path ? browseHref(x0.path + '/app.bsky.feed.post/' + k + '.json') : '';
+    const self = (k) => 'posts.html?' + qs({ a: n, t: k, public: PUBLIC ? '1' : '' });
+    const S = { q: params.get('q') || '', show: params.get('show') || 'posts', limit: 40 };
+    const isReply = (x) => !!x.r, hasMedia = (x) => !!((x.i && x.i.length) || x.v);
+    const tabs = [['posts', 'Posts', (x) => !isReply(x) || !!own(x.r)], ['replies', 'Replies', isReply], ['media', 'Media', hasMedia], ['all', 'Everything', () => true]];
+    const counts = Object.fromEntries(tabs.map((t) => [t[0], all.filter(t[2]).length]));
+    const name = esc(p.displayName || handle || a.name);
+
+    // Text with its links, mentions and tags, from the record's facets
+    // (offsets in UTF-16 units); bare URLs are linked too.
+    const bare = (t) => esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>');
+    function rich(text, fs) {
+      if (!fs || !fs.length) return bare(text);
+      let out = '', at = 0;
+      for (const f of fs) {
+        if (f[0] < at) continue;
+        out += bare(text.slice(at, f[0]));
+        const t = esc(text.slice(f[0], f[1]));
+        const href = f[2] === 'link' ? f[3] : f[2] === 'mention' ? 'https://bsky.app/profile/' + f[3] : 'https://bsky.app/hashtag/' + encodeURIComponent(f[3]);
+        out += `<a href="${esc(href)}" target="_blank" rel="noopener nofollow">${t}</a>`;
+        at = f[1];
+      }
+      return out + bare(text.slice(at));
+    }
+    const img = (c, alt, cls, nm, w, h) => { const u = blob(c, nm); return u ? `<img class="${cls}" loading="lazy" src="${esc(u)}" alt="${esc(alt || '')}" title="${esc(alt || '')}"${w && h ? ` width="${w}" height="${h}"` : ''} data-full="${esc(u)}">` : `<span class="${cls} noblob" title="${esc(c)}">${icon('image')}</span>`; };
+    const avatar = (cls) => p.avatar ? img(p.avatar, '', cls || 'at-av', 'avatar') : `<span class="${cls || 'at-av'} noblob">${BSKY}</span>`;
+    function media(x) {
+      let out = '';
+      const ims = x.i || [];
+      if (ims.length) {
+        const one = ims.length === 1 && ims[0][3] ? ` style="aspect-ratio:${ims[0][3]}/${ims[0][4]}"` : '';
+        out += `<div class="at-media n${Math.min(ims.length, 4)}"${one}>${ims.map((im, i) => img(im[0], im[1], 'at-img', x.k + '-' + (i + 1), im[3], im[4])).join('')}</div>`;
+      }
+      if (x.v) {
+        const u = blob(x.v[0], x.k + '.mp4');
+        out += u ? `<video class="at-video" controls preload="metadata" src="${esc(u)}" title="${esc(x.v[1] || '')}"${x.v[3] ? ` style="aspect-ratio:${x.v[3]}/${x.v[4]}"` : ''}></video>` : img(x.v[0], x.v[1], 'at-img');
+      }
+      if (x.l) {
+        let host = '';
+        try { host = new URL(x.l[0]).host; } catch (e) { /* not a URL */ }
+        out += `<a class="at-card" href="${esc(x.l[0])}" target="_blank" rel="noopener nofollow">${x.l[3] ? img(x.l[3], '', 'at-thumb', 'thumb') : ''}<span><b>${esc(x.l[1] || x.l[0])}</b>${x.l[2] ? `<span class="at-desc">${esc(x.l[2])}</span>` : ''}<span class="faint">${esc(host)}</span></span></a>`;
+      }
+      if (x.q) out += quote(x.q);
+      return out;
+    }
+    // A quoted post: shown from the archive when it is the account's own.
+    function quote(uri) {
+      const k = own(uri), q = k && byKey.get(k);
+      if (q) return `<a class="at-quote" href="${esc(self(q.k))}"><span class="at-head">${avatar('at-av sm')}<b>${name}</b><span class="faint">@${esc(handle)} · ${esc(q.t ? day(q.t) : '')}</span></span>${q.x ? `<span class="at-text">${esc(q.x)}</span>` : ''}${(q.i || []).length ? `<span class="at-media n${Math.min(q.i.length, 4)}">${q.i.map((im, i) => img(im[0], im[1], 'at-img', q.k + '-' + (i + 1))).join('')}</span>` : ''}</a>`;
+      const m = at(uri), w = web(uri);
+      return `<a class="at-quote other" href="${esc(w || '#')}" target="_blank" rel="noopener"><span class="faint">${m && m[2] === 'app.bsky.feed.post' ? 'A post by another account' : esc(m ? collName(m[2]) : 'A record')}, not in this archive · Open on Bluesky ↗</span></a>`;
+    }
+    // One post, as Bluesky draws it: avatar, name, time, text, embeds. line
+    // joins it to the next post of a thread.
+    function card(x, opt) {
+      opt = opt || {};
+      const pk = own(x.r), parentHere = pk && byKey.has(pk);
+      const ctx = x.r && !opt.inThread ? (pk ? (parentHere ? `<a class="faint" href="${esc(self(pk))}">↳ Replying to ${name}</a>` : '<span class="faint">↳ Replying to a post not in this archive</span>') : `<a class="faint" href="${esc(web(x.r))}" target="_blank" rel="noopener">↳ Replying to another account ↗</a>`) : '';
+      const nk = (kids.get(x.k) || []).length;
+      return `<article class="at-post${opt.focus ? ' focus' : ''}${opt.line ? ' line' : ''}" id="p-${esc(x.k)}">
+  <div class="at-left">${avatar()}</div>
+  <div class="at-body">
+    <div class="at-head"><b>${name}</b><span class="faint">@${esc(handle)}</span><a class="faint at-time" href="${esc(self(x.k))}" title="${esc(x.t)}">${x.t ? (opt.focus ? esc(when(x.t)) : day(x.t)) : 'undated'}</a></div>
+    ${ctx ? `<div class="at-ctx">${ctx}</div>` : ''}
+    ${x.x ? `<div class="at-text${opt.focus ? ' big' : ''}">${rich(x.x, x.f)}</div>` : ''}
+    ${media(x)}
+    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${recHref(x.k) ? `<a href="${esc(recHref(x.k))}">Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
+  </div>
+</article>`;
+    }
+    // In the feed, a reply to the account's own post comes with that post
+    // above it, as Bluesky shows it.
+    function feedItem(x) {
+      const pk = own(x.r), parent = pk && byKey.get(pk);
+      return `<li>${parent ? card(parent, { line: true }) : ''}${card(x, { inThread: !!parent })}</li>`;
+    }
+
+    pageKeys.cid = () => a.commit;
+    const t = params.get('t');
+    const head = `
+${accts.length > 1 ? `<nav class="chips" aria-label="Accounts">${accts.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="posts.html?a=${i}">${esc(x.name)}</a>`).join('')}</nav>` : ''}
+${!LOCAL && !HERE && !PUBLIC ? `<div class="card none"><p class="faint">Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see images and video here.</p><a class="btn sm" href="posts.html?${qs({ a: n, t: t || '', public: 1 })}">Load them from ${GATEWAYS[0][0]}</a></div>` : ''}`;
+
+    if (t) {
+      // A thread: the posts above this one, it, and the replies below, as
+      // far as the archive holds them.
+      const x = byKey.get(t);
+      if (!x) { main().innerHTML = head + `<section class="card"><h2>No post ${esc(t)} in this archive</h2><a href="posts.html?a=${n}">All posts</a></section>`; return; }
+      const up = [];
+      for (let k = own(x.r); k && byKey.has(k) && up.length < 200; k = own(byKey.get(k).r)) up.unshift(byKey.get(k));
+      const down = [];
+      const walk = (k, d) => (kids.get(k) || []).forEach((y) => { down.push([y, d]); if (down.length < 2000) walk(y.k, d + 1); });
+      walk(x.k, 0);
+      main().innerHTML = head + `<section class="card at-thread">
+  <div class="titled"><a href="posts.html?${qs({ a: n, public: PUBLIC ? '1' : '' })}">‹ ${name}'s posts</a><span class="faint">Thread · ${plural(up.length + 1 + down.length, 'post')} in this archive</span></div>
+  ${x.r && !own(x.r) ? `<a class="faint" href="${esc(web(x.r))}" target="_blank" rel="noopener">This replies to another account's post, which is not in this archive ↗</a>` : ''}
+  ${x.r && own(x.r) && !byKey.has(own(x.r)) ? '<span class="faint">The post this replies to is not in this archive.</span>' : ''}
+  ${up.map((y) => card(y, { line: true, inThread: true })).join('')}
+  ${card(x, { focus: true, inThread: true })}
+  ${down.length ? `<h3 class="at-replies">Replies</h3>${down.map(([y, d]) => `<div class="at-reply" style="margin-left:${Math.min(d, 6) * 24}px">${card(y, { inThread: true })}</div>`).join('')}` : ''}
+</section>`;
+      status('thread of ' + plural(up.length + 1 + down.length, 'post'));
+      lightbox();
+      return;
+    }
+
+    const colls = Object.keys(a.counts || {});
+    const nOf = (c) => (a.counts || {})[c] || 0;
+    const recs = Object.keys(a.records || {}).sort();
+    main().innerHTML = head + `
+<section class="card at-profile">
+  <div class="at-banner">${p.banner ? img(p.banner, '', 'at-banner-img', 'banner') : ''}</div>
+  <div class="at-who">${avatar('at-avatar')}<div class="at-names">
+    <h1>${name}</h1>
+    <div class="meta"><span>@${esc(handle)}</span>${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}" target="_blank" rel="noopener">On Bluesky ↗</a>` : ''}</div>
+  </div></div>
+  <div class="at-counts"><span><b>${num(nOf('app.bsky.feed.post'))}</b> posts</span><span><b>${num(nOf('app.bsky.graph.follow'))}</b> following</span><span><b>${num(nOf('app.bsky.feed.like'))}</b> likes</span>${p.createdAt ? `<span class="faint">Joined ${esc(day(p.createdAt))}</span>` : ''}</div>
+  ${p.description ? `<p class="at-bio">${bare(p.description)}</p>` : ''}
+</section>
+<div class="at-cols">
+<section class="card at-feedcard">
+  <div class="at-tabs" role="tablist">${tabs.map((c) => `<button type="button" role="tab" data-show="${c[0]}" aria-selected="${c[0] === S.show}">${c[1]} <span class="n">${num(counts[c[0]])}</span></button>`).join('')}</div>
+  <div class="filter"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" data-q placeholder="Filter posts by text" aria-label="Filter posts by text" autocomplete="off" spellcheck="false" value="${esc(S.q)}"><kbd>f</kbd></div>
+  <ol class="at-feed"></ol>
+</section>
+<aside class="card at-side">
+  <div class="titled"><h2>What this archive holds</h2></div>
+  ${archivedHTML(x0, a, x0.path ? browseHref(x0.path) : '')}
+</aside>
+</div>
+${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Collections that are not posts, likes, reposts, follows and the like, as stored (up to 500 each). All records are in <a href="${esc(x0.path ? browseHref(x0.path) : 'browse.html')}">Files</a> too.</p>${recs.map((c) => `<details class="at-coll"><summary><b>${esc(c)}</b> <span class="faint">${num(nOf(c))}</span></summary>${a.records[c].map((r) => `<div class="at-rec"><div class="faint"><code>${esc(r[0])}</code> ${cidx(r[1], true)}</div><pre class="code"><code>${(V ? V.hl(JSON.stringify(r[2], null, 2), 'json') : esc(JSON.stringify(r[2], null, 2)).split('\n')).map((l) => `<span>${l}</span>`).join('\n')}</code></pre></div>`).join('')}</details>`).join('')}</section>` : ''}`;
+    const feed = main().querySelector('.at-feed');
+    const shown = () => { const q = S.q.toLowerCase(), f = tabs.find((c) => c[0] === S.show)[2]; return all.filter((x) => f(x) && (!q || (x.x || '').toLowerCase().includes(q) || (x.l && (x.l[1] || '').toLowerCase().includes(q)))); };
+    function render() {
+      const list = shown();
+      feed.innerHTML = list.slice(0, S.limit).map(feedItem).join('') + (list.length > S.limit ? `<li class="at-more"><button type="button" class="btn sm" data-more>Show ${num(Math.min(100, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></li>` : '') + (!list.length ? '<li class="faint">No posts match.</li>' : '');
+      status(plural(list.length, 'post') + (list.length !== all.length ? ' of ' + num(all.length) : ''));
+    }
+    const q = main().querySelector('[data-q]');
+    q.oninput = () => { S.q = q.value; S.limit = 40; render(); };
+    main().querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 40; main().querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o === b)); render(); }; });
+    feed.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 100; render(); } });
+    // Show more as the end comes into view.
+    new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 100; render(); } }, { rootMargin: '600px' }).observe(feed);
+    pageKeys.f = () => { q.focus(); return true; };
+    // A link to a post (#p-<rkey>, from a record in Files) opens its thread.
+    const h = location.hash.match(/^#p-(.+)$/);
+    if (h && byKey.has(decodeURIComponent(h[1]))) { location.replace(self(decodeURIComponent(h[1]))); return; }
+    render();
+    lightbox();
+  }
+  // Images open full size over the page; Esc or a click closes them.
+  function lightbox() {
+    main().addEventListener('click', (ev) => {
+      const im = ev.target.closest('img[data-full]');
+      if (!im || ev.target.closest('a')) return;
+      ev.preventDefault();
+      const d = D.createElement('div');
+      d.className = 'at-lightbox';
+      d.innerHTML = `<img src="${esc(im.dataset.full)}" alt="${esc(im.alt)}">${im.alt ? `<p>${esc(im.alt)}</p>` : ''}`;
+      const close = () => { d.remove(); D.removeEventListener('keydown', key, true); };
+      const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+      d.onclick = close;
+      D.addEventListener('keydown', key, true);
+      D.body.appendChild(d);
+    });
+  }
+
   // ---- Search: now part of Files, which searches under any folder.
   function search() {
     const q = params.get('q') || '', w = params.get('where');
@@ -1612,7 +1865,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
   // ---- Start
   frame();
   D.querySelector('footer').before(Object.assign(D.createElement('main'), { innerHTML: '<p class="muted">Loading…</p>' }));
-  const pages = { overview, browse: files, pin, pieces: piecesPage, search };
+  const pages = { overview, browse: files, pin, pieces: piecesPage, search, posts };
   manifest().then((m) => {
     ROOTS = {};
     PIECE = {};
@@ -1620,6 +1873,8 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
       REPOS = meta.repos || null;
+      ATPATHS = (meta.accounts || []).map((a) => a.path).filter(Boolean);
+      if ((meta.accounts || []).length) D.querySelector('nav.pages').insertAdjacentHTML('beforeend', `<a href="${esc(meta.accounts[0].href || 'posts.html')}"${PAGE === 'posts' ? ' aria-current="page"' : ''}>Posts</a>`);
       if (meta.format > 2) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
       return (pages[PAGE] || overview)();
     });

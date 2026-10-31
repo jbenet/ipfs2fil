@@ -380,6 +380,14 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		if name == "" {
 			name = path.Base(p)
 		}
+		// A root that is an IPLD record rather than a file or folder, such
+		// as a CAR's dag-cbor or dag-json root, is listed as JSON beside the
+		// others of its name: the explorer shows it as JSON.
+		if t := rt.c.Type(); t == cid.DagCBOR || t == cid.DagJSON {
+			if l.account(rt.c) == nil {
+				name += "." + map[uint64]string{cid.DagCBOR: "dag-cbor", cid.DagJSON: "dag-json"}[t] + ".json"
+			}
+		}
 		if a := l.account(rt.c); a != nil {
 			l.accountEntries(&out, a, p, name, seen)
 			continue

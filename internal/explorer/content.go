@@ -8,7 +8,7 @@ package explorer
 //	GET  _i2f/info             {"content": true, "all": "<path>"}; all is the explorer over
 //	                           every archive, when explore serves several
 //	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads;
-//	                           a dag-cbor block (a Bluesky record) comes as JSON;
+//	                           a dag-cbor block (a Bluesky record) or dag-json block comes as JSON;
 //	                           ?w=<px> gets a JPEG thumbnail (see thumbnails.go), or 404
 //	GET  _i2f/path/<cid>/<path> the file at a path under a folder, so pages' relative links work
 //	POST _i2f/thumb/<cid>?w=   keeps a thumbnail the browser made
@@ -365,7 +365,7 @@ func (s *carBlocks) serveContent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not a CID", http.StatusBadRequest)
 		return
 	}
-	if c.Type() == cid.DagCBOR {
+	if c.Type() == cid.DagCBOR || c.Type() == cid.DagJSON {
 		s.serveRecord(w, r, c)
 		return
 	}
@@ -377,13 +377,17 @@ func (s *carBlocks) serveContent(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveRecord serves a dag-cbor block, such as a Bluesky record, as JSON
-// (links as {"$link": cid}, bytes as {"$bytes": base64}).
+// (links as {"$link": cid}, bytes as {"$bytes": base64}), and a dag-json
+// block as it is.
 func (s *carBlocks) serveRecord(w http.ResponseWriter, r *http.Request, c cid.Cid) {
 	data, err := s.block(r.Context(), c)
 	if s.failed(w, err) {
 		return
 	}
-	js, err := atproto.JSON(data)
+	js, err := data, error(nil)
+	if c.Type() == cid.DagCBOR {
+		js, err = atproto.JSON(data)
+	}
 	if err != nil {
 		http.Error(w, "not dag-cbor: "+err.Error(), http.StatusUnprocessableEntity)
 		return

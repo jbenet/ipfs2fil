@@ -1,0 +1,10 @@
+# Escape-time
+
+Every image here is a rule run many times. The Mandelbrot and Julia sets
+iterate z = z^2 + c and color each point by how fast it escapes; the flow
+fields push particles through a noise field; the Truchet tiles turn one arc
+in four ways. The short video zooms into the seahorse valley.
+
+The NASA video and photos are public domain. The Bluesky images came from
+@bsky.app's posts: the same files, so the same CIDs, as in the Bluesky
+archive and the photo app.

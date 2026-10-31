@@ -1,0 +1,5 @@
+dev:
+	go run ./src/api & npm --prefix src/web run dev
+
+test:
+	go test ./... && pytest src/ingest && cargo test --manifest-path src/sim/Cargo.toml

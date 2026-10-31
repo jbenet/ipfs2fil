@@ -1,0 +1,9 @@
+# Reading list
+
+- [x] *Flatland*, Edwin A. Abbott
+- [x] *The Time Machine*, H. G. Wells
+- [ ] *Moby-Dick*, Herman Melville (started on the ferry, page 212)
+- [ ] *Little Brother*, Cory Doctorow
+- [ ] RFC 8890, *The Internet is for End Users*
+
+> Books are in `books/` as EPUB, the papers in `papers/`.

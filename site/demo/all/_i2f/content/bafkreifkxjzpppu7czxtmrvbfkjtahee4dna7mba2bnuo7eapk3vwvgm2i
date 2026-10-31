@@ -1,0 +1,19 @@
+//! Predicts tide levels from harmonic constituents.
+use std::f64::consts::PI;
+
+struct Constituent { amp: f64, speed_deg_h: f64, phase_deg: f64 }
+
+fn level(cs: &[Constituent], hours: f64) -> f64 {
+    cs.iter().map(|c| c.amp * ((c.speed_deg_h * hours - c.phase_deg) * PI / 180.0).cos()).sum()
+}
+
+fn main() {
+    let cs = [
+        Constituent { amp: 0.58, speed_deg_h: 28.984, phase_deg: 191.0 }, // M2
+        Constituent { amp: 0.37, speed_deg_h: 15.041, phase_deg: 106.0 }, // K1
+        Constituent { amp: 0.13, speed_deg_h: 30.000, phase_deg: 199.0 }, // S2
+    ];
+    for h in 0..48 {
+        println!("{h:>3} {:+.3}", level(&cs, h as f64));
+    }
+}

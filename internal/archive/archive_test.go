@@ -955,3 +955,51 @@ func TestOddLinkNames(t *testing.T) {
 		t.Errorf("entries %v", got)
 	}
 }
+
+// A CAR's roots can be IPLD records beside a folder, as a build record in
+// dag-cbor and a release in dag-json: they are listed as JSON files.
+func TestRecordRoots(t *testing.T) {
+	f := newFake()
+	site := f.dir(t, map[string]format.Node{"a.txt": f.file(t, []byte("hi\n"), true)})
+	// {"src": <site>}
+	cb := append([]byte{0xa1, 0x63, 's', 'r', 'c', 0xd8, 0x2a, 0x58, byte(len(site.Cid().Bytes()) + 1), 0}, site.Cid().Bytes()...)
+	cbCID, err := cid.Prefix{Version: 1, Codec: cid.DagCBOR, MhType: 0x12, MhLength: -1}.Sum(cb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dj := []byte(`{"version":"1.0"}`)
+	djCID, err := cid.Prefix{Version: 1, Codec: cid.DagJSON, MhType: 0x12, MhLength: -1}.Sum(dj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.blocks[string(cbCID.Hash())], f.blocks[string(djCID.Hash())] = cb, dj
+	for _, c := range []cid.Cid{site.Cid(), cbCID, djCID} {
+		f.pins = append(f.pins, repo.Pin{Root: c, Mode: repo.Recursive, Name: "bundle"})
+	}
+	l := newLayout(f)
+	roots, err := l.walkRoots(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.cut(testOptions()); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
+	for _, rt := range roots {
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
+	}
+	got := map[string]explorer.Entry{}
+	for _, e := range l.entries(roots, m) {
+		got[e.CID] = e
+	}
+	if e := got[site.Cid().String()]; e.Name != "bundle" || e.Kind != "folder" {
+		t.Errorf("folder root: %+v", e)
+	}
+	if e := got[cbCID.String()]; e.Name != "bundle.dag-cbor.json" || e.Kind != "code" || e.Bytes != int64(len(cb)) {
+		t.Errorf("dag-cbor root: %+v", e)
+	}
+	if e := got[djCID.String()]; e.Name != "bundle.dag-json.json" || e.Kind != "code" {
+		t.Errorf("dag-json root: %+v", e)
+	}
+}

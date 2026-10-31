@@ -118,7 +118,7 @@
       <figcaption id="gallery-cap">The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.</figcaption>
     </figure>
     <p class="center"><a class="btn primary" href="https://dweb.link/ipfs/bafybeihl22mulghshva7ephjvqhrlv5prdug7fzzfgbty6fm6iqp6ql6re/explorer/">Open the demo archive from Filecoin</a> <a class="btn" href="demo/all/explorer/">or a copy on this website</a></p>
-    <p class="center demo-note">The Filecoin demo is a public archive of open-license books, papers, music, photos and HTML games, stored on mainnet and served by an IPFS gateway. The copy on this website is the smaller archive from the recordings, and loads even when gateways are slow.</p>
+    <p class="center demo-note">The Filecoin demo is a public archive of open-license books, papers, music, photos and HTML games, stored on mainnet and served by an IPFS gateway. The copy on this website holds that content and more: seven repos of every kind ipfs2fil reads, kubo, js-ipfs, Helia, CAR files and a Bluesky account, made with simulated storage. It loads even when gateways are slow.</p>
 
     <div class="feature-video">
       <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>j / k through files, v to switch views</span></div><video src="media/explorer-tour.mp4" poster="media/explorer-tour.webp" autoplay muted loop playsinline aria-label="Screen recording: moving through files with the keyboard, switching views, opening a PDF and a video"></video></div>
@@ -131,7 +131,7 @@
     <h2 class="title">Built to outlast the machine it ran on</h2>
     <div class="grid">
       <article><h3>Every repo version</h3><p>fs-repo 0 through 18: go-ipfs 0.2 to kubo 0.43, with flatfs, leveldb, badger, pebble and custom datastore specs. Old pin layouts and the MFS root are read too.</p></article>
-      <article><h3>More than kubo</h3><p>js-ipfs repos, Helia stores, CAR files, a running node through its RPC API, and Bluesky accounts, whose repos are IPLD too: <code>--repo at://you.bsky.social</code> archives the posts, images and video, with a Posts page in the explorer. <a href="demo-kinds/">See them in a demo</a>.</p></article>
+      <article><h3>More than kubo</h3><p>js-ipfs repos, Helia stores, CAR files, a running node through its RPC API, and Bluesky accounts, whose repos are IPLD too: <code>--repo at://you.bsky.social</code> archives the posts, images and video, with a Posts page in the explorer. The <a href="demo/all/explorer/">demo</a> has one of each.</p></article>
       <article><h3>Everything, not just pins</h3><p>Recursive and direct pins, your MFS files, and orphan blocks no pin reaches (on by default), all linked under one archive root.</p></article>
       <article><h3>Same repo, same pieces</h3><p>Piece cuts depend only on the blocks, so a re-run skips every piece already stored and an edit changes only nearby pieces. Dates and providers live in the index, not the data.</p></article>
       <article><h3>Copies that are proven</h3><p>Pieces go to Filecoin Onchain Cloud, where providers prove on chain, over and over, that they still hold them. Three copies by default, paid from your own wallet.</p></article>
@@ -170,7 +170,7 @@ ipfs2fil up --repo ./my-app/data            # a Helia store (blocks/, datastore/
 ipfs2fil up --repo export.car               # a CAR file, or a folder of them
 ipfs2fil up --repo http://127.0.0.1:5001    # a running kubo node
 ipfs2fil up --repo at://you.bsky.social     # a Bluesky account</code></pre>
-    <p>The <a href="demo-kinds/">second demo</a> holds one of each: a js-ipfs repo and a Helia store made by their own code, a CAR exported from it, and the @atproto.com Bluesky account with its posts.</p>
+    <p>The <a href="demo/all/explorer/">demo</a> holds one of each beside two kubo repos: a js-ipfs repo and a Helia store made by their own code, a CAR of art and one of dev assets, and the @bsky.app Bluesky account. The same images sit in the Bluesky account, the Helia store, the CAR and kubo, and are stored once.</p>
     <p>Several repos? <code>ipfs2fil repos add ~/.ipfs</code> for each, then <code>ipfs2fil up --all</code>. Every command explains itself: <code>ipfs2fil help &lt;command&gt;</code>.</p>
   </div>
 </section>

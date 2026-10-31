@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2023-07-07T15:20:26.200Z","langs":["en"],"text":"📢 Version 1.40 is rolling out out now.\n\n• Tapping a user's avatar now opens a preview of their profile (Mobile only)\n• Reworked the image warning tool to take less space\n• Improved the post language selector\n• Fixes to android gestures and text cutoff"}

@@ -1,0 +1,22 @@
+[
+  {
+    "file": "images/mandelbrot.png",
+    "title": "Mandelbrot",
+    "year": 2024
+  },
+  {
+    "file": "images/seahorse-valley.png",
+    "title": "Seahorse valley",
+    "year": 2024
+  },
+  {
+    "file": "images/elephants.png",
+    "title": "Elephant valley",
+    "year": 2024
+  },
+  {
+    "file": "video/seahorse-zoom.mp4",
+    "title": "Seahorse zoom",
+    "year": 2025
+  }
+]

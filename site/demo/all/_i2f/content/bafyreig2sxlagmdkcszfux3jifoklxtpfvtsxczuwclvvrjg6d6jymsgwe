@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2024-04-16T20:21:51.850Z","langs":["en"],"text":"📢 App Version 1.78 is a bugfix for account creation\n\nIn some cases, it was possible for the app to hang indefinitely while creating an account. The update fixed that issue!"}

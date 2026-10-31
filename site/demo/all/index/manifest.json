@@ -5,36 +5,47 @@
   "dataRoot": "",
   "source": {
     "repoVersion": 18,
-    "blocks": 223,
-    "bytes": 40625007
+    "blocks": 16832,
+    "bytes": 483106756
   },
   "roots": [
     {
-      "cid": "QmPLDgu6Ev5g93tLFW3VvZ5XUDP6hqwfhoqD5Yjv6jxh14",
+      "cid": "QmNWRtQdbtfsNJGTPMfE9BmXptgu3QjJAZ7xtA13xLGNZs",
       "kind": "pin-recursive",
-      "name": "photos 2025 desert",
-      "path": "ipfs/pins/recursive/QmPLDgu6Ev5g93tLFW3VvZ5XUDP6hqwfhoqD5Yjv6jxh14",
-      "bytes": 514448,
-      "blocks": 11,
-      "own": 514448,
+      "name": "games",
+      "path": "ada/pins/recursive/QmNWRtQdbtfsNJGTPMfE9BmXptgu3QjJAZ7xtA13xLGNZs",
+      "bytes": 25347027,
+      "blocks": 532,
+      "own": 25347027,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "QmTTbhHT94wcFqqmJztwFrKwUrghVpyWEY4eU8G5MWjjfi",
+      "cid": "QmRZ5vbofcTXSerMfZVdQ7dad2ahephPM6rYssoWkKNCbc",
+      "kind": "pin-recursive",
+      "name": "images",
+      "path": "ada/pins/recursive/QmRZ5vbofcTXSerMfZVdQ7dad2ahephPM6rYssoWkKNCbc",
+      "bytes": 14474887,
+      "blocks": 139,
+      "own": 14474887,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "QmRdttRRtymRueGiA6N3RxVrX8bdVHPQhZqR3tXhF6LTPV",
       "kind": "pin-recursive",
       "name": "papers",
-      "path": "ipfs/pins/recursive/QmTTbhHT94wcFqqmJztwFrKwUrghVpyWEY4eU8G5MWjjfi",
-      "bytes": 441797,
-      "blocks": 6,
-      "own": 441797,
+      "path": "ada/pins/recursive/QmRdttRRtymRueGiA6N3RxVrX8bdVHPQhZqR3tXhF6LTPV",
+      "bytes": 2225092,
+      "blocks": 18,
+      "own": 2225092,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
       "cid": "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
       "kind": "pin-recursive",
-      "path": "ipfs/pins/recursive/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+      "path": "ada/pins/recursive/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
       "bytes": 4,
       "blocks": 1,
       "own": 4,
@@ -44,8 +55,8 @@
     {
       "cid": "QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
       "kind": "pin-recursive",
-      "name": "photos 2024 iceland",
-      "path": "ipfs/pins/recursive/QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
+      "name": "iceland-2024",
+      "path": "ada/pins/recursive/QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
       "bytes": 769197,
       "blocks": 15,
       "own": 769197,
@@ -53,96 +64,128 @@
       "lastPiece": 0
     },
     {
-      "cid": "QmWKd8TzsouUP5Ufa3g9j9rzLpb5fNUSdgULZCuhide6pW",
+      "cid": "QmWNP2ucGoYWo1Noc3GPmkvwdfGCH5jBvpWNjiTQMcDLff",
       "kind": "pin-recursive",
-      "name": "audio",
-      "path": "ipfs/pins/recursive/QmWKd8TzsouUP5Ufa3g9j9rzLpb5fNUSdgULZCuhide6pW",
-      "bytes": 86866,
-      "blocks": 3,
-      "own": 86866,
+      "name": "books",
+      "path": "ada/pins/recursive/QmWNP2ucGoYWo1Noc3GPmkvwdfGCH5jBvpWNjiTQMcDLff",
+      "bytes": 47811978,
+      "blocks": 200,
+      "own": 47811978,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "Qmadj9fLcqk3okGhugnNJRFvMuv5YyuM1MEif8XEUKNiry",
+      "cid": "QmZVp1Fd32yBErj26dJbFXvtyHVozqBJthvyfvtfdHQV2f",
       "kind": "pin-recursive",
-      "name": "photos 2026 coast",
-      "path": "ipfs/pins/recursive/Qmadj9fLcqk3okGhugnNJRFvMuv5YyuM1MEif8XEUKNiry",
-      "bytes": 442047,
-      "blocks": 9,
-      "own": 442047,
+      "name": "music",
+      "path": "ada/pins/recursive/QmZVp1Fd32yBErj26dJbFXvtyHVozqBJthvyfvtfdHQV2f",
+      "bytes": 89285884,
+      "blocks": 376,
+      "own": 89285884,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
+      "cid": "bafybeibqh6jv5ks4zttr77vjwzmzkoprmycsws5cqtsfovj7wpatyal4sq",
       "kind": "pin-recursive",
-      "name": "field-notes site",
-      "path": "ipfs/pins/recursive/QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
-      "bytes": 863,
+      "name": "nasa-video",
+      "path": "ada/pins/recursive/bafybeibqh6jv5ks4zttr77vjwzmzkoprmycsws5cqtsfovj7wpatyal4sq",
+      "bytes": 121803094,
+      "blocks": 122,
+      "own": 121803094,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafybeif7eoxlm2szl5vbpwcjjv3zpl5i7wjvemndopi7lfglsworwbwgly",
+      "kind": "pin-recursive",
+      "name": "nasa",
+      "path": "ada/pins/recursive/bafybeif7eoxlm2szl5vbpwcjjv3zpl5i7wjvemndopi7lfglsworwbwgly",
+      "bytes": 20077176,
+      "blocks": 70,
+      "own": 20077176,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafybeifqe7cmhfehk7mqrm5wmav5dgqtusix4k3we3rgnw5fcndbfmwkqm",
+      "kind": "pin-recursive",
+      "name": "saved-from-bluesky",
+      "path": "ada/pins/recursive/bafybeifqe7cmhfehk7mqrm5wmav5dgqtusix4k3we3rgnw5fcndbfmwkqm",
+      "bytes": 906239,
       "blocks": 6,
-      "own": 863,
+      "own": 906239,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "QmdeUehdUt3LtrjJXL8qgtetNMoxc9aqVxoJSJSon4jkv6",
-      "kind": "pin-recursive",
-      "name": "videos",
-      "path": "ipfs/pins/recursive/QmdeUehdUt3LtrjJXL8qgtetNMoxc9aqVxoJSJSon4jkv6",
-      "bytes": 37942014,
-      "blocks": 149,
-      "own": 37942014,
-      "firstPiece": 0,
-      "lastPiece": 0
-    },
-    {
-      "cid": "QmXZyp1fcW16msGR9gZiFUk29hiDJKu6h2JbJMHEyoq2K8",
+      "cid": "QmPvCD9KkJhbVRJceDXikpGW8xG95YD6A7qbbxAwFg8M75",
       "kind": "mfs",
-      "path": "ipfs/mfs",
-      "bytes": 427281,
-      "blocks": 17,
-      "own": 427281,
+      "path": "ada/mfs",
+      "bytes": 454535,
+      "blocks": 20,
+      "own": 454535,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "bafybeidoxrdljf4ii3i3lh5iwroztwwd5os75vmrvpfprwvde4xir7vcxa",
+      "cid": "bafybeiceitroqyiuxtk3n74csygluzmevffpvuun4uh4r3ymubggsxz2tq",
       "kind": "orphan",
-      "path": "ipfs/orphans/bafybeidoxrdljf4ii3i3lh5iwroztwwd5os75vmrvpfprwvde4xir7vcxa",
-      "bytes": 426515,
-      "blocks": 14,
-      "own": 146,
+      "path": "ada/orphans/bafybeiceitroqyiuxtk3n74csygluzmevffpvuun4uh4r3ymubggsxz2tq",
+      "bytes": 454395,
+      "blocks": 18,
+      "own": 197,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "bafybeiehyfx2o5ew2vsg4yz3z66shm7q4nurq4l56d2zukpc4jd5aqsq64",
+      "cid": "bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y",
       "kind": "orphan",
-      "path": "ipfs/orphans/bafybeiehyfx2o5ew2vsg4yz3z66shm7q4nurq4l56d2zukpc4jd5aqsq64",
-      "bytes": 796,
-      "blocks": 7,
-      "own": 52,
+      "path": "ada/orphans/bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y",
+      "bytes": 6,
+      "blocks": 1,
+      "own": 6,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "bafybeihp32sdmsfrm4dbxk52qq2bicio5gzlteu57xl6yzyfjbubiul2jq",
+      "cid": "bafybeifbicywhycndpipnmnlpscmufzuj6i77ukvx227dxz3tkulusk6xu",
       "kind": "orphan",
-      "path": "ipfs/orphans/bafybeihp32sdmsfrm4dbxk52qq2bicio5gzlteu57xl6yzyfjbubiul2jq",
-      "bytes": 416665,
+      "path": "ada/orphans/bafybeifbicywhycndpipnmnlpscmufzuj6i77ukvx227dxz3tkulusk6xu",
+      "bytes": 12496,
       "blocks": 11,
       "own": 99,
       "firstPiece": 0,
       "lastPiece": 0
     },
     {
-      "cid": "QmQMa7jdeMrz6BSH8pthNUBB86HP2CPMdvABeFcUhnfwZo",
+      "cid": "bafybeigmoyyc55r44opt42xtovto556ajgz3vbb2oclen4js2oeoyhvzpm",
+      "kind": "orphan",
+      "path": "ada/orphans/bafybeigmoyyc55r44opt42xtovto556ajgz3vbb2oclen4js2oeoyhvzpm",
+      "bytes": 1625,
+      "blocks": 8,
+      "own": 52,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafybeigybbywlpu7v7stosnghafz6nrgartbfx33yvvt5fusfjlrkc2msq",
+      "kind": "orphan",
+      "path": "ada/orphans/bafybeigybbywlpu7v7stosnghafz6nrgartbfx33yvvt5fusfjlrkc2msq",
+      "bytes": 454343,
+      "blocks": 17,
+      "own": 149,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "QmT6eCDyb7CFqdm1ST4D6wzkXJwAG4bkm77w7XesBaJu23",
       "kind": "pin-recursive",
-      "path": "old-laptop/pins/recursive/QmQMa7jdeMrz6BSH8pthNUBB86HP2CPMdvABeFcUhnfwZo",
-      "bytes": 415822,
-      "blocks": 4,
-      "own": 415822,
+      "name": "old-notes",
+      "path": "old-laptop/pins/recursive/QmT6eCDyb7CFqdm1ST4D6wzkXJwAG4bkm77w7XesBaJu23",
+      "bytes": 1573,
+      "blocks": 7,
+      "own": 1573,
       "firstPiece": -1,
       "lastPiece": -1
     },
@@ -157,121 +200,697 @@
       "lastPiece": -1
     },
     {
-      "cid": "QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
+      "cid": "QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
       "kind": "pin-recursive",
-      "path": "old-laptop/pins/recursive/QmcMVW7GwsWRJBc5pyB4K7ongL2ejr15AqBuBDkTp4NwnQ",
-      "bytes": 863,
-      "blocks": 6,
-      "own": 863,
+      "name": "iceland-2024",
+      "path": "old-laptop/pins/recursive/QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
+      "bytes": 769197,
+      "blocks": 15,
+      "own": 769197,
       "firstPiece": -1,
       "lastPiece": -1
     },
     {
-      "cid": "QmRjgDnQcchDCV1pPLAdxcyWYaUQdtaByGGJVPpi2ftbx8",
+      "cid": "QmSm6RGEdpRUa4zMW8hBdzWknuzEGNRwzo4YdKAZyywpmv",
       "kind": "mfs",
       "path": "old-laptop/mfs",
-      "bytes": 801,
-      "blocks": 7,
-      "own": 801,
+      "bytes": 415873,
+      "blocks": 5,
+      "own": 415873,
       "firstPiece": 3,
       "lastPiece": 3
     },
     {
-      "cid": "bafybeigjyc3tplum4cn7zqelxukpx3kw4nhpmfz2r7ukd4evpods3pw3zi",
+      "cid": "bafyreihhjveqvavpogsvorvcjx4zlbhd2oskgvrrq3r5bxonbmdbf6gwt4",
+      "kind": "pin-recursive",
+      "name": "@bsky.app",
+      "path": "bsky-bsky.app/pins/recursive/bafyreihhjveqvavpogsvorvcjx4zlbhd2oskgvrrq3r5bxonbmdbf6gwt4",
+      "bytes": 153741237,
+      "blocks": 15174,
+      "own": 153741237,
+      "firstPiece": 6,
+      "lastPiece": 6
+    },
+    {
+      "cid": "bafkreidydqwogxcjqybyvn7eekie3hpjhqknrmfv5vd362yvgrj6nurs6u",
+      "kind": "pin-direct",
+      "name": "@bsky.app did.json",
+      "path": "bsky-bsky.app/pins/direct/bafkreidydqwogxcjqybyvn7eekie3hpjhqknrmfv5vd362yvgrj6nurs6u",
+      "bytes": 554,
+      "blocks": 1,
+      "own": 554,
+      "firstPiece": 6,
+      "lastPiece": 6
+    },
+    {
+      "cid": "bafkreifq4k4swvbggh5kfrolzwih5ld2wwlcp7nxx6vx5z2tgtnrze4pfy",
+      "kind": "pin-direct",
+      "name": "@bsky.app plc-audit-log.json",
+      "path": "bsky-bsky.app/pins/direct/bafkreifq4k4swvbggh5kfrolzwih5ld2wwlcp7nxx6vx5z2tgtnrze4pfy",
+      "bytes": 2899,
+      "blocks": 1,
+      "own": 2899,
+      "firstPiece": 6,
+      "lastPiece": 6
+    },
+    {
+      "cid": "QmNc7ks35qjXf18p5jzzieGsaA8pduDRwRVG7GCPjXuanf",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmNc7ks35qjXf18p5jzzieGsaA8pduDRwRVG7GCPjXuanf",
+      "bytes": 50542,
+      "blocks": 1,
+      "own": 50542,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmPLDgu6Ev5g93tLFW3VvZ5XUDP6hqwfhoqD5Yjv6jxh14",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmPLDgu6Ev5g93tLFW3VvZ5XUDP6hqwfhoqD5Yjv6jxh14",
+      "bytes": 514448,
+      "blocks": 11,
+      "own": 463906,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmRaaUwTNfwgFZpeUy8qrZwrp2dY4kCKmmB5xEqvH3vtD1",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmRaaUwTNfwgFZpeUy8qrZwrp2dY4kCKmmB5xEqvH3vtD1",
+      "bytes": 7538,
+      "blocks": 11,
+      "own": 7538,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmTUqx8LhREawgMn9FFSF8Cz4DAASWfTUroLxugcjgAtRA",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmTUqx8LhREawgMn9FFSF8Cz4DAASWfTUroLxugcjgAtRA",
+      "bytes": 10065774,
+      "blocks": 47,
+      "own": 10065774,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmUJ7bc5w3pjjoLrKuwtJX35PGauCUm8xqZgpDMGSdY3n3",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmUJ7bc5w3pjjoLrKuwtJX35PGauCUm8xqZgpDMGSdY3n3",
+      "bytes": 49626,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+      "bytes": 4,
+      "blocks": 1,
+      "own": 4,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmUUbPY3TM4gcMH5LSGSduqH7qKybt1pUcWzniAKhw8eew",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmUUbPY3TM4gcMH5LSGSduqH7qKybt1pUcWzniAKhw8eew",
+      "bytes": 52224,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmUWoqKrzbazzwQGmLfdFHca8o6mPuzhpG1m7FQSFTFP6o",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmUWoqKrzbazzwQGmLfdFHca8o6mPuzhpG1m7FQSFTFP6o",
+      "bytes": 51211,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmVWmfz5TioaBDT5cKaqUhM8ihxvBAQU7oHNkZr35tyBhY",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmVWmfz5TioaBDT5cKaqUhM8ihxvBAQU7oHNkZr35tyBhY",
+      "bytes": 705838,
+      "blocks": 4,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmWeeq6PoDZcBUAzfssyusehPvc3eCnA8JkShH66WydCNs",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmWeeq6PoDZcBUAzfssyusehPvc3eCnA8JkShH66WydCNs",
+      "bytes": 52732,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmWpXca7XESMHQpbFLuTCc9dbXwJewo8tpQ1Pku1sGbTrb",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmWpXca7XESMHQpbFLuTCc9dbXwJewo8tpQ1Pku1sGbTrb",
+      "bytes": 4497208,
+      "blocks": 19,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmWzp4MgyyyQAU7qiC6BAXAL2gHmafyr9CShFqtb8H9ybk",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmWzp4MgyyyQAU7qiC6BAXAL2gHmafyr9CShFqtb8H9ybk",
+      "bytes": 1490116,
+      "blocks": 7,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmYydvuwq3MsVX4XSSZ76wihR4yzkGUyqanPRcJBMtH4wv",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmYydvuwq3MsVX4XSSZ76wihR4yzkGUyqanPRcJBMtH4wv",
+      "bytes": 2237708,
+      "blocks": 10,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmZg8YqQkSkxUxCqdDRBatEp1WQjjVQXe87DwXh7iG1gRg",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmZg8YqQkSkxUxCqdDRBatEp1WQjjVQXe87DwXh7iG1gRg",
+      "bytes": 1134573,
+      "blocks": 6,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "QmaLcwXYRcCcQctdTBf2q1idjJ9NuZBYo9aWvdeD1KEP9S",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmaLcwXYRcCcQctdTBf2q1idjJ9NuZBYo9aWvdeD1KEP9S",
+      "bytes": 51360,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "Qmb7RNFNYtWkhugpZdx16AsYmjsua8gnmeZ9MbPZSoYJQY",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/Qmb7RNFNYtWkhugpZdx16AsYmjsua8gnmeZ9MbPZSoYJQY",
+      "bytes": 51131,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmbuVGUYvPmiRwUjHeHvtoxDyeFGEHowWRNLqBbeyB4q38",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmbuVGUYvPmiRwUjHeHvtoxDyeFGEHowWRNLqBbeyB4q38",
+      "bytes": 50074,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "Qmc8j9zYSG3e4acSGxSLAsFofuxJ2UzZsBqW8MhXaEuxgg",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/Qmc8j9zYSG3e4acSGxSLAsFofuxJ2UzZsBqW8MhXaEuxgg",
+      "bytes": 51956,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmcQt9xDNhZWfLuf6eSiM6MpPCYSr17sxSZtSMeHWn6ngz",
+      "kind": "pin-recursive",
+      "path": "js-ipfs/pins/recursive/QmcQt9xDNhZWfLuf6eSiM6MpPCYSr17sxSZtSMeHWn6ngz",
+      "bytes": 53028,
+      "blocks": 1,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "QmcYVhmEQsuwfP2dFWMaDzXTgztJfftixBPbvLCbTwwdLt",
+      "kind": "mfs",
+      "path": "js-ipfs/mfs",
+      "bytes": 416040,
+      "blocks": 8,
+      "own": 416040,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "bafybeic22nebkpixckpfhx6wdojddxeqo3c37osm7o2dwm5cwi3lcugsra",
       "kind": "orphan",
-      "path": "old-laptop/orphans/bafybeigjyc3tplum4cn7zqelxukpx3kw4nhpmfz2r7ukd4evpods3pw3zi",
-      "bytes": 136,
+      "path": "js-ipfs/orphans/bafybeic22nebkpixckpfhx6wdojddxeqo3c37osm7o2dwm5cwi3lcugsra",
+      "bytes": 53,
       "blocks": 2,
-      "own": 136,
-      "firstPiece": 3,
-      "lastPiece": 3
+      "own": 49,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "bafybeicbjjmx7qtzhoytgqbijivjh5z6g6igsmb455wg6i5fymtpcwljiq",
+      "kind": "orphan",
+      "path": "js-ipfs/orphans/bafybeicbjjmx7qtzhoytgqbijivjh5z6g6igsmb455wg6i5fymtpcwljiq",
+      "bytes": 141849,
+      "blocks": 4,
+      "own": 110,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "bafybeidfxa2za6iwbv2hfjwlxdnhqdmmt3s2dkav2y2xpzhosrusph6e3y",
+      "kind": "orphan",
+      "path": "js-ipfs/orphans/bafybeidfxa2za6iwbv2hfjwlxdnhqdmmt3s2dkav2y2xpzhosrusph6e3y",
+      "bytes": 53,
+      "blocks": 2,
+      "own": 49,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "bafybeif3ubfaa2l6m5le6cucgl2w4fejkoknpuxjiqb5dzvzoml4mw6v7u",
+      "kind": "orphan",
+      "path": "js-ipfs/orphans/bafybeif3ubfaa2l6m5le6cucgl2w4fejkoknpuxjiqb5dzvzoml4mw6v7u",
+      "bytes": 292343,
+      "blocks": 6,
+      "own": 168,
+      "firstPiece": 9,
+      "lastPiece": 9
+    },
+    {
+      "cid": "bafybeifo63btpwxylyeg3kvdfwvokgndffsl5bdmsukco6ue4s642vpjmy",
+      "kind": "pin-recursive",
+      "name": "nasa-favorites",
+      "path": "helia-photo-app/pins/recursive/bafybeifo63btpwxylyeg3kvdfwvokgndffsl5bdmsukco6ue4s642vpjmy",
+      "bytes": 1357948,
+      "blocks": 6,
+      "own": 1357948,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "bafybeifqe7cmhfehk7mqrm5wmav5dgqtusix4k3we3rgnw5fcndbfmwkqm",
+      "kind": "pin-recursive",
+      "name": "saved-from-bluesky",
+      "path": "helia-photo-app/pins/recursive/bafybeifqe7cmhfehk7mqrm5wmav5dgqtusix4k3we3rgnw5fcndbfmwkqm",
+      "bytes": 906239,
+      "blocks": 6,
+      "own": 906239,
+      "firstPiece": -1,
+      "lastPiece": -1
+    },
+    {
+      "cid": "bafybeig6mak2uh7e3vwominaniwz6vd6p7dgy24c4xxq6tnx7dqai3k7da",
+      "kind": "pin-recursive",
+      "name": "iceland-2024",
+      "path": "helia-photo-app/pins/recursive/bafybeig6mak2uh7e3vwominaniwz6vd6p7dgy24c4xxq6tnx7dqai3k7da",
+      "bytes": 769029,
+      "blocks": 15,
+      "own": 769029,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeicbn7sw6f476whp4xpnzuvgtvqmowrrec2ymx3log6chky7h6fuxm",
+      "kind": "mfs",
+      "path": "helia-photo-app/mfs",
+      "bytes": 991,
+      "blocks": 7,
+      "own": 991,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeiaxuwaywniydtklhsbpkvgp4ejcjhnttnrygwf7lkbhuk2762o35q",
+      "kind": "orphan",
+      "path": "helia-photo-app/orphans/bafybeiaxuwaywniydtklhsbpkvgp4ejcjhnttnrygwf7lkbhuk2762o35q",
+      "bytes": 190,
+      "blocks": 3,
+      "own": 120,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeibquceomsjxczb7ck2uwj7337f4viu5lfz372q45abihwwwkr55we",
+      "kind": "orphan",
+      "path": "helia-photo-app/orphans/bafybeibquceomsjxczb7ck2uwj7337f4viu5lfz372q45abihwwwkr55we",
+      "bytes": 300,
+      "blocks": 4,
+      "own": 55,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeidbporcqa4zs7am5mwwxngd6sbvyfk36ri3tswm5rzpo4yri5tbx4",
+      "kind": "orphan",
+      "path": "helia-photo-app/orphans/bafybeidbporcqa4zs7am5mwwxngd6sbvyfk36ri3tswm5rzpo4yri5tbx4",
+      "bytes": 353,
+      "blocks": 5,
+      "own": 108,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeidxrrkourir3gaodjuvqkzpqguxc6pwdms4hpa4l34imt2rk4quem",
+      "kind": "orphan",
+      "path": "helia-photo-app/orphans/bafybeidxrrkourir3gaodjuvqkzpqguxc6pwdms4hpa4l34imt2rk4quem",
+      "bytes": 58,
+      "blocks": 2,
+      "own": 54,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeifagfhypl4xz6ev7n6sxsd4fjcinjzwes7g3eb2dh5lcbnbzrkm64",
+      "kind": "orphan",
+      "path": "helia-photo-app/orphans/bafybeifagfhypl4xz6ev7n6sxsd4fjcinjzwes7g3eb2dh5lcbnbzrkm64",
+      "bytes": 682,
+      "blocks": 6,
+      "own": 172,
+      "firstPiece": 12,
+      "lastPiece": 12
+    },
+    {
+      "cid": "bafybeid345vmd6mj5dhesas4hqnadzdyimqs6jhlor3trysk62uduqki3q",
+      "kind": "pin-recursive",
+      "name": "art",
+      "path": "art.car/pins/recursive/bafybeid345vmd6mj5dhesas4hqnadzdyimqs6jhlor3trysk62uduqki3q",
+      "bytes": 9163949,
+      "blocks": 38,
+      "own": 9163949,
+      "firstPiece": 15,
+      "lastPiece": 15
+    },
+    {
+      "cid": "bafybeifjfqxpef5wpldd7k5tkiicmltv7xjam4teleynwevhor3svjkgly",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "dev-bundle.car/pins/recursive/bafybeifjfqxpef5wpldd7k5tkiicmltv7xjam4teleynwevhor3svjkgly",
+      "bytes": 611232,
+      "blocks": 58,
+      "own": 611232,
+      "firstPiece": 18,
+      "lastPiece": 18
+    },
+    {
+      "cid": "bafyreicwhzfxibn4iinhafdtv5kt6qkvtbvku7vmg3wcgugigzvskn6kvm",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "dev-bundle.car/pins/recursive/bafyreicwhzfxibn4iinhafdtv5kt6qkvtbvku7vmg3wcgugigzvskn6kvm",
+      "bytes": 611795,
+      "blocks": 59,
+      "own": 563,
+      "firstPiece": 18,
+      "lastPiece": 18
+    },
+    {
+      "cid": "baguqeeraqg5cpfbqimyqulanugobgbyowsznlzi63f573c4qgjv4ms6b6ava",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "dev-bundle.car/pins/recursive/baguqeeraqg5cpfbqimyqulanugobgbyowsznlzi63f573c4qgjv4ms6b6ava",
+      "bytes": 359,
+      "blocks": 1,
+      "own": 359,
+      "firstPiece": 18,
+      "lastPiece": 18
     }
   ],
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibf575k6davphc5u33l4wm3omqkvwax3ltigouueix6q4dd3twsxuljye5jqixq",
-      "carBytes": 40632977,
-      "blocks": 220,
+      "pieceCid": "bafkzcibfqhqpayyyxndm6q5peikcczmg3ub4ypjc2scp5ee3vik5hrx2grug6b3raetq",
+      "carBytes": 323211263,
+      "blocks": 1504,
       "blockList": "pieces/0000",
-      "snapshot": 2
+      "snapshot": 0
     },
     {
       "index": 1,
-      "pieceCid": "bafkzcibe7t7qmdmicwrga5wktxs4y7e2l25yaf7uhj5qh5bshpjdddf3f5dzxvgdci",
-      "carBytes": 145412,
-      "blocks": 17,
+      "pieceCid": "bafkzcibextoqmdvhhn5bhf6uvyfvpbjhvabjceosqdf7f667wgvliezkldfeidlrc4",
+      "carBytes": 409924,
+      "blocks": 19,
       "blockList": "",
       "part": "index",
-      "snapshot": 2
+      "snapshot": 0
     },
     {
       "index": 2,
-      "pieceCid": "bafkzcibdtuyatdxjpr77ghziupbxjargp7ueodq2c7cmbbhfavuvcjsszwtcwcjz",
-      "carBytes": 10083,
+      "pieceCid": "bafkzcibdripqsg4jwgnkvz4n7rpne2f2hmaoo2mrzcwmoivfa2um7evdx54cr7y7",
+      "carBytes": 12278,
       "blocks": 8,
       "blockList": "",
       "part": "head",
-      "snapshot": 2
+      "snapshot": 0
     },
     {
       "index": 3,
-      "pieceCid": "bafkzcibdsyaqigvpss2ako2wzpdy34giidbscp4o2mr53yupafdbdhttbpnyixyl",
-      "carBytes": 358,
-      "blocks": 3,
+      "pieceCid": "bafkzcibescwqmdriw6er3pfcyvxmqz2zbqlhzjwaz53rlqatchbndtp2we5jnwjlgi",
+      "carBytes": 416112,
+      "blocks": 5,
       "blockList": "pieces/0000",
       "snapshot": 1
     },
     {
       "index": 4,
-      "pieceCid": "bafkzcibd7vkay4murfyubirie36erltf3na7va2xdeqobave4k6cavqlfgod2tzc",
-      "carBytes": 119171,
-      "blocks": 17,
+      "pieceCid": "bafkzcibe3traedonmralnxzylao6gtzlhtx2wlbrgijogpmusktaroyh5iazqy73cu",
+      "carBytes": 214692,
+      "blocks": 18,
       "blockList": "",
       "part": "index",
       "snapshot": 1
     },
     {
       "index": 5,
-      "pieceCid": "bafkzcibdtuhqrchpcrn3nrnawcripceg4ifisst7uidis72i3447ktf5s3aaklyh",
-      "carBytes": 6179,
+      "pieceCid": "bafkzcibdweiqrdtueesft6ecyzjjwg4sbqaphkscwjoxa7go36pncj6ezed73tzo",
+      "carBytes": 5903,
       "blocks": 8,
       "blockList": "",
       "part": "head",
       "snapshot": 1
+    },
+    {
+      "index": 6,
+      "pieceCid": "bafkzcibfq6roynix6wld4szngcug7xp7ykvq37b3zp42oj4p5jax54naob5ujpwc2uja",
+      "carBytes": 153415417,
+      "blocks": 15171,
+      "blockList": "pieces/0000",
+      "snapshot": 2
+    },
+    {
+      "index": 7,
+      "pieceCid": "bafkzcibewczvwekwk3cxketd7azh2bnf66voz5ttbmflb4wtedphe2hzkn7gkeqzce",
+      "carBytes": 2664016,
+      "blocks": 33,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 2
+    },
+    {
+      "index": 8,
+      "pieceCid": "bafkzcibdt4gqrobea6p6zqhc2ufhgxvtcm332ij2radszguad2ofm7dpivl44orq",
+      "carBytes": 6433,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 2
+    },
+    {
+      "index": 9,
+      "pieceCid": "bafkzcibersjamd6dm7gopih6qmvoattkcvrgyw3g7sjrwqi3dfvttwz5od3eqvzlau",
+      "carBytes": 939764,
+      "blocks": 36,
+      "blockList": "pieces/0000",
+      "snapshot": 3
+    },
+    {
+      "index": 10,
+      "pieceCid": "bafkzcibergeaedl2rm6wfeaha2ai7kuomcwerjzq7okv6ziytwlhpb7re6ydtlbsei",
+      "carBytes": 226295,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 3
+    },
+    {
+      "index": 11,
+      "pieceCid": "bafkzcibdxqcatdwbnd5tdvqy3jnvfeqwuln7ne3c6aibocs3tetsqi7jyacewair",
+      "carBytes": 15684,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 3
+    },
+    {
+      "index": 12,
+      "pieceCid": "bafkzcibesozrad4uqeaptjfiscxt4gr7tfoqm2w7lt5auif2z2v65kn7rlhtkwezgu",
+      "carBytes": 771693,
+      "blocks": 29,
+      "blockList": "pieces/0000",
+      "snapshot": 4
+    },
+    {
+      "index": 13,
+      "pieceCid": "bafkzcibe4cfqedjsequ57leeh7ka7bvplkp7cuhm2zloptdpwsodh2mg4vshzbkxau",
+      "carBytes": 225824,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 4
+    },
+    {
+      "index": 14,
+      "pieceCid": "bafkzcibdre5atgejk7gqk2tlpuyv2scom755n2jyzehqz6ctg4nrotokzkdtk3qe",
+      "carBytes": 8823,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 4
+    },
+    {
+      "index": 15,
+      "pieceCid": "bafkzcibfxtypaaisytnohtfntbx545d4ewfznmaf5un2pdbpx2ksemembc5unkrw2epq",
+      "carBytes": 4376516,
+      "blocks": 27,
+      "blockList": "pieces/0000",
+      "snapshot": 5
+    },
+    {
+      "index": 16,
+      "pieceCid": "bafkzcibes3eqedpydgnqc7r5ol7jmybxhhwwulgopic32q6ea6jorflylka7chqeaa",
+      "carBytes": 217962,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 5
+    },
+    {
+      "index": 17,
+      "pieceCid": "bafkzcibd74narvzbx66c4v5mjic4w7airlq5i2gwnm2molkab6k2zp5d3bfo23az",
+      "carBytes": 4673,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 5
+    },
+    {
+      "index": 18,
+      "pieceCid": "bafkzcibeu37rsd6m3sa3zlpmpitva7a5monzwrfmiwb4fbpcphdrc3dd3ypyz5gvby",
+      "carBytes": 614490,
+      "blocks": 60,
+      "blockList": "pieces/0000",
+      "snapshot": 6
+    },
+    {
+      "index": 19,
+      "pieceCid": "bafkzcibe6lyacdkjioo3bisodfp2lvf2isycwapiviqulbnh2okcli3y4kkjgzn4fa",
+      "carBytes": 229262,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 6
+    },
+    {
+      "index": 20,
+      "pieceCid": "bafkzcibdselaryv24kkjvny7x7yl4yny52wkenzqep7xoeadg4ghtokb53esqpyk",
+      "carBytes": 5295,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 6
     }
   ],
   "copies": [
     {
       "provider": "2",
-      "dataSetId": "48253",
+      "dataSetId": "5310",
       "pieceIds": {
-        "1": "6",
-        "2": "7",
+        "0": "2",
+        "1": "1",
+        "10": "10",
+        "11": "9",
+        "12": "12",
+        "13": "14",
+        "14": "13",
+        "15": "15",
+        "16": "17",
+        "17": "16",
+        "18": "20",
+        "19": "22",
+        "2": "0",
+        "20": "21",
         "3": "5",
-        "4": "3",
-        "5": "4"
+        "4": "4",
+        "5": "3",
+        "6": "8",
+        "7": "7",
+        "8": "6",
+        "9": "11"
       },
-      "service": "foc-fwss"
+      "service": "unknown"
     },
     {
       "provider": "9",
-      "dataSetId": "48254",
+      "dataSetId": "5311",
       "pieceIds": {
-        "0": "8",
-        "1": "6",
-        "2": "7",
-        "3": "3",
-        "4": "4",
-        "5": "5"
+        "0": "2",
+        "1": "0",
+        "10": "9",
+        "11": "10",
+        "12": "14",
+        "13": "13",
+        "14": "12",
+        "15": "17",
+        "16": "16",
+        "17": "15",
+        "18": "20",
+        "19": "22",
+        "2": "1",
+        "20": "21",
+        "3": "5",
+        "4": "3",
+        "5": "4",
+        "6": "8",
+        "7": "6",
+        "8": "7",
+        "9": "11"
       },
-      "service": "foc-fwss"
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "2",
+        "1": "1",
+        "10": "11",
+        "11": "10",
+        "12": "14",
+        "13": "12",
+        "14": "13",
+        "15": "17",
+        "16": "15",
+        "17": "16",
+        "18": "18",
+        "19": "21",
+        "2": "0",
+        "20": "22",
+        "3": "3",
+        "4": "5",
+        "5": "4",
+        "6": "7",
+        "7": "8",
+        "8": "6",
+        "9": "9"
+      },
+      "service": "unknown"
     }
   ],
   "snapshots": [
     {
-      "time": "2026-10-30T00:11:23Z",
-      "root": "bafybeidvhu4aqf6mgewifhkdkazr5uxbi6p6xxwhkngdn6tmwlcieunrla",
+      "time": "2026-10-31T21:12:26Z",
+      "root": "bafybeig3bukzaxmisxkwl7krrsi5dvrf5ctuv3locxzfuackb7glaxicoe",
       "newPieces": [
         0,
         1,
@@ -279,8 +898,8 @@
       ]
     },
     {
-      "time": "2026-10-30T00:11:23Z",
-      "root": "bafybeiakumldikcag7hftdogexgfrv5xyrpgrl7rk5xhwpbbvu4vbebnum",
+      "time": "2026-10-31T21:12:26Z",
+      "root": "bafybeihp6jsscgwoawa4wvwdc4od63gwegpxw2c3y6swqrpm3spwjichcu",
       "newPieces": [
         3,
         4,
@@ -288,12 +907,48 @@
       ]
     },
     {
-      "time": "2026-10-30T00:31:10Z",
-      "root": "bafybeie6dhxxev2vrtfhgysp6iisbjbziep46o2i2o2aqp2kk75ypdj56e",
+      "time": "2026-10-31T21:12:29Z",
+      "root": "bafybeignwfxehbfa3nyfcwx3siwgbkmf7hggyhm4bpkuifkli24oubvjnu",
       "newPieces": [
-        0,
-        1,
-        2
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "time": "2026-10-31T21:12:30Z",
+      "root": "bafybeieabfpjszjrcgqekhjn7m46la5w7k4k5t6cwmvss2aej6zcpb3saq",
+      "newPieces": [
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "time": "2026-10-31T21:12:30Z",
+      "root": "bafybeihd2zohsgngcr2f2eboajg4f3unwigs2ino5wbdwnwm26iptli2xy",
+      "newPieces": [
+        12,
+        13,
+        14
+      ]
+    },
+    {
+      "time": "2026-10-31T21:12:30Z",
+      "root": "bafybeiahmkfabhu6ugtfweomvdrym4glx2dukqeltbf6nsxlud3u3v3riy",
+      "newPieces": [
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "time": "2026-10-31T21:32:43Z",
+      "root": "bafybeibmzzmx4igjze6zylyf2fil22y2qolhezulu7aper5mjxg77vpwwa",
+      "newPieces": [
+        18,
+        19,
+        20
       ]
     }
   ],

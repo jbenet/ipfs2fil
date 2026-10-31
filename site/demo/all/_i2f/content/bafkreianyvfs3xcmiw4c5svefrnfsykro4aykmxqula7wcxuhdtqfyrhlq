@@ -1,0 +1,5 @@
+:root { --bg: #fff; --fg: #0b2540; --accent: #1e88e5 }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b1622; --fg: #e3f2fd } }
+body { margin: 0; font: 15px/1.5 system-ui; background: var(--bg); color: var(--fg) }
+header { display: flex; gap: 8px; align-items: center; padding: 12px 20px; font-weight: 600 }
+#chart { height: 70vh; margin: 0 20px }

@@ -1,7 +1,0 @@
-def mandel(c, n=80):
-    z = 0
-    for i in range(n):
-        z = z * z + c
-        if abs(z) > 2:
-            return i
-    return n

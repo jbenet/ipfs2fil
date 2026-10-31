@@ -25,30 +25,40 @@ made. Everything shows two made-up repos, never anyone's real data.
    `last.png` (convert to webp for the site).
 4. **Explorer screenshots.** Run `ipfs2fil explore` on the demo home and
    screenshot the pages with playwright at 1440x900, device scale 2.
-5. **Live demo.** With `ipfs2fil explore` running on the demo home:
+5. **Live demo** (site/demo/). One home with a repo of every kind:
+   `demo/make.sh` builds two kubo repos (the public demo archive's content
+   from step 6, plus photos, notes and PDFs), a js-ipfs repo 12 and a Helia
+   store made by their own code, `art.car` (images, video, texts, PDFs) and
+   `dev-bundle.car` (code, logs, configs, data; three roots: a folder, a
+   dag-cbor build record and a dag-json release). Five of @bsky.app's images
+   and the NASA photos go into several of them with CIDv1, raw leaves and
+   1 MiB chunks, so they are the same blocks everywhere and stored once.
+   Install Helia and js-ipfs in separate folders (their dependencies clash):
 
-       node mirror.js http://127.0.0.1:8484 ../../site/demo
+       npm i helia @helia/unixfs @helia/mfs @helia/car blockstore-fs datastore-fs @ipld/car @ipld/dag-cbor @ipld/dag-json multiformats
+       npm i ipfs-core@0.18.1
+       demo/make.sh $HOME <step 6 content> <helia dir> <js-ipfs dir>
 
-   It copies the explorer pages and index, and the files up to 6 MiB, so the
-   demo works as plain static files on GitHub Pages.
+   With `$HOME` the throwaway home and the sim build (step 3), add the repos
+   in this order, so later ones show what they share with earlier ones:
+
+       ipfs2fil repos add ~/.ipfs; ipfs2fil repos add ~/backups/old-laptop
+       ipfs2fil repos add at://bsky.app
+       ipfs2fil repos add ~/.jsipfs --name js-ipfs
+       ipfs2fil repos add ~/apps/photo-app/data --name helia-photo-app
+       ipfs2fil repos add ~/exports/art.car; ipfs2fil repos add ~/exports/dev-bundle.car
+       ipfs2fil up --all --yes && ipfs2fil explore
+
+   Then mirror it as static files for GitHub Pages:
+
+       node mirror.js http://127.0.0.1:8484 ../../site/demo 1572864
+
+   It copies the explorer pages and index, and the files up to 1.5 MiB. To
+   keep the site small, images over 120 KB in all/_i2f/content/ were then
+   scaled to 700 to 900 px with Pillow (`demo/shrink.py`), so those copies no
+   longer match their CIDs.
 6. **Public demo archive.** `demo-archive/make.sh <empty dir>` builds the
    content of the public sample archive on mainnet: open-license EPUBs,
    papers and RFCs, music, NASA photos and video, HTML games, and generated
    images and tracks. `demo-archive/content-README.md` lists every source
    and its license.
-7. **More-kinds demo** (site/demo-kinds/). Real stores made by the projects'
-   own code, from the step 1 content, under a throwaway `$HOME`. Install
-   Helia and js-ipfs in separate folders (their dependencies clash):
-   `npm i helia @helia/unixfs @helia/mfs @helia/car blockstore-fs datastore-fs`
-   in one, `npm i ipfs-core@0.18.1` in the other, then
-
-       node demo-kinds/helia.mjs $HOME/apps/photo-app/data <content> $HOME/exports/art.car
-       node demo-kinds/jsipfs.mjs $HOME/.jsipfs <content>
-
-   That gives a Helia store, a CAR exported from it, and a js-ipfs repo 12.
-   With the sim build: `repos add` each (`--name js-ipfs`, `--name
-   helia-photo-app`, `--name art.car`) and `at://atproto.com`, `up --all
-   --yes`, `explore`, then `node mirror.js http://127.0.0.1:8484
-   ../../site/demo-kinds 1572864`. To keep the site small, images over
-   120 KB in all/_i2f/content/ were then scaled to 700 to 900 px with Pillow,
-   so those copies no longer match their CIDs.

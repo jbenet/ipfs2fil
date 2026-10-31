@@ -1,0 +1,21 @@
+"""Pulls readings from the gauges and writes them in batches."""
+import time, sqlite3, requests
+
+BATCH = 500
+
+def fetch(gauge):
+    r = requests.get(f"https://gauges.example/{gauge}/latest", timeout=10)
+    r.raise_for_status()
+    return r.json()["readings"]
+
+def run(db, gauges):
+    while True:
+        batch = [x for g in gauges for x in fetch(g)]
+        for i in range(0, len(batch), BATCH):
+            db.executemany("INSERT OR IGNORE INTO readings VALUES (?,?,?)",
+                           [(x["gauge"], x["at"], x["level_m"]) for x in batch[i:i + BATCH]])
+            db.commit()
+        time.sleep(60)
+
+if __name__ == "__main__":
+    run(sqlite3.connect("tidepool.db"), ["sf-01", "sf-02", "oak-07"])

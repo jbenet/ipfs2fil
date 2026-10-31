@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2023-10-30T19:09:28.101Z","langs":["en"],"text":"📢 1.55 is now available. It includes:\n\n• Bugfixes, and\n• Performance improvements\n\nThat's it, that's the update.\n\nThe performance improvements should reduce startup time a bit. We think we can shave a few more seconds off in future updates as well."}
