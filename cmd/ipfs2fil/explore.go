@@ -201,6 +201,12 @@ func exploreArchives(o *opts) ([]explorer.Archive, error) {
 		}
 		return []explorer.Archive{{Name: filepath.Base(o.out), Dir: o.out}}, nil
 	}
+	return listedArchives(o)
+}
+
+// listedArchives is the packed repos 'ipfs2fil repos add' listed, or just
+// the one --repo names.
+func listedArchives(o *opts) ([]explorer.Archive, error) {
 	c, err := openCollection(o)
 	if err != nil {
 		return nil, err

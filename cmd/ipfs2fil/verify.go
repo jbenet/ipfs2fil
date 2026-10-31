@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/jbenet/ipfs2fil/internal/ipni"
@@ -27,10 +28,16 @@ Then asks --ipni, a delegated routing endpoint, whether a sample of the
 archive's CIDs (the archive root, data root and some pinned roots) are
 announced, which is what makes them findable by CID on the IPFS network.
 Providers announce a while after a push, so a new archive may not be
-announced yet; this part is reported but never fails verify.`,
+announced yet; this part is reported but never fails verify.
+
+It verifies the archive in --out if given or if ./ipfs2fil-archive holds one,
+else every packed repo 'ipfs2fil repos add' listed. Give --repo a listed
+repo's name (or path) to verify just that one; --all verifies every listed
+repo even when ./ipfs2fil-archive holds an archive.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
-			repoOnlyFlag(fs, o)
+			fs.StringVar(&o.repo, "repo", "", "with no --out, the listed repo to verify, by name or path")
 			outFlag(fs, o)
+			allFlag(fs, o)
 			addReadStoreFlags(fs)
 			fs.StringVar(&o.ipni, "ipni", ipni.DefaultEndpoint, "delegated routing endpoint to check announcements with (empty: skip)")
 			fs.IntVar(&o.ipniSample, "ipni-sample", 20, "how many CIDs to check with --ipni")
@@ -40,18 +47,54 @@ announced yet; this part is reported but never fails verify.`,
 }
 
 func runVerify(ctx context.Context, o *opts, _ []string) error {
-	m, _, err := loadArchive(o.out)
+	find := exploreArchives
+	if o.all {
+		find = listedArchives
+	}
+	archives, err := find(o)
 	if err != nil {
 		return err
-	}
-	if len(m.Copies) == 0 {
-		return fmt.Errorf("no copies recorded in %s; run 'ipfs2fil push' first", manifestPath(o.out))
 	}
 	s, closer, err := openStore(ctx, o)
 	if err != nil {
 		return err
 	}
 	defer closer.Close()
+	if len(archives) == 1 && archives[0].Repo == "" {
+		return verifyArchive(ctx, o, s, archives[0].Dir, "ipfs2fil push --out "+archives[0].Dir)
+	}
+	var bad []string
+	for i, a := range archives {
+		if len(archives) > 1 {
+			fmt.Fprintf(o.stdout, "== %s (%d of %d)\n", a.Name, i+1, len(archives))
+		}
+		if err := verifyArchive(ctx, o, s, a.Dir, "ipfs2fil push --all"); err != nil {
+			if ctx.Err() != nil {
+				return err
+			}
+			fmt.Fprintf(o.stderr, "%s: %v\n", a.Name, err)
+			bad = append(bad, a.Name)
+		}
+		if len(archives) > 1 {
+			fmt.Fprintln(o.stdout)
+		}
+	}
+	if len(bad) > 0 {
+		return fmt.Errorf("%d of %d repos did not verify: %s", len(bad), len(archives), strings.Join(bad, ", "))
+	}
+	return nil
+}
+
+// verifyArchive verifies the archive in dir; fix is the command that
+// re-uploads what a copy lost.
+func verifyArchive(ctx context.Context, o *opts, s store.Store, dir, fix string) error {
+	m, _, err := loadArchive(dir)
+	if err != nil {
+		return err
+	}
+	if len(m.Copies) == 0 {
+		return fmt.Errorf("no copies recorded in %s; run '%s' first", manifestPath(dir), fix)
+	}
 	var total int64
 	for _, p := range m.Pieces {
 		total += p.CARBytes
@@ -97,7 +140,7 @@ func runVerify(ctx context.Context, o *opts, _ []string) error {
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("%w\nRun 'ipfs2fil push --out %s' to re-upload what a copy lost", err, o.out)
+		return fmt.Errorf("%w\nRun '%s' to re-upload what a copy lost", err, fix)
 	}
 	return nil
 }

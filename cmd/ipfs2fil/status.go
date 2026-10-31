@@ -24,9 +24,11 @@ With --json, prints one JSON object.
 
 With --all, shows every repo 'ipfs2fil repos add' listed: how much of each is
 stored, what it shares with earlier repos, and the shared data sets' copies,
-proofs and funding.`,
+proofs and funding. That is also what it shows when there is no --out and no
+./ipfs2fil-archive but repos are listed; --repo with a listed repo's name (or
+path) shows just that one.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
-			repoOnlyFlag(fs, o)
+			fs.StringVar(&o.repo, "repo", "", "with no --out, the listed repo to show, by name or path")
 			outFlag(fs, o)
 			jsonFlag(fs, o)
 			addReadStoreFlags(fs)
@@ -35,6 +37,21 @@ proofs and funding.`,
 		run: func(ctx context.Context, o *opts, args []string) error {
 			if o.all {
 				return statusAll(ctx, o)
+			}
+			if !o.set["out"] && !hasArchive(o.out) {
+				if o.repo == "" {
+					if c, err := openCollection(o); err == nil && len(c.Repos) > 0 {
+						return statusAll(ctx, o)
+					}
+				} else {
+					as, err := listedArchives(o)
+					if err != nil {
+						return err
+					}
+					ro := *o
+					ro.out = as[0].Dir
+					return runStatus(ctx, &ro, args)
+				}
 			}
 			return runStatus(ctx, o, args)
 		},
