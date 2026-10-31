@@ -580,6 +580,15 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     return null;
   }
   const thumbURL = (e, w) => contentURL(e, LOCAL ? { w: w || 320 } : null);
+  // Static hosts (the website demo on GitHub Pages) send files with no
+  // extension as application/octet-stream, which <img> refuses for SVG; such
+  // images are shown again from a blob typed as SVG.
+  D.addEventListener('error', (ev) => {
+    const im = ev.target;
+    if (!(im instanceof HTMLImageElement) || im.dataset.svg || !/[?&](file)?name=[^&]*\.svg(&|$)/i.test(im.src)) return;
+    im.dataset.svg = '1';
+    fetch(im.src).then((r) => r.ok ? r.blob() : null).then((b) => { if (b) im.src = URL.createObjectURL(new Blob([b], { type: 'image/svg+xml' })); }).catch(() => {});
+  }, true);
   const canShow = () => LOCAL || HERE || PUBLIC;
 
   // Kinds an older pack could not tell from names; explore sniffs them.

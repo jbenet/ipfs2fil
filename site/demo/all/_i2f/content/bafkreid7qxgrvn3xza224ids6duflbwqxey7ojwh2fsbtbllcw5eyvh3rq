@@ -1,0 +1,14 @@
+# tidepool
+
+Syncs sensor readings from tide gauges into one dashboard.
+
+```sh
+make dev       # api on :8080, web on :5173
+make test
+```
+
+- `src/api` Go HTTP API
+- `src/ingest` Python ingest worker
+- `src/web` TypeScript dashboard
+- `src/sim` Rust tide simulator
+- `logs/` CI and server logs from the 1.4.0 release

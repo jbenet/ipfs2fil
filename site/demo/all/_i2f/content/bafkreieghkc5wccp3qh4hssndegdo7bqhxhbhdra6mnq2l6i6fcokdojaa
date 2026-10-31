@@ -1,0 +1,600 @@
+{"ts": 1710408413, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 444}
+{"ts": 1710408474, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 138}
+{"ts": 1710408535, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 482}
+{"ts": 1710408596, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 87}
+{"ts": 1710408657, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 32}
+{"ts": 1710408718, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 187}
+{"ts": 1710408779, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 376}
+{"ts": 1710408840, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 375}
+{"ts": 1710408901, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 243}
+{"ts": 1710408962, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 342}
+{"ts": 1710409023, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 8}
+{"ts": 1710409084, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 334}
+{"ts": 1710409145, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 134}
+{"ts": 1710409206, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 457}
+{"ts": 1710409267, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 93}
+{"ts": 1710409328, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 204}
+{"ts": 1710409389, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 56}
+{"ts": 1710409450, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 260}
+{"ts": 1710409511, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 250}
+{"ts": 1710409572, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 346}
+{"ts": 1710409633, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 282}
+{"ts": 1710409694, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 357}
+{"ts": 1710409755, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 181}
+{"ts": 1710409816, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 75}
+{"ts": 1710409877, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 235}
+{"ts": 1710409938, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 214}
+{"ts": 1710409999, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 491}
+{"ts": 1710410060, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 447}
+{"ts": 1710410121, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 350}
+{"ts": 1710410182, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 102}
+{"ts": 1710410243, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 204}
+{"ts": 1710410304, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 325}
+{"ts": 1710410365, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 64}
+{"ts": 1710410426, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 218}
+{"ts": 1710410487, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 47}
+{"ts": 1710410548, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 136}
+{"ts": 1710410609, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 53}
+{"ts": 1710410670, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 426}
+{"ts": 1710410731, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 469}
+{"ts": 1710410792, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 62}
+{"ts": 1710410853, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 497}
+{"ts": 1710410914, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 121}
+{"ts": 1710410975, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 441}
+{"ts": 1710411036, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 477}
+{"ts": 1710411097, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 365}
+{"ts": 1710411158, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 360}
+{"ts": 1710411219, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 239}
+{"ts": 1710411280, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 182}
+{"ts": 1710411341, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 272}
+{"ts": 1710411402, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 216}
+{"ts": 1710411463, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 399}
+{"ts": 1710411524, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 269}
+{"ts": 1710411585, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 190}
+{"ts": 1710411646, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 197}
+{"ts": 1710411707, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 452}
+{"ts": 1710411768, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 57}
+{"ts": 1710411829, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 225}
+{"ts": 1710411890, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-01", "n": 71}
+{"ts": 1710411951, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 452}
+{"ts": 1710412012, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 43}
+{"ts": 1710412073, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 429}
+{"ts": 1710412134, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 457}
+{"ts": 1710412195, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 216}
+{"ts": 1710412256, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 375}
+{"ts": 1710412317, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 294}
+{"ts": 1710412378, "level": "error", "msg": "gauge slow", "gauge": "sf-01", "n": 248}
+{"ts": 1710412439, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 162}
+{"ts": 1710412500, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 143}
+{"ts": 1710412561, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 123}
+{"ts": 1710412622, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 445}
+{"ts": 1710412683, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 225}
+{"ts": 1710412744, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 343}
+{"ts": 1710412805, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 5}
+{"ts": 1710412866, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 433}
+{"ts": 1710412927, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 292}
+{"ts": 1710412988, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 1}
+{"ts": 1710413049, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 46}
+{"ts": 1710413110, "level": "error", "msg": "gauge slow", "gauge": "sf-02", "n": 178}
+{"ts": 1710413171, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 341}
+{"ts": 1710413232, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 2}
+{"ts": 1710413293, "level": "error", "msg": "gauge slow", "gauge": "sf-01", "n": 347}
+{"ts": 1710413354, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 400}
+{"ts": 1710413415, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 451}
+{"ts": 1710413476, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 299}
+{"ts": 1710413537, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 287}
+{"ts": 1710413598, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 129}
+{"ts": 1710413659, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 362}
+{"ts": 1710413720, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 289}
+{"ts": 1710413781, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 118}
+{"ts": 1710413842, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 370}
+{"ts": 1710413903, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 39}
+{"ts": 1710413964, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 239}
+{"ts": 1710414025, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 253}
+{"ts": 1710414086, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 134}
+{"ts": 1710414147, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 135}
+{"ts": 1710414208, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 279}
+{"ts": 1710414269, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 87}
+{"ts": 1710414330, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 140}
+{"ts": 1710414391, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 269}
+{"ts": 1710414452, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 310}
+{"ts": 1710414513, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 130}
+{"ts": 1710414574, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 444}
+{"ts": 1710414635, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 250}
+{"ts": 1710414696, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 94}
+{"ts": 1710414757, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 205}
+{"ts": 1710414818, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 465}
+{"ts": 1710414879, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 418}
+{"ts": 1710414940, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 491}
+{"ts": 1710415001, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 415}
+{"ts": 1710415062, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 248}
+{"ts": 1710415123, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 407}
+{"ts": 1710415184, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 101}
+{"ts": 1710415245, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 110}
+{"ts": 1710415306, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 186}
+{"ts": 1710415367, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 302}
+{"ts": 1710415428, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 408}
+{"ts": 1710415489, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 389}
+{"ts": 1710415550, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 61}
+{"ts": 1710415611, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-01", "n": 157}
+{"ts": 1710415672, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 442}
+{"ts": 1710415733, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 444}
+{"ts": 1710415794, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 394}
+{"ts": 1710415855, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 391}
+{"ts": 1710415916, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 290}
+{"ts": 1710415977, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 498}
+{"ts": 1710416038, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 285}
+{"ts": 1710416099, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 462}
+{"ts": 1710416160, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 412}
+{"ts": 1710416221, "level": "error", "msg": "db busy, retrying", "gauge": "oak-07", "n": 365}
+{"ts": 1710416282, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 339}
+{"ts": 1710416343, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 63}
+{"ts": 1710416404, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 273}
+{"ts": 1710416465, "level": "error", "msg": "db busy, retrying", "gauge": "sf-01", "n": 88}
+{"ts": 1710416526, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 223}
+{"ts": 1710416587, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 473}
+{"ts": 1710416648, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 305}
+{"ts": 1710416709, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 248}
+{"ts": 1710416770, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 295}
+{"ts": 1710416831, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 275}
+{"ts": 1710416892, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 298}
+{"ts": 1710416953, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 72}
+{"ts": 1710417014, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 438}
+{"ts": 1710417075, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 9}
+{"ts": 1710417136, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 226}
+{"ts": 1710417197, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 348}
+{"ts": 1710417258, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 81}
+{"ts": 1710417319, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 160}
+{"ts": 1710417380, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 156}
+{"ts": 1710417441, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 261}
+{"ts": 1710417502, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-02", "n": 337}
+{"ts": 1710417563, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 113}
+{"ts": 1710417624, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 441}
+{"ts": 1710417685, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 360}
+{"ts": 1710417746, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 101}
+{"ts": 1710417807, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 90}
+{"ts": 1710417868, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 246}
+{"ts": 1710417929, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 124}
+{"ts": 1710417990, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 466}
+{"ts": 1710418051, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 228}
+{"ts": 1710418112, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 55}
+{"ts": 1710418173, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 63}
+{"ts": 1710418234, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 424}
+{"ts": 1710418295, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 356}
+{"ts": 1710418356, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 298}
+{"ts": 1710418417, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 359}
+{"ts": 1710418478, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 228}
+{"ts": 1710418539, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 181}
+{"ts": 1710418600, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 263}
+{"ts": 1710418661, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 399}
+{"ts": 1710418722, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 436}
+{"ts": 1710418783, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 395}
+{"ts": 1710418844, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 122}
+{"ts": 1710418905, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 485}
+{"ts": 1710418966, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 313}
+{"ts": 1710419027, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 3}
+{"ts": 1710419088, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 343}
+{"ts": 1710419149, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 460}
+{"ts": 1710419210, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 404}
+{"ts": 1710419271, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 181}
+{"ts": 1710419332, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 116}
+{"ts": 1710419393, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 93}
+{"ts": 1710419454, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 379}
+{"ts": 1710419515, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 60}
+{"ts": 1710419576, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 94}
+{"ts": 1710419637, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 401}
+{"ts": 1710419698, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 142}
+{"ts": 1710419759, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 129}
+{"ts": 1710419820, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 411}
+{"ts": 1710419881, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 405}
+{"ts": 1710419942, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 301}
+{"ts": 1710420003, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 181}
+{"ts": 1710420064, "level": "error", "msg": "db busy, retrying", "gauge": "oak-07", "n": 138}
+{"ts": 1710420125, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 338}
+{"ts": 1710420186, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 107}
+{"ts": 1710420247, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 417}
+{"ts": 1710420308, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 139}
+{"ts": 1710420369, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 496}
+{"ts": 1710420430, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 370}
+{"ts": 1710420491, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 307}
+{"ts": 1710420552, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 142}
+{"ts": 1710420613, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 441}
+{"ts": 1710420674, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 137}
+{"ts": 1710420735, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 414}
+{"ts": 1710420796, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 57}
+{"ts": 1710420857, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 335}
+{"ts": 1710420918, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 184}
+{"ts": 1710420979, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 24}
+{"ts": 1710421040, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 335}
+{"ts": 1710421101, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 449}
+{"ts": 1710421162, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 180}
+{"ts": 1710421223, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 150}
+{"ts": 1710421284, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 457}
+{"ts": 1710421345, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 3}
+{"ts": 1710421406, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 109}
+{"ts": 1710421467, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 296}
+{"ts": 1710421528, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 437}
+{"ts": 1710421589, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 244}
+{"ts": 1710421650, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 93}
+{"ts": 1710421711, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 327}
+{"ts": 1710421772, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 297}
+{"ts": 1710421833, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 322}
+{"ts": 1710421894, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 277}
+{"ts": 1710421955, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 311}
+{"ts": 1710422016, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 300}
+{"ts": 1710422077, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 183}
+{"ts": 1710422138, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 75}
+{"ts": 1710422199, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 11}
+{"ts": 1710422260, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 121}
+{"ts": 1710422321, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 129}
+{"ts": 1710422382, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 210}
+{"ts": 1710422443, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 384}
+{"ts": 1710422504, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 246}
+{"ts": 1710422565, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 449}
+{"ts": 1710422626, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 317}
+{"ts": 1710422687, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 29}
+{"ts": 1710422748, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 187}
+{"ts": 1710422809, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 176}
+{"ts": 1710422870, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 160}
+{"ts": 1710422931, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 82}
+{"ts": 1710422992, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 278}
+{"ts": 1710423053, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 231}
+{"ts": 1710423114, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 108}
+{"ts": 1710423175, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 350}
+{"ts": 1710423236, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 380}
+{"ts": 1710423297, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 379}
+{"ts": 1710423358, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 24}
+{"ts": 1710423419, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 9}
+{"ts": 1710423480, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 379}
+{"ts": 1710423541, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 435}
+{"ts": 1710423602, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 130}
+{"ts": 1710423663, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 369}
+{"ts": 1710423724, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 452}
+{"ts": 1710423785, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 323}
+{"ts": 1710423846, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 170}
+{"ts": 1710423907, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 42}
+{"ts": 1710423968, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 424}
+{"ts": 1710424029, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 378}
+{"ts": 1710424090, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 130}
+{"ts": 1710424151, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 259}
+{"ts": 1710424212, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 472}
+{"ts": 1710424273, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 462}
+{"ts": 1710424334, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 36}
+{"ts": 1710424395, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 228}
+{"ts": 1710424456, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 172}
+{"ts": 1710424517, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 29}
+{"ts": 1710424578, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 448}
+{"ts": 1710424639, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 26}
+{"ts": 1710424700, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 175}
+{"ts": 1710424761, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 470}
+{"ts": 1710424822, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 383}
+{"ts": 1710424883, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 198}
+{"ts": 1710424944, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 472}
+{"ts": 1710425005, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 145}
+{"ts": 1710425066, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 456}
+{"ts": 1710425127, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 166}
+{"ts": 1710425188, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 74}
+{"ts": 1710425249, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 383}
+{"ts": 1710425310, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 377}
+{"ts": 1710425371, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 253}
+{"ts": 1710425432, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 462}
+{"ts": 1710425493, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 281}
+{"ts": 1710425554, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 99}
+{"ts": 1710425615, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 48}
+{"ts": 1710425676, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 127}
+{"ts": 1710425737, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 133}
+{"ts": 1710425798, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 259}
+{"ts": 1710425859, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 371}
+{"ts": 1710425920, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 499}
+{"ts": 1710425981, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 266}
+{"ts": 1710426042, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-02", "n": 409}
+{"ts": 1710426103, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 237}
+{"ts": 1710426164, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 450}
+{"ts": 1710426225, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 359}
+{"ts": 1710426286, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 494}
+{"ts": 1710426347, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 56}
+{"ts": 1710426408, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 222}
+{"ts": 1710426469, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 498}
+{"ts": 1710426530, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 383}
+{"ts": 1710426591, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 192}
+{"ts": 1710426652, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 22}
+{"ts": 1710426713, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 260}
+{"ts": 1710426774, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 430}
+{"ts": 1710426835, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 30}
+{"ts": 1710426896, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 103}
+{"ts": 1710426957, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 218}
+{"ts": 1710427018, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 454}
+{"ts": 1710427079, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 350}
+{"ts": 1710427140, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 198}
+{"ts": 1710427201, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 46}
+{"ts": 1710427262, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 211}
+{"ts": 1710427323, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 318}
+{"ts": 1710427384, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 146}
+{"ts": 1710427445, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 366}
+{"ts": 1710427506, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 81}
+{"ts": 1710427567, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 177}
+{"ts": 1710427628, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 480}
+{"ts": 1710427689, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 331}
+{"ts": 1710427750, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 442}
+{"ts": 1710427811, "level": "error", "msg": "db busy, retrying", "gauge": "sf-02", "n": 222}
+{"ts": 1710427872, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 468}
+{"ts": 1710427933, "level": "warn", "msg": "gauge slow", "gauge": "sf-02", "n": 185}
+{"ts": 1710427994, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 499}
+{"ts": 1710428055, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 264}
+{"ts": 1710428116, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 389}
+{"ts": 1710428177, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 6}
+{"ts": 1710428238, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 48}
+{"ts": 1710428299, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 58}
+{"ts": 1710428360, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 467}
+{"ts": 1710428421, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 327}
+{"ts": 1710428482, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 458}
+{"ts": 1710428543, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 366}
+{"ts": 1710428604, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 102}
+{"ts": 1710428665, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 176}
+{"ts": 1710428726, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 297}
+{"ts": 1710428787, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 374}
+{"ts": 1710428848, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 148}
+{"ts": 1710428909, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 470}
+{"ts": 1710428970, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 151}
+{"ts": 1710429031, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 5}
+{"ts": 1710429092, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 220}
+{"ts": 1710429153, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 128}
+{"ts": 1710429214, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-01", "n": 371}
+{"ts": 1710429275, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 399}
+{"ts": 1710429336, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 86}
+{"ts": 1710429397, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 434}
+{"ts": 1710429458, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 11}
+{"ts": 1710429519, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 265}
+{"ts": 1710429580, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 331}
+{"ts": 1710429641, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-02", "n": 413}
+{"ts": 1710429702, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 367}
+{"ts": 1710429763, "level": "error", "msg": "gauge slow", "gauge": "sf-01", "n": 65}
+{"ts": 1710429824, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 453}
+{"ts": 1710429885, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 123}
+{"ts": 1710429946, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 387}
+{"ts": 1710430007, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 175}
+{"ts": 1710430068, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 68}
+{"ts": 1710430129, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 445}
+{"ts": 1710430190, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 266}
+{"ts": 1710430251, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 457}
+{"ts": 1710430312, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 151}
+{"ts": 1710430373, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 258}
+{"ts": 1710430434, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 496}
+{"ts": 1710430495, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 58}
+{"ts": 1710430556, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 253}
+{"ts": 1710430617, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 38}
+{"ts": 1710430678, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 178}
+{"ts": 1710430739, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 266}
+{"ts": 1710430800, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 448}
+{"ts": 1710430861, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 252}
+{"ts": 1710430922, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 232}
+{"ts": 1710430983, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 250}
+{"ts": 1710431044, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 170}
+{"ts": 1710431105, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 170}
+{"ts": 1710431166, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 191}
+{"ts": 1710431227, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 381}
+{"ts": 1710431288, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 51}
+{"ts": 1710431349, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 177}
+{"ts": 1710431410, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 433}
+{"ts": 1710431471, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 153}
+{"ts": 1710431532, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 386}
+{"ts": 1710431593, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 468}
+{"ts": 1710431654, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 392}
+{"ts": 1710431715, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 221}
+{"ts": 1710431776, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 335}
+{"ts": 1710431837, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 228}
+{"ts": 1710431898, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 486}
+{"ts": 1710431959, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 442}
+{"ts": 1710432020, "level": "warn", "msg": "db busy, retrying", "gauge": "sf-01", "n": 41}
+{"ts": 1710432081, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 407}
+{"ts": 1710432142, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 184}
+{"ts": 1710432203, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 273}
+{"ts": 1710432264, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 380}
+{"ts": 1710432325, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 356}
+{"ts": 1710432386, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 27}
+{"ts": 1710432447, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 122}
+{"ts": 1710432508, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 289}
+{"ts": 1710432569, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 283}
+{"ts": 1710432630, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 268}
+{"ts": 1710432691, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 456}
+{"ts": 1710432752, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 428}
+{"ts": 1710432813, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 460}
+{"ts": 1710432874, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 492}
+{"ts": 1710432935, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 366}
+{"ts": 1710432996, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 278}
+{"ts": 1710433057, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 431}
+{"ts": 1710433118, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 211}
+{"ts": 1710433179, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 357}
+{"ts": 1710433240, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 71}
+{"ts": 1710433301, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 331}
+{"ts": 1710433362, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 183}
+{"ts": 1710433423, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 131}
+{"ts": 1710433484, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 269}
+{"ts": 1710433545, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 431}
+{"ts": 1710433606, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 317}
+{"ts": 1710433667, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 211}
+{"ts": 1710433728, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 486}
+{"ts": 1710433789, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 251}
+{"ts": 1710433850, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 318}
+{"ts": 1710433911, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 207}
+{"ts": 1710433972, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 53}
+{"ts": 1710434033, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 298}
+{"ts": 1710434094, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 426}
+{"ts": 1710434155, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 292}
+{"ts": 1710434216, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 483}
+{"ts": 1710434277, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 437}
+{"ts": 1710434338, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 138}
+{"ts": 1710434399, "level": "error", "msg": "gauge slow", "gauge": "oak-07", "n": 73}
+{"ts": 1710434460, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 335}
+{"ts": 1710434521, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 443}
+{"ts": 1710434582, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 385}
+{"ts": 1710434643, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 429}
+{"ts": 1710434704, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 308}
+{"ts": 1710434765, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 35}
+{"ts": 1710434826, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 234}
+{"ts": 1710434887, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 127}
+{"ts": 1710434948, "level": "warn", "msg": "gauge slow", "gauge": "sf-02", "n": 104}
+{"ts": 1710435009, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 450}
+{"ts": 1710435070, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 4}
+{"ts": 1710435131, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 158}
+{"ts": 1710435192, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 253}
+{"ts": 1710435253, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 125}
+{"ts": 1710435314, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 451}
+{"ts": 1710435375, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 206}
+{"ts": 1710435436, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 243}
+{"ts": 1710435497, "level": "error", "msg": "db busy, retrying", "gauge": "sf-01", "n": 275}
+{"ts": 1710435558, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 435}
+{"ts": 1710435619, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 452}
+{"ts": 1710435680, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 187}
+{"ts": 1710435741, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 456}
+{"ts": 1710435802, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 105}
+{"ts": 1710435863, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 280}
+{"ts": 1710435924, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 360}
+{"ts": 1710435985, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 55}
+{"ts": 1710436046, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 194}
+{"ts": 1710436107, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 255}
+{"ts": 1710436168, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 311}
+{"ts": 1710436229, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 299}
+{"ts": 1710436290, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 170}
+{"ts": 1710436351, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 68}
+{"ts": 1710436412, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 56}
+{"ts": 1710436473, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 165}
+{"ts": 1710436534, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 409}
+{"ts": 1710436595, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 37}
+{"ts": 1710436656, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 231}
+{"ts": 1710436717, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 231}
+{"ts": 1710436778, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 141}
+{"ts": 1710436839, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 262}
+{"ts": 1710436900, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 108}
+{"ts": 1710436961, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 274}
+{"ts": 1710437022, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 314}
+{"ts": 1710437083, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 271}
+{"ts": 1710437144, "level": "warn", "msg": "gauge slow", "gauge": "oak-07", "n": 110}
+{"ts": 1710437205, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 191}
+{"ts": 1710437266, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 448}
+{"ts": 1710437327, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 151}
+{"ts": 1710437388, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 147}
+{"ts": 1710437449, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 127}
+{"ts": 1710437510, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 253}
+{"ts": 1710437571, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 265}
+{"ts": 1710437632, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 340}
+{"ts": 1710437693, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 162}
+{"ts": 1710437754, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 356}
+{"ts": 1710437815, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 85}
+{"ts": 1710437876, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 467}
+{"ts": 1710437937, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 252}
+{"ts": 1710437998, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 367}
+{"ts": 1710438059, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 273}
+{"ts": 1710438120, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 232}
+{"ts": 1710438181, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 180}
+{"ts": 1710438242, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 404}
+{"ts": 1710438303, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 164}
+{"ts": 1710438364, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 455}
+{"ts": 1710438425, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 95}
+{"ts": 1710438486, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 155}
+{"ts": 1710438547, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 478}
+{"ts": 1710438608, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 434}
+{"ts": 1710438669, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 496}
+{"ts": 1710438730, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 302}
+{"ts": 1710438791, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 276}
+{"ts": 1710438852, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 225}
+{"ts": 1710438913, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 243}
+{"ts": 1710438974, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 45}
+{"ts": 1710439035, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 29}
+{"ts": 1710439096, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 271}
+{"ts": 1710439157, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 135}
+{"ts": 1710439218, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 412}
+{"ts": 1710439279, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 282}
+{"ts": 1710439340, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 262}
+{"ts": 1710439401, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 106}
+{"ts": 1710439462, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 208}
+{"ts": 1710439523, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 440}
+{"ts": 1710439584, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 472}
+{"ts": 1710439645, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 24}
+{"ts": 1710439706, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 249}
+{"ts": 1710439767, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 38}
+{"ts": 1710439828, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 408}
+{"ts": 1710439889, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 54}
+{"ts": 1710439950, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 184}
+{"ts": 1710440011, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 144}
+{"ts": 1710440072, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 299}
+{"ts": 1710440133, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 53}
+{"ts": 1710440194, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 204}
+{"ts": 1710440255, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 473}
+{"ts": 1710440316, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 457}
+{"ts": 1710440377, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 468}
+{"ts": 1710440438, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 186}
+{"ts": 1710440499, "level": "error", "msg": "sync batch", "gauge": "sf-01", "n": 465}
+{"ts": 1710440560, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 272}
+{"ts": 1710440621, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 500}
+{"ts": 1710440682, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 221}
+{"ts": 1710440743, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 86}
+{"ts": 1710440804, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 419}
+{"ts": 1710440865, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 11}
+{"ts": 1710440926, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 254}
+{"ts": 1710440987, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 11}
+{"ts": 1710441048, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 452}
+{"ts": 1710441109, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 383}
+{"ts": 1710441170, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 84}
+{"ts": 1710441231, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 496}
+{"ts": 1710441292, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 274}
+{"ts": 1710441353, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 24}
+{"ts": 1710441414, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 119}
+{"ts": 1710441475, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 303}
+{"ts": 1710441536, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 152}
+{"ts": 1710441597, "level": "error", "msg": "gauge slow", "gauge": "sf-02", "n": 402}
+{"ts": 1710441658, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 228}
+{"ts": 1710441719, "level": "error", "msg": "sync batch", "gauge": "sf-02", "n": 458}
+{"ts": 1710441780, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 398}
+{"ts": 1710441841, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 85}
+{"ts": 1710441902, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 365}
+{"ts": 1710441963, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 251}
+{"ts": 1710442024, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 43}
+{"ts": 1710442085, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 464}
+{"ts": 1710442146, "level": "warn", "msg": "gauge slow", "gauge": "sf-01", "n": 217}
+{"ts": 1710442207, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 302}
+{"ts": 1710442268, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 217}
+{"ts": 1710442329, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 233}
+{"ts": 1710442390, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 20}
+{"ts": 1710442451, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 276}
+{"ts": 1710442512, "level": "error", "msg": "sync batch", "gauge": "oak-07", "n": 433}
+{"ts": 1710442573, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 129}
+{"ts": 1710442634, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 402}
+{"ts": 1710442695, "level": "info", "msg": "gauge slow", "gauge": "sf-01", "n": 488}
+{"ts": 1710442756, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 45}
+{"ts": 1710442817, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 335}
+{"ts": 1710442878, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 94}
+{"ts": 1710442939, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 357}
+{"ts": 1710443000, "level": "info", "msg": "db busy, retrying", "gauge": "oak-07", "n": 441}
+{"ts": 1710443061, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 240}
+{"ts": 1710443122, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 156}
+{"ts": 1710443183, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 148}
+{"ts": 1710443244, "level": "warn", "msg": "sync batch", "gauge": "oak-07", "n": 452}
+{"ts": 1710443305, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 382}
+{"ts": 1710443366, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 55}
+{"ts": 1710443427, "level": "info", "msg": "db busy, retrying", "gauge": "sf-02", "n": 388}
+{"ts": 1710443488, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 429}
+{"ts": 1710443549, "level": "warn", "msg": "sync batch", "gauge": "sf-01", "n": 183}
+{"ts": 1710443610, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 56}
+{"ts": 1710443671, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 482}
+{"ts": 1710443732, "level": "error", "msg": "db busy, retrying", "gauge": "oak-07", "n": 479}
+{"ts": 1710443793, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 485}
+{"ts": 1710443854, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 40}
+{"ts": 1710443915, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 218}
+{"ts": 1710443976, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 452}
+{"ts": 1710444037, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 224}
+{"ts": 1710444098, "level": "info", "msg": "db busy, retrying", "gauge": "sf-01", "n": 276}
+{"ts": 1710444159, "level": "info", "msg": "gauge slow", "gauge": "sf-02", "n": 336}
+{"ts": 1710444220, "level": "warn", "msg": "sync batch", "gauge": "sf-02", "n": 480}
+{"ts": 1710444281, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 389}
+{"ts": 1710444342, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 261}
+{"ts": 1710444403, "level": "error", "msg": "db busy, retrying", "gauge": "sf-02", "n": 99}
+{"ts": 1710444464, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 239}
+{"ts": 1710444525, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 493}
+{"ts": 1710444586, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 200}
+{"ts": 1710444647, "level": "info", "msg": "sync batch", "gauge": "sf-02", "n": 271}
+{"ts": 1710444708, "level": "info", "msg": "sync batch", "gauge": "oak-07", "n": 64}
+{"ts": 1710444769, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 212}
+{"ts": 1710444830, "level": "info", "msg": "sync batch", "gauge": "sf-01", "n": 178}
+{"ts": 1710444891, "level": "info", "msg": "gauge slow", "gauge": "oak-07", "n": 300}
+{"ts": 1710444952, "level": "warn", "msg": "db busy, retrying", "gauge": "oak-07", "n": 428}

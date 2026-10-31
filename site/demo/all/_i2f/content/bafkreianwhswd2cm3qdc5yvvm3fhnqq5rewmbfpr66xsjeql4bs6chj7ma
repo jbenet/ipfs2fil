@@ -1,0 +1,42 @@
+{
+ "nbformat": 4,
+ "nbformat_minor": 5,
+ "metadata": {
+  "kernelspec": {
+   "name": "python3",
+   "display_name": "Python 3"
+  }
+ },
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Tide levels at Fort Point\n",
+    "From `data/readings-sample.csv`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": 1,
+   "source": [
+    "import csv\n",
+    "rows = [r for r in csv.DictReader(open(\"data/readings-sample.csv\")) if r[\"gauge\"] == \"sf-01\"]\n",
+    "len(rows), max(float(r[\"level_m\"]) for r in rows)"
+   ],
+   "outputs": [
+    {
+     "output_type": "execute_result",
+     "execution_count": 1,
+     "metadata": {},
+     "data": {
+      "text/plain": [
+       "(200, 2.098)"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

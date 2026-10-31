@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2026-06-17T21:29:11.000Z","langs":["en"],"text":"v1.125 is live! You can now reply to specific messages in group chats and DMs.\n\nThis was one of the top requests we heard after launching Group Chats last week. So we built it. \n\nOn mobile, swipe a message to reply. On web, click the \"...\" button next to the message."}

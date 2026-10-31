@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.generator","acceptsInteractions":true,"avatar":{"$type":"blob","mimeType":"image/png","ref":{"$link":"bafkreigk26dzfyeyvpjadajzhdorm4hkj2vaypwtwwgxlt74dscitomfse"},"size":10519},"createdAt":"2023-05-26T20:16:14.669Z","description":"See top content from people you follow","did":"did:web:discover.bsky.app","displayName":"Best of Follows"}

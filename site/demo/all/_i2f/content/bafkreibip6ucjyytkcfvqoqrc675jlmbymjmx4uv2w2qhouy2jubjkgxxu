@@ -1,0 +1,15 @@
+import { Chart } from "./chart";
+
+type Reading = { gauge: string; at: string; level_m: number };
+
+export async function load(gauge: string): Promise<Reading[]> {
+  const res = await fetch(`/api/readings?gauge=${encodeURIComponent(gauge)}`);
+  if (!res.ok) throw new Error(`api: ${res.status}`);
+  return res.json();
+}
+
+export async function render(el: HTMLElement, gauge: string) {
+  const rs = await load(gauge);
+  const chart = new Chart(el, { dark: matchMedia("(prefers-color-scheme: dark)").matches });
+  chart.line(rs.map((r) => [Date.parse(r.at), r.level_m]));
+}

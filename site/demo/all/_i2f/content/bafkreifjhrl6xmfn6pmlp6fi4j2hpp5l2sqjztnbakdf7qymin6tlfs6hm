@@ -1,0 +1,2 @@
+CREATE TABLE gauges (id TEXT PRIMARY KEY, name TEXT, lat REAL, lon REAL);
+CREATE TABLE readings (gauge TEXT REFERENCES gauges(id), at INTEGER, level_m REAL, PRIMARY KEY (gauge, at));

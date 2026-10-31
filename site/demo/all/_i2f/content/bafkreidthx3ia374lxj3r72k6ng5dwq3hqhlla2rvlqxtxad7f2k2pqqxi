@@ -1,0 +1,5 @@
+import cProfile, pstats
+from src.ingest.worker import fetch
+
+cProfile.run("fetch('sf-01')", "fetch.prof")
+pstats.Stats("fetch.prof").sort_stats("cumtime").print_stats(15)

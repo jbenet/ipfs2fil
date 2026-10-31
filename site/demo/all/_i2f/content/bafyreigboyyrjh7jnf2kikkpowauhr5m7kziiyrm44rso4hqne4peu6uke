@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.generator","acceptsInteractions":true,"avatar":{"$type":"blob","mimeType":"image/png","ref":{"$link":"bafkreig7giif65hcs667s2afjdhc4so4koh733jlc5ol4l7jz4nxovtg6u"},"size":8274},"createdAt":"2023-05-26T22:47:25.418Z","description":"See posts from your mutual follows","did":"did:web:discover.bsky.app","displayName":"Mutuals"}

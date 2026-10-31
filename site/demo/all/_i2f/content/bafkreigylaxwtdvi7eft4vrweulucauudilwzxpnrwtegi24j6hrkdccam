@@ -1,0 +1,9 @@
+{
+  "total": 0.873,
+  "files": {
+    "src/api/main.go": 0.81,
+    "src/api/store.go": 0.94,
+    "src/ingest/worker.py": 0.86,
+    "src/web/dashboard.ts": 0.88
+  }
+}

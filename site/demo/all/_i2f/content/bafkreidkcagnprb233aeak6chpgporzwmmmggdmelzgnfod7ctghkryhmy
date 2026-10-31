@@ -1,0 +1,6 @@
+vite v6.0.7 building for production...
+✓ 38 modules transformed.
+dist/index.html                0.46 kB
+dist/assets/index-4f2a9c.css   1.12 kB
+dist/assets/index-b81e07.js   48.73 kB │ gzip: 17.02 kB
+✓ built in 1.84s

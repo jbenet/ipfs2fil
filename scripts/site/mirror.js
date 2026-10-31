@@ -1,6 +1,7 @@
 // Mirrors a running `ipfs2fil explore` into a static folder for the website's
 // live demo: every explorer page and index file the pages ask for, and the
-// files themselves (up to --max bytes each) under all/_i2f/content/.
+// files themselves (up to --max bytes each, any JPEG or PNG up to 16 MiB)
+// under all/_i2f/content/.
 //
 //   node scripts/site/mirror.js http://127.0.0.1:8484 site/demo [maxBytes]
 //
@@ -60,7 +61,9 @@ const save = (u, body) => {
     const head = await fetch(`${base}/all/_i2f/content/${c}`, { method: 'HEAD' });
     if (!head.ok) continue;
     const len = parseInt(head.headers.get('content-length') || '0', 10);
-    if (len > max) { skipped++; continue; }
+    // Big JPEGs and PNGs come along anyway: shrink.py scales them down after.
+    const img = /^image\/(jpeg|png)/.test(head.headers.get('content-type') || '') && len <= 16 << 20;
+    if (len > max && !img) { skipped++; continue; }
     const body = Buffer.from(await (await fetch(`${base}/all/_i2f/content/${c}`)).arrayBuffer());
     save(`${base}/all/_i2f/content/${c}`, body); n++; bytes += body.length;
   }

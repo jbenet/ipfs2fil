@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2024-01-22T18:42:46.769Z","langs":["en"],"text":"📢 App Version 1.66 is rolling out now (1/2)\n\nA nice bundle of updates for you today!\n\n• Alt text can now be copied. (Thanks trantus!)\n• Post images now maintain consistent aspect ratios across devices. The images can now range from 10:1 to 1:3, and link embeds are now 1.91:1."}

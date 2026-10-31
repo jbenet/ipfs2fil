@@ -1,0 +1,10 @@
+# Ideas
+
+1. Print the fractal series at 50x50 cm.
+2. A photo book of the desert trip, 24 pages.
+3. Archive everything to Filecoin before the old laptop dies.
+4. Keep the Bluesky posts with the photos: same pictures, same CIDs.
+
+```sh
+ipfs2fil up --all
+```

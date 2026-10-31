@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2023-07-04T16:18:02.280Z","langs":["en"],"text":"📢 Version 1.38 is rolling out out now.\n\n• Multiple accessibility fixes and improvements\n• Added a setting to require alt text on all images (default off)\n• Another fix to thread muting\n• Fixed a permissions and duplicates issue with image saving"}

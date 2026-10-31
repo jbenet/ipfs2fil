@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>tidepool</title>
+<link rel="stylesheet" href="style.css">
+<body>
+  <header><img src="../../assets/icons/wave.svg" width="28"> tidepool</header>
+  <main id="chart"></main>
+  <script type="module">import { render } from "./dashboard.js"; render(document.getElementById("chart"), "sf-01");</script>
+</body>
+</html>

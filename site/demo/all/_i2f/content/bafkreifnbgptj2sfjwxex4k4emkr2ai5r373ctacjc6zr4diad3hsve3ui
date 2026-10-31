@@ -1,0 +1,24 @@
+package main
+
+import "database/sql"
+
+type Store struct{ db *sql.DB }
+
+// Latest returns the newest n readings of a gauge, newest first.
+func (s *Store) Latest(gauge string, n int) ([]Reading, error) {
+	rows, err := s.db.Query(`SELECT gauge, at, level_m FROM readings
+		WHERE gauge = ? ORDER BY at DESC LIMIT ?`, gauge, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Reading
+	for rows.Next() {
+		var r Reading
+		if err := rows.Scan(&r.Gauge, &r.At, &r.Level); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
