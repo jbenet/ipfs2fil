@@ -1,5 +1,6 @@
 // Package repo reads the places IPFS blocks live: kubo and go-ipfs fs-repos of
-// every version, 0 through 18, js-ipfs repos 7 through 12, CAR files, running kubo nodes, and Bluesky
+// every version, 0 through 18, js-ipfs repos 7 through 12, Helia's
+// blockstore-fs and datastore, CAR files, running kubo nodes, and Bluesky
 // (atproto) accounts, whose repos are IPLD too. It reads strictly read-only:
 // it never runs migrations and never takes the repo lock for writing, so a
 // live daemon's repo can be read safely.
@@ -59,6 +60,7 @@ const (
 	KindRPC     = "kubo-rpc"
 	KindATProto = "atproto"
 	KindJSIPFS  = "js-ipfs"
+	KindHelia   = "helia"
 )
 
 // Repo is a read-only view of one repo.
@@ -94,8 +96,9 @@ var (
 )
 
 // Open detects what path holds and returns a reader for it: an fs-repo
-// directory, a CAR file, a directory of CAR files, or the http:// address of
-// a kubo node's RPC API, or a Bluesky account (at://handle or a DID).
+// directory, a js-ipfs repo, a Helia blockstore, a CAR file, a directory of
+// CAR files, the http:// address of a kubo node's RPC API, or a Bluesky
+// account (at://handle or a DID).
 func Open(path string) (Repo, error) {
 	if atproto.IsAccount(path) {
 		return openATProto(path)
@@ -105,6 +108,9 @@ func Open(path string) (Repo, error) {
 	}
 	if isCAR(path) {
 		return openCAR(path)
+	}
+	if blocks, ok := heliaBlockstore(path); ok {
+		return openHelia(path, blocks)
 	}
 	v, err := DetectVersion(path)
 	if err != nil {
@@ -151,6 +157,9 @@ func Discover(explicit string) (string, error) {
 			continue
 		}
 		if c == explicit && (atproto.IsAccount(c) || isRPC(c) || isCAR(c)) {
+			return c, nil
+		}
+		if _, ok := heliaBlockstore(c); ok && c == explicit {
 			return c, nil
 		}
 		if _, err := DetectVersion(c); err == nil {

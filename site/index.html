@@ -130,6 +130,7 @@
     <h2 class="title">Built to outlast the machine it ran on</h2>
     <div class="grid">
       <article><h3>Every repo version</h3><p>fs-repo 0 through 18: go-ipfs 0.2 to kubo 0.43, with flatfs, leveldb, badger, pebble and custom datastore specs. Old pin layouts and the MFS root are read too.</p></article>
+      <article><h3>More than kubo</h3><p>js-ipfs repos, Helia stores, CAR files, a running node through its RPC API, and Bluesky accounts, whose repos are IPLD too: <code>--repo at://you.bsky.social</code> archives the posts, images and video, with a Posts page in the explorer.</p></article>
       <article><h3>Everything, not just pins</h3><p>Recursive and direct pins, your MFS files, and orphan blocks no pin reaches (on by default), all linked under one archive root.</p></article>
       <article><h3>Same repo, same pieces</h3><p>Piece cuts depend only on the blocks, so a re-run skips every piece already stored and an edit changes only nearby pieces. Dates and providers live in the index, not the data.</p></article>
       <article><h3>Copies that are proven</h3><p>Pieces go to Filecoin Onchain Cloud, where providers prove on chain, over and over, that they still hold them. Three copies by default, paid from your own wallet.</p></article>
@@ -144,7 +145,7 @@
 <section id="start" class="section alt">
   <div class="wrap narrow">
     <h2 class="title">Quickstart</h2>
-    <p class="sub">You need an IPFS repo (kubo, go-ipfs, or anything that runs them, like IPFS Desktop) and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
+    <p class="sub">You need an IPFS repo (kubo, go-ipfs, or anything that runs them, like IPFS Desktop; js-ipfs, Helia, a CAR file or a Bluesky account work too) and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
     <ol class="quick">
       <li><h3>Install</h3>
 <pre><code>curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh</code></pre>
