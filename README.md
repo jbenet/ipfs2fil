@@ -28,6 +28,8 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
   so the daemon can keep running.
 - **js-ipfs repos too.** `~/.jsipfs` repos 7 to 12 (js-ipfs 0.40 and later),
   for the archives js-ipfs left behind when it was retired.
+- **Helia stores.** A Node app's Helia blockstore (blockstore-fs) and its
+  datastore (datastore-fs or datastore-level) beside it, with pins and MFS.
 - **CAR files too.** Point `--repo` at a `.car` file or a folder of them
   (`ipfs dag export`, gateway and Lassie downloads, old web3.storage exports).
   Each CAR's roots are kept as pins named after the file.
