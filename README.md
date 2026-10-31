@@ -34,8 +34,10 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **Proven copies.** 3 copies by default on Filecoin Onchain Cloud, paid from
   your own wallet. Providers announce the CIDs to IPFS, so any gateway can
   fetch a file by CID.
-- **An explorer inside the archive.** Photos, video, audio, PDFs and code open
-  in the page; every list filters, sorts and runs from the keyboard.
+- **An explorer inside the archive.** Photos, video, audio, PDFs, books, web
+  pages, Markdown, spreadsheets, Office files and code open in the page, with
+  thumbnails; JavaScript and Python run sandboxed. Every list filters, sorts
+  and runs from the keyboard.
 - **Many repos, many machines.** Shared data sets, blocks stored once across
   repos, and a catalog of every machine's repos kept encrypted on chain.
 
@@ -124,6 +126,11 @@ shortcuts.
 
 Try it on the [live demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/),
 or on a made-up archive with `ipfs2fil explore --demo`.
+
+explore makes thumbnails of photos, videos, PDFs, album art and Office files
+and keeps them in your cache folder; videos, PDFs and album art need `ffmpeg`
+and `pdftoppm` (`brew install ffmpeg poppler`). [docs/viewers.md](docs/viewers.md)
+lists every viewer and thumbnail and how to add one.
 
 ## Many repos
 

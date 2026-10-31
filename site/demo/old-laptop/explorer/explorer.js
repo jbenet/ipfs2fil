@@ -576,6 +576,20 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     }
   }
   const kindFix = (e) => { if (e.kind === 'other' && KOVER[e.cid]) e.kind = KOVER[e.cid]; return e; };
+  // Files only partly in the pieces (an orphan whose root a repo had, but
+  // not the rest): CID -> [blocks here, blocks in all]. explore tells.
+  const PARTS = {}, askedParts = new Set();
+  async function findParts(items, then) {
+    if (!LOCAL) return;
+    const want = items.filter((e) => e.kind !== 'folder' && e.cid && !askedParts.has(e.cid)).map((e) => e.cid);
+    if (!want.length) return;
+    want.forEach((c) => askedParts.add(c));
+    try {
+      const r = await fetch('../_i2f/parts', { method: 'POST', body: want.join('\n') });
+      if (r.ok) { const got = await r.json(); Object.assign(PARTS, got); if (Object.keys(got).length) then(); }
+    } catch (e) { /* older explore */ }
+  }
+  const V = window.I2FV || null;
 
   // Every entry, streamed once from all shards, for search and the library.
   let allP = null;
@@ -606,6 +620,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 
   async function files() {
     const [m, meta] = await Promise.all([manifest(), load('meta')]);
+    if (V) V.use({ esc, icon });
     LOCAL = await probeLocal();
     const S = {
       p: params.get('p') || '', q: params.get('q') || '', kind: params.get('kind') || 'all', deep: params.get('deep') === '1' || !!params.get('q'),
@@ -722,6 +737,8 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       $('#fdeep').checked = S.deep;
       $('#fsize').value = S.size; $('#fsort').value = S.sort; $('#fflip').textContent = S.dir > 0 ? '▲' : '▼';
       if (S.view === 'grid') grid(); else if (S.view === 'tree') tree(); else if (S.view === 'cols' && !S.deep) cols(); else listView();
+      gen();
+      findParts((S.view === 'tree' ? rows : shown).slice(0, S.limit), () => update(true));
       preview(full);
       const u = 'browse.html?' + qs({ p: S.p, q: S.q, kind: S.kind === 'all' ? '' : S.kind, deep: S.deep && !S.q ? '1' : '', size: S.size === 'any' ? '' : S.size, sort: S.sort === 'name' ? '' : S.sort, dir: S.dir < 0 ? '-1' : '', sel: S.sel });
       if (u !== lastURL) { history.replaceState(null, '', u); lastURL = u; }
@@ -731,8 +748,50 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     const empty = () => `<p class="muted pad">${S.deep && loadingAll ? 'Searching…' : S.q ? 'No names match.' : S.kind !== 'all' ? `No ${esc(kindOf(S.kind)[3].toLowerCase())} here.` : 'This folder is empty.'}</p>`;
     // Book covers too, which explore reads out of EPUBs; a book with none
     // falls back to the icon (see the error listener below).
-    const thumbOr = (e, cls) => (e.kind === 'image' && canShow()) || (LOCAL && e.kind === 'doc' && ext(e.name) === 'epub') ? `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" src="${esc(thumbURL(e, cls === 'tt' ? 320 : 96))}">` : `<span class="${cls} ic">${icon(e.kind)}</span>`;
-    D.addEventListener('error', (ev) => { const x = ev.target; if (x.localName === 'img' && x.dataset && x.dataset.k === 'doc') x.outerHTML = `<span class="${x.className} ic">${icon('doc')}</span>`; }, true);
+    // explore makes thumbnails of pictures, videos, sound with cover art and
+    // documents (thumbnails.go); a file it has none for falls back to its
+    // icon, or for a video to a frame the browser takes (viewers.js). From a
+    // gateway the browser takes video frames itself, and grid tiles of text
+    // show their first lines.
+    const THUMBS = new Set(['image', 'video', 'audio', 'doc']);
+    const thumbOr = (e, cls) => {
+      const w = cls === 'tt' ? 320 : 96, badge = PARTS[e.cid] ? '<span class="partial" title="Only part of this file is here">partial</span>' : '';
+      if (PARTS[e.cid] && e.kind !== 'image') return `<span class="${cls} ic">${icon(e.kind)}</span>` + badge;
+      if ((e.kind === 'image' && canShow()) || (LOCAL && THUMBS.has(e.kind))) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(e.cid)}" src="${esc(thumbURL(e, w))}">` + badge;
+      if (V && canShow() && e.kind === 'video') return `<span class="${cls} ic" data-gen="v" data-c="${esc(e.cid)}">${icon(e.kind)}</span>`;
+      if (V && canShow() && cls === 'tt' && (e.kind === 'text' || e.kind === 'code') && e.bytes) return `<span class="${cls} ic" data-gen="t" data-c="${esc(e.cid)}">${icon(e.kind)}</span>`;
+      return `<span class="${cls} ic">${icon(e.kind)}</span>`;
+    };
+    const byCID = (c) => shown.find((e) => e.cid === c) || rows.find((e) => e.cid === c);
+    D.addEventListener('error', (ev) => {
+      const x = ev.target;
+      if (x.localName !== 'img' || !x.dataset || !x.dataset.k || x.dataset.k === 'image' || !x.closest('.flist')) return;
+      x.outerHTML = `<span class="${x.className} ic"${x.dataset.k === 'video' && V ? ` data-gen="v" data-c="${esc(x.dataset.c)}"` : ''}>${icon(x.dataset.k)}</span>`;
+      gen();
+    }, true);
+    // Made in the browser, once each: blob URLs of video frames, text heads.
+    const made = new Map();
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver((xs) => xs.forEach((x) => { if (x.isIntersecting) { io.unobserve(x.target); fillGen(x.target); } }), { rootMargin: '200px' }) : null;
+    function gen() { if (io) setTimeout(() => main().querySelectorAll('.flist [data-gen]:not([data-seen])').forEach((el) => { el.dataset.seen = 1; io.observe(el); }), 0); }
+    async function fillGen(el) {
+      const e = byCID(el.dataset.c), url = e && contentURL(e);
+      if (!url) return;
+      const key = el.dataset.gen + ' ' + e.cid;
+      if (!made.has(key)) {
+        made.set(key, el.dataset.gen === 'v'
+          ? V.frame(url, 320).then((b) => {
+            if (!b) return null;
+            // explore keeps what the browser made, for next time
+            if (LOCAL) fetch('../_i2f/thumb/' + encodeURIComponent(e.cid) + '?w=320', { method: 'POST', headers: { 'X-I2F-Thumb': '1' }, body: b }).catch(() => {});
+            return URL.createObjectURL(b);
+          })
+          : V.lines((n) => head(url, n)).catch(() => null));
+      }
+      const r = await made.get(key);
+      if (!r || !el.isConnected) return;
+      if (el.dataset.gen === 'v') el.outerHTML = `<img class="${el.className.replace(/\bic\b/, '')}" alt="" src="${esc(r)}">`;
+      else { el.classList.add('txt'); el.textContent = r; }
+    }
     const where = (e) => showPath(e.dir) || 'data';
     function listView() {
       const deepCols = S.deep;
@@ -860,11 +919,14 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     function stage(e, url) {
       if (!url) return `<div class="none"><p>Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see the file here.</p><button type="button" class="btn sm" data-public>Load from ${GATEWAYS[0][0]}</button></div>`;
       const x = ext(e.name);
+      if (PARTS[e.cid]) return `<div class="none">${icon(e.kind)}<p>Only ${num(PARTS[e.cid][0])} of the ${num(PARTS[e.cid][1])} parts of this file are in the pieces: the IPFS repo it was packed from did not have the rest, so it cannot be shown.</p></div>`;
+      if (V && V.find(e, x)) return '<p class="muted pad">Loading…</p>';
       switch (e.kind) {
-        case 'image': return `<img src="${esc(url)}" alt="${esc(e.name)}">`;
+        // Photos the browser cannot show (HEIC, TIFF, raw) come as large thumbnails.
+        case 'image': return `<img src="${esc(LOCAL && /^(heic|heif|tiff?|cr2|nef|arw|dng|raw|psd)$/.test(x) ? thumbURL(e, 2048) : url)}" alt="${esc(e.name)}">`;
         case 'video': return `<video src="${esc(url)}" controls preload="metadata"></video>`;
-        case 'audio': return `<div class="none">${icon('audio')}<audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
-        case 'page': return `<iframe sandbox="" src="${esc(url)}" title="${esc(e.name)}"></iframe>`;
+        case 'audio': return `<div class="none">${LOCAL ? `<img class="cover" alt="" src="${esc(thumbURL(e, 640))}" onerror="this.remove()">` : icon('audio')}<audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
+        case 'page': return '<iframe sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock" title="' + esc(e.name) + '"></iframe>';
         case 'doc': return x === 'pdf' || !x ? '' : x === 'epub' ? '<p class="muted pad">Opening the book…</p>' : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
         case 'text': case 'code': return '<pre class="code"><code>Loading…</code></pre>';
         case 'folder': return '';
@@ -1210,18 +1272,73 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
         },
       };
     })();
+    // Where a page's folder is served, so its relative links work: explore
+    // serves folders by path (_i2f/path), as gateways do (../data/).
+    // Pages go to the other name for this machine (localhost for
+    // 127.0.0.1), another origin to the browser, so a page keeps its own
+    // storage and fonts and cannot reach the explorer; see pageHost in
+    // content.go.
+    async function baseOf(e, page) {
+      if (HERE) return contentURL(e).replace(/[^/]*$/, '');
+      if (!LOCAL) return '';
+      const di = await dirInfo(e.dir);
+      if (!di || !di.cid) return '';
+      const u = new URL('../_i2f/path/' + encodeURIComponent(di.cid) + '/', location.href);
+      if (page && u.hostname === '127.0.0.1') u.hostname = 'localhost';
+      return u.href;
+    }
     async function fill(pane, e, url) {
       const st = pane.querySelector('.stage');
-      if (!url || !st) return;
-      const want = e.path;
+      if (!url || !st || PARTS[e.cid]) return;
+      const want = e.path, x = ext(e.name);
+      const still = () => st.isConnected && (!current() || current().path === want);
       const range = (n) => head(url, n);
+      const viewer = V && V.find(e, x);
       try {
+        if (viewer) {
+          const get = async (r, h) => {
+            const res = await fetch(url, h ? { headers: h } : undefined);
+            if (!res.ok) throw new Error(res.status === 404 ? (await res.text()) || 'This file is not in the pieces on this machine.' : res.statusText);
+            return r(res);
+          };
+          const v = {
+            e, x, url, still, base: await baseOf(e), esc, icon, bytes, num,
+            head: (n) => range(n),
+            all: (max) => { if (e.bytes > max) throw new Error(`This file is ${bytes(e.bytes)}, too big to open here. Download it to see it.`); return get((r) => r.arrayBuffer()); },
+            range: (a, b) => get((r) => r.arrayBuffer(), { Range: `bytes=${a}-${b - 1}` }).then((buf) => buf.byteLength > b - a ? buf.slice(a, b) : buf),
+            tail: (n) => get(async (r) => { const buf = await r.arrayBuffer(); return r.status === 206 ? [buf, e.bytes] : [buf.slice(Math.max(0, buf.byteLength - n)), buf.byteLength]; }, { Range: `bytes=-${n}` })
+          };
+          await viewer.show(st, v);
+          return;
+        }
+        if (e.kind === 'page') {
+          const f = st.querySelector('iframe'), base = await baseOf(e, true);
+          if (!still() || !f) return;
+          // A page from another origin keeps it (its storage, its fonts); one
+          // from this origin must not, or it could reach the explorer.
+          const show = (src) => { if (new URL(src, location.href).origin !== location.origin) f.sandbox.add('allow-same-origin'); f.src = src; };
+          if (LOCAL && base) {
+            // (a static copy of the explorer, like the website's demo, has no _i2f/path)
+            const src = base + encodeURIComponent(e.name), ok = await fetch((await baseOf(e)) + encodeURIComponent(e.name), { method: 'HEAD' }).then((r) => r.ok, () => false);
+            if (!still()) return;
+            if (ok) { show(src); return; }
+          }
+          // A static host may not call it HTML; then show it from its text,
+          // its links resolving against its folder.
+          const r = await fetch(url, { method: 'HEAD' }).catch(() => null);
+          if (r && r.ok && /html/i.test(r.headers.get('content-type') || '')) { show(url); return; }
+          const text = new TextDecoder().decode(await range(8 << 20));
+          if (still()) f.srcdoc = (HERE && base ? `<base href="${esc(new URL(base, location.href).href)}">` : '') + text;
+          return;
+        }
         if (e.kind === 'text' || e.kind === 'code') {
           const buf = await range(256 << 10);
           if (current() && current().path !== want) return;
           const lines = new TextDecoder().decode(buf).split('\n');
           const cut = buf.byteLength >= 256 << 10 || e.bytes > buf.byteLength;
           st.innerHTML = `<pre class="code"><code>${lines.slice(0, 5000).map((l) => `<span>${esc(l)}</span>`).join('\n')}</code></pre>${cut || lines.length > 5000 ? '<p class="faint pad">Showing the start. Download for all of it.</p>' : ''}`;
+          const lang = V && V.runs(x);
+          if (lang) V.runner(st, { all: async () => { const r = await fetch(url); if (!r.ok) throw new Error(r.statusText); return r.arrayBuffer(); } }, lang);
         } else if (st.querySelector('.hex')) {
           const b = new Uint8Array(await range(512));
           if (current() && current().path !== want) return;
@@ -1232,9 +1349,19 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
           }
           st.innerHTML = `<pre class="hex">${esc(out)}</pre><p class="faint pad">The first ${num(b.length)} bytes. No preview for this kind of file.</p>`;
         }
-      } catch (err) { st.innerHTML = `<div class="none"><p>${esc(err.message)}</p></div>`; }
-      const media = st.querySelector('img, video, audio');
-      if (media) media.onerror = () => { st.innerHTML = `<div class="none"><p>${LOCAL ? 'This file is not in the pieces on this machine, or the browser cannot show it.' : 'The browser could not load or show this file.'}</p></div>`; };
+      } catch (err) { if (st.isConnected) st.innerHTML = `<div class="none"><p>${esc(err.message)}</p></div>`; }
+      const media = st.querySelector('img:not(.cover), video, audio');
+      if (media) media.onerror = async () => {
+        // Say why: the server's word when it has the file only in part, or
+        // the browser's when it cannot play the format.
+        let why = LOCAL ? 'This file is not in the pieces on this machine, or the browser cannot show it.' : 'The browser could not load or show this file.';
+        try {
+          const r = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+          if (!r.ok) why = (await r.text()) || why;
+          else if (e.kind === 'video' || e.kind === 'audio') why = `This browser cannot play ${x ? '.' + x + ' files' : 'this file'}${media.error && media.error.message ? ' (' + media.error.message + ')' : ''}. Download it to play it.`;
+        } catch (err) { /* keep the general reason */ }
+        if (st.isConnected) st.innerHTML = `<div class="none">${icon(e.kind)}<p>${esc(why)}</p></div>`;
+      };
     }
     async function folderPane(pane, di, p, here, e) {
       if (!di) { pane.innerHTML = ''; return; }
@@ -1337,9 +1464,34 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       return true;
     };
     const step = (d) => () => { sel((S.cur < 0 ? -1 : S.cur) + d); return true; };
-    const across = () => S.view === 'grid' ? Math.max(1, Math.round($('.flist').clientWidth / 150)) : 1;
+    // Tiles per row in the grid, as laid out (a CSS auto-fill grid).
+    const across = () => {
+      if (S.view !== 'grid') return 1;
+      const t = $('.flist .tiles');
+      return t ? Math.max(1, getComputedStyle(t).gridTemplateColumns.split(' ').length) : 1;
+    };
+    // Up and down in the grid go to the tile above or below on screen: rows
+    // are cut short where a folder's group ends, so it is not a fixed count.
+    const vert = (d) => () => {
+      if (S.view !== 'grid' || S.cur < 0) return step(d)();
+      const at = (i) => { const el = $(`.flist .tile[data-i="${i}"]`); return el && el.getBoundingClientRect(); };
+      const me = at(S.cur);
+      if (!me) return step(d * across())();
+      const x = me.left + me.width / 2;
+      let best = -1, row = null, bestDx = Infinity;
+      for (let i = S.cur + d; i >= 0 && i < Math.min(shown.length, S.limit); i += d) {
+        const r = at(i);
+        if (!r) break;
+        if (row === null) { if (Math.abs(r.top - me.top) < 2) continue; row = r.top; }
+        if (Math.abs(r.top - row) >= 2) break;
+        const dx = Math.abs(r.left + r.width / 2 - x);
+        if (dx < bestDx) { bestDx = dx; best = i; }
+      }
+      if (best >= 0) sel(best);
+      return true;
+    };
     Object.assign(pageKeys, {
-      j: step(1), k: step(-1), ArrowDown: () => step(across())(), ArrowUp: () => step(-across())(),
+      j: step(1), k: step(-1), ArrowDown: vert(1), ArrowUp: vert(-1),
       ArrowRight: () => { if (S.view === 'grid') return step(1)(); const e = current(); if (S.view === 'tree' && e && e.branch && !e.open) { toggle(e); return true; } return false; },
       ArrowLeft: () => { if (S.view === 'grid') return step(-1)(); const e = current(); if (S.view === 'tree' && e && e.open) { toggle(e); return true; } return false; },
       Enter: () => { open(current()); return true; }, ' ': () => { S.ly = S.ly === 'file' ? 'split' : 'file'; keep('layout', S.ly); update(); return true; },

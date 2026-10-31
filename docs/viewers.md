@@ -1,0 +1,82 @@
+# Viewers and thumbnails
+
+How the explorer's Files page shows files and makes their thumbnails, and
+where to add another kind of file.
+
+## Viewers (in the browser)
+
+`internal/explorer/assets/explorer.js` shows the kinds every browser handles
+itself: photos, video, sound, web pages, PDFs (in a deck of frames) and EPUBs
+(its own reader), plus text and code as plain text and other files as hex.
+
+Everything else is in `internal/explorer/assets/viewers.js`, one viewer per
+sort of file. A viewer is
+
+```js
+view({
+  name: 'markdown',
+  test: (e, x) => x === 'md',           // e: the entry, x: its lower-case extension
+  async show(st, v) { st.innerHTML = '...'; },
+});
+```
+
+`show` fills the preview's stage element. `v` brings the bytes (`v.head(n)`,
+`v.all(max)`, `v.tail(n)`, `v.range(a, b)`), `v.still()` (is this file still
+the one shown), `v.base` (where its folder is served, for relative links) and
+the explorer's formatting helpers. The first viewer whose `test` says yes
+shows the file; add yours above a more general one.
+
+Viewers now: Markdown (rendered, with a switch to the source), CSV and TSV
+tables, JSON pretty printed, Jupyter notebooks, fonts (a specimen), zip and
+tar listings (a zip's directory is read from its end, so only that is
+fetched), Word text, Excel sheets, PowerPoint slide text, and WebAssembly
+imports and exports.
+
+Code can run: JavaScript in a sandboxed frame with no access to the explorer
+or the archive, and Python on Pyodide (CPython for WebAssembly), which the
+frame downloads from cdn.jsdelivr.net only when you press Run. Add a language
+in `RUN` and `harness` in viewers.js.
+
+Web pages: `ipfs2fil explore` serves folders by path (`_i2f/path/<folder
+CID>/<path>`), so a page's relative links to its pictures, styles and scripts
+work. The explorer is at 127.0.0.1 and loads pages from localhost, which a
+browser treats as another origin: pages run their scripts and keep their own
+storage, and cannot reach the explorer. From a gateway pages come from
+`../data/`, sandboxed.
+
+## Thumbnails
+
+`ipfs2fil explore` makes them (`internal/explorer/thumbnails.go`), one
+thumbnailer per kind of file, tried in order:
+
+| Files | How | Needs |
+|---|---|---|
+| JPEG, PNG, GIF | decoded and scaled in Go | |
+| EPUB | its cover | |
+| Word, Excel, PowerPoint, OpenDocument, Pages, Keynote, Numbers | the preview picture inside the file | |
+| PDF | the first page | `pdftoppm` (poppler) or `mutool` (MuPDF) |
+| Video | a telling frame from the first seconds | `ffmpeg` |
+| Audio | the album art in the file | `ffmpeg` |
+| On a Mac, most else (HEIC and raw photos, fonts, other documents) | Quick Look (`qlmanage`) | macOS |
+
+A thumbnailer is a `make(ctx, file, width)` that returns a picture of any size,
+which explore then scales. Add one to the `thumbnailers` list.
+
+Thumbnails are kept on disk in the user's cache folder
+(`~/Library/Caches/ipfs2fil/thumbs` on a Mac, `~/.cache/ipfs2fil/thumbs` on
+Linux), so each is made once. Files with none are remembered too, unless a
+program that might make one is missing (install it and they are tried again).
+
+When explore cannot make a video's thumbnail (no ffmpeg), the page takes a
+frame in the browser and sends it back, and explore keeps it. From a gateway
+the browser takes video frames itself, and grid tiles of text and code show
+their first lines. Thumbnails are not packed into the archive: they are a
+cache, and the archive on Filecoin stays exactly the repo's blocks.
+
+## Files only partly here
+
+An orphan whose root block a repo had, but not the rest, is listed with its
+full size but cannot be shown. explore checks every file's blocks before
+sending it (`parts` in content.go, which reads only inner nodes), answers 404
+with "Only N of the M parts...", and lists such files for the pages
+(`POST _i2f/parts`), which mark them "partial" and say so in the preview.

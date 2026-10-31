@@ -40,7 +40,9 @@ from any IPFS gateway once the archive is stored. --serve=false only
 refreshes the pages. It also serves the files themselves, read from the
 pieces on this machine, so the explorer can show photos, play videos and open
 documents, and it serves this version's explorer pages over the ones packed
-with the archive.
+with the archive. It makes thumbnails and keeps them in your cache folder:
+of videos and album art with ffmpeg, of PDFs with pdftoppm or mutool, and on
+a Mac of most other files with Quick Look, when those are installed.
 
 It finds what 'ipfs2fil up' or 'pack' wrote: the archive in --out if given or
 if ./ipfs2fil-archive holds one, else the repos 'ipfs2fil repos add' listed in
