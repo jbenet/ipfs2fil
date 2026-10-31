@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -165,20 +166,22 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	}
 	found, err := repo.Discover(path)
 	if errors.Is(err, repo.ErrNotRepo) {
-		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks'", path)
+		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks', or a CAR file", path)
 	}
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
-	abs, err := filepath.Abs(found)
-	if err != nil {
-		return err
+	abs := found
+	if !strings.Contains(found, "://") {
+		if abs, err = filepath.Abs(found); err != nil {
+			return err
+		}
 	}
 	r, err := repo.Open(abs)
 	if err != nil {
 		return fmt.Errorf("opening %s: %w", abs, err)
 	}
-	v := r.Version()
+	v := repo.Describe(r)
 	r.Close()
 	name := reposName
 	if name == "" {
@@ -191,7 +194,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 		return err
 	}
 	commitCatalog(o, c, "add "+name)
-	fmt.Fprintf(o.stdout, "added    %s (%s, fs-repo %d)\n", name, abs, v)
+	fmt.Fprintf(o.stdout, "added    %s (%s, %s)\n", name, abs, v)
 	fmt.Fprintf(o.stdout, "repos    %d on this machine, listed in %s\n", len(c.Repos), c.Where())
 	fmt.Fprintf(o.stdout, "next     ipfs2fil up --all\n")
 	return nil
@@ -201,6 +204,9 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // parent's when that says nothing: ~/.ipfs is named after the home
 // directory (/Users/ada/.ipfs -> ada).
 func defaultName(path string) string {
+	if u, err := url.Parse(path); err == nil && u.Host != "" {
+		path = u.Hostname() // a node's RPC API is named after its host
+	}
 	n := strings.TrimLeft(filepath.Base(path), ".")
 	if n == "" || n == "ipfs" {
 		if p := strings.TrimLeft(filepath.Base(filepath.Dir(path)), "./"+string(filepath.Separator)); p != "" {

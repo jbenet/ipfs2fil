@@ -9,6 +9,7 @@ import (
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
+	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
 var packOrphans bool
@@ -88,7 +89,7 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 			before[p.PieceCID] = true
 		}
 	}
-	fmt.Fprintf(o.stderr, "packing %s (fs-repo %d) into %s\n", r.Path(), r.Version(), o.out)
+	fmt.Fprintf(o.stderr, "packing %s (%s) into %s\n", r.Path(), repo.Describe(r), o.out)
 	res, err := archive.Build(ctx, r, o.out, opt)
 	if bar != nil {
 		bar.Done()

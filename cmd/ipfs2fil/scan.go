@@ -33,6 +33,7 @@ Safe to run while the daemon runs. With --json, prints one JSON object.`,
 
 type scanResult struct {
 	Repo        string  `json:"repo"`
+	Kind        string  `json:"kind"`
 	RepoVersion int     `json:"repoVersion"`
 	Blocks      int64   `json:"blocks"`
 	Bytes       int64   `json:"bytes"`
@@ -47,6 +48,8 @@ type scanResult struct {
 	// AtMinimum is set when the archive is small enough that each copy pays
 	// the per-data-set floor rather than a per-byte rate.
 	AtMinimum bool `json:"atMinimum"`
+
+	describe string // the repo's kind and version, for people
 }
 
 func runScan(ctx context.Context, o *opts, _ []string) error {
@@ -69,7 +72,8 @@ func scanRepo(ctx context.Context, o *opts) (*scanResult, error) {
 		return nil, err
 	}
 	defer r.Close()
-	s := &scanResult{Repo: r.Path(), RepoVersion: int(r.Version()), Copies: o.copies}
+	s := &scanResult{Repo: r.Path(), Kind: r.Kind(), RepoVersion: int(r.Version()), Copies: o.copies}
+	s.describe = repo.Describe(r)
 
 	var p *progress
 	if !o.json {
@@ -125,7 +129,7 @@ func estimatePieces(bytes int64, opt archive.Options) int {
 
 func printScan(o *opts, s *scanResult) {
 	w := o.stdout
-	fmt.Fprintf(w, "repo     %s (fs-repo %d)\n", s.Repo, s.RepoVersion)
+	fmt.Fprintf(w, "repo     %s (%s)\n", s.Repo, s.describe)
 	fmt.Fprintf(w, "blocks   %d, %s\n", s.Blocks, humanBytes(s.Bytes))
 	fmt.Fprintf(w, "pins     %d (%d recursive, %d direct)\n", s.Pins, s.Recursive, s.Direct)
 	if s.MFSRoot != "" {

@@ -72,7 +72,7 @@ func logTo(bar *progress) {
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {
-	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read (default $IPFS_PATH, else ~/.ipfs)")
+	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, or a node's RPC API as http://host:5001 (default $IPFS_PATH, else ~/.ipfs)")
 }
 
 // repoOnlyFlag accepts --repo on commands that work from --out alone, so the
@@ -117,7 +117,7 @@ func openRepo(o *opts) (repo.Repo, error) {
 		case o.repo != "" && !errors.Is(err, repo.ErrNotRepo):
 			return nil, fmt.Errorf("reading --repo %s: %w", o.repo, err)
 		case o.repo != "":
-			return nil, fmt.Errorf("%s is not an IPFS repo; point --repo at the directory holding 'config' and 'datastore' or 'blocks'", o.repo)
+			return nil, fmt.Errorf("%s is not an IPFS repo; point --repo at the directory holding 'config' and 'datastore' or 'blocks', or at a CAR file", o.repo)
 		case errors.Is(err, repo.ErrNotRepo):
 			return nil, errors.New("no IPFS repo found in $IPFS_PATH, ~/.ipfs or ~/.go-ipfs; pass --repo <path>")
 		}
