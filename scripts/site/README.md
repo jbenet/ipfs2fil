@@ -31,3 +31,8 @@ made. Everything shows two made-up repos, never anyone's real data.
 
    It copies the explorer pages and index, and the files up to 6 MiB, so the
    demo works as plain static files on GitHub Pages.
+6. **Public demo archive.** `demo-archive/make.sh <empty dir>` builds the
+   content of the public sample archive on mainnet: open-license EPUBs,
+   papers and RFCs, music, NASA photos and video, HTML games, and generated
+   images and tracks. `demo-archive/content-README.md` lists every source
+   and its license.
