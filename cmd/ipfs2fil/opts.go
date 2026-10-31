@@ -72,7 +72,7 @@ func logTo(bar *progress) {
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {
-	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs (default $IPFS_PATH, else ~/.ipfs)")
+	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, or a node's RPC API as http://host:5001 (default $IPFS_PATH, else ~/.ipfs)")
 }
 
 // repoOnlyFlag accepts --repo on commands that work from --out alone, so the

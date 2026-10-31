@@ -29,6 +29,9 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **CAR files too.** Point `--repo` at a `.car` file or a folder of them
   (`ipfs dag export`, gateway and Lassie downloads, old web3.storage exports).
   Each CAR's roots are kept as pins named after the file.
+- **Or a running node.** `--repo http://127.0.0.1:5001` reads through kubo's
+  RPC API, for repos on S3 or other plugin datastores and nodes on other
+  machines (through an ssh tunnel).
 - **Everything in it.** Recursive and direct pins, the MFS tree, and orphan
   blocks no pin reaches (on by default).
 - **Incremental, deterministic pieces.** Pieces are cut where the content says,

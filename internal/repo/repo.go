@@ -1,5 +1,5 @@
 // Package repo reads the places IPFS blocks live: kubo and go-ipfs fs-repos of
-// every version, 0 through 18, and CAR files. It reads offline and strictly
+// every version, 0 through 18, CAR files, and running kubo nodes. It reads offline and strictly
 // read-only. It never runs migrations and never takes the repo lock for
 // writing, so a live daemon's repo can be read safely.
 //
@@ -53,6 +53,7 @@ type Pin struct {
 const (
 	KindFSRepo = "fs-repo"
 	KindCAR    = "car"
+	KindRPC    = "kubo-rpc"
 )
 
 // Repo is a read-only view of one repo.
@@ -88,8 +89,12 @@ var (
 )
 
 // Open detects what path holds and returns a reader for it: an fs-repo
-// directory, a CAR file, or a directory of CAR files.
+// directory, a CAR file, a directory of CAR files, or the http:// address of
+// a kubo node's RPC API.
 func Open(path string) (Repo, error) {
+	if isRPC(path) {
+		return openRPC(path)
+	}
 	if isCAR(path) {
 		return openCAR(path)
 	}
@@ -107,6 +112,8 @@ func Describe(r Repo) string {
 		return fmt.Sprintf("fs-repo %d", r.Version())
 	case KindCAR:
 		return "CAR"
+	case KindRPC:
+		return "kubo RPC " + r.(*rpcRepo).version
 	}
 	return r.Kind()
 }
@@ -129,7 +136,7 @@ func Discover(explicit string) (string, error) {
 		if c == "" {
 			continue
 		}
-		if c == explicit && isCAR(c) {
+		if c == explicit && (isRPC(c) || isCAR(c)) {
 			return c, nil
 		}
 		if _, err := DetectVersion(c); err == nil {

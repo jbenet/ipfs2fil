@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,9 +171,11 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
-	abs, err := filepath.Abs(found)
-	if err != nil {
-		return err
+	abs := found
+	if !strings.Contains(found, "://") {
+		if abs, err = filepath.Abs(found); err != nil {
+			return err
+		}
 	}
 	r, err := repo.Open(abs)
 	if err != nil {
@@ -201,6 +204,9 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // parent's when that says nothing: ~/.ipfs is named after the home
 // directory (/Users/ada/.ipfs -> ada).
 func defaultName(path string) string {
+	if u, err := url.Parse(path); err == nil && u.Host != "" {
+		path = u.Hostname() // a node's RPC API is named after its host
+	}
 	n := strings.TrimLeft(filepath.Base(path), ".")
 	if n == "" || n == "ipfs" {
 		if p := strings.TrimLeft(filepath.Base(filepath.Dir(path)), "./"+string(filepath.Separator)); p != "" {

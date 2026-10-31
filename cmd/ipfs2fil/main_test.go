@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
+	"github.com/jbenet/ipfs2fil/internal/repo/repotest"
 )
 
 // ipfs2fil runs the CLI in-process and returns stdout and stderr.
@@ -402,5 +404,49 @@ func TestPackCAR(t *testing.T) {
 	}
 	if m.Source.Kind != repo.KindCAR || pinned != len(roots)-1 {
 		t.Errorf("source %+v, %d pinned roots, want %d", m.Source, pinned, len(roots)-1)
+	}
+}
+
+// TestPackRPC packs a repo through a kubo RPC API and gets the archive the
+// files give: same data root, same roots.
+func TestPackRPC(t *testing.T) {
+	dir := fixture(t, "v18")
+	files := t.TempDir()
+	if _, _, err := ipfs2fil(t, "pack", "--repo", dir, "--out", files); err != nil {
+		t.Fatal(err)
+	}
+	want, err := manifest.Read(filepath.Join(files, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	for _, old := range []bool{false, true} {
+		srv := httptest.NewServer(repotest.KuboRPC(r, old))
+		defer srv.Close()
+		out, _, err := ipfs2fil(t, "scan", "--repo", srv.URL)
+		if err != nil || !strings.Contains(out, "(kubo RPC 0.38.0)") {
+			t.Fatalf("scan: %v\n%s", err, out)
+		}
+		rpc := t.TempDir()
+		if _, _, err := ipfs2fil(t, "pack", "--repo", srv.URL, "--out", rpc); err != nil {
+			t.Fatal(err)
+		}
+		got, err := manifest.Read(filepath.Join(rpc, "manifest.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Source.Kind != repo.KindRPC || len(got.Roots) != len(want.Roots) {
+			t.Fatalf("old=%v: source %+v, %d roots, want %d", old, got.Source, len(got.Roots), len(want.Roots))
+		}
+		if old {
+			continue // no pin names, so a different data root
+		}
+		if got.DataRoot != want.DataRoot {
+			t.Errorf("data root %s through RPC, %s from the files", got.DataRoot, want.DataRoot)
+		}
 	}
 }
