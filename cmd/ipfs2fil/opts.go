@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sync"
 
 	"github.com/multiformats/go-multihash"
@@ -72,7 +73,7 @@ func logTo(bar *progress) {
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {
-	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, or a node's RPC API as http://host:5001 (default $IPFS_PATH, else ~/.ipfs)")
+	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, a node's RPC API as http://host:5001, or a Bluesky account as at://handle (default $IPFS_PATH, else ~/.ipfs)")
 }
 
 // repoOnlyFlag accepts --repo on commands that work from --out alone, so the
@@ -109,8 +110,22 @@ func yesFlag(fs *flag.FlagSet, o *opts) {
 	fs.BoolVar(&o.yes, "yes", false, "do not ask for confirmation (for scripts)")
 }
 
+// setupReaders points the repo readers at this run: Bluesky accounts are
+// fetched under the home directory, and slow steps are told on stderr.
+func setupReaders(o *opts) {
+	home := o.home
+	if home == "" {
+		home, _ = collection.DefaultDir()
+	}
+	if home != "" {
+		repo.ATProtoDir = filepath.Join(home, "atproto")
+	}
+	repo.Log = o.stderr
+}
+
 // openRepo finds and opens the repo read-only, with errors that say what to do.
 func openRepo(o *opts) (repo.Repo, error) {
+	setupReaders(o)
 	path, err := repo.Discover(o.repo)
 	if err != nil {
 		switch {

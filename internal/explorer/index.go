@@ -17,6 +17,8 @@ package explorer
 //	             totals and the shard ranges holding its entries:
 //	             {"<path>": {"cid", "n", "files", "folders", "bytes", "lo", "hi", "types", "chunks": [[shard, start, count], ...]}}
 //	             lo and hi are the PieceCIDs of the lowest and highest piece among its entries
+//	at/<n>.js    key "at/<n>": Bluesky (atproto) account n of meta.accounts, its
+//	             profile, posts and records (atproto.Summary)
 //
 // Browse loads one bucket and the shards its directory spans. Search streams
 // every shard and shows matches as they arrive. The data/ directory is path "".
@@ -36,6 +38,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
@@ -85,6 +88,18 @@ type meta struct {
 	// Repos lists the archives of a combined index (see combine), whose
 	// data/ holds one folder per repo; nil for one archive.
 	Repos []repoInfo `json:"repos,omitempty"`
+	// Accounts lists the Bluesky (atproto) accounts among the roots, whose
+	// posts and records are in at/<n>.js.
+	Accounts []accountInfo `json:"accounts,omitempty"`
+}
+
+type accountInfo struct {
+	Name  string `json:"name"`
+	DID   string `json:"did"`
+	Posts int    `json:"posts"`
+	// Href is the account's Posts page in its archive's own explorer, set in
+	// a combined index.
+	Href string `json:"href,omitempty"`
 }
 
 type shard struct {
@@ -126,7 +141,7 @@ func endsShard(p string, n int) bool {
 }
 
 // buildIndex returns the index files, keyed by path under idx/.
-func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error) {
+func buildIndex(m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summary) (map[string][]byte, error) {
 	byPath := map[string]*Entry{}
 	for i := range entries {
 		e := entries[i]
@@ -292,6 +307,12 @@ func buildIndex(m *manifest.Manifest, entries []Entry) (map[string][]byte, error
 	}
 	if err := put("manifest.js", "manifest", m); err != nil {
 		return nil, err
+	}
+	for i, a := range accounts {
+		mt.Accounts = append(mt.Accounts, accountInfo{Name: a.Name, DID: a.DID, Posts: len(a.Posts)})
+		if err := put(fmt.Sprintf("at/%d.js", i), fmt.Sprintf("at/%d", i), a); err != nil {
+			return nil, err
+		}
 	}
 	if err := put("meta.js", "meta", mt); err != nil {
 		return nil, err

@@ -32,6 +32,9 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **Or a running node.** `--repo http://127.0.0.1:5001` reads through kubo's
   RPC API, for repos on S3 or other plugin datastores and nodes on other
   machines (through an ssh tunnel).
+- **Bluesky accounts.** A Bluesky (atproto) repo is IPLD too, so
+  `--repo at://you.bsky.social` archives an account like any IPFS repo: its
+  signed commit, records, images and video. The explorer gets a Posts page.
 - **Everything in it.** Recursive and direct pins, the MFS tree, and orphan
   blocks no pin reaches (on by default).
 - **Incremental, deterministic pieces.** Pieces are cut where the content says,
@@ -193,13 +196,37 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
 
 </details>
 
+## Bluesky accounts
+
+A Bluesky account's repo is content-addressed IPLD: a signed commit over a
+tree of dag-cbor records, with images and video as raw blocks. ipfs2fil
+archives it like an IPFS repo.
+
+    ipfs2fil scan --repo at://you.bsky.social     # or @handle, or the DID
+    ipfs2fil up --repo at://you.bsky.social
+    ipfs2fil repos add at://you.bsky.social       # with your other repos
+
+It works for any public account, with no login: ipfs2fil looks up the DID,
+fetches the repo and every blob from the account's server into
+`~/.ipfs2fil/atproto/<did>/` (later runs fetch only new blobs), and pins the
+commit under the account's name. The DID document and, for `did:plc`
+accounts, the PLC directory's log are pinned beside it, so anyone can check
+the commit's signature from the archive alone. Without a network it uses
+what it fetched last. The explorer shows the profile and posts, with images
+and video, and every other record. Each run that sees a new commit adds a
+snapshot; unchanged records stay in the pieces already stored, and posts
+deleted since stay in older snapshots. Blobs over about 2 MiB, such as
+videos, are single blocks that `ipfs2fil explore` serves but some public
+gateways will not.
+
 ## Privacy
 
 Everything ipfs2fil stores on Filecoin is public: storage providers serve
 the pieces to anyone, and anyone who has a CID can fetch its blocks,
 including the archive's index and explorer with their file names. Only
 the small catalog records naming your machines and repos are encrypted. To
-keep something private, encrypt it before adding it to IPFS.
+keep something private, encrypt it before adding it to IPFS. A Bluesky
+account's archive holds only what the account already publishes.
 
 `ipfs2fil explore` listens on 127.0.0.1 and answers only requests addressed
 to localhost or an IP address, so web pages cannot reach it through DNS

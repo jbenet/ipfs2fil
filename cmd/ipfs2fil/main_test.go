@@ -17,6 +17,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto/atprototest"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
@@ -448,5 +449,45 @@ func TestPackRPC(t *testing.T) {
 		if got.DataRoot != want.DataRoot {
 			t.Errorf("data root %s through RPC, %s from the files", got.DataRoot, want.DataRoot)
 		}
+	}
+}
+
+// TestPackBluesky packs a Bluesky account: its commit is a pin named after
+// the handle, its blobs come along, and the explorer gets a Posts page.
+func TestPackBluesky(t *testing.T) {
+	a := atprototest.New(t)
+	t.Setenv("IPFS2FIL_HOME", t.TempDir())
+	out, _, err := ipfs2fil(t, "scan", "--repo", "at://alice.test")
+	if err != nil || !strings.Contains(out, "(Bluesky account @alice.test, rev 3zzzzzzzzzzzz)") {
+		t.Fatalf("scan: %v\n%s", err, out)
+	}
+	dir := t.TempDir()
+	if _, _, err := ipfs2fil(t, "pack", "--repo", "at://alice.test", "--out", dir); err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Read(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Source.Kind != repo.KindATProto || len(m.Roots) != 4 {
+		t.Fatalf("source %+v, roots %+v", m.Source, m.Roots)
+	}
+	if r := m.Roots[0]; r.CID != a.Commit.String() || r.Name != "@alice.test" || r.Kind != manifest.KindPinRecursive {
+		t.Errorf("first root %+v", r)
+	}
+	// The blob no post links any more is kept, as an orphan.
+	if r := m.Roots[3]; r.Kind != manifest.KindOrphan || r.CID != a.Old.String() {
+		t.Errorf("last root %+v", r)
+	}
+	idx, err := os.ReadFile(filepath.Join(dir, "explorer", "idx", "at", "0.js"))
+	if err != nil || !strings.Contains(string(idx), `"x":"a picture"`) || !strings.Contains(string(idx), a.Image.String()) {
+		t.Errorf("posts index: %v\n%s", err, idx)
+	}
+	meta, _ := os.ReadFile(filepath.Join(dir, "explorer", "idx", "meta.js"))
+	if !strings.Contains(string(meta), `"accounts":[{"name":"@alice.test","did":"`+a.DID+`","posts":3}]`) {
+		t.Errorf("meta: %s", meta)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "explorer", "posts.html")); err != nil {
+		t.Error(err)
 	}
 }

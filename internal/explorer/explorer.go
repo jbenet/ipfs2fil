@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
@@ -37,10 +38,11 @@ var Kinds = []string{"folder", "image", "video", "audio", "page", "doc", "text",
 var assets embed.FS
 
 // Write renders the explorer for m and entries into dir: the pages from
-// assets/ and the index under dir/idx. The output depends only on its inputs,
-// so the same archive always gets the same explorer.
-func Write(dir string, m *manifest.Manifest, entries []Entry) error {
-	files, err := buildIndex(m, entries)
+// assets/ and the index under dir/idx, with a Posts page for each Bluesky
+// account among the roots. The output depends only on its inputs, so the
+// same archive always gets the same explorer.
+func Write(dir string, m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summary) error {
+	files, err := buildIndex(m, entries, accounts...)
 	if err != nil {
 		return err
 	}
