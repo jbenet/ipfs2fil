@@ -2049,8 +2049,17 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
       status(plural(list.length, 'post') + (list.length !== all.length ? ' of ' + num(all.length) : ''));
     }
     const q = el.querySelector('[data-q]');
-    q.oninput = () => { S.q = q.value; S.limit = 40; render(); };
-    el.querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 40; el.querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o === b)); render(); }; });
+    // The tab and filter go in the URL; a tab is a step back and forward.
+    const toURL = (push) => {
+      const u = new URL(location.href);
+      u.searchParams.set('show', S.show);
+      if (S.q) u.searchParams.set('q', S.q); else u.searchParams.delete('q');
+      if (u.href !== location.href) history[push ? 'pushState' : 'replaceState'](null, '', u.href);
+    };
+    const tab = (v) => { S.show = tabs.some((c) => c[0] === v) ? v : 'posts'; S.limit = 40; el.querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o.dataset.show === S.show)); render(); };
+    q.oninput = () => { S.q = q.value; S.limit = 40; toURL(false); render(); };
+    el.querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { tab(b.dataset.show); toURL(true); }; });
+    addEventListener('popstate', () => { const P = new URLSearchParams(location.search); q.value = S.q = P.get('q') || ''; tab(P.get('show') || 'posts'); });
     feed.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 100; render(); } });
     // Show more as the end comes into view.
     new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 100; render(); } }, { root: el, rootMargin: '600px' }).observe(feed);

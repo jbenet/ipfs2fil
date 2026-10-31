@@ -1,4 +1,6 @@
 /ipfs2fil
 /dist/
 *.car
+# the website demo has repos named like CAR files (art.car/): keep their explorers
+!/site/demo/*.car/
 /testdata/fixtures/*/

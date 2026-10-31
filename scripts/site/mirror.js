@@ -34,7 +34,9 @@ const save = (u, body) => {
   const meta = await (await fetch(base + '/all/explorer/idx/meta.js')).text();
   const repos = [...new Set([...meta.matchAll(/"href":"\.\.\/\.\.\/([^/"]+)\/explorer\/"/g)].map((m) => m[1]))];
   const visit = async (u) => { await p.goto(base + u, { waitUntil: 'networkidle' }); await p.waitForTimeout(800); };
-  const pages = ['index.html', 'browse.html', 'pieces.html', 'browse.html?deep=1'];
+  // pin.html and search.html are only linked to, never visited first; they
+  // load (and show their "no such root" note) without a query.
+  const pages = ['index.html', 'browse.html', 'pieces.html', 'browse.html?deep=1', 'pin.html', 'search.html'];
   if (meta.includes('"accounts"')) pages.push('posts.html'); // Bluesky accounts
   for (const page of pages) {
     await visit('/all/explorer/' + page);

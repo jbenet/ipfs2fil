@@ -2,7 +2,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: [site/**, .github/workflows/pages.yml]
+    paths: [site/**, internal/explorer/assets/**, .github/workflows/pages.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # The demo's explorers run this commit's pages, so a fix shows there
+      # without mirroring the demo again (the index stays as mirrored).
+      - name: Current explorer pages into the demo
+        run: for d in site/demo/*/explorer; do cp internal/explorer/assets/* "$d/"; done
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
