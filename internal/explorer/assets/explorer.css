@@ -299,6 +299,35 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .places a, .places details a { display: block; overflow-wrap: anywhere; }
 .places summary { cursor: pointer; }
 .legend.sm { font-size: 13px; gap: 4px 14px; }
+/* Posts: a Bluesky account */
+.at-profile { overflow: hidden; }
+.at-banner { margin: -20px -22px 0; height: 160px; background: var(--row); }
+.at-banner-img { width: 100%; height: 160px; object-fit: cover; display: block; }
+.at-who { display: flex; gap: 18px; align-items: flex-end; }
+.at-avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid var(--card); background: var(--row); flex: none; }
+.at-banner + .at-who .at-avatar { margin-top: -44px; }
+.at-bio { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.at-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.at-post { padding: 14px 0; border-bottom: 1px solid var(--row); display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 80px; }
+.at-post:target { background: var(--sel); }
+.at-when { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.at-links { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.at-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.at-media { display: grid; gap: 4px; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 560px; }
+.at-media.n1 { grid-template-columns: minmax(0, 1fr); }
+.at-img { width: 100%; max-height: 420px; object-fit: cover; border-radius: 6px; background: var(--row); display: block; }
+.at-media.n1 .at-img { object-fit: contain; height: auto; }
+.at-video { max-width: 560px; width: 100%; border-radius: 6px; background: #000; }
+.noblob { display: flex; align-items: center; justify-content: center; min-height: 80px; }
+.at-card { display: flex; gap: 12px; max-width: 560px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; color: var(--text); }
+.at-card:hover { text-decoration: none; border-color: var(--accent); color: var(--text); }
+.at-card > span { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 8px 0; min-width: 0; }
+.at-card > span:first-child { padding-left: 10px; }
+.at-thumb { width: 96px; height: 96px; object-fit: cover; flex: none; }
+.at-more { padding: 14px 0; }
+.at-coll { font-size: 15px; margin-top: 8px; }
+.at-rec pre { margin: 4px 0 10px; padding: 10px 12px; background: var(--row); border-radius: 6px; font: 12px/1.5 var(--mono); overflow-x: auto; max-height: 320px; }
+
 @media (max-width: 900px) {
   body[data-page="browse"] { height: auto; overflow: visible; }
   .files { grid-template-columns: minmax(0, 1fr); }

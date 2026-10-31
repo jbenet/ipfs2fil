@@ -32,15 +32,16 @@ type repoInfo struct {
 func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manifest.Manifest, error) {
 	cm := &manifest.Manifest{Format: manifest.Format}
 	var (
-		entries []Entry
-		repos   []repoInfo
-		types   = map[string]tally{}
-		parts   = map[string]tally{}
-		seen    = map[string]bool{} // CIDs of files in earlier repos
-		pieceOf = map[string]int{}  // CID -> first piece, from earlier repos
-		pieceAt = map[string]int{}  // PieceCID -> index in cm
-		copyAt  = map[[2]string]int{}
-		snaps   []manifest.Snapshot
+		entries  []Entry
+		repos    []repoInfo
+		accounts []accountInfo
+		types    = map[string]tally{}
+		parts    = map[string]tally{}
+		seen     = map[string]bool{} // CIDs of files in earlier repos
+		pieceOf  = map[string]int{}  // CID -> first piece, from earlier repos
+		pieceAt  = map[string]int{}  // PieceCID -> index in cm
+		copyAt   = map[[2]string]int{}
+		snaps    []manifest.Snapshot
 	)
 	for _, a := range as {
 		m, err := readManifest(a.Dir)
@@ -174,6 +175,10 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		}
 		entries = append(entries, folder)
 		entries = append(entries, es...)
+		for i, ac := range mt.Accounts {
+			ac.Href = href(a) + fmt.Sprintf("posts.html?a=%d", i)
+			accounts = append(accounts, ac)
+		}
 		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
 	}
 
@@ -202,7 +207,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
 		return nil, nil, err
 	}
-	mt.Types, mt.Parts, mt.Repos = types, parts, repos
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts = types, parts, repos, accounts
 	if files["meta.js"], err = jsFile("meta", mt); err != nil {
 		return nil, nil, err
 	}

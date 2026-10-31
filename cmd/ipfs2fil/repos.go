@@ -164,6 +164,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	case path == "":
 		return errors.New("say which repo: 'ipfs2fil repos add <path>'")
 	}
+	setupReaders(o)
 	found, err := repo.Discover(path)
 	if errors.Is(err, repo.ErrNotRepo) {
 		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks', or a CAR file", path)

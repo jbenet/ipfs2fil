@@ -92,7 +92,7 @@
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
   // sourceLabel names the kind of repo an archive came from; archives with no
   // kind came from kubo fs-repos.
-  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
+  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
 
   // Kinds: icon path, color, label, plural label. From the boards.
@@ -199,6 +199,7 @@
     browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['d'], 'download'], [['y'], 'copy CID']],
     pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'files']],
     pieces: [[['j', 'k'], 'move'], [['↵'], 'open'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['y'], 'copy PieceCID'], [['g', 'o'], 'overview']],
+    posts: [[['f'], 'filter'], [['y'], 'copy commit CID'], [['o'], 'open commit in gateway']],
     search: [[['↓'], 'into results'], [['j', 'k'], 'move'], [['↵'], 'open'], [['1', '…', '9'], 'kind'], [['0'], 'all kinds'], [['esc'], 'clear'], [['y'], 'copy CID']]
   };
   const GROUPS = [
@@ -494,6 +495,7 @@
     ${bar(types.map((t) => [t[3], t[1], t[2]]), types.map((t) => t[3] + ' ' + bytes(t[1])).join(', '))}
     <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
+${(meta.accounts || []).map((x, i) => `<section class="card"><div class="titled"><h2>Bluesky account ${esc(x.name)}</h2><a href="${esc(x.href || 'posts.html?a=' + i)}">Read its ${plural(x.posts, 'post')}</a></div><p class="faint">An atproto repo is IPLD: its signed commit, record tree and images are stored here as IPFS blocks, under the pin ${esc(x.name)}.</p></section>`).join('')}
 ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>` : ''}
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
@@ -1606,6 +1608,80 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     status(num(pieces.length) + ' pieces');
   }
 
+  // ---- Posts: a Bluesky (atproto) account in the archive. Its repo is IPLD
+  // like any other; pack summarizes its records into idx/at/<n>.js, and the
+  // images and video are blobs in the archive, fetched by CID.
+  async function posts() {
+    const meta = await load('meta');
+    const accts = meta.accounts || [];
+    if (!accts.length) { main().innerHTML = '<section class="head"><h1>No Bluesky accounts in this archive</h1></section>'; return; }
+    const n = Math.min(Math.max(0, +params.get('a') || 0), accts.length - 1);
+    const a = await load('at/' + n);
+    LOCAL = await probeLocal();
+    PUBLIC = params.get('public') === '1';
+    const blob = (c, name) => !c ? null : LOCAL ? '../_i2f/content/' + encodeURIComponent(c) + '?' + qs({ name: name || c }) : HERE || PUBLIC ? gw(c) : null;
+    const rkeyOf = (uri) => (uri || '').split('/').pop();
+    const web = (uri) => { const m = (uri || '').match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/); return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : ''; };
+    const own = (uri) => (uri || '').startsWith('at://' + a.did + '/');
+    const linkify = (t) => esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>');
+    const p = a.profile || {};
+    const S = { q: params.get('q') || '', show: params.get('show') || 'all', limit: 60 };
+    const all = a.posts || [];
+    const isReply = (x) => !!x.r, hasMedia = (x) => !!((x.i && x.i.length) || x.v);
+    const counts = { all: all.length, posts: all.filter((x) => !isReply(x)).length, replies: all.filter(isReply).length, media: all.filter(hasMedia).length };
+    const colls = Object.keys(a.counts || {}).sort((x, y) => a.counts[y] - a.counts[x]);
+    const recs = Object.keys(a.records || {}).sort();
+    const img = (c, alt, cls, name) => { const u = blob(c, name); return u ? `<img class="${cls}" loading="lazy" src="${esc(u)}" alt="${esc(alt || '')}" title="${esc(alt || '')}">` : `<span class="${cls} noblob" title="${esc(c)}">${icon('image')}</span>`; };
+    pageKeys.cid = () => a.commit;
+    main().innerHTML = `
+${accts.length > 1 ? `<nav class="chips" aria-label="Accounts">${accts.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="posts.html?a=${i}">${esc(x.name)}</a>`).join('')}</nav>` : ''}
+<section class="card at-profile">
+  ${p.banner ? `<div class="at-banner">${img(p.banner, '', 'at-banner-img', 'banner')}</div>` : ''}
+  <div class="at-who">${p.avatar ? img(p.avatar, '', 'at-avatar', 'avatar') : ''}<div>
+    <div class="eyebrow">Bluesky account · an atproto repo, stored as IPFS blocks</div>
+    <h1>${esc(p.displayName || a.name)}</h1>
+    <div class="meta"><span>${esc(a.name)}</span><code class="chipcode">${esc(a.did)}</code>${a.name.startsWith('@') ? `<a href="https://bsky.app/profile/${esc(a.did)}" target="_blank" rel="noopener">On Bluesky ↗</a>` : ''}</div>
+  </div></div>
+  ${p.description ? `<p class="at-bio">${linkify(p.description)}</p>` : ''}
+  ${!LOCAL && !HERE && !PUBLIC ? `<div class="none"><p class="faint">Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see images and video here.</p><a class="btn sm" href="posts.html?${qs({ a: n, public: 1 })}">Load them from ${GATEWAYS[0][0]}</a></div>` : ''}
+  <div class="meta"><span>Signed commit ${cidx(a.commit, true)}</span><span>Revision <code>${esc(a.rev)}</code></span><a href="${esc(browseHref(''))}">The DID document and PLC log are pinned beside it</a></div>
+</section>
+<section class="stats" aria-label="Records">
+  ${colls.slice(0, 6).map((c) => `<div class="card tight stat"><div class="k">${esc(c.replace(/^app\.bsky\./, ''))}</div><div class="v">${num(a.counts[c])}</div><div class="s">${esc(c)}</div></div>`).join('')}
+</section>
+<section class="card">
+  <div class="titled"><h2>Posts</h2><span class="faint">${a.missing ? plural(a.missing, 'record') + ' not in the archive' : 'newest first'}</span></div>
+  <div class="tools"><div class="row1"><div class="filter"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" data-q placeholder="Filter posts by text" aria-label="Filter posts by text" autocomplete="off" spellcheck="false" value="${esc(S.q)}"><kbd>f</kbd></div></div>
+  <div class="chips" role="group" aria-label="Show">${[['all', 'All'], ['posts', 'Posts'], ['replies', 'Replies'], ['media', 'With media']].map((c) => `<button type="button" class="pill" data-show="${c[0]}" aria-pressed="${c[0] === S.show}">${c[1]} <span class="n">${num(counts[c[0]])}</span></button>`).join('')}</div></div>
+  <ol class="at-feed"></ol>
+</section>
+${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Every collection but posts, likes, reposts, follows and the like, as stored (up to 500 each).</p>${recs.map((c) => `<h3 class="at-coll">${esc(c)} <span class="faint">${num(a.counts[c])}</span></h3>${a.records[c].map((r) => `<div class="at-rec"><div class="faint"><code>${esc(r[0])}</code> ${cidx(r[1], true)}</div><pre>${esc(JSON.stringify(r[2], null, 2))}</pre></div>`).join('')}`).join('')}</section>` : ''}`;
+    const feed = main().querySelector('.at-feed');
+    const shown = () => { const q = S.q.toLowerCase(); return all.filter((x) => (S.show === 'all' || (S.show === 'posts' && !isReply(x)) || (S.show === 'replies' && isReply(x)) || (S.show === 'media' && hasMedia(x))) && (!q || (x.x || '').toLowerCase().includes(q) || (x.l && (x.l[1] || '').toLowerCase().includes(q)))); };
+    function item(x) {
+      const media = (x.i || []).map((im, i) => img(im[0], im[1], 'at-img', x.k + '-' + (i + 1))).join('');
+      const v = x.v ? (() => { const u = blob(x.v[0], x.k + '.mp4'); return u ? `<video class="at-video" controls preload="metadata" src="${esc(u)}" title="${esc(x.v[1] || '')}"></video>` : img(x.v[0], x.v[1], 'at-img'); })() : '';
+      const card = x.l ? `<a class="at-card" href="${esc(x.l[0])}" target="_blank" rel="noopener nofollow">${x.l[3] ? img(x.l[3], '', 'at-thumb', 'thumb') : ''}<span><b>${esc(x.l[1] || x.l[0])}</b><span class="faint">${esc(x.l[2] || '')}</span></span></a>` : '';
+      const ref = (uri) => own(uri) ? `<a href="#p-${esc(rkeyOf(uri))}">${esc(a.name)}'s post</a>` : `<a href="${esc(web(uri))}" target="_blank" rel="noopener">a post ↗</a>`;
+      const ctx = [x.r ? 'Reply to ' + ref(x.r) : '', x.q ? 'Quoting ' + ref(x.q) : ''].filter(Boolean).join(' · ');
+      return `<li class="at-post" id="p-${esc(x.k)}"><div class="at-when faint"><span title="${esc(x.t)}">${x.t ? day(x.t) : 'undated'}</span>${ctx ? ' · ' + ctx : ''}<span class="at-links">${cidx(x.c, true)}${a.name.startsWith('@') ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>${x.x ? `<div class="at-text">${linkify(x.x)}</div>` : ''}${media ? `<div class="at-media n${Math.min((x.i || []).length, 4)}">${media}</div>` : ''}${v}${card}</li>`;
+    }
+    function render() {
+      const list = shown();
+      feed.innerHTML = list.slice(0, S.limit).map(item).join('') + (list.length > S.limit ? `<li class="at-more"><button type="button" class="btn sm" data-more>Show ${num(Math.min(200, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></li>` : '') + (!list.length ? '<li class="faint">No posts match.</li>' : '');
+      status(plural(list.length, 'post') + (list.length !== all.length ? ' of ' + num(all.length) : ''));
+    }
+    const q = main().querySelector('[data-q]');
+    q.oninput = () => { S.q = q.value; S.limit = 60; render(); };
+    main().querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 60; main().querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-pressed', o === b)); render(); }; });
+    feed.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 200; render(); } });
+    // Show more as the end comes into view.
+    new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 200; render(); } }, { rootMargin: '600px' }).observe(main().querySelector('.at-feed').parentElement.lastElementChild);
+    pageKeys.f = () => { q.focus(); return true; };
+    render();
+    if (location.hash) { const el = D.getElementById(location.hash.slice(1)); if (el) el.scrollIntoView(); }
+  }
+
   // ---- Search: now part of Files, which searches under any folder.
   function search() {
     const q = params.get('q') || '', w = params.get('where');
@@ -1615,7 +1691,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
   // ---- Start
   frame();
   D.querySelector('footer').before(Object.assign(D.createElement('main'), { innerHTML: '<p class="muted">Loading…</p>' }));
-  const pages = { overview, browse: files, pin, pieces: piecesPage, search };
+  const pages = { overview, browse: files, pin, pieces: piecesPage, search, posts };
   manifest().then((m) => {
     ROOTS = {};
     PIECE = {};
@@ -1623,6 +1699,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
       REPOS = meta.repos || null;
+      if ((meta.accounts || []).length) D.querySelector('nav.pages').insertAdjacentHTML('beforeend', `<a href="${esc(meta.accounts[0].href || 'posts.html')}"${PAGE === 'posts' ? ' aria-current="page"' : ''}>Posts</a>`);
       if (meta.format > 2) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
       return (pages[PAGE] || overview)();
     });

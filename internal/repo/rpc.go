@@ -61,6 +61,7 @@ func (r *rpcRepo) Path() string     { return r.api }
 func (r *rpcRepo) Kind() string     { return KindRPC }
 func (r *rpcRepo) Version() Version { return 0 }
 func (r *rpcRepo) Close() error     { return nil }
+func (r *rpcRepo) Describe() string { return "kubo RPC " + r.version }
 
 // rpcError is the body kubo sends with a failed command.
 type rpcError struct {

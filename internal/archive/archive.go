@@ -38,6 +38,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -617,8 +618,26 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 	if idx, err = l.indexDir(ctx, dag, outDir, inner, pieces); err != nil {
 		return nil, nil, err
 	}
-	exp, err = explorerDir(ctx, dag, outDir, inner, entries)
+	exp, err = explorerDir(ctx, dag, outDir, inner, entries, l.accounts(ctx, inner.Roots))
 	return idx, exp, err
+}
+
+// accounts summarizes the roots that are Bluesky (atproto) repo commits,
+// whatever repo they came from, for the explorer's Posts pages. A root that
+// is not one, or whose records are not all here, is shown as far as it goes.
+func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto.Summary {
+	get := func(c cid.Cid) ([]byte, error) { return l.get(ctx, c) }
+	var out []*atproto.Summary
+	for _, rt := range roots {
+		c, err := cid.Decode(rt.CID)
+		if err != nil || c.Type() != cid.DagCBOR || rt.Kind == manifest.KindOrphan {
+			continue
+		}
+		if s, err := atproto.Summarize(get, c, rt.Name); err == nil {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // stableBlocks lists, depth first, the blocks the archive made that do not
@@ -898,7 +917,7 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 }
 
 // explorerDir has the explorer write its pages into outDir and adds them.
-func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, entries []explorer.Entry) (format.Node, error) {
+func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, entries []explorer.Entry, accounts []*atproto.Summary) (format.Node, error) {
 	dir := filepath.Join(outDir, "explorer")
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, err
@@ -906,7 +925,7 @@ func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Man
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := explorer.Write(dir, m, entries); err != nil {
+	if err := explorer.Write(dir, m, entries, accounts...); err != nil {
 		return nil, fmt.Errorf("explorer: %w", err)
 	}
 	return importDir(ctx, dag, dir)

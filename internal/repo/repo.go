@@ -1,7 +1,8 @@
 // Package repo reads the places IPFS blocks live: kubo and go-ipfs fs-repos of
-// every version, 0 through 18, CAR files, and running kubo nodes. It reads offline and strictly
-// read-only. It never runs migrations and never takes the repo lock for
-// writing, so a live daemon's repo can be read safely.
+// every version, 0 through 18, CAR files, running kubo nodes, and Bluesky
+// (atproto) accounts, whose repos are IPLD too. It reads strictly read-only:
+// it never runs migrations and never takes the repo lock for writing, so a
+// live daemon's repo can be read safely.
 //
 // Every source is reduced to the same view: blocks keyed by multihash, named
 // roots (pins), and the MFS root. Format differences live behind Open.
@@ -16,6 +17,8 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 )
 
 // Version is the fs-repo version, read from the repo's "version" file.
@@ -51,9 +54,10 @@ type Pin struct {
 
 // Kinds of repo Open reads.
 const (
-	KindFSRepo = "fs-repo"
-	KindCAR    = "car"
-	KindRPC    = "kubo-rpc"
+	KindFSRepo  = "fs-repo"
+	KindCAR     = "car"
+	KindRPC     = "kubo-rpc"
+	KindATProto = "atproto"
 )
 
 // Repo is a read-only view of one repo.
@@ -90,8 +94,11 @@ var (
 
 // Open detects what path holds and returns a reader for it: an fs-repo
 // directory, a CAR file, a directory of CAR files, or the http:// address of
-// a kubo node's RPC API.
+// a kubo node's RPC API, or a Bluesky account (at://handle or a DID).
 func Open(path string) (Repo, error) {
+	if atproto.IsAccount(path) {
+		return openATProto(path)
+	}
 	if isRPC(path) {
 		return openRPC(path)
 	}
@@ -107,13 +114,14 @@ func Open(path string) (Repo, error) {
 
 // Describe names a repo's kind and version for people: "fs-repo 12", "CAR".
 func Describe(r Repo) string {
+	if d, ok := r.(interface{ Describe() string }); ok {
+		return d.Describe()
+	}
 	switch r.Kind() {
 	case KindFSRepo:
 		return fmt.Sprintf("fs-repo %d", r.Version())
 	case KindCAR:
 		return "CAR"
-	case KindRPC:
-		return "kubo RPC " + r.(*rpcRepo).version
 	}
 	return r.Kind()
 }
@@ -136,7 +144,7 @@ func Discover(explicit string) (string, error) {
 		if c == "" {
 			continue
 		}
-		if c == explicit && (isRPC(c) || isCAR(c)) {
+		if c == explicit && (atproto.IsAccount(c) || isRPC(c) || isCAR(c)) {
 			return c, nil
 		}
 		if _, err := DetectVersion(c); err == nil {
