@@ -261,6 +261,9 @@ func listen(ctx context.Context, addr string, h http.Handler, path string, ready
 	if err != nil {
 		return err
 	}
+	if loopback(ln.Addr()) {
+		h = localHosts(h)
+	}
 	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
@@ -282,4 +285,34 @@ func readManifest(dir string) (*manifest.Manifest, error) {
 		m, err = manifest.Read(filepath.Join(dir, "index", "manifest.json"))
 	}
 	return m, err
+}
+
+// loopback says whether a is a loopback address, the default: a server
+// only this machine can reach.
+func loopback(a net.Addr) bool {
+	t, ok := a.(*net.TCPAddr)
+	return ok && t.IP.IsLoopback()
+}
+
+// localHosts refuses requests whose Host is not localhost or an IP
+// address. A loopback server is otherwise open to DNS rebinding: a web page
+// on a name its owner points at 127.0.0.1 could read the archive's
+// listings and contents, or file feedback reports, as same-origin requests.
+func localHosts(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !localHost(r.Host) {
+			http.Error(w, "ipfs2fil explore answers only on localhost or an IP address", http.StatusMisdirectedRequest)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func localHost(hostport string) bool {
+	host := hostport
+	if h, _, err := net.SplitHostPort(hostport); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+	return net.ParseIP(host) != nil || host == "localhost" || strings.HasSuffix(host, ".localhost")
 }

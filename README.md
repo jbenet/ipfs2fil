@@ -179,13 +179,17 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
 
 </details>
 
-## What is public
+## Privacy
 
-Pieces are stored as they are, and providers announce their CIDs to the IPFS
-network, so anyone who has a CID can fetch that content. Archive only what you
-are happy to publish, or encrypt it before adding it to IPFS. The catalog of
-your repos is encrypted with a key derived from your wallet key, and repo
-paths never leave your machine.
+Everything ipfs2fil stores on Filecoin is public: storage providers serve
+the pieces to anyone, and anyone who has a CID can fetch its blocks,
+including the archive's index and explorer with their file names. Only
+the small catalog records naming your machines and repos are encrypted. To
+keep something private, encrypt it before adding it to IPFS.
+
+`ipfs2fil explore` listens on 127.0.0.1 and answers only requests addressed
+to localhost or an IP address, so web pages cannot reach it through DNS
+rebinding.
 
 ## Development
 
