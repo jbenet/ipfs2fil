@@ -383,9 +383,11 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		// A root that is an IPLD record rather than a file or folder, such
 		// as a CAR's dag-cbor or dag-json root, is listed as JSON beside the
 		// others of its name: the explorer shows it as JSON.
+		record := false
 		if t := rt.c.Type(); t == cid.DagCBOR || t == cid.DagJSON {
 			if l.account(rt.c) == nil {
 				name += "." + map[uint64]string{cid.DagCBOR: "dag-cbor", cid.DagJSON: "dag-json"}[t] + ".json"
+				record = true
 			}
 		}
 		if a := l.account(rt.c); a != nil {
@@ -400,6 +402,9 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 			if k := l.sniffed(i); e.Kind == "other" && k != "" {
 				e.Kind = k
 			}
+			if record {
+				e.Kind = "record"
+			}
 			if seen[i] {
 				e.Dup = e.Bytes
 			}
@@ -407,7 +412,11 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 			out = append(out, e)
 			continue
 		}
+		at := len(out)
 		walk(i, p, name)
+		if record {
+			out[at].Kind = "record"
+		}
 	}
 	return out
 }
@@ -439,6 +448,12 @@ func (l *layout) accountEntries(out *[]explorer.Entry, a *atproto.Summary, p, na
 		b := &l.tab[i]
 		fn := path.Base(f.Path)
 		e := explorer.Entry{Name: fn, Path: p + "/" + f.Path, CID: f.CID.String(), Kind: explorer.KindOf(fn, false), Bytes: int64(b.size), Piece: int(b.piece)}
+		if f.CID.Type() == cid.DagCBOR {
+			e.Kind = "record"
+			if strings.HasPrefix(f.Path, "app.bsky.feed.post/") {
+				e.Kind = "post"
+			}
+		}
 		if e.Kind == "other" && f.CID.Type() == cid.Raw {
 			if data, err := l.get(context.Background(), f.CID); err == nil {
 				e.Kind = explorer.Sniff(data[:min(len(data), 1<<16)])

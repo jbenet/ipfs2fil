@@ -54,7 +54,7 @@ func TestCombine(t *testing.T) {
 		t.Errorf("repos: %+v", mt.Repos)
 	}
 	// the server's account, with its posts, in the combined index
-	if len(mt.Accounts) != 1 || mt.Accounts[0].Name != "@alice.test" || mt.Accounts[0].Href != "posts.html?a=0" {
+	if len(mt.Accounts) != 1 || mt.Accounts[0].Name != "@alice.test" || mt.Accounts[0].Href != "browse.html?app=bsky&a=0" {
 		t.Errorf("accounts: %+v", mt.Accounts)
 	}
 	var at atproto.Summary

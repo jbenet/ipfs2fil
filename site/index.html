@@ -114,7 +114,7 @@
       <button role="tab" aria-selected="false" data-shot="explorer-keys">Shortcuts</button>
     </div>
     <figure class="gallery">
-      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>127.0.0.1:8484/all/explorer/</span></div><img id="gallery-img" src="media/explorer-photos.webp" width="1440" height="900" alt="The explorer's Files page" loading="lazy"></div>
+      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>127.0.0.1:8484/all/explorer/</span></div><img id="gallery-img" src="media/explorer-photos.webp" width="1440" height="900" alt="The explorer's Content page" loading="lazy"></div>
       <figcaption id="gallery-cap">The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.</figcaption>
     </figure>
     <p class="center"><a class="btn primary" href="https://dweb.link/ipfs/bafybeihl22mulghshva7ephjvqhrlv5prdug7fzzfgbty6fm6iqp6ql6re/explorer/">Open the demo archive from Filecoin</a> <a class="btn" href="demo/all/explorer/">or a copy on this website</a></p>
@@ -131,7 +131,7 @@
     <h2 class="title">Built to outlast the machine it ran on</h2>
     <div class="grid">
       <article><h3>Every repo version</h3><p>fs-repo 0 through 18: go-ipfs 0.2 to kubo 0.43, with flatfs, leveldb, badger, pebble and custom datastore specs. Old pin layouts and the MFS root are read too.</p></article>
-      <article><h3>More than kubo</h3><p>js-ipfs repos, Helia stores, CAR files, a running node through its RPC API, and Bluesky accounts, whose repos are IPLD too: <code>--repo at://you.bsky.social</code> archives the posts, images and video, with a Posts page in the explorer. The <a href="demo/all/explorer/">demo</a> has one of each.</p></article>
+      <article><h3>More than kubo</h3><p>js-ipfs repos, Helia stores, CAR files, a running node through its RPC API, and Bluesky accounts, whose repos are IPLD too: <code>--repo at://you.bsky.social</code> archives the posts, images and video, with their posts, records and media in the explorer's library and a Bluesky App viewer. The <a href="demo/all/explorer/">demo</a> has one of each.</p></article>
       <article><h3>Everything, not just pins</h3><p>Recursive and direct pins, your MFS files, and orphan blocks no pin reaches (on by default), all linked under one archive root.</p></article>
       <article><h3>Same repo, same pieces</h3><p>Piece cuts depend only on the blocks, so a re-run skips every piece already stored and an edit changes only nearby pieces. Dates and providers live in the index, not the data.</p></article>
       <article><h3>Copies that are proven</h3><p>Pieces go to Filecoin Onchain Cloud, where providers prove on chain, over and over, that they still hold them. Three copies by default, paid from your own wallet.</p></article>

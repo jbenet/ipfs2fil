@@ -1,6 +1,6 @@
 # Viewers and thumbnails
 
-How the explorer's Files page shows files and makes their thumbnails, and
+How the explorer's Content page shows files and makes their thumbnails, and
 where to add another kind of file.
 
 ## Viewers (in the browser)
@@ -28,7 +28,7 @@ shows the file; add yours above a more general one.
 
 Viewers now: Markdown (rendered, with a switch to the source), CSV and TSV
 tables, JSON (pretty printed and highlighted, or Exact as stored, or Plain;
-a Bluesky record says its type and a post links to the Posts page), code
+a Bluesky record says its type and a post links to the Bluesky App viewer), code
 and text (highlighted with line numbers, or Plain; Wrap and Copy for both,
 and the choices are kept), Jupyter notebooks, fonts (a specimen), zip and
 tar listings (a zip's directory is read from its end, so only that is

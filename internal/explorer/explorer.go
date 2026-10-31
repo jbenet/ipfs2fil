@@ -31,8 +31,11 @@ type Entry struct {
 	Piece int
 }
 
-// Kinds lists every Entry.Kind, in the order the pages show them.
-var Kinds = []string{"folder", "image", "video", "audio", "page", "doc", "text", "code", "archive", "disk", "other"}
+// Kinds lists every Entry.Kind. Sniffed kinds are stored as an index into
+// it, so new kinds go at the end: "post" is a social post's record (a
+// Bluesky post), "record" any other IPLD record (dag-cbor or dag-json), such
+// as a Bluesky like or follow, or a CAR's build record.
+var Kinds = []string{"folder", "image", "video", "audio", "page", "doc", "text", "code", "archive", "disk", "other", "post", "record"}
 
 //go:embed assets
 var assets embed.FS
