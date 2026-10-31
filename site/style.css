@@ -72,6 +72,8 @@ header nav .gh { color: var(--text); font-weight: 500; }
 .sub { text-align: center; color: var(--muted); max-width: 720px; margin: 14px auto 48px; font-size: 17px; }
 .narrow .title, .narrow .sub { text-align: left; margin-left: 0; }
 .center { text-align: center; margin-top: 28px; }
+.center .btn + .btn { margin-left: 8px; }
+.demo-note { color: var(--muted); font-size: 14px; max-width: 640px; margin-left: auto; margin-right: auto; }
 
 .step { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px; align-items: center; margin-top: 64px; }
 .step:nth-child(odd of .step) { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); }

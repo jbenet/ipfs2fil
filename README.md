@@ -3,7 +3,7 @@
 **Archive your IPFS repos to Filecoin, and browse them from anywhere.**
 
 [Website](https://jbenet.github.io/ipfs2fil/) ·
-[Live explorer demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/) ·
+Explorer demo: [from Filecoin](https://dweb.link/ipfs/bafybeihl22mulghshva7ephjvqhrlv5prdug7fzzfgbty6fm6iqp6ql6re/explorer/) or [on the website](https://jbenet.github.io/ipfs2fil/demo/all/explorer/) ·
 [Install](#install) · [Quickstart](#quickstart) · [Releases](https://github.com/jbenet/ipfs2fil/releases)
 
 `ipfs2fil` reads an IPFS repo of any version (kubo, go-ipfs or IPFS Desktop;
@@ -138,8 +138,10 @@ shortcuts.
 | ![Overview: what takes the space, and each repo](site/media/explorer-overview.webp) | ![A PDF open in the preview](site/media/explorer-pdf.webp) |
 | ![A video playing from the archive](site/media/explorer-video.webp) | ![Every piece and which providers store it](site/media/explorer-pieces.webp) |
 
-Try it on the [live demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/),
-or on a made-up archive with `ipfs2fil explore --demo`.
+Try it on the [demo archive on Filecoin](https://dweb.link/ipfs/bafybeihl22mulghshva7ephjvqhrlv5prdug7fzzfgbty6fm6iqp6ql6re/explorer/): open-license books, papers,
+music, photos and HTML games, stored on mainnet with ipfs2fil and served by an
+IPFS gateway. There is also a [copy of a smaller demo on the website](https://jbenet.github.io/ipfs2fil/demo/all/explorer/),
+and a made-up archive with `ipfs2fil explore --demo`.
 
 explore makes thumbnails of photos, videos, PDFs, album art and Office files
 and keeps them in your cache folder; videos, PDFs and album art need `ffmpeg`
