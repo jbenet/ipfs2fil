@@ -840,7 +840,10 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   ${piece ? `<span>Stored</span><span>${cidx(piece.pieceCid, true)} ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
 </div>`;
       fill(pane, e, url);
-      if (isPDF(e) && url) deck.show(url, pane.querySelector('.stage'), e.name);
+      if (isPDF(e) && url) {
+        if (pdfInline) deck.show(url, pane.querySelector('.stage'), e.name);
+        else pane.querySelector('.stage').innerHTML = `<div class="none">${icon('doc')}<p>This browser saves PDFs instead of showing them. Use Download to open this one.</p></div>`;
+      }
       if (isEPUB(e) && url) book.show(pane.querySelector('.stage'), url, e);
       warmAround();
       const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
@@ -896,7 +899,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       warmT = setTimeout(() => {
         const a = across(), offs = a > 1 ? [1, -1, a, -a, 2, -2, a + 1, a - 1, 1 - a, -a - 1] : [1, -1, 2, -2];
         // PDFs next to the cursor (the nearest four) load in the deck.
-        deck.keep(offs.map((d) => shown[S.cur + d]).filter((e) => isPDF(e) && e.bytes <= 64 << 20 && contentURL(e)).slice(0, 4).map((e) => [contentURL(e), e.name]));
+        if (pdfInline) deck.keep(offs.map((d) => shown[S.cur + d]).filter((e) => isPDF(e) && e.bytes <= 64 << 20 && contentURL(e)).slice(0, 4).map((e) => [contentURL(e), e.name]));
         for (const d of offs) {
           const e = shown[S.cur + d], url = e && contentURL(e);
           if (!url || e.kind === 'folder' || warmed.has(url)) continue;
@@ -916,6 +919,9 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     // browser's PDF viewer again. An iframe reloads when moved in the page,
     // so the deck stays put and only its frames come and go.
     const isPDF = (e) => e && e.kind === 'doc' && (ext(e.name) === 'pdf' || !ext(e.name));
+    // Chrome set to download PDFs (and other browsers with no viewer) would
+    // save every PDF the deck loads, so then PDFs are not shown at all.
+    const pdfInline = navigator.pdfViewerEnabled !== false;
     const deck = (() => {
       const frames = new Map(); // url -> iframe, oldest first
       let on = null, stageEl = null;
@@ -927,15 +933,33 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
         d.style.height = stageEl.clientHeight + 'px';
       };
       const ro = 'ResizeObserver' in window ? new ResizeObserver(place) : null;
+      // A frame saves its file as a download instead of showing it when the
+      // server does not call it a PDF (static hosts such as the demo on
+      // GitHub Pages send application/octet-stream), so the bytes are
+      // checked first and, if need be, shown from a blob typed as a PDF.
+      // f.ready is the URL in the frame, or null when it is not a PDF.
+      function load(url) {
+        return fetch(url, { method: 'HEAD' }).then((r) => {
+          if (r.ok && /^application\/pdf/i.test(r.headers.get('content-type') || '')) return url;
+          return fetch(url).then((r) => r.ok ? r.blob() : null).then(async (b) => b && await b.slice(0, 5).text() === '%PDF-' ? URL.createObjectURL(new Blob([b], { type: 'application/pdf' })) : null);
+        }).catch(() => null);
+      }
       function frame(url, title) {
         let f = frames.get(url);
         if (f) { frames.delete(url); frames.set(url, f); return f; }
         f = D.createElement('iframe');
-        f.src = url; f.title = title || ''; f.tabIndex = -1;
+        f.title = title || ''; f.tabIndex = -1;
         el().appendChild(f);
         frames.set(url, f);
+        f.ready = load(url).then((src) => {
+          if (src && src.startsWith('blob:')) f.blob = src;
+          if (src && f.isConnected) f.src = src;
+          else if (f.blob) URL.revokeObjectURL(f.blob);
+          return src;
+        });
         return f;
       }
+      const drop = (f, u) => { f.remove(); frames.delete(u); if (f.blob) URL.revokeObjectURL(f.blob); };
       return {
         show(url, st, title) {
           const d = el();
@@ -943,10 +967,11 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
           stageEl = st;
           if (ro) { ro.disconnect(); ro.observe(st); }
           place();
-          on = frame(url, title);
+          const f = on = frame(url, title);
           on.tabIndex = 0;
           frames.forEach((f) => f.classList.toggle('on', f === on));
           d.hidden = false;
+          f.ready.then((src) => { if (!src && on === f && st.isConnected) { st.innerHTML = `<div class="none">${icon('doc')}<p>This file is not a PDF the browser can show.</p></div>`; this.hide(); } });
         },
         hide() {
           if (on) { on.classList.remove('on'); on.tabIndex = -1; }
@@ -958,7 +983,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
           if (!el()) return;
           urls.forEach((u) => frame(u[0], u[1]));
           const want = new Set(urls.map((u) => u[0]));
-          frames.forEach((f, u) => { if (f !== on && !want.has(u)) { f.remove(); frames.delete(u); } });
+          frames.forEach((f, u) => { if (f !== on && !want.has(u)) drop(f, u); });
         },
       };
     })();
