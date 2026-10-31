@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ipfs2fil · archive IPFS repos to Filecoin</title>
+<meta name="description" content="ipfs2fil reads a kubo or go-ipfs repo of any version, stores it on Filecoin Onchain Cloud, and ships an explorer with every archive so you can browse it from any IPFS gateway.">
+<meta property="og:title" content="ipfs2fil">
+<meta property="og:description" content="Archive your IPFS repos to Filecoin, and browse them from anywhere.">
+<meta property="og:image" content="media/explorer-photos.webp">
+<link rel="icon" href="media/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="#"><img src="media/logo.svg" width="22" height="22" alt=""><span>ipfs2fil</span></a>
+    <nav aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#explorer">Explorer</a>
+      <a href="#start">Quickstart</a>
+      <a href="#faq">FAQ</a>
+      <a class="gh" href="https://github.com/jbenet/ipfs2fil">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="eyebrow">For anyone with an IPFS node full of things they want to keep</p>
+      <h1>Your IPFS repo, archived on Filecoin. Browsable from anywhere.</h1>
+      <p class="lede"><b>ipfs2fil</b> reads a kubo or go-ipfs repo of any version, packs every pin, your MFS files and stray blocks into pieces, and stores copies with Filecoin storage providers that prove on chain they still hold them. Each archive carries its own explorer, so any IPFS gateway can show you what is in it.</p>
+      <div class="install">
+        <code id="install-cmd">curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh</code>
+        <button type="button" class="copy" data-copy="install-cmd" aria-label="Copy the install command">Copy</button>
+      </div>
+      <div class="ctas">
+        <a class="btn primary" href="#start">Get started</a>
+        <a class="btn" href="demo/all/explorer/">Open the live explorer</a>
+        <a class="btn ghost" href="https://github.com/jbenet/ipfs2fil">Source on GitHub</a>
+      </div>
+    </div>
+    <figure class="hero-media">
+      <div class="shot shot-ui"><img src="media/explorer-photos.webp" width="1440" height="900" alt="The ipfs2fil explorer showing a grid of archived photos with a large preview of one photo, its CID, piece and copies"></div>
+      <div class="shot shot-term"><video src="media/up-hero.mp4" poster="media/up-hero.webp" autoplay muted loop playsinline aria-label="Terminal recording of ipfs2fil up --all packing two repos and storing them on Filecoin"></video></div>
+    </figure>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="wrap strip-grid">
+    <div><b>Read only</b><span>never writes to your repo; the daemon can keep running</span></div>
+    <div><b>Incremental</b><span>content-defined pieces: run it again, only changes upload</span></div>
+    <div><b>Self-describing</b><span>index and explorer travel inside every archive</span></div>
+    <div><b>Reads old repos</b><span>fs-repo 0 to 18: go-ipfs 0.2 through kubo 0.43, on flatfs, leveldb, badger or pebble</span></div>
+  </div>
+</section>
+
+<section id="how" class="section">
+  <div class="wrap">
+    <h2 class="title">Three commands</h2>
+    <p class="sub">Below, two made-up repos of a few GiB go through the real ipfs2fil, with the storage simulated so nothing is paid for, and the waits sped up. The <a href="demo/all/explorer/">live demo</a> is a real archive.</p>
+
+    <div class="step">
+      <div class="step-text">
+        <span class="num">1</span>
+        <h3>See what you have, and what it costs</h3>
+        <p><code>ipfs2fil scan</code> reads <code>$IPFS_PATH</code> (or <code>~/.ipfs</code>, or <code>--repo</code>) and tells you how many blocks, pins and pieces there are, and the monthly price. Nothing is written anywhere.</p>
+      </div>
+      <div class="step-media"><div class="shot"><img src="media/scan.webp" width="1864" height="740" alt="ipfs2fil scan output: 25080 blocks, 6.1 GiB, 9 pins, about 10 pieces, and the monthly cost" loading="lazy"></div></div>
+    </div>
+
+    <div class="step">
+      <div class="step-text">
+        <span class="num">2</span>
+        <h3>Pack and store in one go</h3>
+        <p><code>ipfs2fil up</code> links every pin, the MFS tree and leftover blocks under one root, cuts the blocks into pieces, shows the cost and any deposit, and after you say yes stores the copies. Each piece leaves your machine once; providers copy it from each other.</p>
+        <p>Run it again whenever the repo changes: pieces are cut where the content says, so pieces already stored are skipped. Ctrl-C or a failure is safe; run it again and it carries on.</p>
+        <p>Keep a list of repos with <code>ipfs2fil repos add</code> and <code>up --all</code> archives them together: one confirmation, shared data sets, and a block an earlier repo stores is never stored twice.</p>
+      </div>
+      <div class="step-media"><div class="shot"><video src="media/up.mp4" poster="media/up.webp" controls muted playsinline preload="metadata" aria-label="Terminal recording: repos add twice, then up --all packs and stores both repos"></video></div></div>
+    </div>
+
+    <div class="step">
+      <div class="step-text">
+        <span class="num">3</span>
+        <h3>Check on it, from the chain</h3>
+        <p><code>ipfs2fil status</code> reads your data sets from chain: which providers hold a copy, when each last proved it, and how many days your deposit lasts. <code>ipfs2fil verify</code> fetches every piece back, checks every block against its CID, and asks the IPFS network whether the CIDs are announced.</p>
+      </div>
+      <div class="step-media"><div class="shot"><video src="media/check.mp4" poster="media/check.webp" controls muted playsinline preload="metadata" aria-label="Terminal recording: status lists both repos, their copies and funding; verify fetches every piece of both and finds them all good"></video></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="explorer" class="section alt">
+  <div class="wrap">
+    <h2 class="title">An explorer inside every archive</h2>
+    <p class="sub">Run <code>ipfs2fil explore</code> to browse on your machine, or open <code>https://dweb.link/ipfs/&lt;root&gt;/explorer/</code> once the archive is stored. Photos, video, audio, PDFs and code open right in the page. Every list filters, sorts and moves with the keyboard.</p>
+
+    <div class="tabs" role="tablist" aria-label="Explorer screenshots">
+      <button role="tab" aria-selected="true" data-shot="explorer-photos">Photos</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-pdf">Documents</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-video">Video</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-overview">Overview</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-pieces">Pieces</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-search">Search</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-keys">Shortcuts</button>
+    </div>
+    <figure class="gallery">
+      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>127.0.0.1:8484/all/explorer/</span></div><img id="gallery-img" src="media/explorer-photos.webp" width="1440" height="900" alt="The explorer's Files page" loading="lazy"></div>
+      <figcaption id="gallery-cap">The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.</figcaption>
+    </figure>
+    <p class="center"><a class="btn primary" href="demo/all/explorer/">Try the live explorer on the demo archive</a></p>
+
+    <div class="feature-video">
+      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>j / k through files, v to switch views</span></div><video src="media/explorer-tour.mp4" poster="media/explorer-tour.webp" autoplay muted loop playsinline aria-label="Screen recording: moving through files with the keyboard, switching views, opening a PDF and a video"></video></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2 class="title">Built to outlast the machine it ran on</h2>
+    <div class="grid">
+      <article><h3>Every repo version</h3><p>fs-repo 0 through 18: go-ipfs 0.2 to kubo 0.43, with flatfs, leveldb, badger, pebble and custom datastore specs. Old pin layouts and the MFS root are read too.</p></article>
+      <article><h3>Everything, not just pins</h3><p>Recursive and direct pins, your MFS files, and orphan blocks no pin reaches (on by default), all linked under one archive root.</p></article>
+      <article><h3>Same repo, same pieces</h3><p>Piece cuts depend only on the blocks, so a re-run skips every piece already stored and an edit changes only nearby pieces. Dates and providers live in the index, not the data.</p></article>
+      <article><h3>Copies that are proven</h3><p>Pieces go to Filecoin Onchain Cloud, where providers prove on chain, over and over, that they still hold them. Three copies by default, paid from your own wallet.</p></article>
+      <article><h3>Findable by CID</h3><p>Providers announce the blocks to the IPFS network, so any gateway or node can fetch a file by its CID, and <code>verify</code> checks that they do.</p></article>
+      <article><h3>Many repos, many machines</h3><p>Give each machine the same wallet key. The catalog of every machine's repos is kept, encrypted, in your own data sets on chain, so shared blocks are stored once and <code>status --all</code> sees everything.</p></article>
+      <article><h3>Safe to stop</h3><p>Ctrl-C or a failure never wastes work: packing reuses its cache, uploads resume, and on-chain adds wait out gas price spikes while uploads keep going.</p></article>
+      <article><h3>One binary</h3><p>A single Go binary with no cgo, built for every platform kubo ships for, with checksums and signed build provenance on every release.</p></article>
+    </div>
+  </div>
+</section>
+
+<section id="start" class="section alt">
+  <div class="wrap narrow">
+    <h2 class="title">Quickstart</h2>
+    <p class="sub">You need a kubo or go-ipfs repo and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
+    <ol class="quick">
+      <li><h3>Install</h3>
+<pre><code>curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh</code></pre>
+      <p>Or <code>go install github.com/jbenet/ipfs2fil/cmd/ipfs2fil@latest</code>, or a binary from <a href="https://github.com/jbenet/ipfs2fil/releases">releases</a>.</p></li>
+      <li><h3>Look before you leap</h3>
+<pre><code>ipfs2fil scan          # blocks, pins, pieces and the monthly cost</code></pre></li>
+      <li><h3>Get a wallet</h3>
+<pre><code>ipfs2fil wallet new    # makes ~/.ipfs2fil/wallet.key, prints its address
+ipfs2fil wallet        # FIL, USDFC and the Filecoin Pay deposit</code></pre>
+      <p>Or point it at a key you already have with <code>IPFS2FIL_KEY_FILE</code>. ipfs2fil never prints the key or copies it anywhere.</p></li>
+      <li><h3>Archive</h3>
+<pre><code>ipfs2fil up            # pack, show the cost, store after you say yes</code></pre></li>
+      <li><h3>Check and browse</h3>
+<pre><code>ipfs2fil status        # providers, pieces, last proof, days funded
+ipfs2fil verify        # fetch every piece back, check every block
+ipfs2fil explore       # http://127.0.0.1:8484/</code></pre></li>
+    </ol>
+    <p>Several repos? <code>ipfs2fil repos add ~/.ipfs</code> for each, then <code>ipfs2fil up --all</code>. Every command explains itself: <code>ipfs2fil help &lt;command&gt;</code>.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap narrow">
+    <h2 class="title">Commands</h2>
+    <table class="cmds">
+      <tbody>
+        <tr><td><code>scan</code></td><td>Read the repo and say what an archive would hold and cost</td></tr>
+        <tr><td><code>up</code></td><td>Pack and push in one go, after confirming the cost</td></tr>
+        <tr><td><code>pack</code></td><td>Build the archive and its pieces on disk</td></tr>
+        <tr><td><code>push</code></td><td>Upload pieces that are not stored yet</td></tr>
+        <tr><td><code>status</code></td><td>Copies, funding and proofs, read from chain</td></tr>
+        <tr><td><code>verify</code></td><td>Fetch pieces back and check every block</td></tr>
+        <tr><td><code>explore</code></td><td>Serve the HTML explorer, with the files themselves</td></tr>
+        <tr><td><code>repos</code></td><td>Keep a list of repos to archive together (add, ls, rm)</td></tr>
+        <tr><td><code>wallet</code></td><td>Make a wallet key to fund, or show its balances</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="faq" class="section alt">
+  <div class="wrap narrow">
+    <h2 class="title">Questions</h2>
+    <details><summary>Is what I archive public?</summary><p>Yes. Pieces are stored as they are, and providers announce the CIDs to the IPFS network, so anyone who has a CID can fetch that content. Only archive what you are happy to publish, or encrypt it before adding it to IPFS. (The catalog of your repos is the exception: it is encrypted with a key derived from your wallet key, and repo paths never leave your machine.)</p></details>
+    <details><summary>What does it cost?</summary><p><code>scan</code> prints the monthly price before anything happens, and <code>up</code> shows it again with any deposit it needs and waits for your yes. Storage is paid in USDFC through Filecoin Pay from your own wallet; gas is paid in FIL. <code>status</code> says how many days your deposit lasts.</p></details>
+    <details><summary>Will it touch my repo?</summary><p>No. Stores are opened read-only and migrations are never run, so it is safe while the daemon runs. Archives are written to <code>./ipfs2fil-archive</code>, or under <code>~/.ipfs2fil</code> for listed repos.</p></details>
+    <details><summary>What if a provider loses a piece?</summary><p><code>verify</code> fetches every piece from every copy and lists any that are bad; <code>push</code> uploads again what a copy is missing. <code>status</code> shows when each copy last proved it holds your data.</p></details>
+    <details><summary>Can I get my files back without ipfs2fil?</summary><p>Yes. Every file has a CID, so any IPFS gateway or node can fetch it, and the archive root opens the explorer in a browser. The pieces are plain CAR files, and the index lists which piece holds each block.</p></details>
+    <details><summary>Can I try it without spending anything?</summary><p>Yes: add <code>--network calibration</code> and fund a wallet from the Calibration faucets.</p></details>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-row">
+    <span><img src="media/logo.svg" width="18" height="18" alt=""> ipfs2fil · MIT licensed</span>
+    <span><a href="https://github.com/jbenet/ipfs2fil">GitHub</a> · <a href="https://github.com/jbenet/ipfs2fil/releases">Releases</a> · <a href="https://github.com/jbenet/ipfs2fil/blob/main/docs/ARCHITECTURE.md">Architecture</a></span>
+  </div>
+</footer>
+
+<script>
+const CAPS = {
+  'explorer-photos': 'The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.',
+  'explorer-pdf': 'Documents open in place. The list shows which folder and piece each file lives in.',
+  'explorer-video': 'Video and audio play straight from the archive, read from the pieces on your machine or from a gateway.',
+  'explorer-overview': 'The overview: what takes the space, by part of the repo and by file type, and each repo with what it shares with the others.',
+  'explorer-pieces': 'Every piece, what it holds, and which providers store it. Pieces from a new snapshot are marked.',
+  'explorer-search': 'Search names and CIDs across every repo, scoped to a folder and below.',
+  'explorer-keys': 'Everything works from the keyboard. Press ? on any page.'
+};
+const tabs = document.querySelectorAll('[role=tab]'), img = document.getElementById('gallery-img'), cap = document.getElementById('gallery-cap');
+tabs.forEach((t) => t.addEventListener('click', () => {
+  tabs.forEach((x) => x.setAttribute('aria-selected', x === t));
+  img.src = 'media/' + t.dataset.shot + '.webp';
+  cap.textContent = CAPS[t.dataset.shot];
+}));
+document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1500); } catch (e) { /* no clipboard */ }
+}));
+</script>
+</body>
+</html>

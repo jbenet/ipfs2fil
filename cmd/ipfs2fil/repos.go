@@ -59,7 +59,7 @@ catalog itself. The catalog is remembered; --catalog filecoin goes back to
 chain. Machines are named by --host, default the name saved in the home directory on first use.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "for add: the IPFS repo to add (or give it as the argument)")
-			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name)")
+			fs.StringVar(&reposName, "name", "", "for add: the name to list it under (default: the repo directory's name, or for ~/.ipfs the home directory's)")
 			fs.BoolVar(&reposForce, "force", false, "for rm: remove a repo even if later repos rely on its pieces")
 			homeFlag(fs, o)
 			jsonFlag(fs, o)
@@ -198,11 +198,14 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 }
 
 // defaultName is the repo directory's name without leading dots, or its
-// parent's when that leaves nothing useful (~/.ipfs -> ipfs).
+// parent's when that says nothing: ~/.ipfs is named after the home
+// directory (/Users/ada/.ipfs -> ada).
 func defaultName(path string) string {
 	n := strings.TrimLeft(filepath.Base(path), ".")
-	if n == "" {
-		n = strings.TrimLeft(filepath.Base(filepath.Dir(path)), ".")
+	if n == "" || n == "ipfs" {
+		if p := strings.TrimLeft(filepath.Base(filepath.Dir(path)), "./"+string(filepath.Separator)); p != "" {
+			n = p
+		}
 	}
 	var b strings.Builder
 	for _, r := range n {

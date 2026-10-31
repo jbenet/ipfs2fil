@@ -87,6 +87,27 @@ func TestReposAll(t *testing.T) {
 		t.Errorf("re-run uploaded %d more", got-want)
 	}
 
+	// verify and status find listed repos without --out: all, or one by name.
+	stdout, _, err = ipfs2fil(t, "verify", "--home", home, "--ipni", "")
+	if err != nil || !strings.Contains(stdout, "== first (1 of 2)") || !strings.Contains(stdout, "== second (2 of 2)") || strings.Count(stdout, ", 0 bad") != 2 {
+		t.Errorf("verify of every listed repo: %v\n%s", err, stdout)
+	}
+	stdout, _, err = ipfs2fil(t, "verify", "--home", home, "--repo", "second", "--ipni", "")
+	if err != nil || strings.Contains(stdout, "==") || strings.Count(stdout, ", 0 bad") != 1 {
+		t.Errorf("verify --repo second: %v\n%s", err, stdout)
+	}
+	if _, _, err := ipfs2fil(t, "verify", "--home", home, "--repo", "third", "--ipni", ""); err == nil || !strings.Contains(err.Error(), "first, second") {
+		t.Errorf("verify of a repo not in the list: %v", err)
+	}
+	stdout, _, err = ipfs2fil(t, "status", "--home", home, "--repo", "first")
+	if err != nil || !strings.Contains(stdout, m1.Root) {
+		t.Errorf("status --repo first: %v\n%s", err, stdout)
+	}
+	stdout, _, err = ipfs2fil(t, "status", "--home", home)
+	if err != nil || !strings.Contains(stdout, "data sets shared by every repo") {
+		t.Errorf("status with listed repos and no --out: %v\n%s", err, stdout)
+	}
+
 	stdout, _, err = ipfs2fil(t, "status", "--all", "--home", home)
 	if err != nil || !strings.Contains(stdout, "copies   3 data sets shared by every repo") ||
 		!strings.Contains(stdout, "is stored once") || strings.Contains(stdout, "missing") || strings.Contains(stdout, "earlier") {
@@ -207,7 +228,8 @@ func TestUpAllPushesWhatPacked(t *testing.T) {
 }
 
 func TestDefaultName(t *testing.T) {
-	for in, want := range map[string]string{"/home/x/.ipfs": "ipfs", "/data/my repo": "my-repo", "/x/kubo-0.43": "kubo-0.43"} {
+	for in, want := range map[string]string{"/home/x/.ipfs": "x", "/Users/ada/.ipfs": "ada", "/.ipfs": "ipfs", "/Volumes/old-laptop/ipfs": "old-laptop",
+		"/data/my repo": "my-repo", "/x/kubo-0.43": "kubo-0.43", "/srv/go-ipfs": "go-ipfs"} {
 		if got := defaultName(in); got != want {
 			t.Errorf("defaultName(%q) = %q, want %q", in, got, want)
 		}
