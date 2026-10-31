@@ -76,6 +76,14 @@
   // ---- Formatting
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = (n) => Number(n).toLocaleString('en-US');
+  // Why a file did not load. explore answers in plain text, but a static
+  // copy (the website demo on GitHub Pages) answers a file it left out with
+  // its own HTML 404 page, which is no use to show.
+  function missing(e, r) {
+    if (r.status !== 404) return `The server answered ${r.status} for this file.`;
+    if (LOCAL && /^text\/plain/.test(r.headers.get('content-type') || '')) return 'This file is not in the pieces on this machine.';
+    return `This copy of the archive does not include this file${e && e.bytes ? ' (' + bytes(e.bytes) + ')' : ''}: big files are left out to keep it small. Run ipfs2fil explore on the archive to ${e && (e.kind === 'video' || e.kind === 'audio') ? 'play' : 'open'} it.`;
+  }
   function bytes(n) {
     const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
     let i = 0;
@@ -590,6 +598,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     fetch(im.src).then((r) => r.ok ? r.blob() : null).then((b) => { if (b) im.src = URL.createObjectURL(new Blob([b], { type: 'image/svg+xml' })); }).catch(() => {});
   }, true);
   const canShow = () => LOCAL || HERE || PUBLIC;
+  const AVTYPE = { mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', ogv: 'video/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', wav: 'audio/wav' };
 
   // Kinds an older pack could not tell from names; explore sniffs them.
   const KOVER = {}, asked = new Set();
@@ -981,7 +990,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       let p = heads.get(k);
       if (!p) {
         p = fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } }).then((r) => {
-          if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
+          if (!r.ok) throw new Error(missing(null, r));
           return r.arrayBuffer();
         });
         p.catch(() => heads.delete(k));
@@ -1131,7 +1140,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       }
       async function open(url) {
         const r = await fetch(url);
-        if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
+        if (!r.ok) throw new Error(missing(null, r));
         const get = unzip(await r.arrayBuffer()), dec = new TextDecoder();
         const doc = async (name, html) => {
           const b = await get(name);
@@ -1397,8 +1406,17 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
         let why = LOCAL ? 'This file is not in the pieces on this machine, or the browser cannot show it.' : 'The browser could not load or show this file.';
         try {
           const r = await fetch(url, { headers: { Range: 'bytes=0-0' } });
-          if (!r.ok) why = (await r.text()) || why;
-          else if (e.kind === 'video' || e.kind === 'audio') why = `This browser cannot play ${x ? '.' + x + ' files' : 'this file'}${media.error && media.error.message ? ' (' + media.error.message + ')' : ''}. Download it to play it.`;
+          // explore answers in plain text; a static copy (the website demo,
+          // GitHub Pages) answers a left-out file with its own HTML 404 page.
+          if (!r.ok) why = /^text\/plain/.test(r.headers.get('content-type') || '') ? ((await r.text()) || why) : missing(e, r);
+          else if (AVTYPE[x] && !media.dataset.typed && /octet-stream/.test(r.headers.get('content-type') || '')) {
+            // Static hosts send these untyped, which some browsers (Safari)
+            // will not play; try once more from a blob with the right type.
+            media.dataset.typed = '1';
+            const b = await (await fetch(url)).blob();
+            if (st.isConnected) media.src = URL.createObjectURL(new Blob([b], { type: AVTYPE[x] }));
+            return;
+          } else if (e.kind === 'video' || e.kind === 'audio') why = `This browser cannot play ${x ? '.' + x + ' files' : 'this file'}${media.error && media.error.message ? ' (' + media.error.message + ')' : ''}. Download it to play it.`;
         } catch (err) { /* keep the general reason */ }
         if (st.isConnected) st.innerHTML = `<div class="none">${icon(e.kind)}<p>${esc(why)}</p></div>`;
       };

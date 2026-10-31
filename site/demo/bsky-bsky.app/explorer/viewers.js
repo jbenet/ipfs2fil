@@ -332,7 +332,7 @@
   }
   async function tarList(v, gz) {
     const r = await fetch(v.url);
-    if (!r.ok) throw new Error(await r.text() || r.statusText);
+    if (!r.ok) throw new Error(/^text\/plain/.test(r.headers.get('content-type') || '') ? (await r.text() || r.statusText) : r.status === 404 ? 'This copy of the archive does not include this file.' : r.statusText);
     let s = r.body;
     if (gz) s = s.pipeThrough(new DecompressionStream('gzip'));
     const rd = s.getReader(), out = [];
