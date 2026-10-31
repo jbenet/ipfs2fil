@@ -228,7 +228,8 @@ func TestUpAllPushesWhatPacked(t *testing.T) {
 }
 
 func TestDefaultName(t *testing.T) {
-	for in, want := range map[string]string{"/home/x/.ipfs": "ipfs", "/data/my repo": "my-repo", "/x/kubo-0.43": "kubo-0.43"} {
+	for in, want := range map[string]string{"/home/x/.ipfs": "x", "/Users/ada/.ipfs": "ada", "/.ipfs": "ipfs", "/Volumes/old-laptop/ipfs": "old-laptop",
+		"/data/my repo": "my-repo", "/x/kubo-0.43": "kubo-0.43", "/srv/go-ipfs": "go-ipfs"} {
 		if got := defaultName(in); got != want {
 			t.Errorf("defaultName(%q) = %q, want %q", in, got, want)
 		}
