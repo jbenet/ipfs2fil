@@ -232,6 +232,12 @@ body[data-page="browse"] .bar, body[data-page="browse"] .rail { max-width: none;
 .stage img, .stage video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .stage video { width: 100%; }
 .stage iframe { width: 100%; height: 100%; min-height: 420px; border: 0; background: #FFFFFF; }
+.stage:has(> .book) { flex-basis: 560px; }
+.stage .book { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.stage .bkbar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.stage .bkbar select { flex: 1; min-width: 0; height: 28px; }
+.stage .bkbar .ib:disabled { opacity: .4; cursor: default; }
+.stage .book iframe { flex: 1; height: auto; }
 .stage[data-kind="text"], .stage[data-kind="code"], .stage[data-kind="doc"], .stage[data-kind="page"] { background: var(--card); align-items: stretch; flex-direction: column; justify-content: flex-start; }
 .stage[data-kind="other"], .stage[data-kind="archive"], .stage[data-kind="disk"] { flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .stage > .faint { color: #9AA1AD; }
@@ -245,6 +251,43 @@ pre.hex { color: #C9CDD5; background: none; }
 pre.code code { counter-reset: ln; }
 pre.code code span { counter-increment: ln; }
 pre.code code span::before { content: counter(ln); display: inline-block; width: 3.5em; margin-right: 1em; text-align: right; color: var(--faint); user-select: none; }
+/* viewers.js: documents, tables, listings, code that runs */
+.stage:has(> .vbody), .stage:has(> .vtable), .stage:has(> .vbar), .stage:has(> .runout) { background: var(--card); align-items: stretch; flex-direction: column; justify-content: flex-start; overflow: auto; }
+.stage:has(> .vbody), .stage:has(> .vtable) { flex-basis: 420px; }
+.vbar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 1; }
+.vbar .pill { height: 28px; }
+.vbar.run { order: -1; }
+.btn.sm { height: 28px; font-size: 13px; padding: 0 10px; }
+.vbody { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.vbody.doc { display: block; padding: 16px 22px 40px; font-size: 15px; line-height: 1.6; color: var(--text); max-width: 52em; }
+.vbody.doc img { max-width: 100%; }
+.vbody.doc pre.code { margin: 8px 0; border: 1px solid var(--line); border-radius: 6px; flex: none; white-space: pre-wrap; }
+.vbody.doc pre.code code span::before, .runout pre.code code span::before, .cell pre.code code span::before { content: none; }
+.vbody.doc table { width: auto; margin: 10px 0; }
+.vbody.doc td, .vbody.doc th { border: 1px solid var(--line); }
+.vbody.doc blockquote { margin: 8px 0; padding: 0 14px; border-left: 3px solid var(--line); color: var(--muted); }
+.vbody.doc code { font-size: 90%; background: var(--row); padding: 1px 4px; border-radius: 3px; }
+.vbody.doc pre code { background: none; padding: 0; }
+.vbody .cell { margin: 0 0 14px; }
+.vbody .cell.md { padding: 0 2px; }
+.vbody pre.code.out { background: var(--bg); }
+.vbody .slide { border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; margin: 0 0 12px; }
+.vbody .slide h3 { margin: 4px 0 6px; }
+.vtable { overflow: auto; flex: 1; min-height: 0; }
+.vtable table { font-size: 13px; }
+.vtable td { white-space: nowrap; max-width: 28em; overflow: hidden; text-overflow: ellipsis; padding: 4px 8px; }
+.vtable td.r, .vtable th.r { text-align: right; }
+.stage > .faint.pad, .stage > .muted.pad { color: var(--muted); padding: 10px 14px; margin: 0; }
+.runout { border-top: 1px solid var(--line); max-height: 45%; overflow: auto; flex: none; }
+.runout pre.code { white-space: pre-wrap; }
+.runout .o-err { color: var(--warm); }
+.runout .o-note { color: var(--faint); font-style: italic; }
+.stage iframe.runner { display: none; }
+.stage .cover { width: 220px; height: 220px; object-fit: cover; border-radius: 6px; }
+.tt.txt { display: block; padding: 8px 9px; font: 7px/1.35 var(--mono); color: var(--muted); background: var(--card); border: 1px solid var(--line); white-space: pre; overflow: hidden; text-align: left; }
+.tile, .nm, .tr { position: relative; }
+.partial { font: 10px/14px var(--sans); color: var(--warm); border: 1px solid var(--warm); border-radius: 3px; padding: 0 3px; background: var(--card); }
+.tile .partial { position: absolute; top: 6px; left: 6px; }
 .stage.folder { flex: 0 0 auto; min-height: 0; background: var(--card); padding: 12px 16px 0; }
 .mosaic { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; }
 .mosaic img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }

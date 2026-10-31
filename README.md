@@ -6,9 +6,9 @@
 [Live explorer demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/) ·
 [Install](#install) · [Quickstart](#quickstart) · [Releases](https://github.com/jbenet/ipfs2fil/releases)
 
-`ipfs2fil` reads a kubo or go-ipfs repo of any version (fs-repo 0 through 18),
-links every pin, the MFS tree and leftover blocks under one root, cuts the
-blocks into pieces, and stores 3 copies on Filecoin Onchain Cloud, where
+`ipfs2fil` reads an IPFS repo of any version (kubo, go-ipfs or IPFS Desktop;
+fs-repo 0 through 18), links every pin, the MFS tree and leftover blocks
+under one root, cuts the blocks into pieces, and stores 3 copies on Filecoin Onchain Cloud, where
 providers keep proving on chain that they hold them. Every archive carries its
 own index and an HTML explorer, so any IPFS gateway can serve the files and
 show what is where.
@@ -37,8 +37,10 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **Proven copies.** 3 copies by default on Filecoin Onchain Cloud, paid from
   your own wallet. Providers announce the CIDs to IPFS, so any gateway can
   fetch a file by CID.
-- **An explorer inside the archive.** Photos, video, audio, PDFs and code open
-  in the page; every list filters, sorts and runs from the keyboard.
+- **An explorer inside the archive.** Photos, video, audio, PDFs, books, web
+  pages, Markdown, spreadsheets, Office files and code open in the page, with
+  thumbnails; JavaScript and Python run sandboxed. Every list filters, sorts
+  and runs from the keyboard.
 - **Many repos, many machines.** Shared data sets, blocks stored once across
   repos, and a catalog of every machine's repos kept encrypted on chain.
 
@@ -55,7 +57,7 @@ Each release lists SHA-256 checksums and signed build provenance
 
 ## Quickstart
 
-You need a kubo-compatible repo (kubo, go-ipfs, IPFS Desktop; the daemon can
+You need an IPFS repo from kubo, go-ipfs or IPFS Desktop (the daemon can
 keep running) or a CAR file, and a Filecoin wallet holding some FIL for gas and
 USDFC to pay for storage. Add
 `--network calibration` to any command to try it free on the testnet.
@@ -128,6 +130,11 @@ shortcuts.
 
 Try it on the [live demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/),
 or on a made-up archive with `ipfs2fil explore --demo`.
+
+explore makes thumbnails of photos, videos, PDFs, album art and Office files
+and keeps them in your cache folder; videos, PDFs and album art need `ffmpeg`
+and `pdftoppm` (`brew install ffmpeg poppler`). [docs/viewers.md](docs/viewers.md)
+lists every viewer and thumbnail and how to add one.
 
 ## Many repos
 
