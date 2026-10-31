@@ -92,7 +92,7 @@
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
   // sourceLabel names the kind of repo an archive came from; archives with no
   // kind came from kubo fs-repos.
-  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
+  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account', 'js-ipfs': `a js-ipfs repo · repo ${esc(s.repoVersion)}` })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
 
   // Kinds: icon path, color, label, plural label. From the boards.

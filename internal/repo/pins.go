@@ -48,13 +48,18 @@ func (r *fsRepo) Pins(ctx context.Context) ([]Pin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading pins: %w", err)
 	}
+	sortPins(ps)
+	return ps, nil
+}
+
+// sortPins orders pins by mode, then CID.
+func sortPins(ps []Pin) {
 	sort.Slice(ps, func(i, j int) bool {
 		if ps[i].Mode != ps[j].Mode {
 			return ps[i].Mode < ps[j].Mode
 		}
 		return ps[i].Root.KeyString() < ps[j].Root.KeyString()
 	})
-	return ps, nil
 }
 
 // keyListPins reads repos 0..2: JSON lists of base58 multihashes.
