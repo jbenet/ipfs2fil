@@ -170,6 +170,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 
 	m := &manifest.Manifest{Format: manifest.Format, Tool: opts.Tool, DataRoot: dataRoot.Cid().String(),
 		Source: manifest.Source{RepoVersion: int(r.Version()), Blocks: l.repoBlocks, Bytes: l.repoBytes}, Shared: shared}
+	if r.Kind() != repo.KindFSRepo {
+		m.Source.Kind = r.Kind()
+	}
 	owned := make([]bool, len(l.tab))
 	for _, rt := range roots {
 		m.Roots = append(m.Roots, l.rootEntry(rt, owned))

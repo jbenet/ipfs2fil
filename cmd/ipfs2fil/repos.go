@@ -165,7 +165,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	}
 	found, err := repo.Discover(path)
 	if errors.Is(err, repo.ErrNotRepo) {
-		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks'", path)
+		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks', or a CAR file", path)
 	}
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
@@ -178,7 +178,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	if err != nil {
 		return fmt.Errorf("opening %s: %w", abs, err)
 	}
-	v := r.Version()
+	v := repo.Describe(r)
 	r.Close()
 	name := reposName
 	if name == "" {
@@ -191,7 +191,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 		return err
 	}
 	commitCatalog(o, c, "add "+name)
-	fmt.Fprintf(o.stdout, "added    %s (%s, fs-repo %d)\n", name, abs, v)
+	fmt.Fprintf(o.stdout, "added    %s (%s, %s)\n", name, abs, v)
 	fmt.Fprintf(o.stdout, "repos    %d on this machine, listed in %s\n", len(c.Repos), c.Where())
 	fmt.Fprintf(o.stdout, "next     ipfs2fil up --all\n")
 	return nil

@@ -1,14 +1,16 @@
-// Package repo reads kubo and go-ipfs fs-repos of every version, 0 through 18,
-// offline and strictly read-only. It never runs migrations and never takes the
-// repo lock for writing, so a live daemon's repo can be read safely.
+// Package repo reads the places IPFS blocks live: kubo and go-ipfs fs-repos of
+// every version, 0 through 18, and CAR files. It reads offline and strictly
+// read-only. It never runs migrations and never takes the repo lock for
+// writing, so a live daemon's repo can be read safely.
 //
-// Every version is reduced to the same view: blocks keyed by multihash, the pin
-// set, and the MFS root. Version differences live behind Open.
+// Every source is reduced to the same view: blocks keyed by multihash, named
+// roots (pins), and the MFS root. Format differences live behind Open.
 package repo
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -47,9 +49,19 @@ type Pin struct {
 	Name string
 }
 
-// Repo is a read-only view of one fs-repo.
+// Kinds of repo Open reads.
+const (
+	KindFSRepo = "fs-repo"
+	KindCAR    = "car"
+)
+
+// Repo is a read-only view of one repo.
 type Repo interface {
 	Path() string
+	// Kind says what sort of repo this is, one of the Kind constants.
+	Kind() string
+	// Version is the repo format's version within its kind: the fs-repo
+	// version for fs-repos, 0 where a kind has none.
 	Version() Version
 
 	// ForEachBlock calls fn once for every block in the blockstore, in no
@@ -60,6 +72,7 @@ type Repo interface {
 	// block the repo does not hold. Callers verify the hash; Get does not.
 	Get(ctx context.Context, mh multihash.Multihash) ([]byte, error)
 
+	// Pins are the repo's named roots: kubo's pin set, a CAR file's roots.
 	Pins(ctx context.Context) ([]Pin, error)
 	// MFSRoot returns the root of the files API tree, if the repo has one
 	// (repo 3 and later).
@@ -74,13 +87,28 @@ var (
 	ErrUnsupported = errors.New("fs-repo version not supported yet")
 )
 
-// Open detects the repo's version and returns a reader for it.
+// Open detects what path holds and returns a reader for it: an fs-repo
+// directory, a CAR file, or a directory of CAR files.
 func Open(path string) (Repo, error) {
+	if isCAR(path) {
+		return openCAR(path)
+	}
 	v, err := DetectVersion(path)
 	if err != nil {
 		return nil, err
 	}
 	return openVersion(path, v)
+}
+
+// Describe names a repo's kind and version for people: "fs-repo 12", "CAR".
+func Describe(r Repo) string {
+	switch r.Kind() {
+	case KindFSRepo:
+		return fmt.Sprintf("fs-repo %d", r.Version())
+	case KindCAR:
+		return "CAR"
+	}
+	return r.Kind()
 }
 
 // openVersion picks the block and pin layout for v. Layout families: leveldb
@@ -100,6 +128,9 @@ func Discover(explicit string) (string, error) {
 	for _, c := range cands {
 		if c == "" {
 			continue
+		}
+		if c == explicit && isCAR(c) {
+			return c, nil
 		}
 		if _, err := DetectVersion(c); err == nil {
 			return c, nil

@@ -57,9 +57,12 @@ type SharedPiece struct {
 // Source describes the repo the archive came from. It never records the
 // repo's path or peer identity.
 type Source struct {
-	RepoVersion int   `json:"repoVersion"`
-	Blocks      int64 `json:"blocks"`
-	Bytes       int64 `json:"bytes"`
+	// Kind is the sort of repo, as repo.Kind names it; empty for fs-repos,
+	// so archives of fs-repos read the same as before kinds existed.
+	Kind        string `json:"kind,omitempty"`
+	RepoVersion int    `json:"repoVersion"`
+	Blocks      int64  `json:"blocks"`
+	Bytes       int64  `json:"bytes"`
 }
 
 // Root kinds, matching the directories under data/.

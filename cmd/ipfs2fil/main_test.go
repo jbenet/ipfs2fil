@@ -12,6 +12,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/car"
+	"github.com/jbenet/ipfs2fil/internal/manifest"
+	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
 // ipfs2fil runs the CLI in-process and returns stdout and stderr.
@@ -324,5 +331,76 @@ func TestWalletNew(t *testing.T) {
 	}
 	if _, _, err := ipfs2fil(t, "wallet", "bogus"); err == nil || !strings.Contains(err.Error(), "wallet new") {
 		t.Errorf("wallet bogus: %v", err)
+	}
+}
+
+// TestPackCAR packs a CAR export of a kubo repo: every pin and the MFS root
+// become roots of the CAR, and pack finds them all again.
+func TestPackCAR(t *testing.T) {
+	ctx := context.Background()
+	r, err := repo.Open(filepath.Join(fixture(t, "v18")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pins, _ := r.Pins(ctx)
+	var roots []cid.Cid
+	for _, p := range pins {
+		if p.Mode == repo.Recursive {
+			roots = append(roots, p.Root)
+		}
+	}
+	if mfs, ok, _ := r.MFSRoot(ctx); ok {
+		roots = append(roots, mfs)
+	}
+	carPath := filepath.Join(t.TempDir(), "export.car")
+	f, err := os.Create(carPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := car.NewWriter(f, roots...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.ForEachBlock(ctx, func(h multihash.Multihash, _ int) error {
+		data, err := r.Get(ctx, h)
+		if err != nil {
+			return err
+		}
+		return w.Put(cid.NewCidV1(cid.Raw, h), data)
+	})
+	r.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	out, _, err := ipfs2fil(t, "scan", "--repo", carPath)
+	if err != nil || !strings.Contains(out, "(CAR)") {
+		t.Fatalf("scan: %v\n%s", err, out)
+	}
+	dir := t.TempDir()
+	if _, _, err := ipfs2fil(t, "pack", "--repo", carPath, "--out", dir); err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Read(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The repo's orphans come along as orphans; identity roots are skipped,
+	// as for any repo.
+	pinned := 0
+	for _, rt := range m.Roots {
+		switch {
+		case rt.Kind == manifest.KindPinRecursive && rt.Name == "export":
+			pinned++
+		case rt.Kind != manifest.KindOrphan:
+			t.Errorf("root %+v", rt)
+		}
+	}
+	if m.Source.Kind != repo.KindCAR || pinned != len(roots)-1 {
+		t.Errorf("source %+v, %d pinned roots, want %d", m.Source, pinned, len(roots)-1)
 	}
 }

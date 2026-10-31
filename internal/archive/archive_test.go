@@ -40,6 +40,7 @@ type fakeRepo struct {
 func newFake() *fakeRepo { return &fakeRepo{blocks: map[string][]byte{}} }
 
 func (f *fakeRepo) Path() string          { return "/fake" }
+func (f *fakeRepo) Kind() string          { return repo.KindFSRepo }
 func (f *fakeRepo) Version() repo.Version { return 18 }
 func (f *fakeRepo) Close() error          { return nil }
 func (f *fakeRepo) Pins(context.Context) ([]repo.Pin, error) {

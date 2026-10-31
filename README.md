@@ -26,6 +26,9 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **Every repo version.** fs-repo 0 to 18, go-ipfs 0.2 to kubo 0.43: flatfs,
   leveldb, badger, pebble, custom datastore specs. The repo is only ever read,
   so the daemon can keep running.
+- **CAR files too.** Point `--repo` at a `.car` file or a folder of them
+  (`ipfs dag export`, gateway and Lassie downloads, old web3.storage exports).
+  Each CAR's roots are kept as pins named after the file.
 - **Everything in it.** Recursive and direct pins, the MFS tree, and orphan
   blocks no pin reaches (on by default).
 - **Incremental, deterministic pieces.** Pieces are cut where the content says,
@@ -52,8 +55,9 @@ Each release lists SHA-256 checksums and signed build provenance
 
 ## Quickstart
 
-You need a kubo or go-ipfs repo (the daemon can keep running) and a Filecoin
-wallet holding some FIL for gas and USDFC to pay for storage. Add
+You need a kubo-compatible repo (kubo, go-ipfs, IPFS Desktop; the daemon can
+keep running) or a CAR file, and a Filecoin wallet holding some FIL for gas and
+USDFC to pay for storage. Add
 `--network calibration` to any command to try it free on the testnet.
 
     ipfs2fil scan              # what would be archived, and what it costs

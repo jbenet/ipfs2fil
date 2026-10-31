@@ -50,6 +50,7 @@ func openFS(path string, v Version) (Repo, error) {
 }
 
 func (r *fsRepo) Path() string     { return r.path }
+func (r *fsRepo) Kind() string     { return KindFSRepo }
 func (r *fsRepo) Version() Version { return r.v }
 func (r *fsRepo) Close() error     { return r.ds.Close() }
 

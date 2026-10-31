@@ -90,6 +90,9 @@
   const cidx = (c, cp) => c ? `<button type="button" class="cidx" data-cid="${esc(c)}" title="${esc(c)}" aria-label="Show the whole CID">${esc(shortCID(c))}</button>${cp ? `<button type="button" class="cpy" data-copy="${esc(c)}" title="Copy the CID" aria-label="Copy the CID">${COPYIC}</button>` : ''}` : '';
   const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
+  // sourceLabel names the kind of repo an archive came from; archives with no
+  // kind came from kubo fs-repos.
+  const sourceLabel = (s) => ({ car: 'CAR files' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
 
   // Kinds: icon path, color, label, plural label. From the boards.
@@ -467,7 +470,7 @@
     const partBars = [['pins', sum(isPin)], ['mfs', sum((r) => r.kind === 'mfs')], ['orphans', sum((r) => r.kind === 'orphan')], ['index', indexBytes]].map((p) => [PART[p[0]][0], p[1], PART[p[0]][1]]);
     main().innerHTML = `
 <section class="head">
-  <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of a kubo repo · fs-repo ${esc(m.source.repoVersion)}`}</div>
+  <div class="eyebrow">${REPOS ? `All ${plural(REPOS.length, 'repo')} on this machine, together` : `Archive of ${sourceLabel(m.source)}`}</div>
   <h1>${bytes(total)}, ${plural(pins.length, 'pin')}, ${stored}</h1>
   <div class="meta">
     ${REPOS ? '<span>Each file a repo shares with an earlier one counts once</span>' : `<span>Archive root ${root ? `${cidx(root)} <button type="button" class="link" data-copy="${esc(root)}">Copy</button>` : 'this archive <span class="faint">(open it through a gateway to see its CID)</span>'}</span>`}
