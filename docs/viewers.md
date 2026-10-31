@@ -7,7 +7,7 @@ where to add another kind of file.
 
 `internal/explorer/assets/explorer.js` shows the kinds every browser handles
 itself: photos, video, sound, web pages, PDFs (in a deck of frames) and EPUBs
-(its own reader), plus text and code as plain text and other files as hex.
+(its own reader), and other files as hex.
 
 Everything else is in `internal/explorer/assets/viewers.js`, one viewer per
 sort of file. A viewer is
@@ -27,10 +27,18 @@ the explorer's formatting helpers. The first viewer whose `test` says yes
 shows the file; add yours above a more general one.
 
 Viewers now: Markdown (rendered, with a switch to the source), CSV and TSV
-tables, JSON pretty printed, Jupyter notebooks, fonts (a specimen), zip and
+tables, JSON (pretty printed and highlighted, or Exact as stored, or Plain;
+a Bluesky record says its type and a post links to the Posts page), code
+and text (highlighted with line numbers, or Plain; Wrap and Copy for both,
+and the choices are kept), Jupyter notebooks, fonts (a specimen), zip and
 tar listings (a zip's directory is read from its end, so only that is
 fetched), Word text, Excel sheets, PowerPoint slide text, and WebAssembly
 imports and exports.
+
+Highlighting is a small tokenizer per family of languages (`LANG` and `RX`
+in viewers.js: C-like, `#` comments, `--` comments, JSON, XML and HTML) that
+tells comments, strings, numbers, keywords and calls apart. Add an extension
+to a family in `langs(...)`.
 
 Code can run: JavaScript in a sandboxed frame with no access to the explorer
 or the archive, and Python on Pyodide (CPython for WebAssembly), which the

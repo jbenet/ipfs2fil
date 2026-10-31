@@ -484,8 +484,21 @@ func TestPackBluesky(t *testing.T) {
 		t.Errorf("posts index: %v\n%s", err, idx)
 	}
 	meta, _ := os.ReadFile(filepath.Join(dir, "explorer", "idx", "meta.js"))
-	if !strings.Contains(string(meta), `"accounts":[{"name":"@alice.test","did":"`+a.DID+`","posts":3}]`) {
+	if !strings.Contains(string(meta), `"accounts":[{"name":"@alice.test","did":"`+a.DID+`","posts":3,"handle":"alice.test"`) ||
+		!strings.Contains(string(meta), `"path":"pins/recursive/`+a.Commit.String()+`"`) || !strings.Contains(string(meta), `"blobs":{"linked":1,"held":1`) {
 		t.Errorf("meta: %s", meta)
+	}
+	// In Files, the account is a folder of its records and blobs.
+	shards, _ := filepath.Glob(filepath.Join(dir, "explorer", "idx", "s", "*.js"))
+	var rows string
+	for _, f := range shards {
+		b, _ := os.ReadFile(f)
+		rows += string(b)
+	}
+	for _, want := range []string{"pins/recursive/" + a.Commit.String() + "/app.bsky.feed.post", `"3aaaaaaaaaaaa.json","code"`, `"profile avatar.png","image"`} {
+		if !strings.Contains(rows, want) {
+			t.Errorf("no %s in the index:\n%s", want, rows)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, "explorer", "posts.html")); err != nil {
 		t.Error(err)

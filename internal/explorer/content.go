@@ -7,7 +7,8 @@ package explorer
 //
 //	GET  _i2f/info             {"content": true, "all": "<path>"}; all is the explorer over
 //	                           every archive, when explore serves several
-//	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads,
+//	GET  _i2f/content/<cid>    the file, with Range support; ?name= sets the type, ?dl=1 downloads;
+//	                           a dag-cbor block (a Bluesky record) comes as JSON;
 //	                           ?w=<px> gets a JPEG thumbnail (see thumbnails.go), or 404
 //	GET  _i2f/path/<cid>/<path> the file at a path under a folder, so pages' relative links work
 //	POST _i2f/thumb/<cid>?w=   keeps a thumbnail the browser made
@@ -16,6 +17,7 @@ package explorer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -40,6 +42,8 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 )
 
 // carBlocks finds blocks in the CARs under each dir's pieces/. It indexes
@@ -361,11 +365,39 @@ func (s *carBlocks) serveContent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not a CID", http.StatusBadRequest)
 		return
 	}
+	if c.Type() == cid.DagCBOR {
+		s.serveRecord(w, r, c)
+		return
+	}
 	n, err := s.Get(r.Context(), c)
 	if s.failed(w, err) {
 		return
 	}
 	s.serveFile(w, r, c, n, path.Base("/"+r.URL.Query().Get("name")), false)
+}
+
+// serveRecord serves a dag-cbor block, such as a Bluesky record, as JSON
+// (links as {"$link": cid}, bytes as {"$bytes": base64}).
+func (s *carBlocks) serveRecord(w http.ResponseWriter, r *http.Request, c cid.Cid) {
+	data, err := s.block(r.Context(), c)
+	if s.failed(w, err) {
+		return
+	}
+	js, err := atproto.JSON(data)
+	if err != nil {
+		http.Error(w, "not dag-cbor: "+err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	name := path.Base("/" + r.URL.Query().Get("name"))
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Security-Policy", "sandbox")
+	if r.URL.Query().Get("dl") != "" {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Etag", `"`+c.String()+`"`)
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(js))
 }
 
 // servePath serves the file at a path under a folder, as a gateway does, so

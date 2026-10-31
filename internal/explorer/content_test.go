@@ -63,6 +63,13 @@ func TestServeContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocks = append(blocks, [2]any{text.Cid(), text.RawData()})
+	// a Bluesky record: dag-cbor {"$type": "note", "text": "hi"}
+	recData := []byte{0xa2, 0x65, '$', 't', 'y', 'p', 'e', 0x64, 'n', 'o', 't', 'e', 0x64, 't', 'e', 'x', 't', 0x62, 'h', 'i'}
+	recCID, err := cid.Prefix{Version: 1, Codec: cid.DagCBOR, MhType: 0x12, MhLength: -1}.Sum(recData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blocks = append(blocks, [2]any{recCID, recData})
 	var buf bytes.Buffer
 	w, err := car.NewWriter(&buf, file.Cid())
 	if err != nil {
@@ -116,6 +123,10 @@ func TestServeContent(t *testing.T) {
 	if r, _ = do("GET", "/_i2f/content/"+text.Cid().String()+"?name=a.html&dl=1", "", ""); r.Header.Get("Content-Security-Policy") != "sandbox" ||
 		!strings.Contains(r.Header.Get("Content-Disposition"), "a.html") {
 		t.Errorf("a page is not sandboxed or not a download: %v", r.Header)
+	}
+	if r, got = do("GET", "/_i2f/content/"+recCID.String()+"?name=1.json", "", ""); r.StatusCode != 200 || got != `{"$type":"note","text":"hi"}` ||
+		r.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("a record: %s %q %s", r.Status, got, r.Header.Get("Content-Type"))
 	}
 	missing, _ := cid.Decode("bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy")
 	if r, _ = do("GET", "/_i2f/content/"+missing.String(), "", ""); r.StatusCode != 404 {
