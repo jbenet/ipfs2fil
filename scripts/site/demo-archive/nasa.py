@@ -1,8 +1,10 @@
 # Public-domain NASA images and short videos from images-api.nasa.gov: nasa.py <content dir>
-import json, os, re, sys, urllib.parse, urllib.request
+import json, os, re, subprocess, sys, urllib.parse
 UA = {'User-Agent': 'Mozilla/5.0 (ipfs2fil demo archive)'}
 def get(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read()
+    # curl, not urllib: urllib requests hang for minutes on some Macs
+    return subprocess.run(['curl', '-sSfL', '--retry', '3', '--max-time', '300', '-A', UA['User-Agent'], url],
+                          check=True, capture_output=True).stdout
 out = sys.argv[1]
 def search(q, media, n):
     r = json.loads(get('https://images-api.nasa.gov/search?' + urllib.parse.urlencode({'q': q, 'media_type': media})))
@@ -21,7 +23,8 @@ for q, folder, n in [('hubble galaxy', 'hubble', 14), ('webb telescope nebula', 
             url = next((u for u in links if u.endswith('~large.jpg')), None) or next((u for u in links if u.endswith('~orig.jpg')), None)
             if not url: continue
             p = os.path.join(d, slug(meta.get('title', nid)) + '.jpg')
-            if not os.path.exists(p): open(p, 'wb').write(get(url.replace('http://', 'https://')))
+            if not os.path.exists(p):
+                b = get(url.replace('http://', 'https://')); open(p, 'wb').write(b)
             credits.append(f"{folder}/{os.path.basename(p)}: {meta.get('title')} ({nid}), NASA, {meta.get('date_created','')[:10]}")
         except Exception as e: print('FAIL', nid, e)
 d = os.path.join(out, 'video/nasa'); os.makedirs(d, exist_ok=True)
