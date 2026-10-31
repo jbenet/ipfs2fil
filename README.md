@@ -246,8 +246,17 @@ fetches the repo and every blob from the account's server into
 commit under the account's name. The DID document and, for `did:plc`
 accounts, the PLC directory's log are pinned beside it, so anyone can check
 the commit's signature from the archive alone. Without a network it uses
-what it fetched last. The explorer shows the profile and posts, with images
-and video, and every other record. Each run that sees a new commit adds a
+what it fetched last. `repos add` names it `bsky-<handle>`. To keep several
+accounts, add each one; the combined explorer shows them together.
+
+The explorer's Posts page shows the account the way Bluesky does: the
+profile, posts with their images, video, link cards and quoted posts, and
+threads of the account's replies to itself. It says what the archive holds:
+which account, its DID, handle and server, every record and blob, and when
+the commit was made. In Files, the account is a folder of its records, one
+folder per collection (`app.bsky.feed.post/<rkey>.json` and so on, shown as
+JSON), and a `blobs/` folder whose photos and video also show in the
+library's Photos and Videos. Each run that sees a new commit adds a
 snapshot; unchanged records stay in the pieces already stored, and posts
 deleted since stay in older snapshots. Blobs over about 2 MiB, such as
 videos, are single blocks that `ipfs2fil explore` serves but some public

@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -47,8 +48,9 @@ type layout struct {
 	gen        uint32
 	repoBlocks int64
 	repoBytes  int64
-	shared     []SharedBlock // distinct pieces other archives hold blocks in
-	all        []listed      // the repo's listing, from list
+	shared     []SharedBlock      // distinct pieces other archives hold blocks in
+	all        []listed           // the repo's listing, from list
+	accts      []*atproto.Summary // the Bluesky accounts among the roots
 }
 
 func newLayout(r repo.Repo) *layout {
@@ -378,6 +380,10 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		if name == "" {
 			name = path.Base(p)
 		}
+		if a := l.account(rt.c); a != nil {
+			l.accountEntries(&out, a, p, name, seen)
+			continue
+		}
 		if rt.kind == manifest.KindPinDirect {
 			// a direct pin holds only its own block
 			b := &l.tab[i]
@@ -396,6 +402,51 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		walk(i, p, name)
 	}
 	return out
+}
+
+// account returns the summary of the Bluesky account whose commit c is.
+func (l *layout) account(c cid.Cid) *atproto.Summary {
+	for _, a := range l.accts {
+		if a.Commit == c.String() {
+			return a
+		}
+	}
+	return nil
+}
+
+// accountEntries lists a Bluesky account's commit as a folder of its
+// records, one folder per collection (<collection>/<rkey>.json, shown as
+// JSON), and its blobs (blobs/, photos and video named after their posts),
+// so the Files page and its library show them like any files.
+func (l *layout) accountEntries(out *[]explorer.Entry, a *atproto.Summary, p, name string, seen []bool) {
+	at := len(*out)
+	*out = append(*out, explorer.Entry{Name: name, Path: p, CID: a.Commit, Kind: "folder", Piece: -1})
+	var total int64
+	first := -1
+	for _, f := range a.Files {
+		i, ok := l.idx[string(f.CID.Hash())]
+		if !ok {
+			continue
+		}
+		b := &l.tab[i]
+		fn := path.Base(f.Path)
+		e := explorer.Entry{Name: fn, Path: p + "/" + f.Path, CID: f.CID.String(), Kind: explorer.KindOf(fn, false), Bytes: int64(b.size), Piece: int(b.piece)}
+		if e.Kind == "other" && f.CID.Type() == cid.Raw {
+			if data, err := l.get(context.Background(), f.CID); err == nil {
+				e.Kind = explorer.Sniff(data[:min(len(data), 1<<16)])
+			}
+		}
+		if seen[i] {
+			e.Dup = e.Bytes
+		}
+		seen[i] = true
+		total += e.Bytes
+		if e.Piece >= 0 && (first < 0 || e.Piece < first) {
+			first = e.Piece
+		}
+		*out = append(*out, e)
+	}
+	(*out)[at].Bytes, (*out)[at].Piece = total, first
 }
 
 // sniffed says what the file at i looks like from its first bytes: the

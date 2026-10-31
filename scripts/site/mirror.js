@@ -4,8 +4,8 @@
 //
 //   node scripts/site/mirror.js http://127.0.0.1:8484 site/demo [maxBytes]
 //
-// Needs playwright. Per-repo explorers get no file contents (their
-// _i2f/info says so), to keep the copy small; the combined one has them all.
+// Needs playwright. Per-repo explorers read file contents from the combined
+// one's copy (their _i2f/info points there).
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const [base, out, maxS = String(6 << 20)] = process.argv.slice(2);
@@ -41,10 +41,19 @@ const save = (u, body) => {
   }
   await b.close();
   save(base + '/all/_i2f/info', JSON.stringify({ content: true }));
-  for (const r of repos) save(`${base}/${r}/_i2f/info`, JSON.stringify({ all: info.all ? '../../all/explorer/' : undefined }));
-  // Every CID the index names; only files come back from content.
-  const cids = new Set();
-  const walk = (d) => { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); if (fs.statSync(q).isDirectory()) walk(q); else for (const m of fs.readFileSync(q, 'utf8').matchAll(/\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z2-7]{52,})\b/g)) cids.add(m[1]); } };
+  // Per-repo explorers read file contents from the combined one's copy.
+  for (const r of repos) save(`${base}/${r}/_i2f/info`, JSON.stringify({ content: '../../all/_i2f/content/', all: info.all ? '../../all/explorer/' : undefined }));
+  // Every CID the index names; only files come back from content. Bluesky
+  // likes, reposts, follows and the like are many tiny records that only
+  // point at other accounts' posts, so they are left out.
+  const cids = new Set(), skip = new Set();
+  const pointers = /\/app\.bsky\.(feed\.(like|repost)|graph\.(follow|block|listitem|verification))$/;
+  const sdir = path.join(out, 'all/explorer/idx/s');
+  for (const f of fs.existsSync(sdir) ? fs.readdirSync(sdir) : []) {
+    const t = fs.readFileSync(path.join(sdir, f), 'utf8'), sh = JSON.parse(t.slice(t.indexOf(',') + 1, t.lastIndexOf(')')));
+    for (const r of sh.rows) if (pointers.test(sh.dirs[r[0]])) skip.add(r[4]);
+  }
+  const walk = (d) => { for (const f of fs.readdirSync(d)) { const q = path.join(d, f); if (fs.statSync(q).isDirectory()) walk(q); else for (const m of fs.readFileSync(q, 'utf8').matchAll(/\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z2-7]{52,})\b/g)) if (!skip.has(m[1])) cids.add(m[1]); } };
   walk(path.join(out, 'all/explorer'));
   let n = 0, bytes = 0, skipped = 0;
   for (const c of cids) {

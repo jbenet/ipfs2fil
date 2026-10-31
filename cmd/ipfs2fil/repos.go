@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -203,9 +204,13 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 
 // defaultName is the repo directory's name without leading dots, or its
 // parent's when that says nothing: ~/.ipfs is named after the home
-// directory (/Users/ada/.ipfs -> ada).
+// directory (/Users/ada/.ipfs -> ada). A Bluesky account is bsky-<handle>
+// (at://ada.bsky.social -> bsky-ada.bsky.social), so a handle that is a
+// domain does not read as an archive of that website.
 func defaultName(path string) string {
-	if u, err := url.Parse(path); err == nil && u.Host != "" {
+	if atproto.IsAccount(path) {
+		path = "bsky-" + strings.ReplaceAll(atproto.Account(path), ":", "-")
+	} else if u, err := url.Parse(path); err == nil && u.Host != "" {
 		path = u.Hostname() // a node's RPC API is named after its host
 	}
 	n := strings.TrimLeft(filepath.Base(path), ".")

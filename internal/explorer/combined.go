@@ -180,6 +180,9 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		// shows them with the files of every repo; an archive without them
 		// links to its own Posts page.
 		for i, ac := range mt.Accounts {
+			if ac.Path != "" {
+				ac.Path = top + "/" + ac.Path
+			}
 			b, err := os.ReadFile(filepath.Join(a.Dir, "explorer", "idx", "at", fmt.Sprintf("%d.js", i)))
 			if err != nil {
 				ac.Href = href(a) + fmt.Sprintf("posts.html?a=%d", i)

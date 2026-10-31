@@ -2,6 +2,7 @@ package atproto
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -165,4 +166,14 @@ func toJSON(v any) any {
 		return nil
 	}
 	return v
+}
+
+// JSON renders any dag-cbor block in the atproto JSON form, keys sorted:
+// how a record reads in the explorer.
+func JSON(data []byte) ([]byte, error) {
+	v, err := decode(data)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(toJSON(v))
 }

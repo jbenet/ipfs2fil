@@ -97,6 +97,18 @@ type accountInfo struct {
 	Name  string `json:"name"`
 	DID   string `json:"did"`
 	Posts int    `json:"posts"`
+	// What the archive holds of it: every record, the blobs records link,
+	// and the time of the commit.
+	Handle  string            `json:"handle,omitempty"`
+	Time    string            `json:"time,omitempty"`
+	Records int               `json:"records,omitempty"`
+	Blobs   atproto.BlobStats `json:"blobs"`
+	PDS     string            `json:"pds,omitempty"`
+	DIDDoc  string            `json:"didDoc,omitempty"`
+	PLCLog  string            `json:"plcLog,omitempty"`
+	// Path is the account's folder under data/: its commit, shown as a
+	// folder of records and blobs that a gateway cannot browse by path.
+	Path string `json:"path,omitempty"`
 	// Href is the account's Posts page in its archive's own explorer, set in
 	// a combined index.
 	Href string `json:"href,omitempty"`
@@ -309,7 +321,17 @@ func buildIndex(m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summ
 		return nil, err
 	}
 	for i, a := range accounts {
-		mt.Accounts = append(mt.Accounts, accountInfo{Name: a.Name, DID: a.DID, Posts: len(a.Posts)})
+		ai := accountInfo{Name: a.Name, DID: a.DID, Posts: len(a.Posts), Handle: a.Handle, Time: a.Time, Blobs: a.Blobs, PDS: a.PDS, DIDDoc: a.DIDDoc, PLCLog: a.PLCLog}
+		for _, n := range a.Counts {
+			ai.Records += n
+		}
+		for _, r := range m.Roots {
+			if r.CID == a.Commit {
+				ai.Path = r.Path
+				break
+			}
+		}
+		mt.Accounts = append(mt.Accounts, ai)
 		if err := put(fmt.Sprintf("at/%d.js", i), fmt.Sprintf("at/%d", i), a); err != nil {
 			return nil, err
 		}

@@ -74,7 +74,9 @@ func New(t testing.TB) *Account {
 	recs := map[string]cid.Cid{}
 	recs["app.bsky.actor.profile/self"] = a.put(t, cid.DagCBOR, map[string]any{
 		"$type": "app.bsky.actor.profile", "displayName": "Alice", "description": "testing", "avatar": blob(a.Image, "image/png", 24)})
-	first := a.put(t, cid.DagCBOR, map[string]any{"$type": "app.bsky.feed.post", "text": "hello world", "createdAt": "2024-01-01T00:00:00.000Z", "langs": []any{"en"}})
+	first := a.put(t, cid.DagCBOR, map[string]any{"$type": "app.bsky.feed.post", "text": "héllo world", "createdAt": "2024-01-01T00:00:00.000Z", "langs": []any{"en"},
+		"facets": []any{map[string]any{"index": map[string]any{"byteStart": 7, "byteEnd": 12},
+			"features": []any{map[string]any{"$type": "app.bsky.richtext.facet#link", "uri": "https://example.com/"}}}}})
 	recs["app.bsky.feed.post/3aaaaaaaaaaaa"] = first
 	recs["app.bsky.feed.post/3bbbbbbbbbbbb"] = a.put(t, cid.DagCBOR, map[string]any{
 		"$type": "app.bsky.feed.post", "text": "a picture", "createdAt": "2024-02-01T00:00:00.000Z",

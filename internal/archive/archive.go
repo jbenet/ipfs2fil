@@ -329,6 +329,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		inner.Snapshots[snap].Root = ""
 		return &inner
 	}
+	l.accts = l.accounts(ctx, m.Roots)
 	entries := l.entries(roots, m)
 	idx, exp, err := l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries)
 	if err != nil {
@@ -618,13 +619,14 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 	if idx, err = l.indexDir(ctx, dag, outDir, inner, pieces); err != nil {
 		return nil, nil, err
 	}
-	exp, err = explorerDir(ctx, dag, outDir, inner, entries, l.accounts(ctx, inner.Roots))
+	exp, err = explorerDir(ctx, dag, outDir, inner, entries, l.accts)
 	return idx, exp, err
 }
 
 // accounts summarizes the roots that are Bluesky (atproto) repo commits,
-// whatever repo they came from, for the explorer's Posts pages. A root that
-// is not one, or whose records are not all here, is shown as far as it goes.
+// whatever repo they came from, for the explorer's Posts and Files pages,
+// with what the identity documents pinned beside them say. A root that is
+// not one, or whose records are not all here, is shown as far as it goes.
 func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto.Summary {
 	get := func(c cid.Cid) ([]byte, error) { return l.get(ctx, c) }
 	var out []*atproto.Summary
@@ -637,7 +639,39 @@ func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto
 			out = append(out, s)
 		}
 	}
+	if len(out) == 0 {
+		return nil
+	}
+	// DID documents and PLC logs are direct pins of JSON (raw blocks).
+	for _, rt := range roots {
+		c, err := cid.Decode(rt.CID)
+		if err != nil || c.Type() != cid.Raw || rt.Kind != manifest.KindPinDirect {
+			continue
+		}
+		b, err := get(c)
+		if err != nil || len(b) > 8<<20 {
+			continue
+		}
+		for _, s := range out {
+			if did, handle, pds, ok := atproto.DIDDoc(b); ok && did == s.DID {
+				s.DIDDoc, s.Handle, s.PDS = rt.CID, handle, pds
+			} else if plcFor(b) == s.DID {
+				s.PLCLog = rt.CID
+			}
+		}
+	}
 	return out
+}
+
+// plcFor returns the DID a PLC audit log is for, or "".
+func plcFor(b []byte) string {
+	var ops []struct {
+		DID string `json:"did"`
+	}
+	if json.Unmarshal(b, &ops) != nil || len(ops) == 0 {
+		return ""
+	}
+	return ops[0].DID
 }
 
 // stableBlocks lists, depth first, the blocks the archive made that do not

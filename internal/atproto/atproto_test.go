@@ -108,7 +108,7 @@ func TestSummarize(t *testing.T) {
 	if fmt.Sprint(s.Counts) != fmt.Sprint(want) {
 		t.Errorf("counts %v", s.Counts)
 	}
-	if len(s.Posts) != 3 || s.Posts[0].Text != "replying to myself" || s.Posts[2].Text != "hello world" {
+	if len(s.Posts) != 3 || s.Posts[0].Text != "replying to myself" || s.Posts[2].Text != "héllo world" {
 		t.Fatalf("posts %+v", s.Posts)
 	}
 	if !strings.HasSuffix(s.Posts[0].Reply, "/3aaaaaaaaaaaa") || len(s.Posts[1].Images) != 1 || s.Posts[1].Images[0][0] != a.Image.String() || s.Posts[1].Images[0][1] != "a cat" {
@@ -117,7 +117,55 @@ func TestSummarize(t *testing.T) {
 	if len(s.Records) != 1 || len(s.Records["com.example.note"]) != 1 || s.Records["com.example.note"][0][0] != "1" {
 		t.Errorf("records %v", s.Records)
 	}
+	// "héllo " is 7 bytes but 6 UTF-16 units
+	if f := s.Posts[2].Facets; len(f) != 1 || fmt.Sprint(f[0]) != "[6 11 link https://example.com/]" {
+		t.Errorf("facets %v", f)
+	}
+	if s.Posts[0].Root != "" || s.Time == "" {
+		t.Errorf("root %q, time %q", s.Posts[0].Root, s.Time)
+	}
+	// Every record and each linked blob, once, named after where it is used.
+	files := map[string]string{}
+	for _, f := range s.Files {
+		files[f.Path] = f.CID.String()
+	}
+	if len(files) != 7 || files["app.bsky.feed.like/3dddddddddddd.json"] == "" || files["com.example.note/1.json"] == "" ||
+		files["blobs/profile avatar.png"] != a.Image.String() {
+		t.Errorf("files %v", files)
+	}
+	if b := s.Blobs; b.Linked != 1 || b.Held != 1 || b.Images != 1 || b.Bytes == 0 {
+		t.Errorf("blobs %+v", b)
+	}
 	if _, err := atproto.Summarize(get, a.Image, ""); err == nil {
 		t.Error("a blob summarized as a commit")
+	}
+}
+
+func TestTIDTime(t *testing.T) {
+	// 2023-04-12T17:39:57Z, from a real post's rkey
+	tm, ok := atproto.TIDTime("3jt6wgfuuvs23")
+	if !ok || tm.UTC().Format("2006-01-02") != "2023-04-12" {
+		t.Errorf("TIDTime = %v %v", tm, ok)
+	}
+	if _, ok := atproto.TIDTime("not a tid"); ok {
+		t.Error("read a time from a non-TID")
+	}
+}
+
+func TestDIDDoc(t *testing.T) {
+	did, handle, pds, ok := atproto.DIDDoc([]byte(`{"id":"did:plc:x","alsoKnownAs":["at://a.example"],"service":[{"id":"#atproto_pds","type":"AtprotoPersonalDataServer","serviceEndpoint":"https://pds.example"}]}`))
+	if !ok || did != "did:plc:x" || handle != "a.example" || pds != "https://pds.example" {
+		t.Errorf("DIDDoc = %q %q %q %v", did, handle, pds, ok)
+	}
+	if _, _, _, ok := atproto.DIDDoc([]byte(`[{"did":"did:plc:x"}]`)); ok {
+		t.Error("read a PLC log as a DID document")
+	}
+}
+
+func TestJSON(t *testing.T) {
+	a := atprototest.New(t)
+	b, err := atproto.JSON(a.Blocks[a.Commit])
+	if err != nil || !strings.Contains(string(b), `"did":"`+a.DID+`"`) || !strings.Contains(string(b), `"$link":"`) || !strings.Contains(string(b), `"$bytes":"`) {
+		t.Errorf("JSON = %s, %v", b, err)
 	}
 }
