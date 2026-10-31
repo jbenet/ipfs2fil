@@ -6,9 +6,9 @@
 [Live explorer demo](https://jbenet.github.io/ipfs2fil/demo/all/explorer/) ·
 [Install](#install) · [Quickstart](#quickstart) · [Releases](https://github.com/jbenet/ipfs2fil/releases)
 
-`ipfs2fil` reads a kubo or go-ipfs repo of any version (fs-repo 0 through 18),
-links every pin, the MFS tree and leftover blocks under one root, cuts the
-blocks into pieces, and stores 3 copies on Filecoin Onchain Cloud, where
+`ipfs2fil` reads an IPFS repo of any version (kubo, go-ipfs or IPFS Desktop;
+fs-repo 0 through 18), links every pin, the MFS tree and leftover blocks
+under one root, cuts the blocks into pieces, and stores 3 copies on Filecoin Onchain Cloud, where
 providers keep proving on chain that they hold them. Every archive carries its
 own index and an HTML explorer, so any IPFS gateway can serve the files and
 show what is where.
@@ -52,8 +52,8 @@ Each release lists SHA-256 checksums and signed build provenance
 
 ## Quickstart
 
-You need a kubo or go-ipfs repo (the daemon can keep running) and a Filecoin
-wallet holding some FIL for gas and USDFC to pay for storage. Add
+You need an IPFS repo from kubo, go-ipfs or IPFS Desktop (the daemon can
+keep running) and a Filecoin wallet holding some FIL for gas and USDFC to pay for storage. Add
 `--network calibration` to any command to try it free on the testnet.
 
     ipfs2fil scan              # what would be archived, and what it costs

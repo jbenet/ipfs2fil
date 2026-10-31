@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ipfs2fil · archive IPFS repos to Filecoin</title>
-<meta name="description" content="ipfs2fil reads a kubo or go-ipfs repo of any version, stores it on Filecoin Onchain Cloud, and ships an explorer with every archive so you can browse it from any IPFS gateway.">
+<meta name="description" content="ipfs2fil reads an IPFS repo (kubo, go-ipfs or IPFS Desktop, any version), stores it on Filecoin Onchain Cloud, and ships an explorer with every archive so you can browse it from any IPFS gateway.">
 <meta property="og:title" content="ipfs2fil">
 <meta property="og:description" content="Archive your IPFS repos to Filecoin, and browse them from anywhere.">
 <meta property="og:image" content="media/explorer-photos.webp">
@@ -36,7 +36,7 @@
     <div class="hero-text">
       <p class="eyebrow">For anyone with an IPFS node full of things they want to keep</p>
       <h1>Your IPFS repo, archived on Filecoin. Browsable from anywhere.</h1>
-      <p class="lede"><b>ipfs2fil</b> reads a kubo or go-ipfs repo of any version, packs every pin, your MFS files and stray blocks into pieces, and stores copies with Filecoin storage providers that prove on chain they still hold them. Each archive carries its own explorer, so any IPFS gateway can show you what is in it.</p>
+      <p class="lede"><b>ipfs2fil</b> reads an IPFS repo (kubo, go-ipfs or IPFS Desktop, any version), packs every pin, your MFS files and stray blocks into pieces, and stores copies with Filecoin storage providers that prove on chain they still hold them. Each archive carries its own explorer, so any IPFS gateway can show you what is in it.</p>
       <div class="install">
         <code id="install-cmd">curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh</code>
         <button type="button" class="copy" data-copy="install-cmd" aria-label="Copy the install command">Copy</button>
@@ -144,7 +144,7 @@
 <section id="start" class="section alt">
   <div class="wrap narrow">
     <h2 class="title">Quickstart</h2>
-    <p class="sub">You need a kubo or go-ipfs repo and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
+    <p class="sub">You need an IPFS repo (kubo, go-ipfs, or anything that runs them, like IPFS Desktop) and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
     <ol class="quick">
       <li><h3>Install</h3>
 <pre><code>curl -fsSL https://github.com/jbenet/ipfs2fil/releases/latest/download/install.sh | sh</code></pre>
@@ -188,12 +188,14 @@ ipfs2fil explore       # http://127.0.0.1:8484/</code></pre></li>
 <section id="faq" class="section alt">
   <div class="wrap narrow">
     <h2 class="title">Questions</h2>
-    <details><summary>Is what I archive public?</summary><p>Yes. Pieces are stored as they are, and providers announce the CIDs to the IPFS network, so anyone who has a CID can fetch that content. Only archive what you are happy to publish, or encrypt it before adding it to IPFS. (The catalog of your repos is the exception: it is encrypted with a key derived from your wallet key, and repo paths never leave your machine.)</p></details>
-    <details><summary>What does it cost?</summary><p><code>scan</code> prints the monthly price before anything happens, and <code>up</code> shows it again with any deposit it needs and waits for your yes. Storage is paid in USDFC through Filecoin Pay from your own wallet; gas is paid in FIL. <code>status</code> says how many days your deposit lasts.</p></details>
-    <details><summary>Will it touch my repo?</summary><p>No. Stores are opened read-only and migrations are never run, so it is safe while the daemon runs. Archives are written to <code>./ipfs2fil-archive</code>, or under <code>~/.ipfs2fil</code> for listed repos.</p></details>
-    <details><summary>What if a provider loses a piece?</summary><p><code>verify</code> fetches every piece from every copy and lists any that are bad; <code>push</code> uploads again what a copy is missing. <code>status</code> shows when each copy last proved it holds your data.</p></details>
-    <details><summary>Can I get my files back without ipfs2fil?</summary><p>Yes. Every file has a CID, so any IPFS gateway or node can fetch it, and the archive root opens the explorer in a browser. The pieces are plain CAR files, and the index lists which piece holds each block.</p></details>
-    <details><summary>Can I try it without spending anything?</summary><p>Yes: add <code>--network calibration</code> and fund a wallet from the Calibration faucets.</p></details>
+    <div class="qa"><h3>Is what I archive public?</h3><p>Yes. Pieces are stored as they are, and providers announce the CIDs to the IPFS network, so anyone who has a CID can fetch that content. Only archive what you are happy to publish, or encrypt it before adding it to IPFS. (The catalog of your repos is the exception: it is encrypted with a key derived from your wallet key, and repo paths never leave your machine.)</p></div>
+    <div class="qa"><h3>What does it cost?</h3><p><code>scan</code> prints the monthly price before anything happens, and <code>up</code> shows it again with any deposit it needs and waits for your yes. Storage is paid in USDFC through Filecoin Pay from your own wallet; gas is paid in FIL. <code>status</code> says how many days your deposit lasts.</p></div>
+    <div class="qa"><h3>Which repos can it read?</h3><p>Any repo in the fs-repo format that kubo and go-ipfs use, from go-ipfs 0.2 (fs-repo 0) to kubo 0.43 (fs-repo 18), on flatfs, leveldb, badger or pebble. That includes the repos of IPFS Desktop and other apps that run kubo inside them.</p></div>
+    <div class="qa"><h3>Will it touch my repo?</h3><p>No. Stores are opened read-only and migrations are never run, so it is safe while the daemon runs. Archives are written to <code>./ipfs2fil-archive</code>, or under <code>~/.ipfs2fil</code> for listed repos.</p></div>
+    <div class="qa"><h3>What if a provider loses a piece?</h3><p><code>verify</code> fetches every piece from every copy and lists any that are bad; <code>push</code> uploads again what a copy is missing. <code>status</code> shows when each copy last proved it holds your data.</p></div>
+    <div class="qa"><h3>Can I get my files back without ipfs2fil?</h3><p>Yes. Every file has a CID, so any IPFS gateway or node can fetch it, and the archive root opens the explorer in a browser. The pieces are plain CAR files, and the index lists which piece holds each block.</p></div>
+    <div class="qa"><h3>Can I try it without spending anything?</h3><p>Yes: add <code>--network calibration</code> and fund a wallet from the Calibration faucets.</p></div>
+    <div class="qa"><h3>Who made it?</h3><p><a href="https://claude.ai">@claude</a> and <a href="https://github.com/jbenet">@jbenet</a>, written with Claude Code. It is open source under the MIT license, on <a href="https://github.com/jbenet/ipfs2fil">GitHub</a>.</p></div>
   </div>
 </section>
 
