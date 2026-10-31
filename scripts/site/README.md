@@ -53,7 +53,9 @@ made. Everything shows two made-up repos, never anyone's real data.
 
        node mirror.js http://127.0.0.1:8484 ../../site/demo 1572864
 
-   It copies the explorer pages and index, and the files up to 1.5 MiB. To
+   It copies the explorer pages and index, the files up to 1.5 MiB, video up
+   to 10 MiB and audio up to 4 MiB (the fourth and fifth arguments). The
+   viewer says when a file was left out. To
    keep the site small, images over 120 KB in all/_i2f/content/ were then
    scaled to 700 to 900 px with Pillow (`demo/shrink.py`), so those copies no
    longer match their CIDs.
