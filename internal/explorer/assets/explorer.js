@@ -729,7 +729,10 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     }
     const more = () => shown.length > S.limit ? `<div class="foot"><button type="button" class="more" data-more>Show ${num(Math.min(300, shown.length - S.limit))} more</button><span>${num(S.limit)} of ${num(shown.length)}</span></div>` : '';
     const empty = () => `<p class="muted pad">${S.deep && loadingAll ? 'Searching…' : S.q ? 'No names match.' : S.kind !== 'all' ? `No ${esc(kindOf(S.kind)[3].toLowerCase())} here.` : 'This folder is empty.'}</p>`;
-    const thumbOr = (e, cls) => e.kind === 'image' && canShow() ? `<img class="${cls}" loading="lazy" alt="" src="${esc(thumbURL(e, cls === 'tt' ? 320 : 96))}">` : `<span class="${cls} ic">${icon(e.kind)}</span>`;
+    // Book covers too, which explore reads out of EPUBs; a book with none
+    // falls back to the icon (see the error listener below).
+    const thumbOr = (e, cls) => (e.kind === 'image' && canShow()) || (LOCAL && e.kind === 'doc' && ext(e.name) === 'epub') ? `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" src="${esc(thumbURL(e, cls === 'tt' ? 320 : 96))}">` : `<span class="${cls} ic">${icon(e.kind)}</span>`;
+    D.addEventListener('error', (ev) => { const x = ev.target; if (x.localName === 'img' && x.dataset && x.dataset.k === 'doc') x.outerHTML = `<span class="${x.className} ic">${icon('doc')}</span>`; }, true);
     const where = (e) => showPath(e.dir) || 'data';
     function listView() {
       const deepCols = S.deep;
@@ -838,6 +841,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 </div>`;
       fill(pane, e, url);
       if (isPDF(e) && url) deck.show(url, pane.querySelector('.stage'), e.name);
+      if (isEPUB(e) && url) book.show(pane.querySelector('.stage'), url, e);
       warmAround();
       const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
       if (pd && current() === e) pd.outerHTML = di && di.cid ? `<span>${cidx(di.cid, true)} <span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span></span>` : '<span class="faint">—</span>';
@@ -858,7 +862,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
         case 'video': return `<video src="${esc(url)}" controls preload="metadata"></video>`;
         case 'audio': return `<div class="none">${icon('audio')}<audio src="${esc(url)}" controls preload="metadata"></audio></div>`;
         case 'page': return `<iframe sandbox="" src="${esc(url)}" title="${esc(e.name)}"></iframe>`;
-        case 'doc': return x === 'pdf' || !x ? '' : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
+        case 'doc': return x === 'pdf' || !x ? '' : x === 'epub' ? '<p class="muted pad">Opening the book…</p>' : `<div class="none">${icon('doc')}<p>No preview for .${esc(x)} files.</p></div>`;
         case 'text': case 'code': return '<pre class="code"><code>Loading…</code></pre>';
         case 'folder': return '';
       }
@@ -897,7 +901,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
           const e = shown[S.cur + d], url = e && contentURL(e);
           if (!url || e.kind === 'folder' || warmed.has(url)) continue;
           if (isPDF(e)) continue;
-          const doc = e.kind === 'page';
+          const doc = e.kind === 'page' || isEPUB(e);
           if (e.kind === 'text' || e.kind === 'code') head(url, 256 << 10).catch(() => {});
           else if (e.kind === 'image' && e.bytes <= 32 << 20) new Image().src = url;
           else if (doc && e.bytes <= 64 << 20) fetch(url, { priority: 'low' }).then((r) => r.arrayBuffer()).catch(() => {});
@@ -955,6 +959,229 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
           urls.forEach((u) => frame(u[0], u[1]));
           const want = new Set(urls.map((u) => u[0]));
           frames.forEach((f, u) => { if (f !== on && !want.has(u)) { f.remove(); frames.delete(u); } });
+        },
+      };
+    })();
+    // EPUBs are zip files of XHTML chapters. The book opens on a title page
+    // (cover, title, author, contents) and shows one chapter at a time in a
+    // frame that runs no scripts, with its pictures and stylesheets read out
+    // of the zip. The frame shares the explorer's origin only so this page
+    // can follow the book's links and keys in it.
+    const isEPUB = (e) => e && e.kind === 'doc' && ext(e.name) === 'epub';
+    const book = (() => {
+      const books = new Map(); // url -> promise of a book, the last few
+      const at = new Map(); // url -> [chapter, scroll] last shown, chapter -1 for the title page
+      let cur = null, gen = 0;
+      const tags = (d, n) => d ? Array.from(d.getElementsByTagNameNS('*', n)) : [];
+      // href relative to the zip entry base: [entry, fragment], or null when
+      // it points outside the book.
+      const join = (base, href) => {
+        const u = new URL(href || '', 'http://z/' + base.split('/').map(encodeURIComponent).join('/'));
+        if (u.host !== 'z') return null;
+        try { return [decodeURIComponent(u.pathname.slice(1)), decodeURIComponent(u.hash.slice(1))]; } catch (e) { return null; }
+      };
+      // The zip's directory, and a function that reads one entry.
+      function unzip(buf) {
+        const v = new DataView(buf), files = new Map(), dec = new TextDecoder();
+        let end = -1;
+        for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) if (v.getUint32(i, true) === 0x06054b50) { end = i; break; }
+        if (end < 0) throw new Error('This file is not a zip file, so it is not an EPUB the viewer can read.');
+        let p = v.getUint32(end + 16, true);
+        for (let n = v.getUint16(end + 10, true); n > 0 && p + 46 <= buf.byteLength && v.getUint32(p, true) === 0x02014b50; n--) {
+          const nl = v.getUint16(p + 28, true);
+          files.set(dec.decode(new Uint8Array(buf, p + 46, nl)), [v.getUint16(p + 10, true), v.getUint32(p + 20, true), v.getUint32(p + 42, true)]);
+          p += 46 + nl + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+        }
+        return async (name) => {
+          const f = files.get(name);
+          if (!f) return null;
+          const [method, size, off] = f, start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
+          const raw = new Uint8Array(buf, start, Math.min(size, buf.byteLength - start));
+          if (method === 0) return raw;
+          if (method !== 8 || !('DecompressionStream' in window)) return null;
+          return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+        };
+      }
+      async function open(url) {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status === 404 ? 'This file is not in the pieces on this machine.' : r.statusText);
+        const get = unzip(await r.arrayBuffer()), dec = new TextDecoder();
+        const doc = async (name, html) => {
+          const b = await get(name);
+          if (!b) return null;
+          const s = dec.decode(b), p = new DOMParser();
+          const d = p.parseFromString(s, html ? 'application/xhtml+xml' : 'application/xml');
+          if (!d.getElementsByTagName('parsererror').length) return d;
+          return html ? p.parseFromString(s, 'text/html') : null; // XHTML with HTML entities, or tag soup
+        };
+        const rf = tags(await doc('META-INF/container.xml'), 'rootfile')[0], opfPath = rf && rf.getAttribute('full-path');
+        const opf = opfPath && await doc(opfPath);
+        if (!opf) throw new Error('This EPUB has no package file the viewer can read.');
+        const items = new Map(), types = new Map();
+        for (const it of tags(opf, 'item')) {
+          const j = join(opfPath, it.getAttribute('href'));
+          if (!j) continue;
+          const o = { path: j[0], type: it.getAttribute('media-type') || '', props: ' ' + (it.getAttribute('properties') || '') + ' ' };
+          items.set(it.getAttribute('id'), o);
+          types.set(o.path, o.type);
+        }
+        const all = [...items.values()];
+        const chapters = tags(opf, 'itemref').map((r) => items.get(r.getAttribute('idref'))).filter((it) => it && /html/.test(it.type)).map((it) => it.path);
+        if (!chapters.length) throw new Error('This EPUB has no chapters the viewer can read.');
+        const meta = (n) => { const t = tags(opf, n)[0]; return t ? t.textContent.trim() : ''; };
+        const coverMeta = tags(opf, 'meta').find((x) => x.getAttribute('name') === 'cover');
+        const cover = all.find((it) => /^image\//.test(it.type) && it.props.includes(' cover-image ')) ||
+          (coverMeta && items.get(coverMeta.getAttribute('content'))) || all.find((it) => /^image\//.test(it.type) && /cover/i.test(it.path));
+        // Contents from the EPUB 3 nav document, or else the EPUB 2 NCX.
+        const toc = [];
+        const nav = all.find((it) => it.props.includes(' nav ')), ncx = items.get((tags(opf, 'spine')[0] || { getAttribute: () => '' }).getAttribute('toc')) || all.find((it) => it.type === 'application/x-dtbncx+xml');
+        const depth = (el, n) => { let k = 0; for (let x = el.parentNode; x && x.nodeType === 1; x = x.parentNode) if (x.localName === n) k++; return k; };
+        if (nav) {
+          const d = await doc(nav.path, true), navs = tags(d, 'nav');
+          const n = navs.find((x) => /\btoc\b/.test(x.getAttribute('epub:type') || x.getAttributeNS('http://www.idpf.org/2007/ops', 'type') || '')) || navs[0];
+          for (const a of tags(n, 'a')) { const j = join(nav.path, a.getAttribute('href')); if (j) toc.push({ label: a.textContent.replace(/\s+/g, ' ').trim(), to: j, depth: depth(a, 'ol') - 1 }); }
+        }
+        if (!toc.length && ncx) {
+          const d = await doc(ncx.path);
+          for (const np of tags(d, 'navPoint')) {
+            const c = tags(np, 'content')[0], t = tags(np, 'text')[0], j = c && join(ncx.path, c.getAttribute('src'));
+            if (j) toc.push({ label: t ? t.textContent.replace(/\s+/g, ' ').trim() : '', to: j, depth: depth(np, 'navPoint') });
+          }
+        }
+        const blobs = new Map();
+        const blob = (path) => {
+          let u = blobs.get(path);
+          if (!u) blobs.set(path, u = get(path).then((b) => b ? URL.createObjectURL(new Blob([b], { type: types.get(path) || '' })) : ''));
+          return u;
+        };
+        const free = () => blobs.forEach((u) => u.then((x) => x && URL.revokeObjectURL(x)));
+        return { title: meta('title'), author: tags(opf, 'creator').map((x) => x.textContent.trim()).join(', '), language: meta('language'), chapters, toc, cover: cover && cover.path, get, doc, blob, free };
+      }
+      function load(url) {
+        let p = books.get(url);
+        if (p) { books.delete(url); books.set(url, p); return p; }
+        p = open(url);
+        p.catch(() => books.delete(url));
+        books.set(url, p);
+        while (books.size > 3) { const [k, old] = books.entries().next().value; books.delete(k); old.then((b) => b.free(), () => {}); }
+        return p;
+      }
+      // url(...) in a stylesheet at base, pointed at the book's own files.
+      async function css(b, text, base) {
+        const found = [...text.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)];
+        const got = await Promise.all(found.map((m) => { const j = !/^(data|https?):/i.test(m[2]) && join(base, m[2]); return j ? b.blob(j[0]) : Promise.resolve(''); }));
+        let i = 0;
+        return text.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m) => { const u = got[i++]; return u ? `url("${u}")` : m; }).replace(/<\/style/gi, '<\\/style');
+      }
+      const BASE = 'html{background:#FFFFFF;color:#1F2328}body{max-width:38em;margin:0 auto;padding:28px 32px 64px;font:17px/1.6 Georgia,"Iowan Old Style",serif}img,svg,video{max-width:100%;height:auto}a{color:#2459D6}pre{white-space:pre-wrap}';
+      const attrs = (el) => el ? Array.from(el.attributes).filter((a) => !/^on/i.test(a.name)).map((a) => ` ${a.name}="${esc(a.value)}"`).join('') : '';
+      // One chapter as a page: no scripts, and every file it uses read from
+      // the zip. Links into the book carry where they go in data-to.
+      async function chapter(b, path) {
+        const d = await b.doc(path, true);
+        if (!d) throw new Error('The viewer could not read this chapter.');
+        d.querySelectorAll('script, iframe, frame, object, embed, form, base, meta, noscript').forEach((x) => x.remove());
+        const styles = [];
+        for (const x of Array.from(d.querySelectorAll('link, style'))) {
+          if (x.localName === 'style') styles.push(css(b, x.textContent, path));
+          else if (/\bstylesheet\b/i.test(x.getAttribute('rel') || '')) {
+            const j = join(path, x.getAttribute('href'));
+            styles.push(j ? b.get(j[0]).then((t) => t ? css(b, new TextDecoder().decode(t), j[0]) : '') : Promise.resolve(''));
+          }
+          x.remove();
+        }
+        const XL = 'http://www.w3.org/1999/xlink', work = [];
+        for (const x of Array.from(d.querySelectorAll('*'))) {
+          for (const a of Array.from(x.attributes)) if (/^on/i.test(a.name) || /^\s*javascript:/i.test(a.value)) x.removeAttribute(a.name);
+          if (x.localName === 'a') {
+            const h = x.getAttribute('href'), j = h && join(path, h);
+            if (j) x.setAttribute('data-to', j.join('#'));
+            continue;
+          }
+          const att = x.localName === 'image' ? (x.hasAttributeNS(XL, 'href') ? [XL, 'href'] : [null, 'href']) : ['img', 'source', 'video', 'audio', 'track'].includes(x.localName) ? [null, 'src'] : null;
+          const src = att && x.getAttributeNS(att[0], att[1]), j = src && !/^(data|https?):/i.test(src) && join(path, src);
+          if (j) work.push(b.blob(j[0]).then((u) => u && x.setAttributeNS(att[0], att[0] ? 'xlink:href' : att[1], u)));
+          if (x.localName === 'img') x.removeAttribute('srcset');
+        }
+        const sheets = await Promise.all(styles);
+        await Promise.all(work);
+        const head = d.querySelector('head'), body = d.querySelector('body');
+        return `<!doctype html><html${attrs(d.documentElement)}><head><meta charset="utf-8"><style>${BASE}</style>${sheets.map((s) => `<style>${s}</style>`).join('')}${head ? head.innerHTML : ''}</head><body${attrs(body)}>${body ? body.innerHTML : ''}</body></html>`;
+      }
+      async function titlePage(b) {
+        const cover = b.cover ? await b.blob(b.cover) : '';
+        const where = (t) => b.chapters.indexOf(t.to[0]);
+        const toc = b.toc.filter((t) => where(t) >= 0);
+        return `<!doctype html><html${b.language ? ` lang="${esc(b.language)}"` : ''}><head><meta charset="utf-8"><style>${BASE}
+.tp{text-align:center;margin:8px 0 28px}.tp img{max-height:340px;box-shadow:0 2px 12px rgba(0,0,0,.25)}h1{font-size:1.6em;line-height:1.25;margin:.8em 0 .2em}.by{color:#59606B;margin:0}
+ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:block;padding:6px 4px;border-bottom:1px solid #E3E5E8;text-decoration:none}li a:hover{background:#F3F5F8}</style></head><body>
+<div class="tp">${cover ? `<img src="${esc(cover)}" alt="Cover">` : ''}<h1>${esc(b.title || 'Untitled book')}</h1>${b.author ? `<p class="by">${esc(b.author)}</p>` : ''}</div>
+<ol>${(toc.length ? toc : b.chapters.map((c, i) => ({ label: 'Section ' + (i + 1), to: [c, ''], depth: 0 }))).map((t) => `<li><a href="#" data-to="${esc(t.to.join('#'))}" style="padding-left:${4 + Math.max(0, t.depth) * 18}px">${esc(t.label || t.to[0].split('/').pop())}</a></li>`).join('')}</ol></body></html>`;
+      }
+      // Scroll the frame to the element named frag; scrollIntoView would
+      // scroll the preview pane around the frame too.
+      const jump = (d, frag) => {
+        const t = d.getElementById(frag) || d.getElementsByName(frag)[0];
+        if (t) d.scrollingElement.scrollTop += t.getBoundingClientRect().top;
+      };
+      // Show chapter i (-1 for the title page), at fragment frag or at scroll y.
+      async function go(i, frag, y) {
+        const c = cur, my = ++gen;
+        if (!c || !c.st.isConnected) return;
+        i = Math.max(-1, Math.min(c.b.chapters.length - 1, i));
+        let html;
+        try { html = i < 0 ? await titlePage(c.b) : await chapter(c.b, c.b.chapters[i]); } catch (err) { html = `<!doctype html><p style="font:14px system-ui;color:#59606B;padding:24px">${esc(err.message)}</p>`; }
+        if (my !== gen || cur !== c) return;
+        c.i = i;
+        at.set(c.url, [i, 0]);
+        const f = c.st.querySelector('iframe'), sel = c.st.querySelector('select');
+        sel.value = String(i);
+        c.st.querySelector('[data-bk="-1"]').disabled = i < 0;
+        c.st.querySelector('[data-bk="1"]').disabled = i >= c.b.chapters.length - 1;
+        f.onload = () => {
+          const d = f.contentDocument;
+          if (!d || cur !== c) return;
+          if (frag) jump(d, frag); else if (y) d.scrollingElement.scrollTop = y;
+          d.addEventListener('scroll', () => { if (cur === c && c.i === i) at.set(c.url, [i, d.scrollingElement.scrollTop]); }, { passive: true });
+          d.addEventListener('click', (ev) => {
+            const a = ev.target.closest && ev.target.closest('a[href], a[data-to]');
+            if (!a) return;
+            ev.preventDefault();
+            const to = a.getAttribute('data-to');
+            if (to != null) {
+              const [p, h] = [to.slice(0, to.indexOf('#') < 0 ? to.length : to.indexOf('#')), to.indexOf('#') < 0 ? '' : to.slice(to.indexOf('#') + 1)];
+              const k = c.b.chapters.indexOf(p);
+              if (k === c.i && h) jump(d, h); else if (k >= 0) go(k, h);
+            } else if (/^(https?|mailto):/i.test(a.getAttribute('href') || '')) window.open(a.getAttribute('href'), '_blank', 'noopener');
+          });
+          d.addEventListener('keydown', (ev) => {
+            if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+            if (ev.key === 'ArrowRight' || ev.key === ']') { ev.preventDefault(); go(c.i + 1); }
+            else if (ev.key === 'ArrowLeft' || ev.key === '[') { ev.preventDefault(); go(c.i - 1); }
+          });
+        };
+        f.srcdoc = html;
+      }
+      return {
+        async show(st, url, e) {
+          const want = e.path;
+          cur = null;
+          let b;
+          try {
+            if (e.bytes > 128 << 20) throw new Error(`This book is ${bytes(e.bytes)}, too big to open here. Download it to read it.`);
+            b = await load(url);
+          } catch (err) {
+            if (st.isConnected) st.innerHTML = `<div class="none">${icon('doc')}<p>${esc(err.message)}</p></div>`;
+            return;
+          }
+          if (!st.isConnected || (current() && current().path !== want)) return;
+          const label = (c, i) => { const t = b.toc.find((x) => x.to[0] === c); return t && t.label ? t.label : 'Section ' + (i + 1); };
+          st.innerHTML = `<div class="book"><div class="bkbar"><button type="button" class="ib" data-bk="-1" aria-label="Previous chapter ([)">‹</button><select aria-label="Chapter"><option value="-1">${esc(b.title || 'Title page')}</option>${b.chapters.map((c, i) => `<option value="${i}">${esc(label(c, i))}</option>`).join('')}</select><button type="button" class="ib" data-bk="1" aria-label="Next chapter (])">›</button></div><iframe sandbox="allow-same-origin" title="${esc(e.name)}"></iframe></div>`;
+          cur = { st, url, b, i: -1 };
+          st.querySelector('select').onchange = (ev) => go(+ev.target.value);
+          st.querySelectorAll('[data-bk]').forEach((x) => { x.onclick = () => go(cur.i + +x.dataset.bk); });
+          const last = at.get(url) || [-1, 0];
+          go(last[0], '', last[1]);
         },
       };
     })();

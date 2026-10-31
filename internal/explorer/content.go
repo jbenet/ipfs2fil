@@ -13,6 +13,7 @@ package explorer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -312,13 +313,22 @@ func (s *carBlocks) serveContent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if tw, _ := strconv.Atoi(r.URL.Query().Get("w")); tw >= 16 && tw <= 2048 && (ctype == "image/jpeg" || ctype == "image/png" || ctype == "image/gif") {
+	epub := strings.EqualFold(path.Ext(name), ".epub")
+	if tw, _ := strconv.Atoi(r.URL.Query().Get("w")); tw >= 16 && tw <= 2048 && (ctype == "image/jpeg" || ctype == "image/png" || ctype == "image/gif" || epub) {
 		key := c.String() + "/" + strconv.Itoa(tw)
 		b, ok := s.thumb.get(key)
 		if !ok {
-			if b = s.thumb.thumbnail(rd, tw); b != nil {
+			src := io.Reader(rd)
+			if epub { // a book's thumbnail is its cover
+				src = bytes.NewReader(epubCover(rd))
+			}
+			if b = s.thumb.thumbnail(src, tw); b != nil {
 				s.thumb.put(key, b)
 			}
+		}
+		if b == nil && epub {
+			http.Error(w, "this book has no cover", http.StatusNotFound)
+			return
 		}
 		if b != nil {
 			w.Header().Set("Content-Type", "image/jpeg")

@@ -38,6 +38,7 @@ func Demo(scale int) (*manifest.Manifest, []Entry) {
 		dir("photos", dir("2019", photos...), dir("beach-2018", files(20*scale, "DSC%05d.JPG", "image", 5*MiB)...)),
 		dir("videos", files(4*scale, "talk-%d.webm", "video", 300*MiB)...),
 		dir("code", files(10*scale, "script_%d.py", "code", 6_000)...),
+		dir("books", files(3*scale, "book-%d.epub", "doc", 500_000)...),
 		file("README.md", "text", 2_000),
 	)
 
