@@ -436,3 +436,11 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .deck { position: absolute; left: 0; right: 0; top: 0; height: 0; pointer-events: none; z-index: 1; }
 .deck iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #FFFFFF; visibility: hidden; }
 .deck iframe.on { visibility: visible; pointer-events: auto; }
+/* Full screen: the pane's header and stage fill the screen; the facts go */
+.fprev.full { position: fixed; inset: 0; z-index: 60; overflow: hidden; width: auto; height: auto; }
+.fprev.full .facts2, .fprev.full .facts, .fprev.full .pv > :not(.ph):not(.stage) { display: none; }
+.fprev.full .stage { flex: 1 1 auto; min-height: 0; }
+.fprev.full .stage iframe { min-height: 0; }
+.fprev.full .stage.folder { flex: 0 0 auto; }
+.ib.fs { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.fprev.full .stage > img, .fprev.full .stage > video { width: 100%; height: 100%; }

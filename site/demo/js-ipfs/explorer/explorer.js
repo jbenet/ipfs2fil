@@ -206,7 +206,7 @@
   const kbd = (...ks) => ks.map((k) => `<kbd>${esc(k)}</kbd>`).join('');
   const RAIL = {
     overview: [[['j', 'k'], 'move'], [['↵'], 'open'], [['/'], 'search'], [['g', 'f'], 'files'], [['g', 'p'], 'pieces'], [['y'], 'copy root']],
-    browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['d'], 'download'], [['y'], 'copy CID']],
+    browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['F'], 'full screen'], [['d'], 'download'], [['y'], 'copy CID']],
     pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'files']],
     pieces: [[['j', 'k'], 'move'], [['↵'], 'open'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['y'], 'copy PieceCID'], [['g', 'o'], 'overview']],
     posts: [[['f'], 'filter'], [['y'], 'copy commit CID'], [['o'], 'open commit in gateway']],
@@ -215,7 +215,7 @@
   const GROUPS = [
     ['Anywhere', [['Search', ['/']], ['This list', ['?']], ['Go to overview', ['g', 'o']], ['Go to files', ['g', 'f']], ['Go to pieces', ['g', 'p']], ['Close or cancel', ['esc']]]],
     ['Lists', [['Next or previous row', ['j', 'k']], ['Same, with arrows', ['↓', '↑']], ['Open the row', ['↵']], ['Up a level', ['u', '⌫']], ['Filter the list', ['f']], ['Copy the CID', ['y']], ['Open in a gateway', ['o']], ['Sort by the next column', ['s']], ['Reverse the order', ['r']]]],
-    ['Files', [['Search this folder and below', ['/']], ['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['List, grid, tree, columns', ['v']], ['Wide list, split, wide file', ['l']], ['Give the file the room', ['space']], ['Download the file', ['d']], ['Open a tree folder', ['→']], ['Close a tree folder', ['←']]]]
+    ['Files', [['Search this folder and below', ['/']], ['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['List, grid, tree, columns', ['v']], ['Wide list, split, wide file', ['l']], ['Give the file the room', ['space']], ['Full screen', ['F']], ['Download the file', ['d']], ['Open a tree folder', ['→']], ['Close a tree folder', ['←']]]]
   ];
   let statusEl;
   function frame() {
@@ -392,6 +392,7 @@
     const typing = t.matches && (t.matches('input, select, textarea') || t.isContentEditable);
     if (k === 'Escape') {
       if (D.getElementById('help')) { help(false); ev.preventDefault(); return; }
+      if (!typing && pageKeys.esc && pageKeys.esc()) { ev.preventDefault(); return; }
       if (typing) {
         if (t.value && t.type === 'search') { t.value = ''; t.dispatchEvent(new Event('input')); } else t.blur();
         ev.preventDefault();
@@ -920,6 +921,34 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       c.scrollLeft = c.scrollWidth;
     }
 
+    // ---- full screen: the preview pane (header and stage, not the facts)
+    // fills the screen, and moving through the list keeps it there. Browsers
+    // with no Fullscreen API for elements (iPhone Safari) get the pane laid
+    // over the window instead.
+    const fsEl = () => D.fullscreenElement || D.webkitFullscreenElement || null;
+    const isFull = () => { const p = $('.fprev'); return !!p && p.classList.contains('full'); };
+    const fullBtn = () => { const on = isFull(); return `<button type="button" class="ib fs" data-full aria-pressed="${on}" aria-label="${on ? 'Exit full screen' : 'Full screen'} (F)" title="${on ? 'Exit full screen' : 'Full screen'} (F)">${on ? svg('M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4') : svg('M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4')}</button>`; };
+    function syncFull(on) {
+      const p = $('.fprev');
+      if (!p) return;
+      p.classList.toggle('full', on);
+      const b = p.querySelector('[data-full]');
+      if (b) b.outerHTML = fullBtn();
+    }
+    function full(on) {
+      const p = $('.fprev');
+      if (!p) return false;
+      if (on == null) on = !isFull();
+      const req = p.requestFullscreen || p.webkitRequestFullscreen, exit = D.exitFullscreen || D.webkitExitFullscreen;
+      if (on && req) { const r = req.call(p); if (r && r.catch) r.catch(() => syncFull(true)); }
+      else if (!on && fsEl() && exit) exit.call(D);
+      else syncFull(on);
+      return true;
+    }
+    const onFs = () => syncFull(fsEl() === $('.fprev'));
+    D.addEventListener('fullscreenchange', onFs);
+    D.addEventListener('webkitfullscreenchange', onFs);
+
     // ---- the preview pane
     let shownPrev = null;
     async function preview(full) {
@@ -934,7 +963,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
       const stored = piece ? copies.filter((c) => c.pieceIds && c.pieceIds[e.piece] != null) : [];
       const nav = `<button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>`;
-      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${esc(e.name)}</strong>${nav}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">Download</a>` : ''}</div>
+      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${esc(e.name)}</strong>${nav}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">Download</a>` : ''}${url ? fullBtn() : ''}</div>
 <div class="stage" data-kind="${esc(e.kind)}">${stage(e, url)}</div>
 <div class="facts2">
   <div><span>Size</span><b>${bytes(e.bytes)}</b></div><div><span>Kind</span><b>${esc(kindOf(e.kind)[2])}${ext(e.name) ? ' · ' + esc(ext(e.name).toUpperCase()) : ''}</b></div>
@@ -1481,6 +1510,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (b.hasAttribute('data-public')) { PUBLIC = true; update(true); return; }
       if (b.dataset.copy || b.classList.contains('cidx')) return;
       if (b.dataset.step) { sel((S.cur < 0 ? -1 : S.cur) + +b.dataset.step); return; }
+      if (b.hasAttribute('data-full')) { full(); return; }
       if (b.dataset.tw != null) { const e = rows[+b.dataset.tw]; if (e) toggle(e); return; }
       if (b.dataset.open != null) { ev.preventDefault(); const e = shown[+b.dataset.open]; if (e && e.kind === 'folder') open(e); else sel(+b.dataset.open); return; }
       if (b.dataset.c != null && b.dataset.i != null) {
@@ -1558,7 +1588,9 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       l: () => { S.ly = LAYOUTS[(LAYOUTS.findIndex((v) => v[0] === S.ly) + 1) % LAYOUTS.length][0]; keep('layout', S.ly); update(); return true; },
       d: () => { const e = current(), u = e && e.kind !== 'folder' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
       s: () => { const ks = Object.keys(SORTS); S.sort = ks[(ks.indexOf(S.sort) + 1) % ks.length]; update(); toast('Sorted by ' + $('#fsort').selectedOptions[0].textContent); return true; },
-      r: () => { S.dir = -S.dir; update(); return true; }
+      r: () => { S.dir = -S.dir; update(); return true; },
+      F: () => { const e = current(); return isFull() || (e && e.kind !== 'folder' && contentURL(e)) ? full() : false; },
+      esc: () => isFull() && !fsEl() ? full(false) : false
     });
     for (let i = 0; i <= 9; i++) pageKeys[String(i)] = () => { const c = main().querySelectorAll('.chips [data-k]')[i]; if (c) c.click(); return !!c; };
     await enter(S.p, !!S.sel);
