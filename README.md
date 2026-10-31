@@ -1,6 +1,6 @@
 <h1><img src="site/media/logo.svg" width="28" height="28" alt=""> ipfs2fil</h1>
 
-**Archive your IPFS repos to Filecoin, and browse them from anywhere.**
+**Snapshot your IPFS repos to Filecoin, and browse them from anywhere.**
 
 [Website](https://jbenet.github.io/ipfs2fil/) ·
 Explorer demo: [from Filecoin](https://dweb.link/ipfs/bafybeihl22mulghshva7ephjvqhrlv5prdug7fzzfgbty6fm6iqp6ql6re/explorer/) or [on the website](https://jbenet.github.io/ipfs2fil/demo/all/explorer/) ·
