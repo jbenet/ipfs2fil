@@ -436,6 +436,21 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .deck { position: absolute; left: 0; right: 0; top: 0; height: 0; pointer-events: none; z-index: 1; }
 .deck iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #FFFFFF; visibility: hidden; }
 .deck iframe.on { visibility: visible; pointer-events: auto; }
+/* Content: posts, accounts and the Bluesky App viewer */
+.fapp { overflow-y: auto; min-width: 0; min-height: 0; padding: 24px 28px 40px; display: flex; flex-direction: column; gap: 24px; }
+.stage[data-kind="post"], .stage[data-kind="account"] { background: var(--card); display: block; overflow: auto; flex-basis: 420px; }
+.stage[data-kind="post"] .at-thread { padding: 4px 16px 12px; display: flex; flex-direction: column; }
+.stage[data-kind="post"] img, .stage[data-kind="account"] img { max-height: none; }
+.stage[data-kind="post"] .at-img { max-height: 520px; object-fit: cover; }
+.stage[data-kind="post"] .at-media.n1 .at-img { object-fit: contain; }
+.stage[data-kind="post"] .at-av, .stage[data-kind="account"] .at-avatar { object-fit: cover; }
+.stage.acct .at-profile { padding: 20px 22px 12px; display: flex; flex-direction: column; }
+.stage.acct .pad2 { padding-top: 4px; }
+.tt.ptxt { display: block; padding: 10px 11px; font-size: 12px; line-height: 1.4; color: var(--text); background: var(--card); border: 1px solid var(--line); overflow: hidden; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.th.av, .tt.av { border-radius: 50%; }
+.tt.av { width: 70%; margin: 0 auto; aspect-ratio: 1; }
+.ctable td:first-child a { display: inline-flex; align-items: center; gap: 8px; }
+.ctable td.r, .ctable th.r { text-align: right; white-space: nowrap; }
 /* Full screen: the pane's header and stage fill the screen; the facts go */
 .fprev.full { position: fixed; inset: 0; z-index: 60; overflow: hidden; width: auto; height: auto; }
 .fprev.full .facts2, .fprev.full .facts, .fprev.full .pv > :not(.ph):not(.stage) { display: none; }

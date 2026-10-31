@@ -495,7 +495,7 @@ func TestPackBluesky(t *testing.T) {
 		b, _ := os.ReadFile(f)
 		rows += string(b)
 	}
-	for _, want := range []string{"pins/recursive/" + a.Commit.String() + "/app.bsky.feed.post", `"3aaaaaaaaaaaa.json","code"`, `"profile avatar.png","image"`} {
+	for _, want := range []string{"pins/recursive/" + a.Commit.String() + "/app.bsky.feed.post", `"3aaaaaaaaaaaa.json","post"`, `"self.json","record"`, `"profile avatar.png","image"`} {
 		if !strings.Contains(rows, want) {
 			t.Errorf("no %s in the index:\n%s", want, rows)
 		}

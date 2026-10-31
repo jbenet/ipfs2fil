@@ -178,17 +178,17 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		entries = append(entries, es...)
 		// Each Bluesky account's posts come along, so the combined explorer
 		// shows them with the files of every repo; an archive without them
-		// links to its own Posts page.
+		// links to the Bluesky App viewer in its own explorer.
 		for i, ac := range mt.Accounts {
 			if ac.Path != "" {
 				ac.Path = top + "/" + ac.Path
 			}
 			b, err := os.ReadFile(filepath.Join(a.Dir, "explorer", "idx", "at", fmt.Sprintf("%d.js", i)))
 			if err != nil {
-				ac.Href = href(a) + fmt.Sprintf("posts.html?a=%d", i)
+				ac.Href = href(a) + fmt.Sprintf("browse.html?app=bsky&a=%d", i)
 			} else {
 				atFiles[len(accounts)] = jsValue(b, fmt.Sprintf("at/%d", i))
-				ac.Href = fmt.Sprintf("posts.html?a=%d", len(accounts))
+				ac.Href = fmt.Sprintf("browse.html?app=bsky&a=%d", len(accounts))
 			}
 			accounts = append(accounts, ac)
 		}

@@ -996,10 +996,10 @@ func TestRecordRoots(t *testing.T) {
 	if e := got[site.Cid().String()]; e.Name != "bundle" || e.Kind != "folder" {
 		t.Errorf("folder root: %+v", e)
 	}
-	if e := got[cbCID.String()]; e.Name != "bundle.dag-cbor.json" || e.Kind != "code" || e.Bytes != int64(len(cb)) {
+	if e := got[cbCID.String()]; e.Name != "bundle.dag-cbor.json" || e.Kind != "record" || e.Bytes != int64(len(cb)) {
 		t.Errorf("dag-cbor root: %+v", e)
 	}
-	if e := got[djCID.String()]; e.Name != "bundle.dag-json.json" || e.Kind != "code" {
+	if e := got[djCID.String()]; e.Name != "bundle.dag-json.json" || e.Kind != "record" {
 		t.Errorf("dag-json root: %+v", e)
 	}
 }

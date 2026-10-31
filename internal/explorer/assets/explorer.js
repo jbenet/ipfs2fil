@@ -109,13 +109,17 @@
     image: ['M2 2.5h12v11h-12z M2 11l3.5-3.5 3 3 2-2 3.5 3.5', '#2F6FB0', 'Photo', 'Photos'],
     video: ['M1.5 3.5h9v9h-9z M10.5 7l4-2.5v7l-4-2.5', '#0B3B8C', 'Video', 'Videos'],
     audio: ['M6 12V3.5l7-1.5v8.5 M6 12a2 2 0 1 1-4 0a2 2 0 0 1 4 0z M13 10.5a2 2 0 1 1-4 0a2 2 0 0 1 4 0z', '#6D28D9', 'Audio', 'Audio'],
+    post: ['M2 2.5h12v8.5h-7l-3 3v-3h-2z M5 5.5h6 M5 8h4', '#1185FE', 'Post', 'Posts'],
     page: ['M1.5 2.5h13v11h-13z M1.5 5.5h13', '#4B5260', 'Web page', 'Web pages'],
     doc: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M5.5 9h5', '#B91C1C', 'Document', 'Documents'],
     text: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3 M6 8.5h4 M6 11h4', '#9A3412', 'Text', 'Text'],
     code: ['M5.5 4.5l-3.5 3.5 3.5 3.5 M10.5 4.5l3.5 3.5-3.5 3.5', '#B45309', 'Code', 'Code'],
+    record: ['M3 3.5c0-1 2.2-1.6 5-1.6s5 .6 5 1.6v9c0 1-2.2 1.6-5 1.6s-5-.6-5-1.6z M3 3.5c0 1 2.2 1.6 5 1.6s5-.6 5-1.6 M3 8c0 1 2.2 1.6 5 1.6s5-.6 5-1.6', '#7C3AED', 'Record', 'Records'],
     archive: ['M3 1.5h10v13h-10z M8 1.5v1.5 M8 4.5v1.5 M7 7.5h2v2.5h-2z', '#047857', 'Archive', 'Archives'],
     disk: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 0 0 0-3z', '#0E7490', 'Disk image', 'Disk images'],
-    other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other', 'Other']
+    other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other', 'Other'],
+    // not a file: an account a repo holds (a Bluesky account)
+    account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts']
   };
   const kindOf = (k) => KIND[k] || KIND.other;
   // Bluesky's butterfly, small.
@@ -205,21 +209,21 @@
   const LOGO = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#1B5FD6" stroke-width="1.8" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.5"></rect><rect x="12" y="2" width="8" height="8" rx="1.5"></rect><rect x="2" y="12" width="8" height="8" rx="1.5"></rect><rect x="12" y="12" width="8" height="8" rx="1.5" fill="#1B5FD6"></rect></svg>';
   const kbd = (...ks) => ks.map((k) => `<kbd>${esc(k)}</kbd>`).join('');
   const RAIL = {
-    overview: [[['j', 'k'], 'move'], [['↵'], 'open'], [['/'], 'search'], [['g', 'f'], 'files'], [['g', 'p'], 'pieces'], [['y'], 'copy root']],
+    overview: [[['j', 'k'], 'move'], [['↵'], 'open'], [['/'], 'search'], [['g', 'f'], 'content'], [['g', 'p'], 'pieces'], [['y'], 'copy root']],
     browse: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['/'], 'search here'], [['v'], 'view'], [['l'], 'layout'], [['space'], 'focus the file'], [['F'], 'full screen'], [['d'], 'download'], [['y'], 'copy CID']],
-    pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'files']],
+    pin: [[['j', 'k'], 'move'], [['↵'], 'open'], [['u'], 'up a level'], [['o'], 'open in gateway'], [['y'], 'copy CID'], [['g', 'f'], 'content']],
     pieces: [[['j', 'k'], 'move'], [['↵'], 'open'], [['f'], 'filter'], [['s'], 'sort by'], [['r'], 'reverse'], [['y'], 'copy PieceCID'], [['g', 'o'], 'overview']],
     posts: [[['f'], 'filter'], [['y'], 'copy commit CID'], [['o'], 'open commit in gateway']],
     search: [[['↓'], 'into results'], [['j', 'k'], 'move'], [['↵'], 'open'], [['1', '…', '9'], 'kind'], [['0'], 'all kinds'], [['esc'], 'clear'], [['y'], 'copy CID']]
   };
   const GROUPS = [
-    ['Anywhere', [['Search', ['/']], ['This list', ['?']], ['Go to overview', ['g', 'o']], ['Go to files', ['g', 'f']], ['Go to pieces', ['g', 'p']], ['Close or cancel', ['esc']]]],
+    ['Anywhere', [['Search', ['/']], ['This list', ['?']], ['Go to overview', ['g', 'o']], ['Go to content', ['g', 'f']], ['Go to pieces', ['g', 'p']], ['Close or cancel', ['esc']]]],
     ['Lists', [['Next or previous row', ['j', 'k']], ['Same, with arrows', ['↓', '↑']], ['Open the row', ['↵']], ['Up a level', ['u', '⌫']], ['Filter the list', ['f']], ['Copy the CID', ['y']], ['Open in a gateway', ['o']], ['Sort by the next column', ['s']], ['Reverse the order', ['r']]]],
-    ['Files', [['Search this folder and below', ['/']], ['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['List, grid, tree, columns', ['v']], ['Wide list, split, wide file', ['l']], ['Give the file the room', ['space']], ['Full screen', ['F']], ['Download the file', ['d']], ['Open a tree folder', ['→']], ['Close a tree folder', ['←']]]]
+    ['Content', [['Search this folder and below', ['/']], ['Move into results', ['↓']], ['Filter by kind', ['1', '…', '9']], ['Show all kinds', ['0']], ['List, grid, tree, columns', ['v']], ['Wide list, split, wide file', ['l']], ['Give the file the room', ['space']], ['Full screen', ['F']], ['Download the file', ['d']], ['Open a tree folder', ['→']], ['Close a tree folder', ['←']]]]
   ];
   let statusEl;
   function frame() {
-    const nav = [['overview', 'index.html', 'Overview'], ['browse', 'browse.html', 'Files'], ['pieces', 'pieces.html', 'Pieces']]
+    const nav = [['overview', 'index.html', 'Overview'], ['browse', 'browse.html', 'Content'], ['pieces', 'pieces.html', 'Pieces']]
       .map((n) => `<a href="${n[1]}"${n[0] === PAGE ? ' aria-current="page"' : ''}>${n[2]}</a>`).join('');
     const q = PAGE === 'search' ? esc(params.get('q') || '') : '';
     D.body.insertAdjacentHTML('afterbegin', `<header class="top"><div class="bar"><a class="brand" href="index.html">${LOGO}<span>ipfs2fil</span></a><nav class="pages" aria-label="Explorer">${nav}</nav><form class="search" action="browse.html" role="search"><label class="sr" for="q">Search names and CIDs</label><input id="q" name="q" type="search" value="${q}" placeholder="Search names and CIDs" autocomplete="off" spellcheck="false"><kbd>/</kbd></form></div></header>`);
@@ -506,7 +510,7 @@
     ${bar(types.map((t) => [t[3], t[1], t[2]]), types.map((t) => t[3] + ' ' + bytes(t[1])).join(', '))}
     <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
-${(meta.accounts || []).map((x, i) => `<section class="card"><div class="titled"><h2>${BSKY} Bluesky account ${esc(x.name)}</h2><a href="${esc(x.href || 'posts.html?a=' + i)}">Read its ${plural(x.posts, 'post')}</a></div><p class="faint">An atproto repo is IPLD: its signed commit, records and media are stored here as IPFS blocks, under the pin ${esc(x.name)}.</p>${archivedHTML(x, null, x.path ? browseHref(x.path) : '')}</section>`).join('')}
+<section class="card"><div class="titled"><h2>What it holds</h2><a href="browse.html?deep=1">All content</a></div>${contents()}</section>
 ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>` : ''}
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
@@ -515,6 +519,20 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     <div class="pmap" role="img" id="pmap"></div>
     <div class="faint" id="pnote"></div></section>
 </div>`;
+    // Every kind of content, counted, with what is worth knowing about it.
+    function contents() {
+      const accts = meta.accounts || [], few = (xs) => xs.slice(0, 4).map(esc).join(', ') + (xs.length > 4 ? ` and ${num(xs.length - 4)} more` : '');
+      const NOTE = {
+        post: () => accts.length ? 'from ' + few(accts.map((a) => a.name)) : '',
+        record: () => accts.length ? `likes, follows and other IPLD records from ${plural(accts.length, 'Bluesky repo')} (posts are under Posts)` : 'IPLD (dag-cbor, dag-json) roots',
+        image: () => accts.some((a) => a.blobs && a.blobs.images) ? `${num(accts.reduce((n, a) => n + ((a.blobs && a.blobs.images) || 0), 0))} attached to posts` : '',
+        video: () => accts.some((a) => a.blobs && a.blobs.videos) ? `${num(accts.reduce((n, a) => n + ((a.blobs && a.blobs.videos) || 0), 0))} attached to posts` : ''
+      };
+      const rows = KINDS.filter((k) => k !== 'folder' && meta.types[k]).map((k) => [KIND[k][3], meta.types[k][0], meta.types[k][1], (NOTE[k] || (() => ''))(), 'browse.html?deep=1&kind=' + k, k]);
+      if (accts.length) rows.push(['Accounts', accts.length, accts.reduce((n, a) => n + ((a.blobs && a.blobs.bytes) || 0), 0), few(accts.map((a) => a.name)), 'browse.html?deep=1&kind=account', 'account']);
+      if (REPOS) rows.push(['Repos', REPOS.length, total, few(REPOS.map((r) => r.name)), browseHref(''), 'folder']);
+      return `<table class="ctable"><thead><tr><th>Kind</th><th class="r">Items</th><th class="r">Size</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r[4])}">${icon(r[5])}${esc(r[0])}</a></td><td class="r">${num(r[1])}</td><td class="r">${r[2] ? bytes(r[2]) : ''}</td><td class="faint">${r[3]}</td></tr>`).join('')}</tbody></table>`;
+    }
     function stat(k, v, s) { return `<div class="card tight stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
     const once = new Set();
     const largest = roots.filter((r) => !REPOS || (!once.has(r.cid) && once.add(r.cid))).sort((a, b) => b.bytes - a.bytes).slice(0, 10).map((r) => ({ ...r, name: rootLabel(r), path: r.path, dir: '', piece: r.firstPiece, kind: kindAt(r), root: r }));
@@ -653,7 +671,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
   const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
   const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
-  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
   const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
   const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
@@ -661,20 +679,39 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
 
   async function files() {
     const [m, meta] = await Promise.all([manifest(), load('meta')]);
-    // A Bluesky post's record links to the post on the Posts page.
+    // Accounts (Bluesky's): each one's posts open in the Bluesky App viewer,
+    // here in the main pane, or in its own archive's explorer when this
+    // combined one does not hold its summary.
+    const ACC = meta.accounts || [];
+    const inHere = (a) => !a.href || /^(posts|browse)\.html/.test(a.href);
+    const accHref = (i, k) => inHere(ACC[i]) ? appHref(i, k) : ACC[i].href.replace(/#.*/, '') + (k ? '&t=' + encodeURIComponent(k) : '');
+    const POSTDIR = '/app.bsky.feed.post/';
+    const acctOf = (e) => ACC.findIndex((a) => a.path && e.path.startsWith(a.path + POSTDIR));
+    // A Bluesky post's record links to the post in the Bluesky App.
     const recordHref = (e, rec) => {
       if (rec.$type !== 'app.bsky.feed.post') return '';
-      const i = (meta.accounts || []).findIndex((a) => a.path && e.path.startsWith(a.path + '/app.bsky.feed.post/'));
-      if (i < 0) return '';
-      const a = meta.accounts[i];
-      return (a.href || 'posts.html?a=' + i).replace(/#.*/, '') + '#p-' + encodeURIComponent(e.name.replace(/\.json$/, ''));
+      const i = acctOf(e);
+      return i < 0 ? '' : accHref(i, e.name.replace(/\.json$/, ''));
     };
     if (V) V.use({ esc, icon, recordHref });
     LOCAL = await probeLocal();
+    // Posts draw from the account summaries, loaded when a post shows up.
+    const KX = {};
+    const postOf = (e) => {
+      if (e.kind !== 'post') return null;
+      const i = acctOf(e);
+      const K = i >= 0 && kitOf(i), x = K && K.byKey.get(e.name.replace(/\.json$/, ''));
+      return x ? { K, x, n: i } : null;
+    };
+    const kitOf = (i) => { const K = KX[i]; if (K && K !== 'wait' && K !== 'none') return K; if (!K && inHere(ACC[i])) { KX[i] = 'wait'; bsky(i).then((k) => { KX[i] = k; update(true); }).catch(() => { KX[i] = 'none'; }); } return null; };
+    const label = (e) => { const P = postOf(e); return P ? (P.x.t ? day(P.x.t) + ' · ' : '') + P.K.snippet(P.x) : e.name; };
+    // The accounts, as entries of their own under Library > Accounts.
+    const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
     const S = {
       p: params.get('p') || '', q: params.get('q') || '', kind: params.get('kind') || 'all', deep: params.get('deep') === '1' || !!params.get('q'),
       size: params.get('size') || 'any', sort: params.get('sort') || 'name', dir: params.get('dir') === '-1' ? -1 : 1,
-      view: pref('view', 'list'), ly: pref('layout', 'split'), sel: params.get('sel') || '', cur: -1, limit: 300, open: new Set()
+      view: pref('view', 'list'), ly: pref('layout', 'split'), sel: params.get('sel') || '', cur: -1, limit: 300, open: new Set(),
+      app: params.get('app') || '', an: +params.get('a') || 0
     };
     if (S.kind !== 'all' && !params.has('deep')) S.deep = true;
     let info = null, kids = [], all = null, loadingAll = false, shown = [], rows = [], counts = {}, base = [];
@@ -704,11 +741,20 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     const libHref = (k) => 'browse.html?' + qs({ kind: k === 'all' ? '' : k, deep: '1' });
     function lib() {
       const parts = meta.parts || {}, t = meta.types || {};
-      const libOn = S.deep && !S.q && !S.p;
-      $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => k[0] === 'all' || t[k[0]]).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${k[0] === 'all' ? count(meta.entries) : count(t[k[0]][0])}</span></a>`).join('')}
-<div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
-${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.map((a, i) => `<a href="${esc(a.href || 'posts.html?a=' + i)}">${BSKY}${esc(a.name)} posts<span class="n">${count(a.posts)}</span></a>${a.path ? `<a href="${browseHref(a.path)}"${S.p === a.path && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(a.name)} records</a>` : ''}`).join('')}` : ''}
+      const libOn = S.deep && !S.q && !S.p && !S.app;
+      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : t[k] ? t[k][0] : 0;
+      $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
+<div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
+${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
+    }
+
+    // A viewer (the Bluesky App) takes the place of the file list.
+    if (S.app === 'bsky' && ACC[S.an]) {
+      lib();
+      const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
+      $('.fmain').replaceWith(ap);
+      return bskyApp(ap, S.an);
     }
 
     // ---- data for the current folder and scope
@@ -739,7 +785,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
     }
     function compute() {
       const ql = S.q.trim().toLowerCase();
-      const src = S.deep ? (all || []).filter(under(S.p)) : kids;
+      const src = S.deep ? (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p))) : kids;
       base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
       if (S.deep) base = once(base);
       counts = {};
@@ -750,6 +796,8 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       const keyed = list.map((e) => [S.deep ? 0 : e.kind === 'folder' ? 0 : 1, key(e), e.path, e]);
       keyed.sort((a, b) => a[0] - b[0] || (a[1] < b[1] ? -dir : a[1] > b[1] ? dir : a[2] < b[2] ? -1 : 1));
       shown = keyed.map((x) => x[3]);
+      // Records start with the stores they come from: an account's repo.
+      if (S.kind === 'record' && S.deep && !ql) shown = ACC.map((a) => a.path && (all || []).find((e) => e.path === a.path)).filter((e) => e && under(S.p)(e)).concat(shown);
       // a grid of results groups them by folder
       if (S.view === 'grid' && S.deep && S.sort === 'name') shown = shown.map((e, i) => [e, i]).sort((a, b) => a[0].dir < b[0].dir ? -1 : a[0].dir > b[0].dir ? 1 : a[1] - b[1]).map((x) => x[0]);
       if (S.sel) { const i = shown.findIndex((e) => e.path === S.sel || (e.also && e.also.some((o) => o.path === S.sel))); if (i >= 0) { S.cur = i; S.limit = Math.max(S.limit, i + 50); } }
@@ -806,6 +854,12 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
     const THUMBS = new Set(['image', 'video', 'audio', 'doc']);
     const thumbOr = (e, cls) => {
       const w = cls === 'tt' ? 320 : 96, badge = PARTS[e.cid] ? '<span class="partial" title="Only part of this file is here">partial</span>' : '';
+      if (e.kind === 'post' || e.kind === 'account') {
+        const P = e.kind === 'post' ? postOf(e) : null, K = P ? P.K : e.kind === 'account' ? kitOf(e.acct) : null;
+        const u = P ? P.K.picture(P.x, w) : K && K.p.avatar ? K.blob(K.p.avatar, 'avatar', LOCAL ? { w } : null) : null;
+        if (u && canShow()) return `<img class="${cls}${e.kind === 'account' ? ' av' : ''}" loading="lazy" alt="" data-k="${e.kind}" src="${esc(u)}">`;
+        if (P && cls === 'tt') return `<span class="${cls} ptxt">${esc(P.K.snippet(P.x))}</span>`;
+      }
       if (PARTS[e.cid] && e.kind !== 'image') return `<span class="${cls} ic">${icon(e.kind)}</span>` + badge;
       if ((e.kind === 'image' && canShow()) || (LOCAL && THUMBS.has(e.kind))) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(e.cid)}" src="${esc(thumbURL(e, w))}">` + badge;
       if (V && canShow() && e.kind === 'video') return `<span class="${cls} ic" data-gen="v" data-c="${esc(e.cid)}">${icon(e.kind)}</span>`;
@@ -845,7 +899,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
     const where = (e) => showPath(e.dir) || 'data';
     function listView() {
       const deepCols = S.deep;
-      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(e.name)}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a>${e.also && e.also.length ? ` <span class="faint">+${num(e.also.length)}</span>` : ''}</td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
+      $('.flist').innerHTML = shown.length ? `<table><thead><tr><th>Name</th>${deepCols ? '<th class="w">Folder</th>' : ''}<th class="k">Kind</th><th class="r">Size</th><th class="r pc">Piece</th></tr></thead><tbody>${shown.slice(0, S.limit).map((e, i) => `<tr data-i="${i}" aria-selected="${i === S.cur}"><td><span class="nm">${thumbOr(e, 'th')}<a href="${esc(e.kind === 'folder' ? browseHref(e.path) : '#')}" data-open="${i}">${esc(label(e))}${e.kind === 'folder' ? '/' : ''}</a></span></td>${deepCols ? `<td class="w"><a class="muted" href="${esc(browseHref(e.dir))}">${esc(where(e))}/</a>${e.also && e.also.length ? ` <span class="faint">+${num(e.also.length)}</span>` : ''}</td>` : ''}<td class="k muted">${esc(kindOf(e.kind)[2])}</td><td class="r">${e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</td><td class="r pc">${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">${e.piece}</a>` : ''}</td></tr>`).join('')}</tbody></table>${more()}` : empty();
     }
     function grid() {
       let out = '', lastDir = null;
@@ -853,7 +907,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       list.slice(0, S.limit).forEach((e, i) => {
         if (group && e.dir !== lastDir) { out += `${lastDir !== null ? '</div>' : ''}<div class="gh"><a href="${esc(browseHref(e.dir))}">${esc(where(e))}</a></div><div class="tiles">`; lastDir = e.dir; }
         else if (!group && i === 0) out += '<div class="tiles">';
-        out += `<button type="button" class="tile" data-i="${i}" aria-selected="${i === S.cur}" title="${esc(e.name)}">${thumbOr(e, 'tt')}<span class="tn">${esc(e.name)}</span></button>`;
+        out += `<button type="button" class="tile" data-i="${i}" aria-selected="${i === S.cur}" title="${esc(label(e))}">${thumbOr(e, 'tt')}<span class="tn">${esc(label(e))}</span></button>`;
       });
       $('.flist').innerHTML = list.length ? out + '</div>' + more() : empty();
     }
@@ -886,7 +940,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
         walk(shown, 0);
       }
       if (S.sel) { const i = rows.findIndex((e) => e.path === S.sel); if (i >= 0) S.cur = i; }
-      $('.flist').innerHTML = rows.length ? `<div class="tree" role="tree">${rows.slice(0, S.limit + 200).map((e, i) => `<div class="tr" role="treeitem" data-i="${i}" aria-selected="${i === S.cur}"${e.branch ? ` aria-expanded="${e.open}"` : ''} style="padding-left:${8 + e.depth * 18}px"><button type="button" class="tw" data-tw="${i}" tabindex="-1" aria-hidden="true">${e.branch ? (e.open ? '▾' : '▸') : ''}</button>${thumbOr(e, 'th')}<span class="tnm">${esc(e.name)}</span><span class="n">${e.n ? num(e.n) : e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</span></div>`).join('')}</div>` : empty();
+      $('.flist').innerHTML = rows.length ? `<div class="tree" role="tree">${rows.slice(0, S.limit + 200).map((e, i) => `<div class="tr" role="treeitem" data-i="${i}" aria-selected="${i === S.cur}"${e.branch ? ` aria-expanded="${e.open}"` : ''} style="padding-left:${8 + e.depth * 18}px"><button type="button" class="tw" data-tw="${i}" tabindex="-1" aria-hidden="true">${e.branch ? (e.open ? '▾' : '▸') : ''}</button>${thumbOr(e, 'th')}<span class="tnm">${esc(label(e))}</span><span class="n">${e.n ? num(e.n) : e.kind === 'folder' && !e.bytes ? '' : bytes(e.bytes)}</span></div>`).join('')}</div>` : empty();
     }
     const TREE = {};
     async function toggle(e) {
@@ -959,12 +1013,14 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       deck.hide();
       if (!e) return folderPane(pane, info, S.p, true);
       if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
+      if (e.kind === 'account') return accountPane(pane, e);
+      const P = postOf(e);
       const url = contentURL(e), copies = m.copies || [];
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
       const stored = piece ? copies.filter((c) => c.pieceIds && c.pieceIds[e.piece] != null) : [];
       const nav = `<button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>`;
-      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${esc(e.name)}</strong>${nav}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">Download</a>` : ''}${url ? fullBtn() : ''}</div>
-<div class="stage" data-kind="${esc(e.kind)}">${stage(e, url)}</div>
+      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${P ? `${P.K.name} · ${esc(P.x.t ? day(P.x.t) : e.name)}` : esc(e.name)}</strong>${nav}${P ? `<a class="btn sm" href="${esc(accHref(P.n, P.x.k))}">Open in Bluesky App</a>` : ''}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">${P ? 'Record' : 'Download'}</a>` : ''}${url ? fullBtn() : ''}</div>
+<div class="stage" data-kind="${esc(e.kind)}">${P ? `<div class="at-thread">${P.K.thread(P.x).html}</div>` : stage(e, url)}</div>
 <div class="facts2">
   <div><span>Size</span><b>${bytes(e.bytes)}</b></div><div><span>Kind</span><b>${esc(kindOf(e.kind)[2])}${ext(e.name) ? ' · ' + esc(ext(e.name).toUpperCase()) : ''}</b></div>
   <div><span>Piece</span><b>${e.piece >= 0 ? `<a href="pieces.html?n=${e.piece}">#${e.piece}</a>` : '—'}</b></div><div><span>Copies</span><b>${stored.length || (piece ? '0' : '—')}</b></div>
@@ -976,7 +1032,7 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
   <span>Folder</span><span class="pdir faint">…</span>
   ${piece ? `<span>Stored</span><span>${cidx(piece.pieceCid, true)} ${stored.length ? `<span class="tags">${stored.map((c) => `<span class="tag">${esc(c.provider)}</span>`).join('')}</span>` : '<span class="faint">not stored yet</span>'}</span>` : ''}
 </div>`;
-      fill(pane, e, url);
+      if (P) lightbox(pane); else fill(pane, e, url);
       if (isPDF(e) && url) {
         if (pdfInline) deck.show(url, pane.querySelector('.stage'), e.name);
         else pane.querySelector('.stage').innerHTML = `<div class="none">${icon('doc')}<p>This browser saves PDFs instead of showing them. Use Download to open this one.</p></div>`;
@@ -985,6 +1041,14 @@ ${(meta.accounts || []).length ? `<div class="h">Bluesky</div>${meta.accounts.ma
       warmAround();
       const di = await dirInfo(e.dir), pd = pane.querySelector('.pdir');
       if (pd && current() === e) pd.outerHTML = di && di.cid ? `<span>${cidx(di.cid, true)} <span class="gw">${GATEWAYS.map((g) => `<a href="${esc(g[1] + di.cid)}" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('')}</span></span>` : '<span class="faint">—</span>';
+    }
+    // An account: its profile and what the archive holds of it.
+    function accountPane(pane, e) {
+      const i = e.acct, a = ACC[i], K = kitOf(i);
+      pane.innerHTML = `<div class="ph"><strong title="${esc(a.name)}">${esc(a.name)}</strong><button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button><a class="btn sm" href="${esc(accHref(i))}">Open in Bluesky App</a></div>
+<div class="stage acct" data-kind="account">${K ? `<section class="at-profile">${K.profile()}</section>` : ''}
+<div class="pad2"><p class="faint">A Bluesky account. Its repo is IPLD: the signed commit, records and media are stored as IPFS blocks${a.path ? `, shown as <a href="${esc(browseHref(a.path))}">a folder of records and blobs</a>` : ''}.</p>${archivedHTML(a, K ? K.a : null, a.path ? browseHref(a.path) : '')}</div></div>`;
+      lightbox(pane);
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
@@ -1488,6 +1552,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
     function open(e) {
       if (!e) return;
       if (e.kind === 'folder') { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
+      if (e.kind === 'account') { location.href = accHref(e.acct); return; }
       if (S.ly !== 'file') { S.ly = 'file'; keep('layout', S.ly); update(true); }
     }
     function up() {
@@ -1586,7 +1651,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       u: up, Backspace: up, f: () => { box.focus(); box.select(); return true; }, '/': () => { box.focus(); box.select(); return true; },
       v: () => { S.view = VIEWS[(VIEWS.findIndex((v) => v[0] === S.view) + 1) % VIEWS.length][0]; keep('view', S.view); update(true); toast(VIEWS.find((v) => v[0] === S.view)[1] + ' view'); return true; },
       l: () => { S.ly = LAYOUTS[(LAYOUTS.findIndex((v) => v[0] === S.ly) + 1) % LAYOUTS.length][0]; keep('layout', S.ly); update(); return true; },
-      d: () => { const e = current(), u = e && e.kind !== 'folder' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
+      d: () => { const e = current(), u = e && e.kind !== 'folder' && e.kind !== 'account' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
       s: () => { const ks = Object.keys(SORTS); S.sort = ks[(ks.indexOf(S.sort) + 1) % ks.length]; update(); toast('Sorted by ' + $('#fsort').selectedOptions[0].textContent); return true; },
       r: () => { S.dir = -S.dir; update(); return true; },
       F: () => { const e = current(); return isFull() || (e && e.kind !== 'folder' && contentURL(e)) ? full() : false; },
@@ -1719,16 +1784,23 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
 </dl>`;
   }
 
-  async function posts() {
-    const meta = await load('meta');
-    const accts = meta.accounts || [];
-    if (!accts.length) { main().innerHTML = '<section class="head"><h1>No Bluesky accounts in this archive</h1></section>'; return; }
-    const n = Math.min(Math.max(0, +params.get('a') || 0), accts.length - 1);
-    const x0 = accts[n], a = await load('at/' + n);
-    if (V) V.use({ esc, icon });
-    LOCAL = await probeLocal();
-    PUBLIC = params.get('public') === '1';
-    const blob = (c, name) => !c ? null : LOCAL ? CONTENT + encodeURIComponent(c) + '?' + qs({ name: name || c }) : HERE || PUBLIC ? gw(c) : null;
+  // The Bluesky App viewer for account n, in the Content page's main pane;
+  // a link to a post opens its thread there.
+  const appHref = (n, k, extra) => 'browse.html?' + qs({ app: 'bsky', a: n, t: k || '', public: PUBLIC ? '1' : '', ...(extra || {}) });
+  // posts.html, the old place of the Bluesky view, sends its links on.
+  function posts() {
+    location.replace(appHref(+params.get('a') || 0, params.get('t') || '', { q: params.get('q') || '', show: params.get('show') || '', public: params.get('public') || '' }) + location.hash);
+  }
+  // kit(n) draws account n's posts as Bluesky does. Loaded once each.
+  const KITS = {};
+  function bsky(n) {
+    return KITS[n] || (KITS[n] = (async () => {
+      const meta = await load('meta');
+      return kit(n, meta.accounts[n], await load('at/' + n));
+    })());
+  }
+  function kit(n, x0, a) {
+    const blob = (c, name, extra) => !c ? null : LOCAL ? CONTENT + encodeURIComponent(c) + '?' + qs({ name: name || c, ...(extra || {}) }) : HERE || PUBLIC ? gw(c) : null;
     const handle = x0.handle || a.handle || (a.name.startsWith('@') ? a.name.slice(1) : '');
     const at = (uri) => (uri || '').match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);
     const web = (uri) => { const m = at(uri); return m && m[2] === 'app.bsky.feed.post' ? `https://bsky.app/profile/${m[1]}/post/${m[3]}` : ''; };
@@ -1738,12 +1810,10 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     const byKey = new Map(all.map((x) => [x.k, x]));
     const kids = new Map(); // rkey -> replies to it in the archive, oldest first
     all.forEach((x) => { const k = own(x.r); if (k) { if (!kids.has(k)) kids.set(k, []); kids.get(k).unshift(x); } });
-    const recHref = (k) => x0.path ? browseHref(x0.path + '/app.bsky.feed.post/' + k + '.json') : '';
-    const self = (k) => 'posts.html?' + qs({ a: n, t: k, public: PUBLIC ? '1' : '' });
-    const S = { q: params.get('q') || '', show: params.get('show') || 'posts', limit: 40 };
-    const isReply = (x) => !!x.r, hasMedia = (x) => !!((x.i && x.i.length) || x.v);
-    const tabs = [['posts', 'Posts', (x) => !isReply(x) || !!own(x.r)], ['replies', 'Replies', isReply], ['media', 'Media', hasMedia], ['all', 'Everything', () => true]];
-    const counts = Object.fromEntries(tabs.map((t) => [t[0], all.filter(t[2]).length]));
+    // A post's record, as JSON: explore serves dag-cbor as JSON, a gateway on request.
+    const recHref = (x) => !x.c ? '' : LOCAL ? blob(x.c, x.k + '.json') : HERE || PUBLIC ? gw(x.c) + '?format=dag-json' : '';
+    const pathOf = (k) => x0.path ? x0.path + '/app.bsky.feed.post/' + k + '.json' : '';
+    const self = (k) => appHref(n, k);
     const name = esc(p.displayName || handle || a.name);
 
     // Text with its links, mentions and tags, from the record's facets
@@ -1796,7 +1866,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
       opt = opt || {};
       const pk = own(x.r), parentHere = pk && byKey.has(pk);
       const ctx = x.r && !opt.inThread ? (pk ? (parentHere ? `<a class="faint" href="${esc(self(pk))}">↳ Replying to ${name}</a>` : '<span class="faint">↳ Replying to a post not in this archive</span>') : `<a class="faint" href="${esc(web(x.r))}" target="_blank" rel="noopener">↳ Replying to another account ↗</a>`) : '';
-      const nk = (kids.get(x.k) || []).length;
+      const nk = (kids.get(x.k) || []).length, rh = recHref(x);
       return `<article class="at-post${opt.focus ? ' focus' : ''}${opt.line ? ' line' : ''}" id="p-${esc(x.k)}">
   <div class="at-left">${avatar()}</div>
   <div class="at-body">
@@ -1804,7 +1874,7 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
     ${ctx ? `<div class="at-ctx">${ctx}</div>` : ''}
     ${x.x ? `<div class="at-text${opt.focus ? ' big' : ''}">${rich(x.x, x.f)}</div>` : ''}
     ${media(x)}
-    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${recHref(x.k) ? `<a href="${esc(recHref(x.k))}">Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
+    <div class="at-foot faint">${nk && !opt.inThread ? `<a href="${esc(self(x.k))}">${plural(nk, 'reply', 'replies')} in this archive</a>` : ''}${x.lg && x.lg.length ? `<span>${esc(x.lg.join(', '))}</span>` : ''}<span class="at-links">${rh ? `<a href="${esc(rh)}" target="_blank" rel="noopener">Record</a>` : ''}${cidx(x.c, true)}${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}/post/${esc(x.k)}" target="_blank" rel="noopener">Bluesky ↗</a>` : ''}</span></div>
   </div>
 </article>`;
     }
@@ -1814,49 +1884,69 @@ ${providers ? `<section class="stats" aria-label="Providers">${providers}</secti
       const pk = own(x.r), parent = pk && byKey.get(pk);
       return `<li>${parent ? card(parent, { line: true }) : ''}${card(x, { inThread: !!parent })}</li>`;
     }
-
-    pageKeys.cid = () => a.commit;
-    const t = params.get('t');
-    const head = `
-${accts.length > 1 ? `<nav class="chips" aria-label="Accounts">${accts.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="posts.html?a=${i}">${esc(x.name)}</a>`).join('')}</nav>` : ''}
-${!LOCAL && !HERE && !PUBLIC ? `<div class="card none"><p class="faint">Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see images and video here.</p><a class="btn sm" href="posts.html?${qs({ a: n, t: t || '', public: 1 })}">Load them from ${GATEWAYS[0][0]}</a></div>` : ''}`;
-
-    if (t) {
-      // A thread: the posts above this one, it, and the replies below, as
-      // far as the archive holds them.
-      const x = byKey.get(t);
-      if (!x) { main().innerHTML = head + `<section class="card"><h2>No post ${esc(t)} in this archive</h2><a href="posts.html?a=${n}">All posts</a></section>`; return; }
+    // A post with the posts above it and the replies below, as far as the
+    // archive holds them.
+    function thread(x) {
       const up = [];
       for (let k = own(x.r); k && byKey.has(k) && up.length < 200; k = own(byKey.get(k).r)) up.unshift(byKey.get(k));
       const down = [];
       const walk = (k, d) => (kids.get(k) || []).forEach((y) => { down.push([y, d]); if (down.length < 2000) walk(y.k, d + 1); });
       walk(x.k, 0);
-      main().innerHTML = head + `<section class="card at-thread">
-  <div class="titled"><a href="posts.html?${qs({ a: n, public: PUBLIC ? '1' : '' })}">‹ ${name}'s posts</a><span class="faint">Thread · ${plural(up.length + 1 + down.length, 'post')} in this archive</span></div>
-  ${x.r && !own(x.r) ? `<a class="faint" href="${esc(web(x.r))}" target="_blank" rel="noopener">This replies to another account's post, which is not in this archive ↗</a>` : ''}
+      return { n: up.length + 1 + down.length, html: `${x.r && !own(x.r) ? `<a class="faint" href="${esc(web(x.r))}" target="_blank" rel="noopener">This replies to another account's post, which is not in this archive ↗</a>` : ''}
   ${x.r && own(x.r) && !byKey.has(own(x.r)) ? '<span class="faint">The post this replies to is not in this archive.</span>' : ''}
   ${up.map((y) => card(y, { line: true, inThread: true })).join('')}
   ${card(x, { focus: true, inThread: true })}
-  ${down.length ? `<h3 class="at-replies">Replies</h3>${down.map(([y, d]) => `<div class="at-reply" style="margin-left:${Math.min(d, 6) * 24}px">${card(y, { inThread: true })}</div>`).join('')}` : ''}
-</section>`;
-      status('thread of ' + plural(up.length + 1 + down.length, 'post'));
-      lightbox();
-      return;
+  ${down.length ? `<h3 class="at-replies">Replies</h3>${down.map(([y, d]) => `<div class="at-reply" style="margin-left:${Math.min(d, 6) * 24}px">${card(y, { inThread: true })}</div>`).join('')}` : ''}` };
     }
-
-    const colls = Object.keys(a.counts || {});
     const nOf = (c) => (a.counts || {})[c] || 0;
-    const recs = Object.keys(a.records || {}).sort();
-    main().innerHTML = head + `
-<section class="card at-profile">
-  <div class="at-banner">${p.banner ? img(p.banner, '', 'at-banner-img', 'banner') : ''}</div>
+    const profile = () => `<div class="at-banner">${p.banner ? img(p.banner, '', 'at-banner-img', 'banner') : ''}</div>
   <div class="at-who">${avatar('at-avatar')}<div class="at-names">
     <h1>${name}</h1>
     <div class="meta"><span>@${esc(handle)}</span>${a.did ? `<a href="https://bsky.app/profile/${esc(a.did)}" target="_blank" rel="noopener">On Bluesky ↗</a>` : ''}</div>
   </div></div>
   <div class="at-counts"><span><b>${num(nOf('app.bsky.feed.post'))}</b> posts</span><span><b>${num(nOf('app.bsky.graph.follow'))}</b> following</span><span><b>${num(nOf('app.bsky.feed.like'))}</b> likes</span>${p.createdAt ? `<span class="faint">Joined ${esc(day(p.createdAt))}</span>` : ''}</div>
-  ${p.description ? `<p class="at-bio">${bare(p.description)}</p>` : ''}
-</section>
+  ${p.description ? `<p class="at-bio">${bare(p.description)}</p>` : ''}`;
+    // For lists: a post's first line, and a picture for its tile.
+    const snippet = (x) => ((x.x || '').split('\n').find((l) => l.trim()) || '').slice(0, 140) || ((x.i || []).length ? 'Photo' : x.v ? 'Video' : x.l ? x.l[1] || 'Link' : x.q ? 'Quote' : 'Post');
+    const picture = (x, w) => { const c = (x.i || [])[0] ? x.i[0][0] : x.l && x.l[3]; return c ? blob(c, x.k + '.jpg', LOCAL ? { w } : null) : null; };
+    return { n, x0, a, p, blob, all, byKey, handle, name, own, web, self, pathOf, card, feedItem, thread, profile, snippet, picture, bare };
+  }
+
+  // The Bluesky App: the account's profile and feed, or one thread, in el.
+  async function bskyApp(el, n) {
+    const meta = await load('meta');
+    const accts = meta.accounts || [];
+    if (V) V.use({ esc, icon });
+    LOCAL = await probeLocal();
+    PUBLIC = params.get('public') === '1';
+    const K = await bsky(n), x0 = K.x0, a = K.a, all = K.all, byKey = K.byKey, self = K.self;
+    const S = { q: params.get('q') || '', show: params.get('show') || 'posts', limit: 40 };
+    const isReply = (x) => !!x.r, hasMedia = (x) => !!((x.i && x.i.length) || x.v);
+    const tabs = [['posts', 'Posts', (x) => !isReply(x) || !!K.own(x.r)], ['replies', 'Replies', isReply], ['media', 'Media', hasMedia], ['all', 'Everything', () => true]];
+    const counts = Object.fromEntries(tabs.map((t) => [t[0], all.filter(t[2]).length]));
+
+    pageKeys.cid = () => a.commit;
+    const t = params.get('t');
+    const head = `
+${accts.length > 1 ? `<nav class="chips" aria-label="Accounts">${accts.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="${esc(appHref(i))}">${esc(x.name)}</a>`).join('')}</nav>` : ''}
+${!LOCAL && !HERE && !PUBLIC ? `<div class="card none"><p class="faint">Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see images and video here.</p><a class="btn sm" href="${esc(appHref(n, t || '', { public: 1 }))}">Load them from ${GATEWAYS[0][0]}</a></div>` : ''}`;
+
+    if (t) {
+      const x = byKey.get(t);
+      if (!x) { el.innerHTML = head + `<section class="card"><h2>No post ${esc(t)} in this archive</h2><a href="${esc(appHref(n))}">All posts</a></section>`; return; }
+      const th = K.thread(x);
+      el.innerHTML = head + `<section class="card at-thread">
+  <div class="titled"><a href="${esc(appHref(n))}">‹ ${K.name}'s posts</a><span class="faint">Thread · ${plural(th.n, 'post')} in this archive</span></div>
+  ${th.html}
+</section>`;
+      status('thread of ' + plural(th.n, 'post'));
+      lightbox(el);
+      return;
+    }
+
+    const recs = Object.keys(a.records || {}).sort();
+    el.innerHTML = head + `
+<section class="card at-profile">${K.profile()}</section>
 <div class="at-cols">
 <section class="card at-feedcard">
   <div class="at-tabs" role="tablist">${tabs.map((c) => `<button type="button" role="tab" data-show="${c[0]}" aria-selected="${c[0] === S.show}">${c[1]} <span class="n">${num(counts[c[0]])}</span></button>`).join('')}</div>
@@ -1868,30 +1958,32 @@ ${!LOCAL && !HERE && !PUBLIC ? `<div class="card none"><p class="faint">Open thi
   ${archivedHTML(x0, a, x0.path ? browseHref(x0.path) : '')}
 </aside>
 </div>
-${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Collections that are not posts, likes, reposts, follows and the like, as stored (up to 500 each). All records are in <a href="${esc(x0.path ? browseHref(x0.path) : 'browse.html')}">Files</a> too.</p>${recs.map((c) => `<details class="at-coll"><summary><b>${esc(c)}</b> <span class="faint">${num(nOf(c))}</span></summary>${a.records[c].map((r) => `<div class="at-rec"><div class="faint"><code>${esc(r[0])}</code> ${cidx(r[1], true)}</div><pre class="code"><code>${(V ? V.hl(JSON.stringify(r[2], null, 2), 'json') : esc(JSON.stringify(r[2], null, 2)).split('\n')).map((l) => `<span>${l}</span>`).join('\n')}</code></pre></div>`).join('')}</details>`).join('')}</section>` : ''}`;
-    const feed = main().querySelector('.at-feed');
+${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Collections that are not posts, likes, reposts, follows and the like, as stored (up to 500 each). Every record is under <a href="${esc(x0.path ? browseHref(x0.path) : 'browse.html?kind=record&deep=1')}">Records</a> too.</p>${recs.map((c) => `<details class="at-coll"><summary><b>${esc(c)}</b> <span class="faint">${num((a.counts || {})[c] || 0)}</span></summary>${a.records[c].map((r) => `<div class="at-rec"><div class="faint"><code>${esc(r[0])}</code> ${cidx(r[1], true)}</div><pre class="code"><code>${(V ? V.hl(JSON.stringify(r[2], null, 2), 'json') : esc(JSON.stringify(r[2], null, 2)).split('\n')).map((l) => `<span>${l}</span>`).join('\n')}</code></pre></div>`).join('')}</details>`).join('')}</section>` : ''}`;
+    const feed = el.querySelector('.at-feed');
     const shown = () => { const q = S.q.toLowerCase(), f = tabs.find((c) => c[0] === S.show)[2]; return all.filter((x) => f(x) && (!q || (x.x || '').toLowerCase().includes(q) || (x.l && (x.l[1] || '').toLowerCase().includes(q)))); };
     function render() {
       const list = shown();
-      feed.innerHTML = list.slice(0, S.limit).map(feedItem).join('') + (list.length > S.limit ? `<li class="at-more"><button type="button" class="btn sm" data-more>Show ${num(Math.min(100, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></li>` : '') + (!list.length ? '<li class="faint">No posts match.</li>' : '');
+      feed.innerHTML = list.slice(0, S.limit).map(K.feedItem).join('') + (list.length > S.limit ? `<li class="at-more"><button type="button" class="btn sm" data-more>Show ${num(Math.min(100, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></li>` : '') + (!list.length ? '<li class="faint">No posts match.</li>' : '');
       status(plural(list.length, 'post') + (list.length !== all.length ? ' of ' + num(all.length) : ''));
     }
-    const q = main().querySelector('[data-q]');
+    const q = el.querySelector('[data-q]');
     q.oninput = () => { S.q = q.value; S.limit = 40; render(); };
-    main().querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 40; main().querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o === b)); render(); }; });
+    el.querySelectorAll('[data-show]').forEach((b) => { b.onclick = () => { S.show = b.dataset.show; S.limit = 40; el.querySelectorAll('[data-show]').forEach((o) => o.setAttribute('aria-selected', o === b)); render(); }; });
     feed.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 100; render(); } });
     // Show more as the end comes into view.
-    new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 100; render(); } }, { rootMargin: '600px' }).observe(feed);
+    new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && feed.querySelector('[data-more]')) { S.limit += 100; render(); } }, { root: el, rootMargin: '600px' }).observe(feed);
     pageKeys.f = () => { q.focus(); return true; };
-    // A link to a post (#p-<rkey>, from a record in Files) opens its thread.
+    // A link to a post (#p-<rkey>) opens its thread.
     const h = location.hash.match(/^#p-(.+)$/);
     if (h && byKey.has(decodeURIComponent(h[1]))) { location.replace(self(decodeURIComponent(h[1]))); return; }
     render();
-    lightbox();
+    lightbox(el);
   }
   // Images open full size over the page; Esc or a click closes them.
-  function lightbox() {
-    main().addEventListener('click', (ev) => {
+  function lightbox(root) {
+    if (root.dataset.lightbox) return;
+    root.dataset.lightbox = '1';
+    root.addEventListener('click', (ev) => {
       const im = ev.target.closest('img[data-full]');
       if (!im || ev.target.closest('a')) return;
       ev.preventDefault();
@@ -1924,7 +2016,6 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
     return load('meta').then((meta) => {
       REPOS = meta.repos || null;
       ATPATHS = (meta.accounts || []).map((a) => a.path).filter(Boolean);
-      if ((meta.accounts || []).length) D.querySelector('nav.pages').insertAdjacentHTML('beforeend', `<a href="${esc(meta.accounts[0].href || 'posts.html')}"${PAGE === 'posts' ? ' aria-current="page"' : ''}>Posts</a>`);
       if (meta.format > 2) throw new Error('This archive was made by a newer ipfs2fil; its index format is ' + meta.format + '.');
       return (pages[PAGE] || overview)();
     });

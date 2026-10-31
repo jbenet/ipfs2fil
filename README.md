@@ -19,7 +19,7 @@ show what is where.
 
 The explorer, served by `ipfs2fil explore` or by any gateway:
 
-![The explorer's Files page: photos across all repos in a grid, one photo previewed with its CID, piece and copies](site/media/explorer-photos.webp)
+![The explorer's Content page: photos across all repos in a grid, one photo previewed with its CID, piece and copies](site/media/explorer-photos.webp)
 
 ## What you get
 
@@ -38,7 +38,8 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
   machines (through an ssh tunnel).
 - **Bluesky accounts.** A Bluesky (atproto) repo is IPLD too, so
   `--repo at://you.bsky.social` archives an account like any IPFS repo: its
-  signed commit, records, images and video. The explorer gets a Posts page.
+  signed commit, records, images and video. Its posts, records and media
+  join the explorer's library, with a Bluesky App viewer for the feed.
 - **Everything in it.** Recursive and direct pins, the MFS tree, and orphan
   blocks no pin reaches (on by default).
 - **Incremental, deterministic pieces.** Pieces are cut where the content says,
@@ -252,11 +253,13 @@ the commit's signature from the archive alone. Without a network it uses
 what it fetched last. `repos add` names it `bsky-<handle>`. To keep several
 accounts, add each one; the combined explorer shows them together.
 
-The explorer's Posts page shows the account the way Bluesky does: the
-profile, posts with their images, video, link cards and quoted posts, and
+The explorer's library lists the account under Accounts, its posts under
+Posts (each one shown as Bluesky draws it, with its thread) and its records
+under Records. Places > Viewers > Bluesky App shows the account the way
+Bluesky does: the profile, posts with their images, video, link cards and quoted posts, and
 threads of the account's replies to itself. It says what the archive holds:
 which account, its DID, handle and server, every record and blob, and when
-the commit was made. In Files, the account is a folder of its records, one
+the commit was made. In Content, the account is a folder of its records, one
 folder per collection (`app.bsky.feed.post/<rkey>.json` and so on, shown as
 JSON), and a `blobs/` folder whose photos and video also show in the
 library's Photos and Videos. Each run that sees a new commit adds a
