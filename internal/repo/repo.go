@@ -1,5 +1,5 @@
 // Package repo reads the places IPFS blocks live: kubo and go-ipfs fs-repos of
-// every version, 0 through 18, CAR files, running kubo nodes, and Bluesky
+// every version, 0 through 18, js-ipfs repos 7 through 12, CAR files, running kubo nodes, and Bluesky
 // (atproto) accounts, whose repos are IPLD too. It reads strictly read-only:
 // it never runs migrations and never takes the repo lock for writing, so a
 // live daemon's repo can be read safely.
@@ -58,6 +58,7 @@ const (
 	KindCAR     = "car"
 	KindRPC     = "kubo-rpc"
 	KindATProto = "atproto"
+	KindJSIPFS  = "js-ipfs"
 )
 
 // Repo is a read-only view of one repo.
@@ -109,6 +110,9 @@ func Open(path string) (Repo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if isJSIPFS(path, v) {
+		return openJSIPFS(path, v)
+	}
 	return openVersion(path, v)
 }
 
@@ -122,6 +126,8 @@ func Describe(r Repo) string {
 		return fmt.Sprintf("fs-repo %d", r.Version())
 	case KindCAR:
 		return "CAR"
+	case KindJSIPFS:
+		return fmt.Sprintf("js-ipfs repo %d", r.Version())
 	}
 	return r.Kind()
 }
@@ -134,11 +140,11 @@ func Describe(r Repo) string {
 var openVersion = openFS
 
 // Discover finds the repo to use: the explicit path if given, then $IPFS_PATH,
-// then ~/.ipfs, then ~/.go-ipfs (repos 0 and 1).
+// then ~/.ipfs, then ~/.go-ipfs (repos 0 and 1), then js-ipfs's ~/.jsipfs.
 func Discover(explicit string) (string, error) {
 	cands := []string{explicit, os.Getenv("IPFS_PATH")}
 	if home, err := os.UserHomeDir(); err == nil {
-		cands = append(cands, filepath.Join(home, ".ipfs"), filepath.Join(home, ".go-ipfs"))
+		cands = append(cands, filepath.Join(home, ".ipfs"), filepath.Join(home, ".go-ipfs"), filepath.Join(home, ".jsipfs"))
 	}
 	for _, c := range cands {
 		if c == "" {

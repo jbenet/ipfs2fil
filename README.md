@@ -26,6 +26,8 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
 - **Every repo version.** fs-repo 0 to 18, go-ipfs 0.2 to kubo 0.43: flatfs,
   leveldb, badger, pebble, custom datastore specs. The repo is only ever read,
   so the daemon can keep running.
+- **js-ipfs repos too.** `~/.jsipfs` repos 7 to 12 (js-ipfs 0.40 and later),
+  for the archives js-ipfs left behind when it was retired.
 - **CAR files too.** Point `--repo` at a `.car` file or a folder of them
   (`ipfs dag export`, gateway and Lassie downloads, old web3.storage exports).
   Each CAR's roots are kept as pins named after the file.
