@@ -164,6 +164,12 @@ ipfs2fil wallet        # FIL, USDFC and the Filecoin Pay deposit</code></pre>
 ipfs2fil verify        # fetch every piece back, check every block
 ipfs2fil explore       # http://127.0.0.1:8484/</code></pre></li>
     </ol>
+    <p>Not a kubo repo? <code>--repo</code> takes the other kinds too:</p>
+<pre><code>ipfs2fil up --repo ~/.jsipfs                # a js-ipfs repo
+ipfs2fil up --repo ./my-app/data            # a Helia store (blocks/, datastore/)
+ipfs2fil up --repo export.car               # a CAR file, or a folder of them
+ipfs2fil up --repo http://127.0.0.1:5001    # a running kubo node
+ipfs2fil up --repo at://you.bsky.social     # a Bluesky account</code></pre>
     <p>Several repos? <code>ipfs2fil repos add ~/.ipfs</code> for each, then <code>ipfs2fil up --all</code>. Every command explains itself: <code>ipfs2fil help &lt;command&gt;</code>.</p>
   </div>
 </section>
