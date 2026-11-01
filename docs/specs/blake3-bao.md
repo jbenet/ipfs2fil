@@ -6,7 +6,7 @@ Use design A: each block is one node of the BLAKE3 tree, cut at iroh's 16 KiB ch
 
 ## Design A or B
 
-Choose A. B already exists in all but name: it is a UnixFS file with BLAKE3 leaves plus an outboard on the side.
+Choose A. B is plain `raw` + `blake3` leaves of 16 KiB, the bao tree nodes, and a mapping record from the iroh hash to both. It can be built today with existing codes (`raw`, `blake3`, `dag-cbor`), but the iroh hash only checks out after a whole-blob rehash.
 
 The problem both designs solve: iroh names a blob of any size by `BLAKE3(blob)`. Inside BLAKE3, a subtree's hash (its chaining value, CV) depends on where it sits: a leaf's chunks are compressed with their chunk counters, and only the root gets the ROOT flag. So a 16 KiB piece of a blob does not hash to the CV the tree holds for it, and plain `raw` + `blake3` blocks cannot be tied to the iroh hash one block at a time.
 
@@ -22,6 +22,8 @@ The problem both designs solve: iroh names a blob of any size by `BLAKE3(blob)`.
 | New codes | 1 multihash, 2 codecs | None, or one codec for the mapping |
 
 The one thing B has that A lacks is rendering in today's gateways. ipfs2fil's explorer can render A itself, and a UnixFS view can still be added later beside an A archive if we want gateway viewing.
+
+**B then A, or A xor B?** Both can exist, but going B then A means storing the data twice, so for ipfs2fil it is effectively a choice. An A leaf is its data plus a small header, and a B leaf is the bare data. They are different blocks with different CIDs, so moving an archive from B to A re-uploads every leaf (about 100% of the data) and pays Filecoin for it again. The tree nodes carry over: B's tree nodes are A's parent bodies, so an A archive can be built from a B archive without rehashing (`FromOutboard` does this). Readers can also support both forever, since both have the same root digest. B first would be worth it only if we needed iroh archives before the A codes exist. A runs today on private-use placeholder codes and there is no iroh data to archive yet, so go straight to A, and keep B as an import path for B-style archives made elsewhere.
 
 ## Blocks
 
