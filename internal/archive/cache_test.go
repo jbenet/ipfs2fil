@@ -240,3 +240,19 @@ func TestNewPagesRewritesUnchangedArchive(t *testing.T) {
 		t.Errorf("data pieces changed: %v -> %v", a, b)
 	}
 }
+
+// --new-pages must also skip the inputs cache: with the same ipfs2fil
+// version and an unchanged repo, the cache alone would keep the old pages.
+func TestNewPagesSkipsInputsCache(t *testing.T) {
+	dir := t.TempDir()
+	build(t, sample(t, false), dir)
+	opts := testOptions()
+	opts.NewPages = true
+	res, err := Build(context.Background(), sample(t, false), dir, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Reused {
+		t.Fatal("NewPages reused the last pack through the inputs cache")
+	}
+}
