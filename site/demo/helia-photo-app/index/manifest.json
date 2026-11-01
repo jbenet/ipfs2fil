@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeihd2zohsgngcr2f2eboajg4f3unwigs2ino5wbdwnwm26iptli2xy",
+  "root": "bafybeicg2b3e3ievn4ol55nhrit7fu3p4sqnfqwufnvegrgcoret3q4xpq",
   "dataRoot": "bafybeifdbs4d7pmex2jtuowzclvsjx6k2xaybvs2ycsc6ssy4wzjme7lpa",
   "source": {
     "kind": "helia",
@@ -115,8 +115,8 @@
     },
     {
       "index": 1,
-      "pieceCid": "bafkzcibe4cfqedjsequ57leeh7ka7bvplkp7cuhm2zloptdpwsodh2mg4vshzbkxau",
-      "carBytes": 225824,
+      "pieceCid": "bafkzcibergca6dtxj33m3r5gg2aszhi65avvpxz6slwyixqkqbu7nebeettekhbffa",
+      "carBytes": 273911,
       "blocks": 19,
       "blockList": "",
       "part": "index",
@@ -124,7 +124,7 @@
     },
     {
       "index": 2,
-      "pieceCid": "bafkzcibdre5atgejk7gqk2tlpuyv2scom755n2jyzehqz6ctg4nrotokzkdtk3qe",
+      "pieceCid": "bafkzcibdre5atymww56dah3rutwbmqsb5lnnnv2rpb3wthsgmg2znmrz4i6tucye",
       "carBytes": 8823,
       "blocks": 8,
       "blockList": "",
@@ -137,8 +137,8 @@
       "provider": "2",
       "dataSetId": "5310",
       "pieceIds": {
-        "0": "12",
-        "1": "14",
+        "0": "14",
+        "1": "12",
         "2": "13"
       },
       "service": "unknown"
@@ -157,8 +157,8 @@
       "provider": "16",
       "dataSetId": "5312",
       "pieceIds": {
-        "0": "14",
-        "1": "12",
+        "0": "12",
+        "1": "14",
         "2": "13"
       },
       "service": "unknown"
@@ -166,8 +166,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-10-31T21:12:30Z",
-      "root": "bafybeihd2zohsgngcr2f2eboajg4f3unwigs2ino5wbdwnwm26iptli2xy",
+      "time": "2026-11-01T08:54:09Z",
+      "root": "bafybeicg2b3e3ievn4ol55nhrit7fu3p4sqnfqwufnvegrgcoret3q4xpq",
       "newPieces": [
         0,
         1,
@@ -180,8 +180,8 @@
     "bytes": 2264191,
     "pieces": [
       {
-        "pieceCid": "bafkzcibfqhqpayyyxndm6q5peikcczmg3ub4ypjc2scp5ee3vik5hrx2grug6b3raetq",
-        "archive": "bafybeig3bukzaxmisxkwl7krrsi5dvrf5ctuv3locxzfuackb7glaxicoe",
+        "pieceCid": "bafkzcibfqhqpayyymtnbqsauzeeijh557nklupltkvxigzpxrojvhghag5p4kbvfjuma",
+        "archive": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
         "blocks": 13
       }
     ]

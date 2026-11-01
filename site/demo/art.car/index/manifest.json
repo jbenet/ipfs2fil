@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeib3glauvjlxfu5kvr5lahi2swxq7mgjzdrrkntlq543rls2mvz5wm",
+  "dataRoot": "bafybeigys4lhuyfrdnhdbiqm6ie2pqfbwr62yewho3ghpdg34alnubqyba",
+  "source": {
+    "kind": "car",
+    "repoVersion": 0,
+    "blocks": 38,
+    "bytes": 9163949
+  },
+  "roots": [
+    {
+      "cid": "bafybeig3yty7ies2ip67pbqnllmj52sxpcdqszjwslo2hiaui6exwxdmza",
+      "kind": "pin-recursive",
+      "name": "art",
+      "path": "pins/recursive/bafybeig3yty7ies2ip67pbqnllmj52sxpcdqszjwslo2hiaui6exwxdmza",
+      "bytes": 9163949,
+      "blocks": 38,
+      "own": 9163949,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibfxtypaaisupui4nprvqhs6c2oi6qogdl4iecbqcusewu7pkafpp4we7pniigq",
+      "carBytes": 4376516,
+      "blocks": 27,
+      "blockList": "pieces/0000",
+      "snapshot": 0
+    },
+    {
+      "index": 1,
+      "pieceCid": "bafkzcibex7aq6dxrjqfdtd7yjjupgk6s627bpt4s6xq7qxee5vxm2g23ixnka75jbq",
+      "carBytes": 266049,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 0
+    },
+    {
+      "index": 2,
+      "pieceCid": "bafkzcibd74narqdp4gf6i56ycg3a3nerl3e3s5ultmotkkb2q66iybfyba3emfyk",
+      "carBytes": 4673,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "5310",
+      "pieceIds": {
+        "0": "17",
+        "1": "16",
+        "2": "15"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "5311",
+      "pieceIds": {
+        "0": "17",
+        "1": "15",
+        "2": "16"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "15",
+        "1": "17",
+        "2": "16"
+      },
+      "service": "unknown"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-11-01T08:54:09Z",
+      "root": "bafybeib3glauvjlxfu5kvr5lahi2swxq7mgjzdrrkntlq543rls2mvz5wm",
+      "newPieces": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "shared": {
+    "blocks": 11,
+    "bytes": 4788535,
+    "pieces": [
+      {
+        "pieceCid": "bafkzcibfqhqpayyymtnbqsauzeeijh557nklupltkvxigzpxrojvhghag5p4kbvfjuma",
+        "archive": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
+        "blocks": 11
+      }
+    ]
+  },
+  "collection": "repos:default"
+}
