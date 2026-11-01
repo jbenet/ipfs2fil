@@ -51,6 +51,8 @@ type layout struct {
 	shared     []SharedBlock      // distinct pieces other archives hold blocks in
 	all        []listed           // the repo's listing, from list
 	accts      []*atproto.Summary // the Bluesky accounts among the roots
+	cars       []repo.CARLayout   // how the repo's CAR files are laid out, if it is made of them
+	unstored   []root             // pins and MFS roots with no block to store: identity CIDs, blocks the repo lacks
 }
 
 func newLayout(r repo.Repo) *layout {
@@ -156,8 +158,17 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 	byCID(rec)
 	byCID(dir)
 	var out []root
+	listed := map[string]bool{} // kind and CID: a folder of CARs can name a root twice
 	add := func(rt root, recurse bool) error {
+		if key := rt.kind + " " + rt.c.KeyString(); listed[key] {
+			return nil
+		} else {
+			listed[key] = true
+		}
 		if isIdentity(rt.c) {
+			// Nothing to store: the CID is the content. Listed, so an
+			// export pins it again.
+			l.unstored = append(l.unstored, rt)
 			return nil
 		}
 		k := string(rt.c.Hash())
@@ -166,6 +177,7 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 				data, err := l.r.Get(ctx, rt.c.Hash())
 				if errors.Is(err, repo.ErrNotFound) {
 					l.missing = append(l.missing, rt.c.String())
+					l.unstored = append(l.unstored, rt)
 					return nil
 				} else if err != nil {
 					return err
@@ -181,6 +193,8 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 		}
 		if _, ok := l.idx[k]; ok {
 			out = append(out, rt)
+		} else {
+			l.unstored = append(l.unstored, rt) // the repo lacks the root's block
 		}
 		return nil
 	}
