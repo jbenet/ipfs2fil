@@ -1,0 +1,119 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeibhk53nhmp4gyy3lyzokvyp2uhnopk3nl2ktdlyix3hqxakh3u4ou",
+  "dataRoot": "bafybeihagsdvg24j7i22ojhazoxnpgtrqo5aoy4z3z2bvhh3kn7khkiqba",
+  "source": {
+    "kind": "car",
+    "repoVersion": 0,
+    "blocks": 60,
+    "bytes": 612152
+  },
+  "roots": [
+    {
+      "cid": "bafybeibeghuajyvext4raj4s6cjoujyetxr4c6xzuvjfuuxcuw3354dhf4",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "pins/recursive/bafybeibeghuajyvext4raj4s6cjoujyetxr4c6xzuvjfuuxcuw3354dhf4",
+      "bytes": 611230,
+      "blocks": 58,
+      "own": 611230,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafyreie7qrigmrpiqdhdnzo4uozo7a47t7fhyho7pzvtdpgxzmbxkvkz7u",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "pins/recursive/bafyreie7qrigmrpiqdhdnzo4uozo7a47t7fhyho7pzvtdpgxzmbxkvkz7u",
+      "bytes": 611793,
+      "blocks": 59,
+      "own": 563,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "baguqeerasfl4lbkqllmmwiyks6yxmqdltlrbci5apu6s3r7hjw4h26gx36oq",
+      "kind": "pin-recursive",
+      "name": "dev-bundle",
+      "path": "pins/recursive/baguqeerasfl4lbkqllmmwiyks6yxmqdltlrbci5apu6s3r7hjw4h26gx36oq",
+      "bytes": 359,
+      "blocks": 1,
+      "own": 359,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibevd7rsdz7xnkraalk4bkeahkw3vsvgv6bhj4gpf4ritey5owldoylwxwfaq",
+      "carBytes": 614488,
+      "blocks": 60,
+      "blockList": "pieces/0000",
+      "snapshot": 0
+    },
+    {
+      "index": 1,
+      "pieceCid": "bafkzcibe5hwq4dxg22qpc5ut2zrmotxc4kkbistl276tvs77bndoxvuviqzf3tjjda",
+      "carBytes": 276759,
+      "blocks": 19,
+      "blockList": "",
+      "part": "index",
+      "snapshot": 0
+    },
+    {
+      "index": 2,
+      "pieceCid": "bafkzcibdqalarj6d3greihc75efmqy4ic2ntg6zuia7likmh7jnra7tpxrrwmrip",
+      "carBytes": 5312,
+      "blocks": 8,
+      "blockList": "",
+      "part": "head",
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "5310",
+      "pieceIds": {
+        "0": "18",
+        "1": "20",
+        "2": "19"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "5311",
+      "pieceIds": {
+        "0": "20",
+        "1": "19",
+        "2": "18"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "20",
+        "1": "18",
+        "2": "19"
+      },
+      "service": "unknown"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-11-01T08:54:09Z",
+      "root": "bafybeibhk53nhmp4gyy3lyzokvyp2uhnopk3nl2ktdlyix3hqxakh3u4ou",
+      "newPieces": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "collection": "repos:default"
+}
