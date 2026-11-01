@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -101,13 +102,27 @@ func archivePages(dir string) http.Handler {
 		}
 		// Pages and index change with ipfs2fil, not with the archive.
 		w.Header().Set("Cache-Control", "no-cache")
-		if idx, ok := strings.CutPrefix(name, "idx/"); ok && f != IndexFormat {
-			once.Do(func() { upgraded, upErr = upgradeIndex(filepath.Join(dir, "explorer")) })
+		if idx, ok := strings.CutPrefix(name, "idx/"); ok {
+			once.Do(func() {
+				if f == IndexFormat {
+					// at worst the pages show the index as packed
+					if upgraded, upErr = refreshIndex(filepath.Join(dir, "explorer")); upErr != nil {
+						log.Printf("explore: %s: listing records and repos anew: %v", dir, upErr)
+						upgraded, upErr = nil, nil
+					}
+				} else {
+					upgraded, upErr = upgradeIndex(filepath.Join(dir, "explorer"))
+				}
+			})
 			if upErr != nil {
 				http.Error(w, "reading this archive's older index: "+upErr.Error(), http.StatusInternalServerError)
 				return
 			}
 			b, ok := upgraded[idx]
+			if !ok && (f == IndexFormat || strings.HasPrefix(idx, "at/")) {
+				disk.ServeHTTP(w, r)
+				return
+			}
 			if !ok {
 				http.NotFound(w, r)
 				return

@@ -135,6 +135,8 @@
     archive: ['M3 1.5h10v13h-10z M8 1.5v1.5 M8 4.5v1.5 M7 7.5h2v2.5h-2z', '#047857', 'Archive', 'Archives'],
     disk: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 0 0 0-3z', '#0E7490', 'Disk image', 'Disk images'],
     other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other', 'Other'],
+    // not a file: a repo, archived or inside the content (see repoPaths)
+    repo: ['M3.5 1.5h9v13h-9z M3.5 11.5h9 M6 4.5h4 M6 7.5h4', '#2563EB', 'Repo', 'Repos'],
     // not a file: an account a repo holds (a Bluesky account)
     account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts']
   };
@@ -170,6 +172,11 @@
   // In the explorer `ipfs2fil explore` serves over all its archives, data/
   // holds one folder per repo, listed in meta.repos.
   let REPOS = null;
+  // Library > Repos: the repos archived here (in a combined explorer), each
+  // Bluesky account's repo, and the repos inside the content, such as git
+  // repos, IPFS repos and CAR files (meta.subRepos), as paths under data/.
+  const repoPaths = (meta) => [...new Set((REPOS || []).map((r) => r.name.replace(/[/\\]/g, '_'))
+    .concat((meta.accounts || []).map((a) => a.path).filter(Boolean), meta.subRepos || []))];
   function rootAt(p) { return ROOTS[p]; }
   const rootLabel = (r) => r.name || (r.kind === 'mfs' ? 'mfs' : r.cid);
   function showPath(p) {
@@ -547,7 +554,8 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       };
       const rows = KINDS.filter((k) => k !== 'folder' && meta.types[k]).map((k) => [KIND[k][3], meta.types[k][0], meta.types[k][1], (NOTE[k] || (() => ''))(), 'browse.html?deep=1&kind=' + k, k]);
       if (accts.length) rows.push(['Accounts', accts.length, accts.reduce((n, a) => n + ((a.blobs && a.blobs.bytes) || 0), 0), few(accts.map((a) => a.name)), 'browse.html?deep=1&kind=account', 'account']);
-      if (REPOS) rows.push(['Repos', REPOS.length, total, few(REPOS.map((r) => r.name)), browseHref(''), 'folder']);
+      const rp = repoPaths(meta);
+      if (rp.length) rows.push(['Repos', rp.length, REPOS ? total : 0, few(rp.map((p) => p.slice(p.lastIndexOf('/') + 1))), 'browse.html?deep=1&kind=repo', 'repo']);
       return `<table class="ctable"><thead><tr><th>Kind</th><th class="r">Items</th><th class="r">Size</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r[4])}">${icon(r[5])}${esc(r[0])}</a></td><td class="r">${num(r[1])}</td><td class="r">${r[2] ? bytes(r[2]) : ''}</td><td class="faint">${r[3]}</td></tr>`).join('')}</tbody></table>`;
     }
     function stat(k, v, s) { return `<div class="card tight stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
@@ -689,7 +697,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
   const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
   const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
-  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repos'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
   const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
   const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
@@ -724,6 +732,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     const kitOf = (i) => { const K = KX[i]; if (K && K !== 'wait' && K !== 'none') return K; if (!K && inHere(ACC[i])) { KX[i] = 'wait'; bsky(i).then((k) => { KX[i] = k; update(true); }).catch(() => { KX[i] = 'none'; }); } return null; };
     const label = (e) => { const P = postOf(e); return P ? (P.x.t ? day(P.x.t) + ' · ' : '') + P.K.snippet(P.x) : e.name; };
     // The accounts, as entries of their own under Library > Accounts.
+    const REPOP = repoPaths(meta);
     const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
     const S = { view: pref('view', 'list'), ly: pref('layout', 'split'), cur: -1, limit: 300, open: new Set() };
     // The folder, search and filters live in the URL: every page link and
@@ -766,7 +775,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     function lib() {
       const parts = meta.parts || {}, t = meta.types || {};
       const libOn = S.deep && !S.q && !S.p && !S.app;
-      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : t[k] ? t[k][0] : 0;
+      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
 <div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
@@ -822,6 +831,11 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       shown = keyed.map((x) => x[3]);
       // Records start with the stores they come from: an account's repo.
       if (S.kind === 'record' && S.deep && !ql) shown = ACC.map((a) => a.path && (all || []).find((e) => e.path === a.path)).filter((e) => e && under(S.p)(e)).concat(shown);
+      // Repos are folders and files of every kind, listed by path.
+      if (S.kind === 'repo' && S.deep) {
+        const at = new Map((all || []).map((e) => [e.path, e]));
+        shown = REPOP.map((p) => at.get(p)).filter((e) => e && under(S.p)(e) && (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)));
+      }
       // a grid of results groups them by folder
       if (S.view === 'grid' && S.deep && S.sort === 'name') shown = shown.map((e, i) => [e, i]).sort((a, b) => a[0].dir < b[0].dir ? -1 : a[0].dir > b[0].dir ? 1 : a[1] - b[1]).map((x) => x[0]);
       if (S.sel) { const i = shown.findIndex((e) => e.path === S.sel || (e.also && e.also.some((o) => o.path === S.sel))); if (i >= 0) { S.cur = i; S.limit = Math.max(S.limit, i + 50); } }
@@ -868,6 +882,11 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       gen();
       findParts((S.view === 'tree' ? rows : shown).slice(0, S.limit), () => update(true));
       preview(full);
+      settle(title);
+    }
+    // The URL, title and status line, after a change.
+    function settle(title) {
+      if (title == null) { const r = rootAt(S.p); title = S.p ? (r && r.kind !== 'mfs' ? rootLabel(r) : S.p.split('/').pop()) : 'data'; }
       const u = urlOf(), key = navKey();
       if (u !== lastURL) {
         if (lastKey !== null && (key !== lastKey || pushSel)) history.pushState(null, '', u); else history.replaceState(null, '', u);
@@ -898,15 +917,19 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       if (PARTS[e.cid] && e.kind !== 'image') return `<span class="${cls} ic">${icon(e.kind)}</span>` + badge;
       // files read out of an archive have no CID: they go by path
       const c = e.cid || e.path, mine = canShow() || e.blob;
-      if ((e.kind === 'image' && mine) || (LOCAL && THUMBS.has(e.kind) && !e.blob)) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(c)}" src="${esc(thumbURL(e, w))}">` + badge;
+      if (((e.kind === 'image' && mine) || (LOCAL && THUMBS.has(e.kind) && !e.blob)) && !noThumb.has(c)) return `<img class="${cls}" loading="lazy" alt="" data-k="${esc(e.kind)}" data-c="${esc(c)}" src="${esc(thumbURL(e, w))}">` + badge;
       if (V && mine && e.kind === 'video') return `<span class="${cls} ic" data-gen="v" data-c="${esc(c)}">${icon(e.kind)}</span>`;
       if (V && mine && cls === 'tt' && (e.kind === 'text' || e.kind === 'code') && e.bytes) return `<span class="${cls} ic" data-gen="t" data-c="${esc(c)}">${icon(e.kind)}</span>`;
       return `<span class="${cls} ic">${icon(e.kind)}</span>`;
     };
+    // Thumbnails that failed once show their icon from then on, so drawing
+    // the list again does not flash them.
+    const noThumb = new Set();
     const byCID = (c) => shown.find((e) => (e.cid || e.path) === c) || rows.find((e) => (e.cid || e.path) === c);
     D.addEventListener('error', (ev) => {
       const x = ev.target;
       if (x.localName !== 'img' || !x.dataset || !x.dataset.k || x.dataset.k === 'image' || !x.closest('.flist')) return;
+      if (x.dataset.c) noThumb.add(x.dataset.c);
       x.outerHTML = `<span class="${x.className} ic"${x.dataset.k === 'video' && V ? ` data-gen="v" data-c="${esc(x.dataset.c)}"` : ''}>${icon(x.dataset.k)}</span>`;
       gen();
     }, true);
@@ -1141,7 +1164,9 @@ ${e.va ? arcFacts(e) : `<div class="facts dl">
       let p = heads.get(k);
       if (!p) {
         // (blob URLs, for files read out of archives, take no Range)
-        p = url.startsWith('blob:') ? fetch(url).then((r) => r.arrayBuffer()).then((b) => b.slice(0, n)) : fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) } }).then((r) => {
+        // (no-store: a browser that keeps this part in its cache may later hand
+        // it back for the whole file, which then will not open)
+        p = url.startsWith('blob:') ? fetch(url).then((r) => r.arrayBuffer()).then((b) => b.slice(0, n)) : fetch(url, { headers: { Range: 'bytes=0-' + (n - 1) }, cache: 'no-store' }).then((r) => {
           if (!r.ok) throw new Error(missing(null, r));
           return r.arrayBuffer();
         });
@@ -1489,6 +1514,74 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
       if (page && u.hostname === '127.0.0.1') u.hostname = 'localhost';
       return u.href;
     }
+    // A page shown from its text, on a host that has its files only by CID
+    // (the website's demo): its stylesheets, scripts and pictures are found
+    // in the index by their paths relative to it and put in, as the page's
+    // folder is not there for them to load from.
+    async function pageDoc(e, html) {
+      const d = new DOMParser().parseFromString(html, 'text/html');
+      const find = async (rel, from) => {
+        if (!rel || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(rel.trim())) return null;
+        const u = new URL(rel.trim(), 'http://z/' + segs(from));
+        if (u.host !== 'z') return null;
+        let p;
+        try { p = decodeURIComponent(u.pathname.slice(1)); } catch (err) { return null; }
+        const di = await dirInfo(p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+        const x = di && (await listDir(di)).find((k) => k.path === p);
+        return x && x.kind !== 'folder' ? x : null;
+      };
+      const abs = (x) => { const c = contentURL(x); return c ? new URL(c, location.href).href : ''; };
+      const text = async (x) => { const c = contentURL(x), r = c && await fetch(c).catch(() => null); return r && r.ok ? r.text() : ''; };
+      const URLS = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
+      const css = async (t, from) => {
+        const got = await Promise.all([...t.matchAll(URLS)].map((m) => find(m[2], from).then((x) => x ? abs(x) : '')));
+        let i = 0;
+        return t.replace(URLS, (m) => { const u = got[i++]; return u ? `url("${u}")` : m; }).replace(/<\/style/gi, '<\\/style');
+      };
+      const work = [];
+      for (const x of Array.from(d.querySelectorAll('link[href], style, script[src], img[src], source[src], video[src], video[poster], audio[src], input[src], [style]'))) {
+        if (x.localName === 'link') {
+          const rel = (x.getAttribute('rel') || '').toLowerCase();
+          if (/\bstylesheet\b/.test(rel)) work.push(find(x.getAttribute('href'), e.path).then(async (k) => { if (!k) return; const t = await text(k); const st = d.createElement('style'); st.textContent = await css(t, k.path); x.replaceWith(st); }));
+          else if (/\bicon\b/.test(rel)) work.push(find(x.getAttribute('href'), e.path).then((k) => { if (k) x.setAttribute('href', abs(k)); }));
+        } else if (x.localName === 'style') {
+          work.push(css(x.textContent, e.path).then((t) => { x.textContent = t; }));
+        } else if (x.localName === 'script') {
+          work.push(find(x.getAttribute('src'), e.path).then(async (k) => { if (!k) return; const t = await text(k); x.removeAttribute('src'); x.textContent = t.replace(/<\/script/gi, '<\\/script'); }));
+        } else {
+          for (const a of ['src', 'poster']) if (x.hasAttribute(a) && x.localName !== 'script') work.push(find(x.getAttribute(a), e.path).then((k) => { if (k) x.setAttribute(a, abs(k)); }));
+          if (x.hasAttribute('style')) work.push(css(x.getAttribute('style'), e.path).then((t) => x.setAttribute('style', t)));
+          x.removeAttribute('srcset');
+        }
+      }
+      await Promise.all(work);
+      // Shown with no origin of its own, a page has no storage; many games
+      // save to it, so give them some that lasts while the page is open.
+      const shim = d.createElement('script');
+      shim.textContent = `(function(){function S(){var m=new Map();return{getItem:function(k){return m.has(String(k))?m.get(String(k)):null},setItem:function(k,v){m.set(String(k),String(v))},removeItem:function(k){m.delete(String(k))},clear:function(){m.clear()},key:function(i){return Array.from(m.keys())[i]||null},get length(){return m.size}}}['localStorage','sessionStorage'].forEach(function(n){try{window[n].length}catch(e){try{Object.defineProperty(window,n,{value:S(),configurable:true})}catch(e2){}}})})();`;
+      d.head.prepend(shim);
+      // Files the page asks for as it runs (fetch, XMLHttpRequest, pictures
+      // and sounds made in script) come from the same map of its folder.
+      const files = {}, dirs = [e.dir];
+      let n = 0;
+      while (dirs.length && n < 4000) {
+        const di = await dirInfo(dirs.shift());
+        for (const k of di ? await listDir(di) : []) {
+          if (k.kind === 'folder') { dirs.push(k.path); continue; }
+          const u = abs(k);
+          if (u) { files[k.path] = u; n++; }
+        }
+      }
+      const rt = d.createElement('script');
+      rt.textContent = `(function(){var F=${JSON.stringify(files).replace(/</g, '\\u003c')},B=${JSON.stringify('http://z/' + segs(e.dir) + (e.dir ? '/' : ''))};
+function R(u){try{var x=new URL(String(u),B);if(x.host!=='z')return u;var p=decodeURIComponent(x.pathname.slice(1));return F[p]||u}catch(e){return u}}
+var f=window.fetch;if(f)window.fetch=function(i,o){return f.call(this,typeof i==='string'||i instanceof URL?R(i):i,o)};
+var X=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){arguments[1]=R(u);return X.apply(this,arguments)};
+[[HTMLImageElement,'src'],[HTMLMediaElement,'src'],[HTMLScriptElement,'src'],[HTMLSourceElement,'src']].forEach(function(a){var d=Object.getOwnPropertyDescriptor(a[0].prototype,a[1]);if(d&&d.set)Object.defineProperty(a[0].prototype,a[1],{get:d.get,set:function(v){d.set.call(this,R(v))},configurable:true})});
+var SA=Element.prototype.setAttribute;Element.prototype.setAttribute=function(k,v){return SA.call(this,k,/^(src|href|poster)$/i.test(k)&&!(this instanceof HTMLAnchorElement)?R(v):v)};})();`;
+      shim.after(rt);
+      return '<!doctype html>' + d.documentElement.outerHTML;
+    }
     async function fill(pane, e, url) {
       const st = pane.querySelector('.stage');
       if (!url || !st || PARTS[e.cid]) return;
@@ -1498,15 +1591,22 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
       const viewer = V && V.find(e, x);
       try {
         if (viewer) {
-          const get = async (r, h) => {
-            const res = await fetch(url, h ? { headers: h } : undefined);
+          const get = async (r, h, cache) => {
+            const res = await fetch(url, Object.assign(h ? { headers: h } : {}, cache ? { cache } : {}));
             if (!res.ok) throw new Error(res.status === 404 ? (await res.text()) || 'This file is not in the pieces on this machine.' : res.statusText);
             return r(res);
           };
           const v = {
             e, x, url, still, base: await baseOf(e), esc, icon, bytes, num,
             head: (n) => range(n),
-            all: (max) => { if (e.bytes > max) throw new Error(`This file is ${bytes(e.bytes)}, too big to open here. Download it to see it.`); return e.blob ? e.blob.arrayBuffer() : get((r) => r.arrayBuffer()); },
+            all: async (max) => {
+              if (e.bytes > max) throw new Error(`This file is ${bytes(e.bytes)}, too big to open here. Download it to see it.`);
+              if (e.blob) return e.blob.arrayBuffer();
+              // A short answer is a part the browser kept from a Range
+              // request; ask the server for the whole file instead.
+              const buf = await get((r) => r.arrayBuffer());
+              return buf.byteLength >= e.bytes ? buf : get((r) => r.arrayBuffer(), undefined, 'reload');
+            },
             range: (a, b) => e.blob ? e.blob.slice(a, b).arrayBuffer() : get((r) => r.arrayBuffer(), { Range: `bytes=${a}-${b - 1}` }).then((buf) => buf.byteLength > b - a ? buf.slice(a, b) : buf),
             tail: (n) => e.blob ? e.blob.slice(Math.max(0, e.blob.size - n)).arrayBuffer().then((buf) => [buf, e.blob.size]) : get(async (r) => { const buf = await r.arrayBuffer(); return r.status === 206 ? [buf, e.bytes] : [buf.slice(Math.max(0, buf.byteLength - n)), buf.byteLength]; }, { Range: `bytes=-${n}` })
           };
@@ -1530,7 +1630,8 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
           const r = await fetch(url, { method: 'HEAD' }).catch(() => null);
           if (r && r.ok && /html/i.test(r.headers.get('content-type') || '')) { show(url); return; }
           const text = new TextDecoder().decode(await range(8 << 20));
-          if (still()) f.srcdoc = (HERE && base ? `<base href="${esc(new URL(base, location.href).href)}">` : '') + text;
+          const html = HERE && base ? `<base href="${esc(new URL(base, location.href).href)}">` + text : await pageDoc(e, text);
+          if (still()) f.srcdoc = html;
           return;
         }
         if (e.kind === 'text' || e.kind === 'code') {
@@ -1602,10 +1703,19 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
     const sel = (i) => {
       const n = (S.view === 'tree' ? rows : shown).length;
       if (!n) return;
+      const lim = S.limit;
       S.cur = Math.max(0, Math.min(n - 1, i));
       if (S.cur >= S.limit - 5 && n > S.limit) S.limit += 300;
       S.sel = (S.view === 'tree' ? rows : shown)[S.cur].path;
-      update();
+      // Moving the cursor only moves the highlight: drawing the list again
+      // would reload every thumbnail in it, and it flickers.
+      const was = S.limit === lim && S.view !== 'cols' && $(`.flist [data-i="${S.cur}"]`);
+      if (was) {
+        main().querySelectorAll('.flist [aria-selected="true"]').forEach((x) => x.setAttribute('aria-selected', 'false'));
+        was.setAttribute('aria-selected', 'true');
+        preview();
+        settle();
+      } else update();
       const el = $(`.flist [data-i="${S.cur}"]${S.view === 'cols' ? `[data-c="${COLS.length}"]` : ''}`);
       if (el) el.scrollIntoView({ block: 'nearest' });
     };
