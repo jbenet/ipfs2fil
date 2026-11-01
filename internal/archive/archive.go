@@ -159,6 +159,13 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
+	if lr, ok := r.(repo.CARLayouter); ok {
+		// index/cars lets an export write the CAR files back byte for
+		// byte. A file it cannot lay out still exports, as blocks.
+		if l.cars, err = lr.CARLayouts(); err != nil {
+			l.cars = nil
+		}
+	}
 	shared, err := l.markShared(outDir, prev, opts.Shared)
 	if err != nil {
 		return nil, err
@@ -182,6 +189,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	owned := make([]bool, len(l.tab))
 	for _, rt := range roots {
 		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
+	}
+	for _, rt := range l.unstored {
+		m.Unstored = append(m.Unstored, manifest.Root{CID: rt.c.String(), Kind: rt.kind, Name: rt.name})
 	}
 	for i, p := range dataPieces {
 		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: l.own(p),
@@ -944,6 +954,9 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 		if err := os.WriteFile(filepath.Join(dir, "pieces", fmt.Sprintf("%04d", i)), []byte(sb.String()), 0o644); err != nil {
 			return nil, err
 		}
+	}
+	if err := writeCARLayouts(dir, l.cars); err != nil {
+		return nil, err
 	}
 	b, err := json.MarshalIndent(inner, "", "  ")
 	if err != nil {

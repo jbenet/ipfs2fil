@@ -32,6 +32,11 @@ type Manifest struct {
 	// archives' pieces, because an earlier repo in the same collection already
 	// stores them.
 	Shared *Shared `json:"shared,omitempty"`
+	// Unstored lists the repo's pins (and MFS root) that have no block in
+	// the archive, so they are not under data/: identity CIDs, whose content
+	// is the CID itself, and roots whose block the repo did not have. An
+	// export pins them again. Only CID, Kind and Name are set.
+	Unstored []Root `json:"unstored,omitempty"`
 	// Collection is the key of the collection the archive belongs to. Every
 	// archive in a collection stores into the collection's data sets, so the
 	// store keys them by Collection instead of Snapshots[0].Root. It is only

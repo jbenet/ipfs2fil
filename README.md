@@ -118,6 +118,8 @@ USDFC to pay for storage. Add
        ipfs2fil verify            # fetch every piece back, check every block, and
                                   # check the CIDs are announced to IPFS
        ipfs2fil explore           # http://127.0.0.1:8484/
+       ipfs2fil export --to DIR   # write the repo back out from its pieces
+                                  # (from Filecoin if the local CARs are gone)
 
    ![ipfs2fil status and verify](site/media/check.gif)
 

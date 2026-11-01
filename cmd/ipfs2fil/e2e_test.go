@@ -216,3 +216,35 @@ func TestUpNeedsKeyBeforePacking(t *testing.T) {
 		t.Errorf("up packed before checking the key")
 	}
 }
+
+// TestExportFromFilecoin: up, lose the local CARs, export reads the pieces
+// back from the store and gives back the repo's pins and MFS root.
+func TestExportFromFilecoin(t *testing.T) {
+	useMemStore(t, 3)
+	repoDir := fixture(t, "v18")
+	out := filepath.Join(t.TempDir(), "archive")
+	if stdout, _, err := ipfs2fil(t, "up", "--repo", repoDir, "--out", out, "--yes"); err != nil {
+		t.Fatalf("up: %v\n%s", err, stdout)
+	}
+	if err := os.RemoveAll(filepath.Join(out, "pieces")); err != nil {
+		t.Fatal(err)
+	}
+	to := filepath.Join(t.TempDir(), "back")
+	stdout, _, err := ipfs2fil(t, "export", "--out", out, "--to", to)
+	if err != nil {
+		t.Fatalf("export: %v\n%s", err, stdout)
+	}
+	for _, want := range []string{"exported archive (fs-repo)", "pins     ", "MFS root", "import-to-kubo.sh"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("export output lacks %q:\n%s", want, stdout)
+		}
+	}
+	for _, f := range []string{"blocks.car", "pins.json", "export.json", "import-to-kubo.sh"} {
+		if _, err := os.Stat(filepath.Join(to, f)); err != nil {
+			t.Error(err)
+		}
+	}
+	if _, _, err := ipfs2fil(t, "export", "--out", out, "--to", to); err == nil || !strings.Contains(err.Error(), "not empty") {
+		t.Errorf("export into a full directory: %v", err)
+	}
+}

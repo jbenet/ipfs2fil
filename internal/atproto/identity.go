@@ -239,3 +239,28 @@ func getJSON(ctx context.Context, c *http.Client, u string, v any) error {
 	}
 	return json.Unmarshal(b, v)
 }
+
+// IdentityFromDoc rebuilds an account's identity from its DID document, as
+// archived, and its handle as known then (empty if it had none): what an
+// export writes as identity.json.
+func IdentityFromDoc(doc []byte, handle string) (*Identity, error) {
+	var d struct {
+		ID      string `json:"id"`
+		Service []struct {
+			ID, Type, ServiceEndpoint string
+		} `json:"service"`
+	}
+	if err := json.Unmarshal(doc, &d); err != nil {
+		return nil, fmt.Errorf("the DID document: %w", err)
+	}
+	id := &Identity{DID: d.ID, Handle: handle, DIDDoc: doc}
+	for _, s := range d.Service {
+		if strings.HasSuffix(s.ID, "#atproto_pds") && s.Type == "AtprotoPersonalDataServer" {
+			id.PDS = strings.TrimSuffix(s.ServiceEndpoint, "/")
+		}
+	}
+	if id.DID == "" {
+		return nil, fmt.Errorf("the DID document names no DID")
+	}
+	return id, nil
+}
