@@ -147,7 +147,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
-	if prev != nil && cache.Inputs == inputs && cache.Root == prev.Root && reusable(outDir, prev) {
+	if !opts.NewPages && prev != nil && cache.Inputs == inputs && cache.Root == prev.Root && reusable(outDir, prev) {
 		return reuse(outDir, prev, cache)
 	}
 	// Until this pack completes, the cache only vouches for pieces.
