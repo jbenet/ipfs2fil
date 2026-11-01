@@ -136,7 +136,7 @@
     disk: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 0 0 0-3z', '#0E7490', 'Disk image', 'Disk images'],
     other: ['M4 1.5h5l3 3v10h-8z M9 1.5v3h3', '#8A919E', 'Other', 'Other'],
     // not a file: a repo, archived or inside the content (see repoPaths)
-    repo: ['M3.5 1.5h9v13h-9z M3.5 11.5h9 M6 4.5h4 M6 7.5h4', '#2563EB', 'Repo', 'Repos'],
+    repo: ['M3.5 1.5h9v13h-9z M3.5 11.5h9 M6 4.5h4 M6 7.5h4', '#2563EB', 'Repository', 'Repositories'],
     // not a file: an account a repo holds (a Bluesky account)
     account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts']
   };
@@ -535,7 +535,7 @@
     <div class="legend">${types.map((t) => `<a href="browse.html?deep=1&kind=${t[0]}"><span class="sw" style="background:${t[2]}"></span>${t[3]} ${bytes(t[1])}</a>`).join('')}</div></div>
 </section>
 <section class="card"><div class="titled"><h2>What it holds</h2><a href="browse.html?deep=1">All content</a></div>${contents()}</section>
-${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>` : ''}
+${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></section>` : ''}
 <div class="split">
   <section class="card wide"><div class="titled"><h2>Largest roots</h2><a href="${browseHref('')}">Browse all</a></div><div id="roots"></div></section>
   <section class="card side" style="gap:12px"><div class="titled"><h2>Pieces</h2><a href="pieces.html">All ${num(pieces.length)}</a></div>
@@ -555,7 +555,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       const rows = KINDS.filter((k) => k !== 'folder' && meta.types[k]).map((k) => [KIND[k][3], meta.types[k][0], meta.types[k][1], (NOTE[k] || (() => ''))(), 'browse.html?deep=1&kind=' + k, k]);
       if (accts.length) rows.push(['Accounts', accts.length, accts.reduce((n, a) => n + ((a.blobs && a.blobs.bytes) || 0), 0), few(accts.map((a) => a.name)), 'browse.html?deep=1&kind=account', 'account']);
       const rp = repoPaths(meta);
-      if (rp.length) rows.push(['Repos', rp.length, REPOS ? total : 0, few(rp.map((p) => p.slice(p.lastIndexOf('/') + 1))), 'browse.html?deep=1&kind=repo', 'repo']);
+      if (rp.length) rows.push(['Repositories', rp.length, REPOS ? total : 0, few(rp.map((p) => p.slice(p.lastIndexOf('/') + 1))), 'browse.html?deep=1&kind=repo', 'repo']);
       return `<table class="ctable"><thead><tr><th>Kind</th><th class="r">Items</th><th class="r">Size</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r[4])}">${icon(r[5])}${esc(r[0])}</a></td><td class="r">${num(r[1])}</td><td class="r">${r[2] ? bytes(r[2]) : ''}</td><td class="faint">${r[3]}</td></tr>`).join('')}</tbody></table>`;
     }
     function stat(k, v, s) { return `<div class="card tight stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`; }
@@ -572,7 +572,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
     if (REPOS) {
       const rows = REPOS.map((r) => ({ ...r, path: r.name, dir: '', kind: 'folder', cid: r.root, piece: -1 }));
       new List(D.getElementById('repos'), {
-        label: 'Repos', step: 50, sortSelect: false, sort0: null, filter: null,
+        label: 'Archive repos', step: 50, sortSelect: false, sort0: null, filter: null,
         cols: [nameCol((r) => r.repo || ''), { key: 'pieces', label: 'Pieces', cls: 'r', html: (r) => num(r.pieces) },
           { key: 'shared', label: 'Shared', cls: 'r', html: (r) => r.shared ? bytes(r.shared) : '' }, sizeCol,
           { key: 'own', label: '', cls: 'r', html: (r) => `<a href="${esc(r.href)}">its own explorer</a>` }],
@@ -697,7 +697,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
   const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
   const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
   const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
-  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repos'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repositories'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
   const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
   const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
@@ -777,7 +777,7 @@ ${REPOS ? `<section class="card"><h2>Repos</h2><div id="repos"></div></section>`
       const libOn = S.deep && !S.q && !S.p && !S.app;
       const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
-<div class="h">${REPOS ? 'Repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
+<div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
     }
