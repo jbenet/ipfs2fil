@@ -54,6 +54,8 @@ type backend interface {
 	// or a *store.GoneError naming those the provider no longer holds.
 	Commit(ctx context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) (pieceIDs []string, err error)
 	Download(ctx context.Context, ds dataSet, pieceCID string) (io.ReadCloser, error)
+	// Remove schedules the removal of pieces from ds, in one on-chain step.
+	Remove(ctx context.Context, ds dataSet, pieceIDs []string) error
 	// Proofs reads when the data set was last proven, zero until the first proof.
 	Proofs(ctx context.Context, dataSetID string) (lastEpoch int64, last time.Time, err error)
 	// Prepare prices storing pieces of these sizes in every data set listed
@@ -466,6 +468,30 @@ func (s *Store) Commit(ctx context.Context, ds store.DataSet, pieceCIDs []string
 	}
 	s.mu.Unlock()
 	return ids, nil
+}
+
+// Remove schedules the removal of pieces from ds in one on-chain step; they
+// go at its next proving period, and no longer count as held from now.
+func (s *Store) Remove(ctx context.Context, ds store.DataSet, pieceIDs []string) error {
+	if len(pieceIDs) == 0 {
+		return nil
+	}
+	if err := s.b.Remove(ctx, fromPublic(ds), pieceIDs); err != nil {
+		return fmt.Errorf("removing %d %s from data set %s on provider %s: %w",
+			len(pieceIDs), plural(len(pieceIDs), "piece", "pieces"), ds.ID, ds.Provider, err)
+	}
+	gone := map[string]bool{}
+	for _, id := range pieceIDs {
+		gone[id] = true
+	}
+	s.mu.Lock()
+	for c, id := range s.pieces[ds.ID] {
+		if gone[id] {
+			delete(s.pieces[ds.ID], c)
+		}
+	}
+	s.mu.Unlock()
+	return nil
 }
 
 func plural(n int, one, many string) string {

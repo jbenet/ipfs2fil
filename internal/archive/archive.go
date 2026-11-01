@@ -402,7 +402,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// with a manifest that lists those pieces.
 	innerOf := func() *manifest.Manifest {
 		inner := *m
-		inner.Copies, inner.Collection = nil, ""
+		inner.Copies, inner.Collection, inner.Dropped = nil, "", nil
 		inner.Snapshots = slices.Clone(m.Snapshots)
 		inner.Snapshots[snap].Root = ""
 		return &inner
@@ -642,6 +642,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if prev != nil {
 		m.Copies = remap(prev, m)
 	}
+	if prev != nil {
+		m.Dropped = dropped(prev, m)
+	}
 	if err := m.Write(filepath.Join(outDir, ManifestFile)); err != nil {
 		return nil, err
 	}
@@ -664,6 +667,29 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
 	}
 	return res, nil
+}
+
+// dropped lists the pieces prev used, or noted as dropped, that m does not
+// use.
+func dropped(prev, m *manifest.Manifest) []string {
+	seen := map[string]bool{"": true}
+	for _, p := range m.Pieces {
+		seen[p.PieceCID] = true
+	}
+	var out []string
+	add := func(c string) {
+		if !seen[c] {
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	for _, c := range prev.Dropped {
+		add(c)
+	}
+	for _, p := range prev.Pieces {
+		add(p.PieceCID)
+	}
+	return out
 }
 
 // madeBlocks lists, depth first from root, the blocks the archive made that

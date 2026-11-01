@@ -121,6 +121,13 @@ type Lister interface {
 	Pieces(ctx context.Context, archive string, copies int) ([]DataSet, []map[string]string, error)
 }
 
+// Remover is a Store that can take pieces out of a data set.
+type Remover interface {
+	// Remove schedules the removal of the pieces with these ids from ds,
+	// in one on-chain step. From then on they no longer count as held.
+	Remove(ctx context.Context, ds DataSet, pieceIDs []string) error
+}
+
 // Cost is a USDFC estimate.
 type Cost struct {
 	Monthly float64

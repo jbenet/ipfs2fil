@@ -19,15 +19,17 @@ type Store struct {
 	// Providers is how many providers exist; DataSets fails past it.
 	Providers int
 
-	mu      sync.Mutex
-	sets    []store.DataSet
-	pieces  map[string]map[string]string // data set id -> PieceCID -> piece id
-	data    map[string][]byte            // PieceCID -> bytes
-	meta    map[string]map[string]string // data set id/PieceCID -> metadata
-	staged  map[string]map[string]bool   // provider -> PieceCID staged, not yet added
-	uploads int
-	pulls   int
-	commits int
+	mu       sync.Mutex
+	sets     []store.DataSet
+	pieces   map[string]map[string]string // data set id -> PieceCID -> piece id
+	data     map[string][]byte            // PieceCID -> bytes
+	meta     map[string]map[string]string // data set id/PieceCID -> metadata
+	staged   map[string]map[string]bool   // provider -> PieceCID staged, not yet added
+	uploads  int
+	pulls    int
+	commits  int
+	removals int
+	removed  map[string]int // data set id -> pieces removed, so ids keep growing
 	// PullFails makes every Pull fail, so Push falls back to uploading.
 	PullFails bool
 	// BeforeStage, if set, runs before each Stage that sends bytes; an error
@@ -44,7 +46,7 @@ var _ store.Store = (*Store)(nil)
 
 func New(providers int) *Store {
 	return &Store{Providers: providers, pieces: map[string]map[string]string{},
-		data: map[string][]byte{}, meta: map[string]map[string]string{}, staged: map[string]map[string]bool{}}
+		data: map[string][]byte{}, removed: map[string]int{}, meta: map[string]map[string]string{}, staged: map[string]map[string]bool{}}
 }
 
 // Commits counts Commit calls that added pieces.
@@ -267,7 +269,7 @@ func (s *Store) Commit(ctx context.Context, ds store.DataSet, pieceCIDs []string
 			ids[i] = id
 			continue
 		}
-		ids[i] = strconv.Itoa(len(p))
+		ids[i] = strconv.Itoa(len(p) + s.removed[ds.ID])
 		p[c] = ids[i]
 		s.meta[ds.ID+"/"+c] = meta
 		delete(s.staged[ds.Provider], c)
@@ -276,6 +278,35 @@ func (s *Store) Commit(ctx context.Context, ds store.DataSet, pieceCIDs []string
 		s.commits++
 	}
 	return ids, nil
+}
+
+// Remove drops the pieces with these ids from ds.
+func (s *Store) Remove(_ context.Context, ds store.DataSet, pieceIDs []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.pieces[ds.ID]
+	if !ok {
+		return fmt.Errorf("no data set %s", ds.ID)
+	}
+	gone := map[string]bool{}
+	for _, id := range pieceIDs {
+		gone[id] = true
+	}
+	for c, id := range p {
+		if gone[id] {
+			delete(p, c)
+			s.removed[ds.ID]++
+		}
+	}
+	s.removals++
+	return nil
+}
+
+// Removals counts Remove calls.
+func (s *Store) Removals() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.removals
 }
 
 func (s *Store) Fetch(_ context.Context, ds store.DataSet, pieceCID string) (io.ReadCloser, error) {

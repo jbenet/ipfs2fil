@@ -622,6 +622,8 @@ const pdpVerifierABI = `[
 {"type":"function","name":"getActivePieces","stateMutability":"view",
  "inputs":[{"name":"setId","type":"uint256"},{"name":"offset","type":"uint256"},{"name":"limit","type":"uint256"}],
  "outputs":[{"name":"pieces","type":"tuple[]","components":[{"name":"data","type":"bytes"}]},{"name":"pieceIds","type":"uint256[]"},{"name":"hasMore","type":"bool"}]},
+{"type":"function","name":"getScheduledRemovals","stateMutability":"view",
+ "inputs":[{"name":"setId","type":"uint256"}],"outputs":[{"name":"","type":"uint256[]"}]},
 {"type":"function","name":"getDataSetLastProvenEpoch","stateMutability":"view",
  "inputs":[{"name":"setId","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
 {"type":"function","name":"provingActivationEpoch","stateMutability":"view",
@@ -668,9 +670,44 @@ func (b *synapseBackend) Pieces(ctx context.Context, dataSetID string) (map[stri
 			out[c.String()] = ids[i].String()
 		}
 		if !v[2].(bool) {
-			return out, nil
+			break
 		}
 	}
+	// A piece scheduled for removal goes at the next proving period: it no
+	// longer counts as held, so a piece with the same bytes is added anew.
+	v, err := b.call(ctx, "getScheduledRemovals", id)
+	if err != nil {
+		return nil, err
+	}
+	gone := map[string]bool{}
+	for _, r := range v[0].([]*big.Int) {
+		gone[r.String()] = true
+	}
+	for c, pid := range out {
+		if gone[pid] {
+			delete(out, c)
+		}
+	}
+	return out, nil
+}
+
+func (b *synapseBackend) Remove(ctx context.Context, ds dataSet, pieceIDs []string) error {
+	if b.readOnly {
+		return errReadOnly
+	}
+	ids, err := bigInts(pieceIDs)
+	if err != nil {
+		return err
+	}
+	dsc, err := b.dataSetContext(ctx, ds.ID)
+	if err != nil {
+		return err
+	}
+	if err := b.gas.wait(ctx); err != nil {
+		return err
+	}
+	_, err = dsc.DeletePiecesByID(ctx, ids)
+	return err
 }
 
 func (b *synapseBackend) Proofs(ctx context.Context, dataSetID string) (int64, time.Time, error) {

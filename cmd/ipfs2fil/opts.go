@@ -25,6 +25,9 @@ type opts struct {
 	copies int
 	json   bool
 	yes    bool
+	// keepEarlier and removeEarlier override when push removes the pieces
+	// earlier snapshots used (see compact.go).
+	keepEarlier, removeEarlier bool
 
 	// verify's announcement check.
 	ipni       string
@@ -112,6 +115,12 @@ func allFlag(fs *flag.FlagSet, o *opts) {
 
 func yesFlag(fs *flag.FlagSet, o *opts) {
 	fs.BoolVar(&o.yes, "yes", false, "do not ask for confirmation (for scripts)")
+}
+
+// earlierFlags adds --keep-earlier and --remove-earlier to push and up.
+func earlierFlags(fs *flag.FlagSet, o *opts) {
+	fs.BoolVar(&o.keepEarlier, "keep-earlier", false, "keep the pieces earlier snapshots used, though no repo uses them now")
+	fs.BoolVar(&o.removeEarlier, "remove-earlier", false, "remove the pieces earlier snapshots used and no repo uses now, however few (by default once they pass 512 MiB)")
 }
 
 // setupReaders points the repo readers at this run: Bluesky accounts are
