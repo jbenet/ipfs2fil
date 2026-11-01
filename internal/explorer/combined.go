@@ -57,6 +57,10 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", a.Name, err)
 		}
+		if mt.Types == nil {
+			mt.Types = map[string]tally{}
+		}
+		fixRecordKinds(es, mt.Types)
 		if cm.Tool == "" {
 			cm.Tool, cm.Collection = m.Tool, m.Collection
 		}

@@ -73,7 +73,12 @@ CID>/<path>`), so a page's relative links to its pictures, styles and scripts
 work. The explorer is at 127.0.0.1 and loads pages from localhost, which a
 browser treats as another origin: pages run their scripts and keep their own
 storage, and cannot reach the explorer. From a gateway pages come from
-`../data/`, sandboxed.
+`../data/`, sandboxed. A static copy with files only by CID (the website's
+demo) has no folders to load from, so the explorer finds the files a page
+links in the index by path and puts them in (`pageDoc` in explorer.js):
+stylesheets and scripts inline, pictures and fonts by their content URLs, and
+a small script that sends the page's own fetch, XMLHttpRequest and media
+requests to them too. Such a page gets storage that lasts while it is open.
 
 ## Thumbnails
 

@@ -91,6 +91,8 @@ type meta struct {
 	// Accounts lists the Bluesky (atproto) accounts among the roots, whose
 	// posts and records are in at/<n>.js.
 	Accounts []accountInfo `json:"accounts,omitempty"`
+	// SubRepos lists the repos inside the content (see subRepos).
+	SubRepos []string `json:"subRepos,omitempty"`
 }
 
 type accountInfo struct {
@@ -209,7 +211,7 @@ func buildIndex(m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summ
 		}
 	}
 
-	mt := meta{Format: IndexFormat, Entries: len(byPath), Types: map[string]tally{}, Parts: map[string]tally{}}
+	mt := meta{Format: IndexFormat, Entries: len(byPath), Types: map[string]tally{}, Parts: map[string]tally{}, SubRepos: subRepos(byPath, children)}
 	for _, e := range byPath {
 		if e.Kind == "folder" {
 			continue

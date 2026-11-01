@@ -3,6 +3,7 @@ package explorer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -106,4 +107,46 @@ func jsValue(b []byte, key string) []byte {
 	b = bytes.TrimSpace(b)
 	b = bytes.TrimPrefix(b, fmt.Appendf(nil, "I2F.put(%q,", key))
 	return bytes.TrimSuffix(b, []byte(");"))
+}
+
+// refreshIndex reads the current-format index in the explorer at dir and
+// returns it rebuilt, keyed by path under idx/, when this ipfs2fil lists its
+// entries differently: records an older pack listed as code, or repos inside
+// the content it did not list. It returns nil when nothing changes. Files it
+// does not rebuild (at/) are read from disk as before.
+func refreshIndex(dir string) (map[string][]byte, error) {
+	m := &manifest.Manifest{}
+	if err := readJS(filepath.Join(dir, "idx", "manifest.js"), "manifest", m); errors.Is(err, os.ErrNotExist) {
+		// (a static copy, like the website's demo, keeps it in index/)
+		if m, err = readManifest(filepath.Dir(dir)); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	es, old, err := readEntries(dir, m)
+	if err != nil {
+		return nil, err
+	}
+	if old.Types == nil {
+		old.Types = map[string]tally{}
+	}
+	n := fixRecordKinds(es, old.Types)
+	files, err := buildIndex(m, es)
+	if err != nil {
+		return nil, err
+	}
+	var mt meta
+	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
+		return nil, err
+	}
+	if n == 0 && len(mt.SubRepos) == len(old.SubRepos) {
+		return nil, nil
+	}
+	// The old totals count each block once; the rows alone cannot.
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts = old.Types, old.Parts, old.Repos, old.Accounts
+	if files["meta.js"], err = jsFile("meta", mt); err != nil {
+		return nil, err
+	}
+	return files, nil
 }
