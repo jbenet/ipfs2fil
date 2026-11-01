@@ -226,7 +226,7 @@ func (l *layout) pieceKey(p span) string {
 	h.int(cacheFormat)
 	h.bytes(l.tab[p.start].c.Bytes())
 	for j := p.start; j < p.end; j++ {
-		if b := &l.tab[j]; b.shared == 0 {
+		if b := &l.tab[j]; !b.elsewhere() {
 			h.bytes(b.c.Bytes())
 			h.int(int64(b.size))
 		}
@@ -269,7 +269,7 @@ func (bl blockLists) match(l *layout, p span, pieceDir string) (cachedPiece, boo
 	var sb strings.Builder
 	size := car.HeaderSize(l.tab[p.start].c)
 	for j := p.start; j < p.end; j++ {
-		if b := &l.tab[j]; b.shared == 0 {
+		if b := &l.tab[j]; !b.elsewhere() {
 			sb.WriteString(b.c.Hash().B58String())
 			sb.WriteByte('\n')
 			size += car.EntrySize(b.c, b.size)

@@ -178,6 +178,8 @@ func check(t *testing.T, res *Result) {
 		missing[string(m.Hash())] = true
 	}
 	got := map[string][]byte{}
+	older := map[string]bool{} // in pieces an earlier snapshot stored
+	last := len(res.Manifest.Snapshots) - 1
 	root, _ := cid.Decode(res.Manifest.Root)
 	for i, p := range res.Pieces {
 		f, err := os.Open(p.Path)
@@ -210,6 +212,9 @@ func check(t *testing.T, res *Result) {
 			}
 			first = false
 			got[string(c.Hash())] = data
+			if p.Snapshot < last {
+				older[string(c.Hash())] = true
+			}
 		}
 		f.Close()
 	}
@@ -233,8 +238,12 @@ func check(t *testing.T, res *Result) {
 		}
 	}
 	walk(root)
-	if len(seen) != len(got) {
-		t.Fatalf("%d blocks reachable, %d in pieces", len(seen), len(got))
+	// A kept piece of an earlier snapshot can hold blocks the repo has
+	// since dropped; every other block in a piece is reachable.
+	for h := range got {
+		if !seen[h] && !older[h] {
+			t.Fatalf("%d blocks reachable, %d in pieces: %s is in a new piece but not reachable", len(seen), len(got), multihash.Multihash(h).B58String())
+		}
 	}
 }
 

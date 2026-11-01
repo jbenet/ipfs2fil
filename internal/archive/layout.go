@@ -27,10 +27,17 @@ type blk struct {
 	// shared is 1 + the index into layout.shared of the other archive's
 	// piece that holds this block, or 0 if the block goes in this archive.
 	shared int32
-	piece  int32
-	mark   uint32
-	ufs    ufsInfo
+	// kept is 1 + the index into layout.kept of the stored piece of an
+	// earlier snapshot that holds this block, or 0.
+	kept  int32
+	piece int32
+	mark  uint32
+	ufs   ufsInfo
 }
+
+// elsewhere says whether the block is in a piece this snapshot does not
+// write: another archive's (shared) or an earlier snapshot's (kept).
+func (b *blk) elsewhere() bool { return b.shared != 0 || b.kept != 0 }
 
 type root struct {
 	c    cid.Cid
@@ -53,6 +60,7 @@ type layout struct {
 	accts      []*atproto.Summary // the Bluesky accounts among the roots
 	cars       []repo.CARLayout   // how the repo's CAR files are laid out, if it is made of them
 	unstored   []root             // pins and MFS roots with no block to store: identity CIDs, blocks the repo lacks
+	kept       []keptPiece        // stored pieces of earlier snapshots this one keeps using
 }
 
 func newLayout(r repo.Repo) *layout {
@@ -286,8 +294,8 @@ func (l *layout) cut(opts Options) ([]span, error) {
 	start, size, pending := -1, int64(0), false
 	for i := range l.tab {
 		b := &l.tab[i]
-		if b.shared != 0 {
-			b.piece = -1
+		if b.elsewhere() {
+			b.piece = -1 // a kept block gets its piece's index once it is known
 			pending = pending || b.start
 			continue
 		}
@@ -316,7 +324,7 @@ func (l *layout) cut(opts Options) ([]span, error) {
 func (l *layout) own(p span) int64 {
 	var n int64
 	for j := p.start; j < p.end; j++ {
-		if l.tab[j].shared == 0 {
+		if !l.tab[j].elsewhere() {
 			n++
 		}
 	}
