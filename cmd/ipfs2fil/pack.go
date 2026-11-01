@@ -32,6 +32,13 @@ writes its index and explorer anew, for a newer ipfs2fil's explorer); after a
 change, pieces whose blocks are the same keep their CAR files (the record of
 what was written is --out/pack-cache.json).
 
+Data pieces already stored keep serving the blocks the repo still has, so
+an edit adds a piece of about what changed. What is new and smaller than a
+full piece (the archive root and manifest, changed index and explorer parts,
+and the last data piece) goes in one bundle piece, with --all one for all
+the repos packed, since each piece added on chain costs about the same
+whatever its size.
+
 With --all, packs every repo 'ipfs2fil repos add' listed, in the order added.
 Blocks an earlier repo's pieces already hold are left out of later repos'
 pieces, so blocks shared between repos are stored once, including repos on
@@ -71,6 +78,12 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	opt.NewPages = packNewPages
 	opt.Tool = "ipfs2fil " + version
 	opt.Shared, opt.Record = o.shared, o.record
+	own := o.bundle == nil
+	opt.Bundle = o.bundle
+	if own {
+		opt.Bundle = archive.NewBundle(opt.MaxPiece)
+		defer opt.Bundle.Discard()
+	}
 	var bar *progress
 	stage := ""
 	opt.Progress = func(st string, done, total int64) {
@@ -109,13 +122,27 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 			return nil, err
 		}
 	}
+	pending := false // the bundle is written once the other repos are packed
+	if own {
+		if _, err := opt.Bundle.Finish(); err != nil {
+			return nil, fmt.Errorf("writing the bundle piece: %w", err)
+		}
+		if m, err = manifest.Read(manifestPath(o.out)); err != nil {
+			return nil, err
+		}
+		res.Manifest = m
+	} else {
+		for _, p := range m.Pieces {
+			pending = pending || p.PieceCID == ""
+		}
+	}
 	var bytes int64
 	for _, p := range m.Pieces {
 		bytes += p.CARBytes
 	}
 	fresh := 0
 	for _, p := range m.Pieces {
-		if !before[p.PieceCID] {
+		if p.PieceCID == "" || !before[p.PieceCID] {
 			fresh++
 		}
 	}
@@ -128,6 +155,9 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 		fmt.Fprintf(w, "pieces   %d, %s (%d changed since the last pack)\n", len(m.Pieces), humanBytes(bytes), fresh)
 	} else {
 		fmt.Fprintf(w, "pieces   %d, %s\n", len(m.Pieces), humanBytes(bytes))
+	}
+	if pending {
+		fmt.Fprintln(w, "bundle   its changes go in one piece with the other repos' changes, written once all are packed")
 	}
 	if sh := m.Shared; sh != nil {
 		fmt.Fprintf(w, "shared   %d blocks (%s) are already in earlier repos' pieces, so they are not stored again\n", sh.Blocks, humanBytes(sh.Bytes))

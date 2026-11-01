@@ -197,7 +197,8 @@ func (c *Collection) Shared(name string) (func(multihash.Multihash) (archive.Sha
 			continue // not packed yet, or stored in data sets of its own
 		}
 		for _, p := range m.Pieces {
-			if p.BlockList == "" || !e.Local && !stored(m, p.Index) {
+			// A bundle not written yet has no PieceCID to name.
+			if p.BlockList == "" || p.PieceCID == "" || !e.Local && !stored(m, p.Index) {
 				continue
 			}
 			sb := archive.SharedBlock{Archive: m.Snapshots[0].Root, PieceCID: p.PieceCID}

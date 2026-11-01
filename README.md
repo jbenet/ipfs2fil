@@ -181,12 +181,19 @@ every machine's repos is read from your data sets on chain.
 
 An archive's own blocks (its index, explorer and folders) are cut into
 small pieces by content, like the data, so a new snapshot re-uploads only
-the parts that changed, plus a head piece of a few MB: the root, the
-manifest, and a small record naming its machine and repo, encrypted with a
-key derived from the wallet key. Another machine lists the data sets'
-pieces, reads the first bytes of each new one to find those records, and
-downloads only each repo's latest head piece and the pieces holding its
-block lists, into `~/.ipfs2fil/chain`. So a repo shows up on other machines
+the parts that changed. Data pieces already stored keep serving the blocks
+a repo still has, so an edit uploads about what changed. Everything new in
+one `up --all` that is not a full-size piece (each repo's root, manifest,
+changed index and explorer parts, and the last, small data piece) goes in
+one bundle piece shared by all the repos that changed, since each piece
+added on chain costs about the same whatever its size. A bundle names, for
+each repo in it, the archive root and a small record naming its machine
+and repo, encrypted with a key derived from the wallet key. Another machine
+lists the data sets' pieces, reads the first bytes of each new one to find
+those records, and downloads only each repo's latest bundle (or head
+piece) and the pieces holding its block lists, into `~/.ipfs2fil/chain`.
+`ipfs2fil export --repo host/name` writes another machine's repo back out
+from Filecoin. So a repo shows up on other machines
 once its pieces are stored, and a machine leaves out blocks that repos on
 other machines already store. Repo paths never leave the machine. Machines
 are named by `--host`, else the name saved in `~/.ipfs2fil/host` on first use

@@ -68,7 +68,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		// Pieces, once each, then everything that points at them.
 		remap := make([]int, len(m.Pieces))
 		for i, p := range m.Pieces {
-			if k, ok := pieceAt[p.PieceCID]; ok {
+			if k, ok := pieceAt[p.PieceCID]; ok && p.PieceCID != "" {
 				remap[i] = k
 				continue
 			}
@@ -280,8 +280,16 @@ func readEntries(dir string, m *manifest.Manifest) ([]Entry, meta, error) {
 		return nil, mt, fmt.Errorf("reading %s meta: %w", dir, err)
 	}
 	pieceAt := map[string]int{}
+	bundle := -1
 	for i, p := range m.Pieces {
 		pieceAt[p.PieceCID] = i
+		if p.Part == manifest.PartBundle && p.BlockList != "" && (bundle < 0 || p.Snapshot >= m.Pieces[bundle].Snapshot) {
+			bundle = i
+		}
+	}
+	// Shards name this snapshot's bundle "": its PieceCID was not known yet.
+	if bundle >= 0 {
+		pieceAt[""] = bundle
 	}
 	var out []Entry
 	for _, name := range mt.Shards {

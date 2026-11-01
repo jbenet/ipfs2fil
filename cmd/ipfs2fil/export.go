@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
+	"github.com/jbenet/ipfs2fil/internal/explorer"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/store"
 )
@@ -40,11 +41,13 @@ layout, so their CAR repos come back as blocks.car; pack once more with
 --new-pages to add it. A kubo repo's config and keys are never archived.
 
 It exports the archive in --out if given or if ./ipfs2fil-archive holds one,
-else the listed repo --repo names.`,
+else the listed repo --repo names. --repo host/name exports a repo another
+of your machines stored, read back from Filecoin.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			fs.StringVar(&o.repo, "repo", "", "with no --out, the listed repo to export, by name or path")
 			outFlag(fs, o)
 			fs.StringVar(&exportTo, "to", "", "the directory to write the repo into; it must be empty or not exist")
+			homeFlag(fs, o)
 			addReadStoreFlags(fs)
 		},
 		run: runExport,
@@ -59,6 +62,15 @@ func runExport(ctx context.Context, o *opts, _ []string) error {
 		return fmt.Errorf("%s is not empty; export into a new directory", exportTo)
 	}
 	archives, err := exploreArchives(o)
+	if err != nil && strings.Contains(o.repo, "/") {
+		// Another machine's repo, as host/name: its manifest and block
+		// lists come from the catalog, its pieces from Filecoin.
+		var other error
+		if archives, other = otherArchive(ctx, o); other != nil {
+			return errors.Join(err, other)
+		}
+		err = nil
+	}
 	if err != nil {
 		return err
 	}
@@ -165,4 +177,35 @@ func runExport(ctx context.Context, o *opts, _ []string) error {
 		return fmt.Errorf("%d files differ from the originals", differ)
 	}
 	return nil
+}
+
+// otherArchive finds the repo --repo names as host/name among other
+// machines' repos in the catalog, read from chain first if that is where it
+// is kept.
+func otherArchive(ctx context.Context, o *opts) ([]explorer.Archive, error) {
+	c, err := openCollection(o)
+	if err != nil {
+		return nil, err
+	}
+	if c.OnChain() {
+		s, closer, err := openStore(ctx, o)
+		if err != nil {
+			return nil, err
+		}
+		readCatalog(ctx, o, c, s)
+		closer.Close()
+	}
+	es, err := c.Entries()
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range es {
+		if !e.Local && e.ID() == o.repo {
+			if m, err := e.Manifest(); err != nil || m == nil {
+				return nil, fmt.Errorf("%s: its manifest is not in the catalog yet (%v)", o.repo, err)
+			}
+			return []explorer.Archive{{Name: e.ID(), Dir: e.Dir}}, nil
+		}
+	}
+	return nil, fmt.Errorf("no repo %s in the catalog", o.repo)
 }

@@ -42,6 +42,10 @@ type opts struct {
 	// record is the sealed catalog record pack --all puts in each archive
 	// when the catalog is read from chain.
 	record []byte
+	// bundle, set by pack --all, gathers every repo's small changes into
+	// shared pieces; pack finishes it after the last repo. Without it, pack
+	// makes and finishes a bundle of its own.
+	bundle *archive.Bundle
 }
 
 // notes routes lines from background steps to the progress bar drawing on

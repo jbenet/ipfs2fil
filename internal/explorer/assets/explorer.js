@@ -76,7 +76,8 @@
   const isDir = (e) => !!e && (e.kind === 'folder' || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
   // Shards name pieces by PieceCID; PIECE maps them to their index here.
   let PIECE = {};
-  const pieceAt = (cid) => (cid && PIECE[cid] != null ? PIECE[cid] : -1);
+  // This snapshot's bundle is "" there: its PieceCID was not known yet.
+  const pieceAt = (cid) => (typeof cid === 'string' && PIECE[cid] != null ? PIECE[cid] : -1);
   function entryOf(s, r) {
     const dir = s.dirs[r[0]], seg = r.length > 6 ? r[6] : r[1];
     return { dir, name: r[1], kind: r[2], bytes: r[3], cid: r[4], piece: r[5] >= 0 ? pieceAt(s.pieces[r[5]]) : -1, path: dir ? dir + '/' + seg : seg };
@@ -2234,7 +2235,12 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
   manifest().then((m) => {
     ROOTS = {};
     PIECE = {};
-    (m.pieces || []).forEach((p) => { PIECE[p.pieceCid] = p.index; });
+    let bundle = null;
+    (m.pieces || []).forEach((p) => {
+      PIECE[p.pieceCid] = p.index;
+      if (p.part === 'bundle' && p.blockList && (!bundle || p.snapshot >= bundle.snapshot)) bundle = p;
+    });
+    if (bundle) PIECE[''] = bundle.index;
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
       REPOS = meta.repos || null;

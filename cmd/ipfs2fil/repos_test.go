@@ -55,11 +55,21 @@ func TestReposAll(t *testing.T) {
 	if m1 == nil || m2 == nil || m1.Collection != c.Key || m2.Collection != c.Key {
 		t.Fatalf("manifests not in the collection: %+v %+v", m1, m2)
 	}
-	if m1.Shared != nil || m2.Shared == nil || m2.Shared.Blocks == 0 {
-		t.Fatalf("shared: first %+v, second %+v", m1.Shared, m2.Shared)
+	// Both repos' changes are in one bundle piece, which holds the blocks
+	// they share once.
+	if !strings.Contains(stdout, "bundle   the changes of 2 repos in 1 piece") {
+		t.Errorf("pack did not bundle both repos:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "already in earlier repos' pieces") {
-		t.Errorf("pack did not say what it shared:\n%s", stdout)
+	bundles := map[string]bool{}
+	for _, m := range []*manifest.Manifest{m1, m2} {
+		for _, p := range m.Pieces {
+			if p.Part == manifest.PartBundle {
+				bundles[p.PieceCID] = true
+			}
+		}
+	}
+	if len(bundles) != 1 {
+		t.Errorf("bundles %v, want one for both", bundles)
 	}
 	distinct := map[string]bool{}
 	for _, m := range []int{0, 1} {
@@ -110,7 +120,7 @@ func TestReposAll(t *testing.T) {
 
 	stdout, _, err = ipfs2fil(t, "status", "--all", "--home", home)
 	if err != nil || !strings.Contains(stdout, "copies   3 data sets shared by every repo") ||
-		!strings.Contains(stdout, "is stored once") || strings.Contains(stdout, "missing") || strings.Contains(stdout, "earlier") {
+		strings.Contains(stdout, "missing") || strings.Contains(stdout, "earlier") {
 		t.Errorf("status --all: %v\n%s", err, stdout)
 	}
 
@@ -139,7 +149,7 @@ func TestReposAll(t *testing.T) {
 		}
 	}
 	stdout, _, err = ipfs2fil(t, "status", "--all", "--home", home, "--json")
-	if err != nil || !strings.Contains(stdout, `"stored": `) || !strings.Contains(stdout, `"sharedBytes": `) {
+	if err != nil || !strings.Contains(stdout, `"stored": `) {
 		t.Errorf("status --all --json: %v\n%s", err, stdout)
 	}
 	stdout, _, err = ipfs2fil(t, "repos", "ls", "--home", home)
@@ -147,10 +157,6 @@ func TestReposAll(t *testing.T) {
 		t.Errorf("repos ls: %v\n%s", err, stdout)
 	}
 
-	// The first repo holds blocks the second relies on.
-	if _, _, err := ipfs2fil(t, "repos", "rm", "first", "--home", home); err == nil || !strings.Contains(err.Error(), "second") {
-		t.Errorf("rm of a repo others rely on: %v", err)
-	}
 	if _, _, err := ipfs2fil(t, "repos", "rm", "second", "--home", home); err != nil {
 		t.Errorf("rm: %v", err)
 	}
@@ -172,9 +178,25 @@ func TestPushNeedsSharedPieces(t *testing.T) {
 	if _, _, err := ipfs2fil(t, "pack", "--all", "--home", home); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err := ipfs2fil(t, "push", "--out", filepath.Join(home, "archives", "v17"), "--yes")
+	// Packed in one go, the two share a bundle piece. Changed afterwards,
+	// the later repo shares the earlier one's pieces instead.
+	f := fixture(t, "v17")
+	if _, _, err := ipfs2fil(t, "repos", "rm", "v17", "--home", home); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ipfs2fil(t, "repos", "add", f, "--name", "later", "--home", home); err != nil {
+		t.Fatal(err)
+	}
+	if out, _, err := ipfs2fil(t, "pack", "--all", "--home", home); err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
+		t.Fatalf("pack: %v\n%s", err, out)
+	}
+	_, _, err := ipfs2fil(t, "push", "--out", filepath.Join(home, "archives", "later"), "--yes")
 	if err == nil || !strings.Contains(err.Error(), "push --all") {
 		t.Errorf("push of the later repo alone: %v", err)
+	}
+	// The first repo holds blocks the later one relies on.
+	if _, _, err := ipfs2fil(t, "repos", "rm", "v18", "--home", home); err == nil || !strings.Contains(err.Error(), "later") {
+		t.Errorf("rm of a repo others rely on: %v", err)
 	}
 }
 
@@ -269,8 +291,8 @@ func TestReposCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
 		t.Fatalf("server up: %v\n%s", err, out)
 	}
-	if got := ms.Uploads() - afterLaptop; got != 6 {
-		t.Errorf("server uploaded %d pieces, want 6 (its explorer and head pieces in 3 copies)", got)
+	if got := ms.Uploads() - afterLaptop; got != 3 {
+		t.Errorf("server uploaded %d pieces, want 3 (its bundle piece in 3 copies)", got)
 	}
 
 	for _, m := range [][]string{laptop, server} {
@@ -318,8 +340,8 @@ func TestReposGitCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
 		t.Fatalf("server up: %v\n%s", err, out)
 	}
-	if got := ms.Uploads() - before; got != 6 {
-		t.Errorf("server uploaded %d pieces, want 6", got)
+	if got := ms.Uploads() - before; got != 3 {
+		t.Errorf("server uploaded %d pieces, want 3 (its bundle piece in 3 copies)", got)
 	}
 	// The laptop pulls the server's repo.
 	out, err = on(laptop, "status", "--all")
@@ -360,8 +382,8 @@ func TestReposChainCatalog(t *testing.T) {
 	if err != nil || !strings.Contains(out, "already in earlier repos' pieces") || strings.Contains(errOut, "warning") {
 		t.Fatalf("server up: %v\n%s\n%s", err, out, errOut)
 	}
-	if got := ms.Uploads() - afterLaptop; got != 6 {
-		t.Errorf("server uploaded %d pieces, want 6 (its explorer and head pieces in 3 copies)", got)
+	if got := ms.Uploads() - afterLaptop; got != 3 {
+		t.Errorf("server uploaded %d pieces, want 3 (its bundle piece in 3 copies)", got)
 	}
 	afterServer := ms.Uploads()
 	if out, _, err := on(server, "up", "--all", "--yes"); err != nil || !strings.Contains(out, "nothing to upload") {
@@ -408,9 +430,11 @@ func TestHostRenamedAndCopiesLost(t *testing.T) {
 		out, _, err := ipfs2fil(t, append(args, "--home", home, "--host", host)...)
 		return out, err
 	}
-	// backup shares the data sets, so photos adopts them once its own are lost
-	for name, f := range map[string]string{"photos": "v18", "backup": "v17"} {
-		if _, err := on("unknownc2de", "repos", "add", fixture(t, f), "--name", name); err != nil {
+	// backup shares the data sets, so photos adopts them once its own are
+	// lost. Photos comes first: a later repo that loses its copies shares
+	// blocks earlier repos store, so its archive changes.
+	for _, nf := range [][2]string{{"photos", "v18"}, {"backup", "v17"}} {
+		if _, err := on("unknownc2de", "repos", "add", fixture(t, nf[1]), "--name", nf[0]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -513,5 +537,54 @@ func TestExploreAfterUpAll(t *testing.T) {
 	}
 	if _, _, err := ipfs2fil(t, "explore", "--serve=false", "nope"); err == nil || !strings.Contains(err.Error(), "v18, v17") {
 		t.Errorf("explore of an unlisted repo: %v", err)
+	}
+}
+
+// TestChainCatalogReadsBundles: two repos packed on one machine share one
+// bundle piece; another machine reads both from chain, and each exports
+// from Filecoin exactly as the first machine's own archive does.
+func TestChainCatalogReadsBundles(t *testing.T) {
+	ms := useMemStore(t, 5)
+	laptop := []string{"--home", t.TempDir(), "--host", "laptop"}
+	server := []string{"--home", t.TempDir(), "--host", "server"}
+	on := func(machine []string, args ...string) (string, string, error) {
+		t.Helper()
+		return ipfs2fil(t, append(args, machine...)...)
+	}
+	for name, f := range map[string]string{"photos": "v18", "notes": "v11"} {
+		if _, _, err := on(laptop, "repos", "add", fixture(t, f), "--name", name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := on(server, "repos", "add", fixture(t, "v17"), "--name", "backup"); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := on(laptop, "up", "--all", "--yes")
+	if err != nil || !strings.Contains(out, "bundle   the changes of 2 repos in 1 piece") {
+		t.Fatalf("laptop up: %v\n%s", err, out)
+	}
+	if ms.Uploads() != 3 {
+		t.Errorf("laptop uploaded %d pieces, want 3 (one bundle in 3 copies)", ms.Uploads())
+	}
+	out, errOut, err := on(server, "status", "--all")
+	if err != nil || !strings.Contains(out, "laptop/photos") || !strings.Contains(out, "laptop/notes") ||
+		strings.Contains(out, "missing") || strings.Contains(errOut, "warning") {
+		t.Fatalf("server status --all: %v\n%s\n%s", err, out, errOut)
+	}
+	for _, name := range []string{"photos", "notes"} {
+		mine, theirs := filepath.Join(t.TempDir(), "x"), filepath.Join(t.TempDir(), "x")
+		if out, _, err := on(laptop, "export", "--repo", name, "--to", mine); err != nil {
+			t.Fatalf("laptop export %s: %v\n%s", name, err, out)
+		}
+		if out, _, err := on(server, "export", "--repo", "laptop/"+name, "--to", theirs); err != nil {
+			t.Fatalf("server export %s: %v\n%s", name, err, out)
+		}
+		for _, f := range []string{"blocks.car", "pins.json"} {
+			a, _ := os.ReadFile(filepath.Join(mine, f))
+			b, err := os.ReadFile(filepath.Join(theirs, f))
+			if err != nil || len(a) == 0 || !bytes.Equal(a, b) {
+				t.Errorf("%s: %s differs between the machines' exports (%v)", name, f, err)
+			}
+		}
 	}
 }

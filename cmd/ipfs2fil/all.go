@@ -119,6 +119,11 @@ func packEach(ctx context.Context, o *opts) (*packFailures, error) {
 		}
 	}
 	failed := &packFailures{of: len(c.Repos), names: map[string]bool{}}
+	// One bundle for all: what changed in every repo goes in as few pieces
+	// as fit, written once the last repo is packed.
+	bundle := archive.NewBundle(archive.DefaultOptions().MaxPiece)
+	defer bundle.Discard()
+	var done []collection.Repo
 	for i, r := range c.Repos {
 		fmt.Fprintf(o.stdout, "== %s (%d of %d)\n", r.Name, i+1, len(c.Repos))
 		ro := forRepo(o, c, r)
@@ -127,9 +132,10 @@ func packEach(ctx context.Context, o *opts) (*packFailures, error) {
 				return nil, err
 			}
 		}
+		ro.bundle = bundle
 		if ro.shared, err = c.Shared(r.Name); err == nil {
 			if _, err = pack(ctx, ro); err == nil {
-				publish(o, c, r)
+				done = append(done, r)
 			}
 		}
 		if err != nil {
@@ -141,6 +147,20 @@ func packEach(ctx context.Context, o *opts) (*packFailures, error) {
 			failed.errs = append(failed.errs, fmt.Errorf("%s: %w", r.Name, err))
 		}
 		fmt.Fprintln(o.stdout)
+	}
+	pieces, err := bundle.Finish()
+	if err != nil {
+		return nil, fmt.Errorf("writing the bundle piece of the repos' changes: %w (run it again)", err)
+	}
+	if len(pieces) > 0 {
+		var bytes int64
+		for _, p := range pieces {
+			bytes += p.CARBytes
+		}
+		fmt.Fprintf(o.stdout, "bundle   the changes of %d repos in %d piece%s, %s\n\n", bundle.Archives, len(pieces), map[bool]string{true: "s"}[len(pieces) > 1], humanBytes(bytes))
+	}
+	for _, r := range done {
+		publish(o, c, r)
 	}
 	commitCatalog(o, c, "pack")
 	return failed, nil
