@@ -12,7 +12,7 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
-var packOrphans bool
+var packOrphans, packNewPages bool
 
 func init() {
 	register(&command{
@@ -27,7 +27,8 @@ Pieces are cut where the content says, so packing the same repo again gives
 the same pieces, and after an edit only nearby pieces change. Run pack again
 after the repo changes, then push: only the new pieces upload. A pack stopped
 with Ctrl-C can simply be run again. When the repo has not changed since the
-last pack, pack only lists its blocks and keeps the last archive; after a
+last pack, pack only lists its blocks and keeps the last archive (--new-pages
+writes its index and explorer anew, for a newer ipfs2fil's explorer); after a
 change, pieces whose blocks are the same keep their CAR files (the record of
 what was written is --out/pack-cache.json).
 
@@ -40,6 +41,7 @@ other machines that use the same wallet: their list is read from chain, so
 			repoFlag(fs, o)
 			outFlag(fs, o)
 			fs.BoolVar(&packOrphans, "orphans", true, "include blocks no pin or MFS reaches, under data/orphans")
+			fs.BoolVar(&packNewPages, "new-pages", false, "write the index and explorer pages anew even when the repo has not changed, so this version's explorer goes into the archive (only those pieces upload)")
 			allFlag(fs, o)
 			// --all reads other machines' repos from chain.
 			copiesFlag(fs, o)
@@ -66,6 +68,7 @@ func pack(ctx context.Context, o *opts) (*archive.Result, error) {
 	}
 	opt := archive.DefaultOptions()
 	opt.Orphans = packOrphans
+	opt.NewPages = packNewPages
 	opt.Tool = "ipfs2fil " + version
 	opt.Shared, opt.Record = o.shared, o.record
 	var bar *progress

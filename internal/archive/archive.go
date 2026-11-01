@@ -68,6 +68,11 @@ type Options struct {
 	// first bytes. Nothing links to it.
 	Record []byte
 
+	// NewPages, if set, writes index/ and explorer/ anew even when the data
+	// is the same as the last pack's, so a new ipfs2fil's explorer goes into
+	// the archive. Only those pieces and the root change.
+	NewPages bool
+
 	// Progress, if set, is called as Build goes: stage "walk" counts blocks
 	// laid out against the repo's block count, "write" counts CAR bytes
 	// written against the bytes planned. total is 0 while unknown.
@@ -256,7 +261,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	// The same data as the last pack: keep its index/, explorer/ and root,
 	// so a new ipfs2fil version, or a new layout for them, does not make
 	// pieces to upload until the repo changes.
-	if sameData(prev, m, len(dataPieces), opts.Record, pieceDir) && reusable(outDir, prev) {
+	if !opts.NewPages && sameData(prev, m, len(dataPieces), opts.Record, pieceDir) && reusable(outDir, prev) {
 		res, err := reuse(outDir, prev, cache)
 		if err != nil {
 			return nil, err

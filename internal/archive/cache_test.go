@@ -7,10 +7,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/multiformats/go-multihash"
 
+	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
@@ -205,5 +207,36 @@ func TestNewVersionKeepsUnchangedArchive(t *testing.T) {
 	// A changed repo still packs again.
 	if res, err := Build(context.Background(), sample(t, true), dir, opts); err != nil || res.Reused {
 		t.Fatalf("an edited repo reused the last pack (%v)", err)
+	}
+}
+
+// --new-pages writes index/ and explorer/ again for an unchanged repo,
+// keeping its data pieces.
+func TestNewPagesRewritesUnchangedArchive(t *testing.T) {
+	dir := t.TempDir()
+	first := build(t, sample(t, false), dir)
+	opts := testOptions()
+	opts.Tool = "ipfs2fil v9" // a new version: its manifest, so its root, differ
+	opts.NewPages = true
+	res, err := Build(context.Background(), sample(t, false), dir, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Reused {
+		t.Fatal("NewPages reused the last pack")
+	}
+	if res.Manifest.DataRoot != first.Manifest.DataRoot {
+		t.Errorf("data root changed: %s -> %s", first.Manifest.DataRoot, res.Manifest.DataRoot)
+	}
+	data := func(m *manifest.Manifest) (out []string) {
+		for _, p := range m.Pieces {
+			if p.BlockList != "" {
+				out = append(out, p.PieceCID)
+			}
+		}
+		return out
+	}
+	if a, b := data(first.Manifest), data(res.Manifest); strings.Join(a, " ") != strings.Join(b, " ") || len(a) == 0 {
+		t.Errorf("data pieces changed: %v -> %v", a, b)
 	}
 }

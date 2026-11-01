@@ -25,6 +25,7 @@ and you confirm the cost once for all of them.`,
 			copiesFlag(fs, o)
 			yesFlag(fs, o)
 			fs.BoolVar(&packOrphans, "orphans", true, "include blocks no pin or MFS reaches, under data/orphans")
+			fs.BoolVar(&packNewPages, "new-pages", false, "write the index and explorer pages anew even when the repo has not changed, so this version's explorer goes into the archive (only those pieces upload)")
 			addStoreFlags(fs)
 			allFlag(fs, o)
 		},
