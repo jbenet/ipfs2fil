@@ -734,6 +734,10 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // The accounts, as entries of their own under Library > Accounts.
     const REPOP = repoPaths(meta);
     const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
+    let NAV = false;
+    try { NAV = sessionStorage.getItem('i2f.nav') === '1'; } catch (e) { /* private mode */ }
+    const navOn = (on) => { NAV = on; try { sessionStorage.setItem('i2f.nav', on ? '1' : ''); } catch (e) { /* private mode */ } };
+    main().addEventListener('click', (ev) => navOn(!!(ev.target.closest && ev.target.closest('.lib a'))), true);
     const S = { view: pref('view', 'list'), ly: pref('layout', 'split'), cur: -1, limit: 300, open: new Set() };
     // The folder, search and filters live in the URL: every page link and
     // the back and forward buttons set them from it.
@@ -780,6 +784,8 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
 <div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
+      const on = NAV && $('.lib a[aria-current="page"]');
+      if (on) on.focus({ preventScroll: true });
     }
 
     // A viewer (the Bluesky App) takes the place of the file list.
@@ -787,6 +793,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       lib();
       const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
       $('.fmain').replaceWith(ap);
+      Object.assign(pageKeys, { ArrowDown: () => NAV && navStep(1), ArrowUp: () => NAV && navStep(-1) });
       return bskyApp(ap, S.an);
     }
 
@@ -1834,9 +1841,22 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (best >= 0) sel(best);
       return true;
     };
+    // After a click in the sidebar, the up and down arrows go through its
+    // items, opening each; the right arrow, or a click elsewhere, goes back
+    // to the files. (Kept for the tab, as Bluesky App loads a page.)
+    function navStep(d) {
+      const links = Array.from($('.lib').querySelectorAll('a'));
+      let i = links.indexOf(D.activeElement);
+      if (i < 0) i = links.findIndex((a) => a.getAttribute('aria-current') === 'page');
+      const to = links[i + d];
+      if (!to) return true;
+      to.focus({ preventScroll: true });
+      to.click();
+      return true;
+    }
     Object.assign(pageKeys, {
-      j: step(1), k: step(-1), ArrowDown: vert(1), ArrowUp: vert(-1),
-      ArrowRight: () => { if (S.view === 'grid') return step(1)(); const e = current(); if (S.view === 'tree' && e && e.branch && !e.open) { toggle(e); return true; } return false; },
+      j: step(1), k: step(-1), ArrowDown: () => NAV ? navStep(1) : vert(1)(), ArrowUp: () => NAV ? navStep(-1) : vert(-1)(),
+      ArrowRight: () => { if (NAV) { navOn(false); $('.flist').focus({ preventScroll: true }); return true; } if (S.view === 'grid') return step(1)(); const e = current(); if (S.view === 'tree' && e && e.branch && !e.open) { toggle(e); return true; } return false; },
       ArrowLeft: () => { if (S.view === 'grid') return step(-1)(); const e = current(); if (S.view === 'tree' && e && e.open) { toggle(e); return true; } return false; },
       Enter: () => { open(current()); return true; }, ' ': () => { S.ly = S.ly === 'file' ? 'split' : 'file'; keep('layout', S.ly); update(); return true; },
       u: up, Backspace: up, f: () => { box.focus(); box.select(); return true; }, '/': () => { box.focus(); box.select(); return true; },
