@@ -11,6 +11,12 @@
 // pieces whose PieceCID is already stored. Anything that varies between runs
 // (times, copies) lives in index/.
 //
+// Once every copy holds an archive's data pieces, a new snapshot keeps using
+// them for the blocks the repo still has (see markKept) and cuts new pieces
+// only from blocks no stored piece holds. So an edit uploads about what
+// changed, even in a repo smaller than one piece. A stored piece less than
+// KeepLive of whose bytes the repo still has is not kept.
+//
 // Data pieces hold repo blocks only, and each CAR header names the piece's
 // first block, so a data piece's bytes depend on nothing outside it. The
 // blocks the archive makes (data/ directories, index/, explorer/ and the
@@ -170,9 +176,19 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
+	if err := l.markKept(outDir, prev); err != nil {
+		return nil, err
+	}
 	dataPieces, err := l.cut(opts)
 	if err != nil {
 		return nil, err
+	}
+	// Kept pieces come after the new ones, in the order prev had them.
+	nData := len(dataPieces) + len(l.kept)
+	for i := range l.tab {
+		if k := l.tab[i].kept; k != 0 {
+			l.tab[i].piece = int32(len(dataPieces)) + k - 1
+		}
 	}
 
 	dag := memDAG{}
@@ -197,6 +213,11 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: l.own(p),
 			BlockList: fmt.Sprintf("pieces/%04d", i)})
 	}
+	for k, kp := range l.kept {
+		i := len(dataPieces) + k
+		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, PieceCID: kp.PieceCID, CARBytes: kp.CARBytes, Blocks: kp.Blocks,
+			BlockList: fmt.Sprintf("pieces/%04d", i)})
+	}
 
 	// Write data pieces first: index/ needs their PieceCIDs.
 	pieceDir := filepath.Join(outDir, "pieces")
@@ -207,7 +228,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	for _, p := range dataPieces {
 		planned += car.HeaderSize(l.tab[p.start].c)
 		for j := p.start; j < p.end; j++ {
-			if l.tab[j].shared == 0 {
+			if !l.tab[j].elsewhere() {
 				planned += car.EntrySize(l.tab[j].c, l.tab[j].size)
 			}
 		}
@@ -238,7 +259,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		path, sum, err := writePiece(pieceDir, []cid.Cid{l.tab[p.start].c}, func(w *car.Writer) error {
 			for j := p.start; j < p.end; j++ {
 				b := &l.tab[j]
-				if b.shared != 0 {
+				if b.elsewhere() {
 					continue
 				}
 				data, err := l.get(ctx, b.c)
@@ -267,11 +288,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		written = finished
 		out = append(out, Piece{Piece: m.Pieces[i], Path: path})
 	}
+	for i := len(dataPieces); i < nData; i++ {
+		out = append(out, Piece{Piece: m.Pieces[i], Path: filepath.Join(pieceDir, m.Pieces[i].PieceCID+".car")})
+	}
 
 	// The same data as the last pack: keep its index/, explorer/ and root,
 	// so a new ipfs2fil version, or a new layout for them, does not make
 	// pieces to upload until the repo changes.
-	if !opts.NewPages && sameData(prev, m, len(dataPieces), opts.Record, pieceDir) && reusable(outDir, prev) {
+	if !opts.NewPages && sameData(prev, m, nData, opts.Record, pieceDir) && reusable(outDir, prev) {
 		res, err := reuse(outDir, prev, cache)
 		if err != nil {
 			return nil, err
@@ -317,7 +341,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		// the same data again: keep the snapshot, minus the archive's own pieces
 		var keep []int
 		for _, i := range m.Snapshots[snap].NewPieces {
-			if i < len(dataPieces) {
+			if i < nData {
 				keep = append(keep, i)
 			}
 		}
@@ -945,13 +969,20 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 	for i, p := range pieces {
 		var sb strings.Builder
 		for j := p.start; j < p.end; j++ {
-			if l.tab[j].shared != 0 {
+			if l.tab[j].elsewhere() {
 				continue
 			}
 			sb.WriteString(l.tab[j].c.Hash().B58String())
 			sb.WriteByte('\n')
 		}
 		if err := os.WriteFile(filepath.Join(dir, "pieces", fmt.Sprintf("%04d", i)), []byte(sb.String()), 0o644); err != nil {
+			return nil, err
+		}
+	}
+	// A kept piece's list is as it was written: every block in the piece,
+	// including any the repo no longer has.
+	for k, kp := range l.kept {
+		if err := os.WriteFile(filepath.Join(dir, "pieces", fmt.Sprintf("%04d", len(pieces)+k)), kp.list, 0o644); err != nil {
 			return nil, err
 		}
 	}

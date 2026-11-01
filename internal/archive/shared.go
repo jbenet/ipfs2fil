@@ -2,6 +2,8 @@ package archive
 
 import (
 	"bufio"
+	"errors"
+	"github.com/jbenet/ipfs2fil/internal/car"
 	"os"
 	"path/filepath"
 	"slices"
@@ -115,4 +117,62 @@ func storedIn(m *manifest.Manifest, i int) bool {
 		}
 	}
 	return true
+}
+
+// KeepLive is the share of a stored piece's bytes that must still be in the
+// repo for a new snapshot to keep using the piece. A piece mostly of blocks
+// the repo no longer has is not kept: its live blocks go in new pieces.
+const KeepLive = 0.25
+
+// keptPiece is a data piece an earlier snapshot stored that this one keeps
+// using for the blocks it still holds, so they are not stored again.
+type keptPiece struct {
+	manifest.Piece
+	list []byte // its index/pieces block list, as written then
+	live int64  // bytes of its blocks still in the repo
+}
+
+// markKept finds the data pieces of prev that every copy holds and marks
+// the repo's blocks in them as kept there. So a new snapshot uploads only
+// the blocks no stored piece has: an edit to a small repo adds a small
+// piece instead of writing its one big piece again. Blocks another
+// archive's piece holds (shared) were marked first and stay shared.
+func (l *layout) markKept(outDir string, prev *manifest.Manifest) error {
+	l.kept = nil
+	if prev == nil {
+		return nil
+	}
+	for _, p := range prev.Pieces {
+		if p.BlockList == "" || !storedIn(prev, p.Index) {
+			continue
+		}
+		list, err := os.ReadFile(filepath.Join(outDir, "index", p.BlockList))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return err
+		}
+		kp := keptPiece{Piece: p, list: list}
+		var mine []int32
+		err = ReadBlockList(filepath.Join(outDir, "index", p.BlockList), func(h multihash.Multihash) error {
+			i, ok := l.idx[string(h)]
+			if !ok || l.tab[i].shared != 0 || l.tab[i].kept != 0 {
+				return nil
+			}
+			kp.live += car.EntrySize(l.tab[i].c, l.tab[i].size)
+			mine = append(mine, i)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		if len(mine) == 0 || float64(kp.live) < KeepLive*float64(p.CARBytes) {
+			continue
+		}
+		l.kept = append(l.kept, kp)
+		for _, i := range mine {
+			l.tab[i].kept = int32(len(l.kept))
+		}
+	}
+	return nil
 }
