@@ -250,7 +250,7 @@ func pushListed(ctx context.Context, o *opts, skip *packFailures) error {
 	if len(todo) == 0 {
 		fmt.Fprintf(o.stdout, "all %d packed repos are stored; nothing to upload\n", len(as))
 		commitCatalog(o, c, "push")
-		return nil
+		return removeEarlier(ctx, o, c, s, as)
 	}
 	for _, k := range keys {
 		if ok, err := approveCost(ctx, o, s, k, sizes[k], totals[k]); err != nil || !ok {
@@ -284,8 +284,44 @@ func pushListed(ctx context.Context, o *opts, skip *packFailures) error {
 	if len(errs) > 0 {
 		return fmt.Errorf("%d of %d repos did not finish; run 'ipfs2fil push --all' again to retry:\n%w", len(errs), len(todo), errors.Join(errs...))
 	}
+	if err := removeEarlier(ctx, o, c, s, as); err != nil {
+		return err
+	}
 	fmt.Fprintln(o.stdout, "\nnext     ipfs2fil status --all   (proofs start within a day)")
 	return nil
+}
+
+// removeEarlier removes the pieces this machine's archives in the
+// collection dropped and no repo on any machine uses, once every repo is
+// pushed, reading the catalog again first so it knows what each uses now.
+// Skipped repos, and repos not packed, leave it to the next push.
+func removeEarlier(ctx context.Context, o *opts, c *collection.Collection, s store.Store, as []*listedArchive) error {
+	if o.keepEarlier || skipRemoval(c, as) {
+		return nil
+	}
+	readCatalog(ctx, o, c, s)
+	use, ok := collectionUse(c)
+	if !ok {
+		return nil
+	}
+	var mine []droppedArchive
+	for _, a := range as {
+		if a.key != c.Key {
+			continue
+		}
+		m, err := manifest.Read(manifestPath(a.o.out))
+		if err != nil {
+			return err
+		}
+		mine = append(mine, droppedArchive{name: a.repo.Name, out: a.o.out, m: m})
+	}
+	return removeDropped(ctx, o, s, c.Key, mine, use)
+}
+
+// skipRemoval says whether some repo on this machine is not part of the
+// push: then what it uses is not known for sure.
+func skipRemoval(c *collection.Collection, as []*listedArchive) bool {
+	return len(as) != len(c.Repos)
 }
 
 // otherCopies lists the data sets other machines' archives use, by key, as
@@ -405,11 +441,17 @@ func statusAll(ctx context.Context, o *opts) error {
 	res.Archive, res.DataSets, res.FundedDays = c.Key, []dataSetResult{}, main.FundedDays
 	res.Reserve, res.ReserveDataSets = main.Reserve, main.ReserveDataSets
 	distinct := map[string]bool{}
+	sharedFrom := map[string]bool{} // pieces repos share blocks from
 	for i, e := range es {
 		row := repoStatusRow{repoRow: rows[i]}
 		m, err := e.Manifest()
 		if err != nil {
 			return err
+		}
+		if m != nil && m.Shared != nil {
+			for _, p := range m.Shared.Pieces {
+				sharedFrom[p.PieceCID] = true
+			}
 		}
 		if m != nil {
 			key, err := store.ArchiveKey(m)
@@ -448,7 +490,7 @@ func statusAll(ctx context.Context, o *opts) error {
 		earlier := map[string]bool{}
 		for _, h := range held {
 			for p := range h {
-				if !distinct[p] && !earlier[p] {
+				if !distinct[p] && !sharedFrom[p] && !earlier[p] {
 					earlier[p] = true
 					res.EarlierBytes += car.PayloadSize(p)
 				}
@@ -506,7 +548,9 @@ func statusAll(ctx context.Context, o *opts) error {
 	}
 	if res.Earlier > 0 {
 		fmt.Fprintf(w, "earlier  %d pieces (%s) in the data sets belong to earlier snapshots, not to any repo's current archive;\n"+
-			"         they stay stored and paid for, so those snapshots can still be read\n", res.Earlier, humanBytes(res.EarlierBytes))
+			"         they stay stored and paid for, so those snapshots can still be read, until push removes them\n"+
+			"         (it removes what this machine's repos dropped once that passes %s; --remove-earlier sooner, --keep-earlier never)\n",
+			res.Earlier, humanBytes(res.EarlierBytes), humanBytes(removeMin))
 	}
 	if len(main.Unused) > 0 {
 		var ids []string

@@ -39,12 +39,20 @@ key comes from --key-file, $IPFS2FIL_KEY_FILE or $IPFS2FIL_PRIVATE_KEY; it is
 never printed or written anywhere.
 
 With --all, pushes every repo 'ipfs2fil repos add' listed into one shared set
-of data sets, in the order added, after one confirmation for all of them.`,
+of data sets, in the order added, after one confirmation for all of them.
+
+Once everything is stored, push removes the pieces earlier snapshots used that
+no repo on any machine uses now (an old head, changed index and explorer parts,
+data pieces mostly of blocks the repo no longer has), when they add up to 512
+MiB or more, after asking: Filecoin keeps and charges for a piece until it is
+removed. Those snapshots can then no longer be read back in full.
+--keep-earlier keeps them; --remove-earlier removes them however few.`,
 		flags: func(fs *flag.FlagSet, o *opts) {
 			repoOnlyFlag(fs, o)
 			outFlag(fs, o)
 			copiesFlag(fs, o)
 			yesFlag(fs, o)
+			earlierFlags(fs, o)
 			addStoreFlags(fs)
 			allFlag(fs, o)
 		},
@@ -72,11 +80,26 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 	}
 	defer closer.Close()
 
+	// An archive in a collection removes earlier pieces with the others
+	// (push --all), which knows what every repo uses.
+	removeOwn := func() error {
+		if m.Collection != "" {
+			return nil
+		}
+		m, err := manifest.Read(manifestPath(o.out))
+		if err != nil {
+			return err
+		}
+		return removeDropped(ctx, o, s, key, []droppedArchive{{name: o.out, out: o.out, m: m}}, []*manifest.Manifest{m})
+	}
 	if n, err := missing(ctx, s, m, pieces, o.copies); err != nil {
 		return err
 	} else if n == 0 {
 		fmt.Fprintf(o.stdout, "all %d pieces are already stored in %d copies; nothing to upload\n", len(pieces), o.copies)
-		return store.Record(ctx, s, m, pieces, o.copies, saveManifest(o.out))
+		if err := store.Record(ctx, s, m, pieces, o.copies, saveManifest(o.out)); err != nil {
+			return err
+		}
+		return removeOwn()
 	}
 	sizes := map[string]int64{}
 	var total int64
@@ -90,7 +113,10 @@ func push(ctx context.Context, o *opts, m *manifest.Manifest, pieces []archive.P
 		}
 		return err
 	}
-	return upload(ctx, o, s, m, pieces, total)
+	if err := upload(ctx, o, s, m, pieces, total); err != nil {
+		return err
+	}
+	return removeOwn()
 }
 
 // upload stores the archive's pieces once the cost is approved.

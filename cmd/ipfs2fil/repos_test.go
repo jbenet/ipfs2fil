@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 
 	"github.com/jbenet/ipfs2fil/internal/archive"
 	"github.com/jbenet/ipfs2fil/internal/car"
@@ -586,5 +590,164 @@ func TestChainCatalogReadsBundles(t *testing.T) {
 				t.Errorf("%s: %s differs between the machines' exports (%v)", name, f, err)
 			}
 		}
+	}
+}
+
+// writeRawCAR writes a CAR of n random raw blocks, each a root.
+func writeRawCAR(t *testing.T, path string, seed int64, n int) {
+	t.Helper()
+	rng := rand.New(rand.NewSource(seed))
+	var bs [][]byte
+	var roots []cid.Cid
+	for range n {
+		b := make([]byte, 40000)
+		rng.Read(b)
+		c, err := cid.V1Builder{Codec: cid.Raw, MhType: multihash.SHA2_256}.Sum(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bs, roots = append(bs, b), append(roots, c)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	w, err := car.NewWriter(f, roots...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, c := range roots {
+		if err := w.Put(c, bs[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := w.Finish(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestPushRemovesEarlierPieces: after a repo changes, the pieces its last
+// snapshot used and the new one does not are left while few, and removed
+// with --remove-earlier; a repo that shares them keeps them.
+func TestPushRemovesEarlierPieces(t *testing.T) {
+	ms := useMemStore(t, 5)
+	home := t.TempDir()
+	path := filepath.Join(t.TempDir(), "photos.car")
+	writeRawCAR(t, path, 1, 8)
+	if _, _, err := ipfs2fil(t, "repos", "add", path, "--name", "photos", "--home", home); err != nil {
+		t.Fatal(err)
+	}
+	if out, _, err := ipfs2fil(t, "up", "--all", "--home", home, "--yes"); err != nil {
+		t.Fatalf("up: %v\n%s", err, out)
+	}
+	mpath := filepath.Join(home, "archives", "photos", "manifest.json")
+	first, err := manifest.Read(mpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	writeRawCAR(t, path, 2, 8) // all new blocks
+	out, _, err := ipfs2fil(t, "up", "--all", "--home", home, "--yes")
+	if err != nil || !strings.Contains(out, "earlier  ") || ms.Removals() != 0 {
+		t.Fatalf("up after the change: %v, %d removals\n%s", err, ms.Removals(), out)
+	}
+	m, err := manifest.Read(mpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Dropped) != len(first.Pieces) {
+		t.Errorf("dropped %v, want the %d pieces of the first snapshot", m.Dropped, len(first.Pieces))
+	}
+
+	out, _, err = ipfs2fil(t, "push", "--all", "--home", home, "--yes", "--remove-earlier")
+	if err != nil || !strings.Contains(out, "of earlier snapshots from 3 copies") || ms.Removals() != 3 {
+		t.Fatalf("push --remove-earlier: %v, %d removals\n%s", err, ms.Removals(), out)
+	}
+	sets, held, err := ms.Pieces(context.Background(), first.Collection, 3)
+	if err != nil || len(sets) != 3 {
+		t.Fatal(err)
+	}
+	for _, h := range held {
+		for _, p := range first.Pieces {
+			if _, ok := h[p.PieceCID]; ok {
+				t.Errorf("piece %s of the first snapshot is still held", p.PieceCID)
+			}
+		}
+		if len(h) != len(m.Pieces) {
+			t.Errorf("a data set holds %d pieces, want %d", len(h), len(m.Pieces))
+		}
+	}
+	if m, _ := manifest.Read(mpath); len(m.Dropped) != 0 {
+		t.Errorf("still noted as dropped: %v", m.Dropped)
+	}
+	if out, _, err := ipfs2fil(t, "status", "--all", "--home", home); err != nil || strings.Contains(out, "earlier") {
+		t.Errorf("status --all: %v\n%s", err, out)
+	}
+	if out, _, err := ipfs2fil(t, "verify", "--home", home, "--ipni", ""); err != nil || !strings.Contains(out, " 0 bad") {
+		t.Errorf("verify: %v\n%s", err, out)
+	}
+	if out, _, err := ipfs2fil(t, "push", "--all", "--home", home, "--yes", "--remove-earlier"); err != nil || ms.Removals() != 3 {
+		t.Errorf("push again removed more: %v\n%s", err, out)
+	}
+}
+
+// TestRemovalKeepsPiecesOthersUse: a piece the laptop's repo dropped stays
+// while a repo on the server, not packed since, shares blocks from it.
+func TestRemovalKeepsPiecesOthersUse(t *testing.T) {
+	ms := useMemStore(t, 5)
+	catalog := t.TempDir()
+	laptop := []string{"--home", t.TempDir(), "--catalog", catalog, "--host", "laptop"}
+	server := []string{"--home", t.TempDir(), "--catalog", catalog, "--host", "server"}
+	on := func(machine []string, args ...string) (string, error) {
+		t.Helper()
+		out, _, err := ipfs2fil(t, append(args, machine...)...)
+		return out, err
+	}
+	a := filepath.Join(t.TempDir(), "a.car")
+	writeRawCAR(t, a, 1, 8)
+	if _, err := on(laptop, "repos", "add", a, "--name", "a"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := on(laptop, "up", "--all", "--yes"); err != nil {
+		t.Fatalf("laptop up: %v\n%s", err, out)
+	}
+	// b holds the same blocks, so it shares a's stored piece.
+	b := filepath.Join(t.TempDir(), "b.car")
+	writeRawCAR(t, b, 1, 8)
+	if _, err := on(server, "repos", "add", b, "--name", "b"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := on(server, "up", "--all", "--yes"); err != nil || !strings.Contains(out, "already in earlier repos' pieces") {
+		t.Fatalf("server up: %v\n%s", err, out)
+	}
+	writeRawCAR(t, a, 2, 8)
+	out, err := on(laptop, "up", "--all", "--yes", "--remove-earlier")
+	if err != nil {
+		t.Fatalf("laptop up after a changed: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "of earlier snapshots from") || ms.Removals() != 0 {
+		t.Errorf("removed a piece b uses:\n%s", out)
+	}
+	mb, err := manifest.Read(filepath.Join(server[1], "archives", "b", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mb == nil || mb.Shared == nil {
+		t.Fatalf("b's manifest %+v", mb)
+	}
+	_, held, err := ms.Pieces(context.Background(), mb.Collection, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range mb.Shared.Pieces {
+		for _, h := range held {
+			if _, ok := h[p.PieceCID]; !ok {
+				t.Errorf("piece %s, which b shares blocks from, was removed:\n%s", p.PieceCID, out)
+			}
+		}
+	}
+	if out, err := on(server, "export", "--repo", "b", "--to", filepath.Join(t.TempDir(), "x")); err != nil {
+		t.Errorf("export b: %v\n%s", err, out)
 	}
 }

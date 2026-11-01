@@ -193,7 +193,11 @@ lists the data sets' pieces, reads the first bytes of each new one to find
 those records, and downloads only each repo's latest bundle (or head
 piece) and the pieces holding its block lists, into `~/.ipfs2fil/chain`.
 `ipfs2fil export --repo host/name` writes another machine's repo back out
-from Filecoin. So a repo shows up on other machines
+from Filecoin. Filecoin keeps and charges for a piece until it is removed,
+so once everything is stored, push removes the pieces earlier snapshots
+used that no repo on any machine uses now, when they add up to 512 MiB or
+more, after asking (`--keep-earlier` keeps them, `--remove-earlier` removes
+them sooner); those snapshots can then no longer be read back in full. So a repo shows up on other machines
 once its pieces are stored, and a machine leaves out blocks that repos on
 other machines already store. Repo paths never leave the machine. Machines
 are named by `--host`, else the name saved in `~/.ipfs2fil/host` on first use

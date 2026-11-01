@@ -127,6 +127,19 @@ func (f *fake) Await(_ context.Context, ds dataSet, pieceCID string) error {
 	return nil
 }
 
+func (f *fake) Remove(_ context.Context, ds dataSet, pieceIDs []string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, id := range pieceIDs {
+		for c, pid := range f.pieces[ds.ID] {
+			if pid == id {
+				delete(f.pieces[ds.ID], c)
+			}
+		}
+	}
+	return nil
+}
+
 func (f *fake) Commit(_ context.Context, ds dataSet, pieceCIDs []string, meta map[string]string) ([]string, error) {
 	if meta[KeyIPFSRoot] == "" {
 		return nil, fmt.Errorf("no %s", KeyIPFSRoot)

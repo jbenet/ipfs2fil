@@ -37,6 +37,10 @@ type Manifest struct {
 	// is the CID itself, and roots whose block the repo did not have. An
 	// export pins them again. Only CID, Kind and Name are set.
 	Unstored []Root `json:"unstored,omitempty"`
+	// Dropped lists the PieceCIDs that earlier snapshots used and this one
+	// does not, so a push can remove them from the data sets once no repo
+	// uses them. It is kept next to the CARs only, not inside the archive.
+	Dropped []string `json:"dropped,omitempty"`
 	// Collection is the key of the collection the archive belongs to. Every
 	// archive in a collection stores into the collection's data sets, so the
 	// store keys them by Collection instead of Snapshots[0].Root. It is only

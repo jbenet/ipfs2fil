@@ -3,7 +3,10 @@ package archive
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -137,4 +140,57 @@ func TestMostlyDeadPieceIsNotKept(t *testing.T) {
 	}
 	dirOut, got := export(t, dir, ExportOptions{})
 	sameRepo(t, f, dirOut, got)
+}
+
+// A snapshot notes the pieces the one before used and it does not, and
+// keeps noting them until they are gone, so a push can remove them.
+func TestDroppedPieces(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	first, err := Build(ctx, sample(t, false), dir, onePiece())
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored(t, dir)
+	second, err := Build(ctx, sample(t, true), dir, onePiece())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := map[string]bool{}
+	for _, p := range second.Manifest.Pieces {
+		now[p.PieceCID] = true
+	}
+	want := map[string]bool{}
+	for _, p := range first.Manifest.Pieces {
+		if !now[p.PieceCID] {
+			want[p.PieceCID] = true
+		}
+	}
+	got := map[string]bool{}
+	for _, c := range second.Manifest.Dropped {
+		got[c] = true
+	}
+	if len(want) == 0 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("dropped %v, want %v", got, want)
+	}
+	// Not inside the archive.
+	b, err := os.ReadFile(filepath.Join(dir, "index", "manifest.json"))
+	if err != nil || strings.Contains(string(b), "dropped") {
+		t.Errorf("index/manifest.json names dropped pieces: %v", err)
+	}
+	stored(t, dir)
+	third, err := Build(ctx, sample(t, false), dir, onePiece())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What the third uses again is not dropped; the rest still is.
+	used := map[string]bool{}
+	for _, p := range third.Manifest.Pieces {
+		used[p.PieceCID] = true
+	}
+	for c := range want {
+		if slices.Contains(third.Manifest.Dropped, c) == used[c] {
+			t.Errorf("piece %s: used %v, noted as dropped %v", c, used[c], !used[c])
+		}
+	}
 }
