@@ -103,10 +103,18 @@ type Root struct {
 // lists under index/pieces (a catalog reader needs those), meta pieces the
 // data/ folders and the rest of explorer/. Archives packed before parts
 // existed have pieces with no part after their data pieces, holding all of it.
+//
+// A bundle piece holds what changed in one push, for one or more archives:
+// for each, its head blocks, any of its index and meta blocks no stored
+// piece holds, and its last data piece if that is small (then the bundle
+// has a BlockList, listing that archive's data blocks in it). Its CAR
+// header names each archive's root and record in turn, and the records are
+// its first blocks. Archives that changed in the same push share the piece.
 const (
-	PartIndex = "index"
-	PartMeta  = "meta"
-	PartHead  = "head"
+	PartIndex  = "index"
+	PartMeta   = "meta"
+	PartHead   = "head"
+	PartBundle = "bundle"
 )
 
 type Piece struct {
@@ -119,6 +127,9 @@ type Piece struct {
 	// Part is "" for a piece of repo blocks, else which of the archive's own
 	// blocks it holds (PartIndex, PartMeta, PartHead).
 	Part string `json:"part,omitempty"`
+	// DataBytes is, for a bundle, the CAR bytes of this archive's data
+	// blocks in it (the rest are other blocks, or other archives').
+	DataBytes int64 `json:"dataBytes,omitempty"`
 	// Snapshot is the index of the snapshot that first stored this piece.
 	Snapshot int `json:"snapshot"`
 }

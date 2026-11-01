@@ -166,7 +166,12 @@ func (l *layout) markKept(outDir string, prev *manifest.Manifest) error {
 		if err != nil {
 			return err
 		}
-		if len(mine) == 0 || float64(kp.live) < KeepLive*float64(p.CARBytes) {
+		// A bundle holds other blocks too: measure against this archive's.
+		size := p.CARBytes
+		if p.DataBytes > 0 {
+			size = p.DataBytes
+		}
+		if len(mine) == 0 || float64(kp.live) < KeepLive*float64(size) {
 			continue
 		}
 		l.kept = append(l.kept, kp)

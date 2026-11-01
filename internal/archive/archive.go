@@ -79,6 +79,13 @@ type Options struct {
 	// the archive. Only those pieces and the root change.
 	NewPages bool
 
+	// Bundle, if set, gathers this archive's small changes with those of
+	// the other archives packed with it into shared pieces (see Bundle):
+	// the head blocks, the index and meta blocks no stored piece holds, and
+	// the last data piece when it is under MinPiece. Build leaves the
+	// bundle's PieceCID empty; Bundle.Finish fills it in.
+	Bundle *Bundle
+
 	// Progress, if set, is called as Build goes: stage "walk" counts blocks
 	// laid out against the repo's block count, "write" counts CAR bytes
 	// written against the bytes planned. total is 0 while unknown.
@@ -185,6 +192,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	// Kept pieces come after the new ones, in the order prev had them.
 	nData := len(dataPieces) + len(l.kept)
+	// The last new data piece goes in the bundle when it is small: it is
+	// the rest after the content-defined cuts, and changes with each edit.
+	tail := -1
+	if opts.Bundle != nil && len(dataPieces) > 0 {
+		if p := dataPieces[len(dataPieces)-1]; l.ownBytes(p) < min(opts.MinPiece, opts.MaxPiece/2) {
+			tail = len(dataPieces) - 1
+		}
+	}
 	for i := range l.tab {
 		if k := l.tab[i].kept; k != 0 {
 			l.tab[i].piece = int32(len(dataPieces)) + k - 1
@@ -212,11 +227,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	for i, p := range dataPieces {
 		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: l.own(p),
 			BlockList: fmt.Sprintf("pieces/%04d", i)})
+		if i == tail {
+			m.Pieces[i].Part, m.Pieces[i].DataBytes = manifest.PartBundle, l.ownBytes(p)
+		}
 	}
 	for k, kp := range l.kept {
 		i := len(dataPieces) + k
 		m.Pieces = append(m.Pieces, manifest.Piece{Index: i, PieceCID: kp.PieceCID, CARBytes: kp.CARBytes, Blocks: kp.Blocks,
-			BlockList: fmt.Sprintf("pieces/%04d", i)})
+			BlockList: fmt.Sprintf("pieces/%04d", i), Part: kp.Part, DataBytes: kp.DataBytes})
 	}
 
 	// Write data pieces first: index/ needs their PieceCIDs.
@@ -237,26 +255,8 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	var out []Piece
 	keys := make([]string, len(dataPieces))
 	lists := l.lastLists(outDir, prev)
-	for i, p := range dataPieces {
-		keys[i] = l.pieceKey(p)
-		if _, _, ok := cache.piece(pieceDir, keys[i]); !ok {
-			// No cache entry (a pack from before the cache, or a lost
-			// cache): a CAR the last pack wrote for the same block list
-			// is the same bytes.
-			if c, ok := lists.match(l, p, pieceDir); ok {
-				cache.Pieces[keys[i]] = c
-			}
-		}
-		if c, path, ok := cache.piece(pieceDir, keys[i]); ok {
-			// The same blocks as a CAR already on disk: keep it.
-			m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = c.PieceCID, c.CARBytes
-			finished += c.CARBytes
-			written = finished
-			l.progress("write", written, planned)
-			out = append(out, Piece{Piece: m.Pieces[i], Path: path})
-			continue
-		}
-		path, sum, err := writePiece(pieceDir, []cid.Cid{l.tab[p.start].c}, func(w *car.Writer) error {
+	writeSpan := func(p span) (string, car.Summary, error) {
+		return writePiece(pieceDir, []cid.Cid{l.tab[p.start].c}, func(w *car.Writer) error {
 			for j := p.start; j < p.end; j++ {
 				b := &l.tab[j]
 				if b.elsewhere() {
@@ -275,6 +275,40 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 			}
 			return nil
 		})
+	}
+	for i, p := range dataPieces {
+		if i == tail {
+			// The last pack's bundle, if it holds just these blocks of
+			// this archive, still does: a re-run, after the copies were
+			// lost say, gives the same archive.
+			if bp, ok := lists.bundle(l, p, pieceDir); ok {
+				m.Pieces[i].PieceCID, m.Pieces[i].CARBytes, m.Pieces[i].Blocks = bp.PieceCID, bp.CARBytes, bp.Blocks
+				out = append(out, Piece{Piece: m.Pieces[i], Path: filepath.Join(pieceDir, bp.PieceCID+".car")})
+				tail = -1
+				continue
+			}
+			out = append(out, Piece{Piece: m.Pieces[i]}) // the bundle's, once written
+			continue
+		}
+		keys[i] = l.pieceKey(p)
+		if _, _, ok := cache.piece(pieceDir, keys[i]); !ok {
+			// No cache entry (a pack from before the cache, or a lost
+			// cache): a CAR the last pack wrote for the same block list
+			// is the same bytes.
+			if c, ok := lists.match(l, p, pieceDir); ok {
+				cache.Pieces[keys[i]] = c
+			}
+		}
+		if c, path, ok := cache.piece(pieceDir, keys[i]); ok {
+			// The same blocks as a CAR already on disk: keep it.
+			m.Pieces[i].PieceCID, m.Pieces[i].CARBytes = c.PieceCID, c.CARBytes
+			finished += c.CARBytes
+			written = finished
+			l.progress("write", written, planned)
+			out = append(out, Piece{Piece: m.Pieces[i], Path: path})
+			continue
+		}
+		path, sum, err := writeSpan(p)
 		if err != nil {
 			return nil, err
 		}
@@ -303,7 +337,9 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		res.Missing = l.missing
 		done := &packCache{Format: cacheFormat, Inputs: inputs, Root: prev.Root, Missing: l.missing, Pieces: map[string]cachedPiece{}}
 		for i, k := range keys {
-			done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+			if k != "" {
+				done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+			}
 		}
 		if err := done.write(outDir); err != nil {
 			return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
@@ -313,11 +349,14 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 
 	// History: a piece keeps the snapshot that first stored it. A run that
 	// changes nothing adds no snapshot, so it rebuilds the same archive.
-	snap, known := 0, map[string]int{}
+	snap, known, stored := 0, map[string]int{}, map[string]bool{}
 	if prev != nil {
 		m.Snapshots, m.Copies, m.Collection = prev.Snapshots, prev.Copies, prev.Collection
 		for _, p := range prev.Pieces {
-			known[p.PieceCID] = p.Snapshot
+			if p.PieceCID != "" {
+				known[p.PieceCID] = p.Snapshot
+				stored[p.PieceCID] = storedIn(prev, p.Index)
+			}
 		}
 		snap = len(m.Snapshots)
 		if prev.DataRoot == m.DataRoot && snap > 0 {
@@ -326,7 +365,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	var fresh []int
 	for i := range m.Pieces {
-		if s, ok := known[m.Pieces[i].PieceCID]; ok {
+		if s, ok := known[m.Pieces[i].PieceCID]; ok && m.Pieces[i].PieceCID != "" {
 			m.Pieces[i].Snapshot = s
 		} else {
 			m.Pieces[i].Snapshot = snap
@@ -370,40 +409,118 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	l.accts = l.accounts(ctx, m.Roots)
 	entries := l.entries(roots, m)
-	idx, exp, err := l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries)
-	if err != nil {
-		return nil, err
+	// With a bundle, the index and meta pieces no copy holds yet go in it,
+	// as do the head blocks and a small last data piece, if all of that
+	// fits in one piece; else as much as fits, the rest in pieces of its own.
+	b := opts.Bundle
+	type metaPiece struct {
+		sum   car.Summary
+		part  string
+		path  string
+		nodes []format.Node
 	}
-	shards, err := explorer.Shards(filepath.Join(outDir, "explorer"))
-	if err != nil {
-		return nil, err
-	}
-	stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp, shards)
-	if err != nil {
-		return nil, err
-	}
-	inMeta := map[string]bool{}
-	for _, sp := range cutMeta(stable, opts) {
-		first := stable[sp.start]
-		part := manifest.PartMeta
-		for _, n := range stable[sp.start:sp.end] {
-			inMeta[string(n.Cid().Hash())] = true
-			if inIndex[string(n.Cid().Hash())] {
-				part = manifest.PartIndex
-			}
+	var (
+		idx, exp    format.Node
+		inMeta      map[string]bool
+		metas       []metaPiece
+		bundled     []format.Node // index and meta blocks for the bundle
+		bundleHeads bool
+	)
+	for {
+		if idx, exp, err = l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries); err != nil {
+			return nil, err
 		}
-		path, sum, err := writePiece(pieceDir, []cid.Cid{first.Cid()}, func(w *car.Writer) error {
-			for _, n := range stable[sp.start:sp.end] {
-				if err := w.Put(n.Cid(), n.RawData()); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		shards, err := explorer.Shards(filepath.Join(outDir, "explorer"))
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, addOwn(m, known, snap, sum, part, path))
+		stable, inIndex, err := l.stableBlocks(ctx, dag, dataRoot, idx, exp, shards)
+		if err != nil {
+			return nil, err
+		}
+		inMeta, metas = map[string]bool{}, nil
+		var metaBytes int64
+		for _, sp := range cutMeta(stable, opts) {
+			first := stable[sp.start]
+			part := manifest.PartMeta
+			for _, n := range stable[sp.start:sp.end] {
+				inMeta[string(n.Cid().Hash())] = true
+				if inIndex[string(n.Cid().Hash())] {
+					part = manifest.PartIndex
+				}
+			}
+			path, sum, err := writePiece(pieceDir, []cid.Cid{first.Cid()}, func(w *car.Writer) error {
+				for _, n := range stable[sp.start:sp.end] {
+					if err := w.Put(n.Cid(), n.RawData()); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			metas = append(metas, metaPiece{sum, part, path, stable[sp.start:sp.end]})
+			if !stored[sum.PieceCID.String()] {
+				metaBytes += sum.Bytes
+			}
+		}
+		if b == nil {
+			break
+		}
+		var tailBytes int64
+		if tail >= 0 {
+			tailBytes = m.Pieces[tail].DataBytes
+		}
+		// What the head blocks will be, from index/ and explorer/ as made
+		// so far: the second making changes only the piece list.
+		root, err := mkdir(ctx, dag, []child{{"data", dataRoot}, {"index", idx}, {"explorer", exp}})
+		if err != nil {
+			return nil, err
+		}
+		heads, err := l.madeBlocks(ctx, dag, root.Cid(), inMeta)
+		if err != nil {
+			return nil, err
+		}
+		headBytes := int64(len(opts.Record)) + 4<<10
+		for _, n := range heads {
+			headBytes += car.EntrySize(n.Cid(), len(n.RawData()))
+		}
+		headBytes += headBytes / 4
+		room := opts.MaxPiece - opts.MaxPiece/64
+		if tailBytes+metaBytes+headBytes <= room {
+			bundleHeads = true
+			break
+		}
+		if tail < 0 {
+			if metaBytes+headBytes <= room {
+				bundleHeads = true
+			} else {
+				b = nil
+			}
+			break
+		}
+		// The last data piece goes in a piece of its own, and index/ and
+		// explorer/, which name it, are made again.
+		path, sum, err := writeSpan(dataPieces[tail])
+		if err != nil {
+			return nil, err
+		}
+		m.Pieces[tail].Part, m.Pieces[tail].DataBytes = "", 0
+		m.Pieces[tail].PieceCID, m.Pieces[tail].CARBytes = sum.PieceCID.String(), sum.Bytes
+		out[tail] = Piece{Piece: m.Pieces[tail], Path: path}
+		keys[tail] = l.pieceKey(dataPieces[tail])
+		tail = -1
+	}
+	for _, f := range metas {
+		if bundleHeads && !stored[f.sum.PieceCID.String()] {
+			bundled = append(bundled, f.nodes...)
+			if err := os.Remove(f.path); err != nil && !os.IsNotExist(err) {
+				return nil, err
+			}
+			continue
+		}
+		out = append(out, addOwn(m, known, snap, f.sum, f.part, f.path))
 	}
 	if idx, exp, err = l.ownDirs(ctx, dag, outDir, innerOf(), dataPieces, entries); err != nil {
 		return nil, err
@@ -416,67 +533,105 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 
 	// The rest of the blocks the archive made, depth first from the root, in
 	// the head pieces.
-	var made []format.Node
-	seen := map[string]bool{}
-	var walk func(c cid.Cid) error
-	walk = func(c cid.Cid) error {
-		k := string(c.Hash())
-		if _, inRepo := l.idx[k]; inRepo || seen[k] || inMeta[k] {
-			return nil
-		}
-		seen[k] = true
-		n, err := dag.Get(ctx, c)
-		if err != nil {
-			return fmt.Errorf("archive block %s: %w", c, err)
-		}
-		made = append(made, n)
-		for _, ln := range n.Links() {
-			if err := walk(ln.Cid); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	if err := walk(root.Cid()); err != nil {
+	made, err := l.madeBlocks(ctx, dag, root.Cid(), inMeta)
+	if err != nil {
 		return nil, err
 	}
-	heads := []cid.Cid{root.Cid()}
-	if opts.Record != nil {
-		rec, err := RecordCID(opts.Record)
-		if err != nil {
-			return nil, err
-		}
-		heads = append(heads, rec)
-		b, _ := blocks.NewBlockWithCid(opts.Record, rec)
-		made = append([]format.Node{&merkledag.RawNode{Block: b}}, made...)
-	}
-	hdr := car.HeaderSize(heads...)
-	for start := 0; start < len(made); {
-		end, size := start, hdr
-		for end < len(made) {
-			e := car.EntrySize(made[end].Cid(), len(made[end].RawData()))
-			if end > start && size+e > opts.MaxPiece {
-				break
+	var bundle *contribution
+	if bundleHeads {
+		bundle = &contribution{outDir: outDir, root: root.Cid(), record: opts.Record}
+		if opts.Record != nil {
+			rec, err := RecordCID(opts.Record)
+			if err != nil {
+				return nil, err
 			}
-			size += e
-			end++
+			bundle.size += car.EntrySize(rec, len(opts.Record))
 		}
-		if size > opts.MaxPiece {
-			return nil, fmt.Errorf("block %s does not fit in a piece", made[start].Cid())
+		var tailSpan *span
+		if tail >= 0 {
+			tailSpan = &dataPieces[tail]
+			bundle.size += m.Pieces[tail].DataBytes
 		}
-		path, sum, err := writePiece(pieceDir, heads, func(w *car.Writer) error {
-			for _, n := range made[start:end] {
-				if err := w.Put(n.Cid(), n.RawData()); err != nil {
-					return err
+		var nblocks int64
+		for _, ns := range [][]format.Node{made, bundled} {
+			for _, n := range ns {
+				bundle.size += car.EntrySize(n.Cid(), len(n.RawData()))
+				nblocks++
+			}
+		}
+		if bundle.size+car.HeaderSize(root.Cid(), root.Cid()) > opts.MaxPiece {
+			return nil, fmt.Errorf("the archive's changes (%d bytes) do not fit in one piece", bundle.size)
+		}
+		bundle.put = func(put func(cid.Cid, []byte) error) error {
+			for _, ns := range [][]format.Node{made, bundled} {
+				for _, n := range ns {
+					if err := put(n.Cid(), n.RawData()); err != nil {
+						return err
+					}
+				}
+			}
+			if tailSpan == nil {
+				return nil
+			}
+			for j := tailSpan.start; j < tailSpan.end; j++ {
+				if bl := &l.tab[j]; !bl.elsewhere() {
+					data, err := l.get(ctx, bl.c)
+					if err != nil {
+						return err
+					}
+					if err := put(bl.c, data); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
-		})
-		if err != nil {
-			return nil, err
 		}
-		out = append(out, addOwn(m, known, snap, sum, manifest.PartHead, path))
-		start = end
+		if tail < 0 {
+			// The bundle is one of the archive's own pieces, after the rest.
+			i := len(m.Pieces)
+			m.Pieces = append(m.Pieces, manifest.Piece{Index: i, Blocks: nblocks, Snapshot: snap, Part: manifest.PartBundle})
+			m.Snapshots[snap].NewPieces = append(m.Snapshots[snap].NewPieces, i)
+			out = append(out, Piece{Piece: m.Pieces[i]})
+		}
+	} else {
+		heads := []cid.Cid{root.Cid()}
+		if opts.Record != nil {
+			rec, err := RecordCID(opts.Record)
+			if err != nil {
+				return nil, err
+			}
+			heads = append(heads, rec)
+			rb, _ := blocks.NewBlockWithCid(opts.Record, rec)
+			made = append([]format.Node{&merkledag.RawNode{Block: rb}}, made...)
+		}
+		hdr := car.HeaderSize(heads...)
+		for start := 0; start < len(made); {
+			end, size := start, hdr
+			for end < len(made) {
+				e := car.EntrySize(made[end].Cid(), len(made[end].RawData()))
+				if end > start && size+e > opts.MaxPiece {
+					break
+				}
+				size += e
+				end++
+			}
+			if size > opts.MaxPiece {
+				return nil, fmt.Errorf("block %s does not fit in a piece", made[start].Cid())
+			}
+			path, sum, err := writePiece(pieceDir, heads, func(w *car.Writer) error {
+				for _, n := range made[start:end] {
+					if err := w.Put(n.Cid(), n.RawData()); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, addOwn(m, known, snap, sum, manifest.PartHead, path))
+			start = end
+		}
 	}
 	l.progress("write", planned, planned)
 	// A snapshot's root is set once: Snapshots[0].Root is the key the store
@@ -494,9 +649,16 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	if res.Removed, res.RemovedBytes, err = prune(pieceDir, m); err != nil {
 		return nil, fmt.Errorf("removing old pieces: %w", err)
 	}
+	if bundle != nil {
+		if err := b.add(bundle); err != nil {
+			return nil, fmt.Errorf("bundling: %w", err)
+		}
+	}
 	done := &packCache{Format: cacheFormat, Inputs: inputs, Root: m.Root, Missing: l.missing, Pieces: map[string]cachedPiece{}}
 	for i, k := range keys {
-		done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+		if k != "" && m.Pieces[i].PieceCID != "" {
+			done.Pieces[k] = cachedPiece{PieceCID: m.Pieces[i].PieceCID, CARBytes: m.Pieces[i].CARBytes}
+		}
 	}
 	if err := done.write(outDir); err != nil {
 		return nil, fmt.Errorf("writing %s: %w", CacheFile, err)
@@ -504,23 +666,62 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	return res, nil
 }
 
+// madeBlocks lists, depth first from root, the blocks the archive made that
+// are neither the repo's nor in skip: the head blocks.
+func (l *layout) madeBlocks(ctx context.Context, dag memDAG, root cid.Cid, skip map[string]bool) ([]format.Node, error) {
+	var made []format.Node
+	seen := map[string]bool{}
+	var walk func(c cid.Cid) error
+	walk = func(c cid.Cid) error {
+		k := string(c.Hash())
+		if _, inRepo := l.idx[k]; inRepo || seen[k] || skip[k] {
+			return nil
+		}
+		seen[k] = true
+		n, err := dag.Get(ctx, c)
+		if err != nil {
+			return fmt.Errorf("archive block %s: %w", c, err)
+		}
+		made = append(made, n)
+		for _, ln := range n.Links() {
+			if err := walk(ln.Cid); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return made, walk(root)
+}
+
+// ownBytes is the CAR entry bytes of the blocks of p this archive holds.
+func (l *layout) ownBytes(p span) int64 {
+	var n int64
+	for j := p.start; j < p.end; j++ {
+		if b := &l.tab[j]; !b.elsewhere() {
+			n += car.EntrySize(b.c, b.size)
+		}
+	}
+	return n
+}
+
 // sameData reports whether prev holds the same data as m's first n pieces:
-// the same data root and data pieces, and its own pieces start with the
-// same catalog record.
+// the same data root and data pieces, and the piece naming its root (a head
+// piece, a bundle, or an old layout's own piece) names the same catalog
+// record after it.
 func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string) bool {
 	if prev == nil || prev.DataRoot != m.DataRoot {
 		return false
 	}
 	var data []manifest.Piece
-	head := ""
 	for _, p := range prev.Pieces {
+		if p.PieceCID == "" {
+			return false
+		}
 		if p.BlockList != "" {
 			data = append(data, p)
-		} else if head == "" {
-			head = p.PieceCID
 		}
 	}
-	if len(data) != n || head == "" {
+	if len(data) != n {
 		return false
 	}
 	for i, p := range data {
@@ -528,8 +729,6 @@ func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string)
 			return false
 		}
 	}
-	// The record is the second root in the CAR header of the piece that
-	// names the archive root: the head piece, or an old layout's own piece.
 	var want cid.Cid
 	if record != nil {
 		c, err := RecordCID(record)
@@ -538,8 +737,12 @@ func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string)
 		}
 		want = c
 	}
+	root, err := cid.Decode(prev.Root)
+	if err != nil {
+		return false
+	}
 	for _, p := range prev.Pieces {
-		if p.BlockList != "" || p.Part == manifest.PartIndex || p.Part == manifest.PartMeta {
+		if p.Part == manifest.PartIndex || p.Part == manifest.PartMeta || p.BlockList != "" && p.Part != manifest.PartBundle {
 			continue
 		}
 		f, err := os.Open(filepath.Join(pieceDir, p.PieceCID+".car"))
@@ -551,10 +754,15 @@ func sameData(prev, m *manifest.Manifest, n int, record []byte, pieceDir string)
 		if err != nil {
 			return false
 		}
-		if record == nil {
-			return len(r.Roots) == 1
+		for k, rt := range r.Roots {
+			if !rt.Equals(root) {
+				continue
+			}
+			if record == nil {
+				return len(r.Roots) == 1
+			}
+			return k+1 < len(r.Roots) && r.Roots[k+1].Equals(want)
 		}
-		return len(r.Roots) == 2 && r.Roots[1].Equals(want)
 	}
 	return false
 }
@@ -588,7 +796,7 @@ func prune(pieceDir string, m *manifest.Manifest) (n int, bytes int64, err error
 	}
 	for _, e := range ents {
 		name := e.Name()
-		if keep[name] || !e.Type().IsRegular() || !strings.HasSuffix(name, ".car") && !strings.HasPrefix(name, ".piece-") {
+		if keep[name] || !e.Type().IsRegular() || !strings.HasSuffix(name, ".car") && !strings.HasPrefix(name, ".piece-") && !strings.HasPrefix(name, ".bundle-") {
 			continue
 		}
 		var size int64
@@ -852,7 +1060,9 @@ func cutMeta(ns []format.Node, opts Options) []span {
 func remap(prev, m *manifest.Manifest) []manifest.Copy {
 	at := map[string]int{}
 	for _, p := range prev.Pieces {
-		at[p.PieceCID] = p.Index
+		if p.PieceCID != "" {
+			at[p.PieceCID] = p.Index
+		}
 	}
 	var out []manifest.Copy
 	for _, c := range prev.Copies {

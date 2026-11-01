@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -178,6 +179,7 @@ func check(t *testing.T, res *Result) {
 		missing[string(m.Hash())] = true
 	}
 	got := map[string][]byte{}
+	where := map[string]string{}
 	older := map[string]bool{} // in pieces an earlier snapshot stored
 	last := len(res.Manifest.Snapshots) - 1
 	root, _ := cid.Decode(res.Manifest.Root)
@@ -207,12 +209,17 @@ func check(t *testing.T, res *Result) {
 			if ok, err := hashOK(c, data); !ok || err != nil {
 				t.Fatalf("block %s in piece %d fails its hash", c, i)
 			}
-			if first && !cr.Root.Equals(c) && !cr.Root.Equals(root) {
+			if first && p.Part != manifest.PartBundle && !cr.Root.Equals(c) && !cr.Root.Equals(root) {
 				t.Fatalf("piece %d header names %s, neither its first block %s nor the archive root", i, cr.Root, c)
 			}
 			first = false
+			if slices.ContainsFunc(records(cr.Roots), c.Equals) {
+				continue // a catalog record: nothing links to it
+			}
 			got[string(c.Hash())] = data
-			if p.Snapshot < last {
+			where[string(c.Hash())] = fmt.Sprintf("piece %d part %q snap %d bl %q", i, p.Part, p.Snapshot, p.BlockList)
+			// a bundle holds other archives' blocks too
+			if p.Snapshot < last || p.Part == manifest.PartBundle {
 				older[string(c.Hash())] = true
 			}
 		}
@@ -242,9 +249,18 @@ func check(t *testing.T, res *Result) {
 	// since dropped; every other block in a piece is reachable.
 	for h := range got {
 		if !seen[h] && !older[h] {
-			t.Fatalf("%d blocks reachable, %d in pieces: %s is in a new piece but not reachable", len(seen), len(got), multihash.Multihash(h).B58String())
+			t.Fatalf("%d blocks reachable, %d in pieces: %s is in a new piece but not reachable (%s)", len(seen), len(got), multihash.Multihash(h).B58String(), where[h])
 		}
 	}
+}
+
+// records are the catalog records a CAR header names: every second root.
+func records(roots []cid.Cid) []cid.Cid {
+	var out []cid.Cid
+	for i := 1; i < len(roots); i += 2 {
+		out = append(out, roots[i])
+	}
+	return out
 }
 
 func dataPieces(res *Result) map[string]bool {

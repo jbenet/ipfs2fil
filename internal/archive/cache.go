@@ -284,3 +284,25 @@ func (bl blockLists) match(l *layout, p span, pieceDir string) (cachedPiece, boo
 	fi, err := os.Stat(filepath.Join(pieceDir, c.PieceCID+".car"))
 	return c, err == nil && fi.Mode().IsRegular() && fi.Size() == c.CARBytes
 }
+
+// bundle finds the last pack's bundle piece whose block list for this
+// archive is p's, still on disk.
+func (bl blockLists) bundle(l *layout, p span, pieceDir string) (manifest.Piece, bool) {
+	if len(bl) == 0 {
+		return manifest.Piece{}, false
+	}
+	var sb strings.Builder
+	for j := p.start; j < p.end; j++ {
+		if b := &l.tab[j]; !b.elsewhere() {
+			sb.WriteString(b.c.Hash().B58String())
+			sb.WriteByte('\n')
+		}
+	}
+	sum := sha256.Sum256([]byte(sb.String()))
+	prev, ok := bl[string(sum[:])]
+	if !ok || prev.Part != manifest.PartBundle || prev.PieceCID == "" {
+		return manifest.Piece{}, false
+	}
+	fi, err := os.Stat(filepath.Join(pieceDir, prev.PieceCID+".car"))
+	return prev, err == nil && fi.Mode().IsRegular() && fi.Size() == prev.CARBytes
+}

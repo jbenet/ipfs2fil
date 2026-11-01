@@ -55,6 +55,18 @@ func (c *Collection) OnChain() bool { return c.chain }
 type pieceInfo struct {
 	Root   string `json:"root,omitempty"`   // the archive root, for an archive's own piece
 	Record []byte `json:"record,omitempty"` // the sealed record, in an archive's first own piece
+	// More names the other archives in a bundle piece, in header order.
+	More []pieceInfo `json:"more,omitempty"`
+}
+
+// archives lists the archives a piece names: one, or a bundle's several.
+func (pi pieceInfo) archives() []pieceInfo {
+	if pi.Root == "" {
+		return nil
+	}
+	first := pi
+	first.More = nil
+	return append([]pieceInfo{first}, pi.More...)
 }
 
 // snapshot is one archive root found on chain.
@@ -84,10 +96,20 @@ func (c *Collection) SyncChain(ctx context.Context, s store.Store, secret []byte
 	if err != nil {
 		return fmt.Errorf("reading the catalog from chain: %w", err)
 	}
-	cachePath := filepath.Join(c.Catalog, "pieces.json")
+	cachePath := filepath.Join(c.Catalog, "pieces2.json")
 	info := map[string]pieceInfo{}
 	if b, err := os.ReadFile(cachePath); err == nil {
 		json.Unmarshal(b, &info) // a bad cache is read again
+	} else if b, err := os.ReadFile(filepath.Join(c.Catalog, "pieces.json")); err == nil {
+		// Before bundles, a piece naming more than one archive was taken
+		// for a data piece: keep only what named an archive.
+		old := map[string]pieceInfo{}
+		json.Unmarshal(b, &old)
+		for p, pi := range old {
+			if pi.Root != "" {
+				info[p] = pi
+			}
+		}
 	}
 
 	// Where each piece is: the first copy holding it.
@@ -138,23 +160,10 @@ func (c *Collection) SyncChain(ctx context.Context, s store.Store, secret []byte
 	// Snapshots, by root, and the repo each belongs to.
 	snaps := map[string]*snapshot{}
 	for _, p := range all {
-		pi, ok := info[p]
-		if !ok || pi.Root == "" {
-			continue
-		}
-		sn := snaps[pi.Root]
-		if sn == nil {
-			sn = &snapshot{root: pi.Root, set: len(sets)}
-			snaps[pi.Root] = sn
-		}
-		sn.pieces = append(sn.pieces, p)
-		if pi.Record != nil {
-			r, err := OpenRecord(secret, pi.Record)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("archive %s: %w", pi.Root, err))
-				continue
+		for _, pi := range info[p].archives() {
+			if err := addPiece(snaps, len(sets), p, pi, secret); err != nil {
+				errs = append(errs, err)
 			}
-			sn.record = r
 		}
 	}
 	repos := map[string][]*snapshot{} // host/name -> snapshots, best first
@@ -282,6 +291,25 @@ func (o ownArchives) sameData(name, dir string) bool {
 	return err == nil && m.DataRoot == a.dataRoot
 }
 
+// addPiece adds piece p, which names the archive pi, to the archive's
+// snapshot.
+func addPiece(snaps map[string]*snapshot, sets int, p string, pi pieceInfo, secret []byte) error {
+	sn := snaps[pi.Root]
+	if sn == nil {
+		sn = &snapshot{root: pi.Root, set: sets}
+		snaps[pi.Root] = sn
+	}
+	sn.pieces = append(sn.pieces, p)
+	if pi.Record != nil {
+		r, err := OpenRecord(secret, pi.Record)
+		if err != nil {
+			return fmt.Errorf("archive %s: %w", pi.Root, err)
+		}
+		sn.record = r
+	}
+	return nil
+}
+
 // peek reads a piece's CAR header and, for an archive's own piece, its first
 // block, then stops: data pieces are up to a GiB.
 func peek(ctx context.Context, s store.Store, ds store.DataSet, pieceCID string) (pieceInfo, error) {
@@ -295,19 +323,41 @@ func peek(ctx context.Context, s store.Store, ds store.DataSet, pieceCID string)
 	if err != nil {
 		return pi, err
 	}
-	if len(r.Roots) != 2 || r.Roots[1].Prefix().Codec != cid.Raw {
+	// An archive's own piece names its root and record; a bundle names
+	// several in turn, and its records come first.
+	n := len(r.Roots)
+	if n < 2 || n%2 != 0 {
 		return pi, nil // a data piece, or packed without a record
 	}
-	pi.Root = r.Root.String()
-	c, data, err := r.Next()
-	if err != nil {
-		return pi, err
+	for i := 1; i < n; i += 2 {
+		if r.Roots[i].Prefix().Codec != cid.Raw {
+			return pi, nil
+		}
 	}
-	if c.Equals(r.Roots[1]) {
+	as := make([]pieceInfo, n/2)
+	reading := true
+	for k := range as {
+		as[k].Root = r.Roots[2*k].String()
+		if !reading {
+			continue
+		}
+		c, data, err := r.Next()
+		if err != nil {
+			return pi, err
+		}
+		if !c.Equals(r.Roots[2*k+1]) {
+			reading = false // a later own piece of an archive: no record
+			continue
+		}
 		if got, err := archive.RecordCID(data); err != nil || !got.Equals(c) {
 			return pi, fmt.Errorf("the record block does not match its hash")
 		}
-		pi.Record = data
+		as[k].Record = data
+	}
+	pi = as[0]
+	pi.More = as[1:]
+	if len(pi.More) == 0 {
+		pi.More = nil
 	}
 	return pi, nil
 }
@@ -360,6 +410,18 @@ func (c *Collection) cacheSnapshot(ctx context.Context, s store.Store, sets []st
 		}
 		m.Root, m.Collection = sn.root, c.Key
 		m.Snapshots[snap].Root = sn.root
+		// A bundle holding a data piece is in the manifest inside the
+		// archive, without its PieceCID, which it cannot know: it is the
+		// snapshot's own piece.
+		for i := range m.Pieces {
+			if p := &m.Pieces[i]; p.PieceCID == "" {
+				if len(own) != 1 {
+					return fmt.Errorf("its manifest names a bundle, and it has %d pieces of its own, not 1", len(own))
+				}
+				p.PieceCID, p.CARBytes, p.Snapshot = own[0].PieceCID, own[0].CARBytes, snap
+				own = nil
+			}
+		}
 		for _, p := range own {
 			p.Index, p.Snapshot, p.Part = len(m.Pieces), snap, head
 			m.Pieces = append(m.Pieces, p)

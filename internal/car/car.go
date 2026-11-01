@@ -23,7 +23,11 @@ const MinBytes = 65
 func header(roots ...cid.Cid) []byte {
 	h := []byte{0xa2, 0x65}
 	h = append(h, "roots"...)
-	h = append(h, 0x80|byte(len(roots)))
+	if len(roots) < 24 {
+		h = append(h, 0x80|byte(len(roots)))
+	} else {
+		h = append(h, 0x98, byte(len(roots)))
+	}
 	for _, root := range roots {
 		cb := append([]byte{0}, root.Bytes()...) // tag 42 bytes start with the identity multibase prefix
 		h = append(h, 0xd8, 0x2a)
@@ -75,7 +79,7 @@ type Writer struct {
 }
 
 // MaxRoots is the most roots a header written here may name.
-const MaxRoots = 23
+const MaxRoots = 255
 
 // NewWriter writes the header naming roots (at least one, at most MaxRoots)
 // and returns a Writer for the blocks.
@@ -188,11 +192,18 @@ func NewReader(r io.Reader) (*Reader, error) {
 // parseHeader accepts exactly the header shapes Writer produces.
 func parseHeader(h []byte) ([]cid.Cid, error) {
 	pre := append([]byte{0xa2, 0x65}, "roots"...)
-	if len(h) < len(pre)+1 || string(h[:len(pre)]) != string(pre) || h[len(pre)] < 0x81 || h[len(pre)] > 0x80|MaxRoots {
+	if len(h) < len(pre)+2 || string(h[:len(pre)]) != string(pre) {
 		return nil, fmt.Errorf("%w: header is not {roots: [cid...], version: 1}", ErrBadCAR)
 	}
-	count := int(h[len(pre)] & 0x1f)
-	h = h[len(pre)+1:]
+	var count int
+	switch a := h[len(pre)]; {
+	case a >= 0x81 && a <= 0x97:
+		count, h = int(a&0x1f), h[len(pre)+1:]
+	case a == 0x98 && h[len(pre)+1] >= 24:
+		count, h = int(h[len(pre)+1]), h[len(pre)+2:]
+	default:
+		return nil, fmt.Errorf("%w: header is not {roots: [cid...], version: 1}", ErrBadCAR)
+	}
 	var roots []cid.Cid
 	for range count {
 		if len(h) < 4 || h[0] != 0xd8 || h[1] != 0x2a {

@@ -434,10 +434,11 @@ func summarizePieces(m *manifest.Manifest, byPath map[string]*Entry) []pieceInfo
 }
 
 var partLabel = map[string]string{
-	"":                 "index/ and explorer/",
-	manifest.PartIndex: "index/: block lists",
-	manifest.PartMeta:  "explorer/ and data/ folders",
-	manifest.PartHead:  "the archive root and manifest",
+	"":                  "index/ and explorer/",
+	manifest.PartIndex:  "index/: block lists",
+	manifest.PartMeta:   "explorer/ and data/ folders",
+	manifest.PartHead:   "the archive root and manifest",
+	manifest.PartBundle: "this snapshot's changes, with other repos'",
 }
 
 func row(dir, piece int, e *Entry) []any {
