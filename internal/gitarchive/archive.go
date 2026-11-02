@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ipfs/go-cid"
@@ -63,6 +65,20 @@ type Options struct {
 	// Get reads earlier snapshots' blocks, so submodules build on their
 	// last archive. Without it they are archived in full.
 	Get BlockGetter
+
+	// Bases are other repos archived in the same set that share history
+	// with this one (forks). Objects their refs reach are left out of this
+	// repo's pack, which is thin against them; the record lists them.
+	Bases []Base
+}
+
+// Base is another repo's snapshot a repo is packed against: its record, the
+// record's CID, and the repo's git dir, whose objects git reads while
+// packing. Every object the record's refs reach must be in its archive.
+type Base struct {
+	Root   cid.Cid
+	Record *Record
+	Dir    string
 }
 
 // Result is what Archive made.
@@ -88,6 +104,10 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 	g, err := OpenRepo(ctx, o.Git, path)
 	if err != nil {
 		return nil, err
+	}
+	bases := usableBases(g, o.Bases)
+	for _, b := range bases {
+		g.Alternates = append(g.Alternates, filepath.Join(b.Dir, "objects"))
 	}
 	if o.Prev != nil {
 		if !o.PrevRoot.Defined() {
@@ -158,13 +178,33 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 	if o.Prev != nil {
 		rec.Prev = &Link{o.PrevRoot}
 	}
+	if len(rec.Shallow) > 0 {
+		bases = nil // a shallow repo's history ends early; packing it against others' would leave objects out
+	}
+	for _, b := range bases {
+		rec.Bases = append(rec.Bases, Link{b.Root})
+	}
+	if len(rec.Bases) > 0 {
+		rec.Version = RecordVersionBases
+	} else {
+		g.Alternates = nil
+	}
 
 	tips := refTips(rec.Refs)
-	var exclude []string
+	var old []string
 	if o.Prev != nil {
-		// Only exclude tips the repo still has; a gc'd one would make
-		// pack-objects fail. Leaving it out just re-stores a few objects.
-		if exclude, err = g.Present(ctx, refTips(o.Prev.Refs)); err != nil {
+		old = refTips(o.Prev.Refs)
+	}
+	for _, b := range bases {
+		old = append(old, refTips(b.Record.Refs)...)
+	}
+	var exclude []string
+	if len(old) > 0 {
+		// Only exclude tips the repo (or a base) still has; a gc'd one
+		// would make pack-objects fail. Leaving it out just re-stores a
+		// few objects.
+		sort.Strings(old)
+		if exclude, err = g.Present(ctx, slices.Compact(old)); err != nil {
 			return nil, err
 		}
 	}
@@ -178,7 +218,7 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 		return nil, err
 	}
 	if len(tips) > 0 {
-		pk, commits, err := writePack(ctx, g, tips, exclude, o.Prev != nil, o.TempDir, put)
+		pk, commits, err := writePack(ctx, g, tips, exclude, len(exclude) > 0, o.TempDir, put)
 		if err != nil {
 			return nil, err
 		}
@@ -203,6 +243,27 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 	}
 	res.Root = c
 	return res, nil
+}
+
+// maxBases bounds the bases one snapshot names.
+const maxBases = 8
+
+// usableBases keeps the bases this repo can be packed against: same object
+// format, not shallow, with a git dir whose path git can take in
+// GIT_ALTERNATE_OBJECT_DIRECTORIES, at most maxBases.
+func usableBases(g *Git, bases []Base) []Base {
+	var out []Base
+	for _, b := range bases {
+		if len(out) == maxBases {
+			break
+		}
+		if b.Record == nil || !b.Root.Defined() || b.Record.ObjectFormat != g.Format.Name || len(b.Record.Shallow) > 0 ||
+			b.Dir == "" || b.Dir == g.Dir || strings.ContainsAny(b.Dir, string(os.PathListSeparator)+"\"\n") {
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
 }
 
 // refTips is every object a ref names, deduplicated and sorted.
