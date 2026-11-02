@@ -90,3 +90,71 @@ func TestArchiveSinceRestoreVerifyShow(t *testing.T) {
 		t.Fatalf("truncated CAR verified: %s", out)
 	}
 }
+
+func commitFile(t *testing.T, repo, file, msg string) {
+	t.Helper()
+	os.WriteFile(filepath.Join(repo, file), []byte(msg+"\n"), 0o644)
+	git(t, repo, "add", file)
+	git(t, repo, "commit", "-q", "-m", msg)
+}
+
+func TestFolderSet(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	src, cars := t.TempDir(), t.TempDir()
+	a := filepath.Join(src, "a")
+	os.MkdirAll(a, 0o755)
+	git(t, a, "init", "-q", "-b", "main")
+	commitFile(t, a, "x", "one")
+	git(t, src, "clone", "-q", a, filepath.Join(src, "b"))
+	commitFile(t, filepath.Join(src, "b"), "y", "fork")
+
+	out, err := cli(t, src, "-o", filepath.Join(cars, "1.car"))
+	if err != nil || !strings.Contains(out, "a set of 2 repos") || !strings.Contains(out, "b: ") || !strings.Contains(out, "packed against a") {
+		t.Fatal(out, err)
+	}
+	if out, _ := cli(t, src, "--since", cars, "-o", filepath.Join(cars, "2.car")); !strings.Contains(out, "nothing changed") {
+		t.Fatal(out)
+	}
+	commitFile(t, a, "z", "two")
+	if out, err := cli(t, src, "--since", cars, "-o", filepath.Join(cars, "2.car")); err != nil || !strings.Contains(out, "b: unchanged") {
+		t.Fatal(out, err)
+	}
+	// One repo of the folder against the set: a clear error, not a mixup.
+	if out, err := cli(t, a, "--since", cars, "-o", filepath.Join(cars, "3.car")); err == nil || !strings.Contains(err.Error(), "names a set") {
+		t.Fatal(out, err)
+	}
+	dest := filepath.Join(t.TempDir(), "out")
+	if out, err := cli(t, "restore", cars, dest); err != nil || !strings.Contains(out, "restored b to") {
+		t.Fatal(out, err)
+	}
+	for _, n := range []string{"a", "b"} {
+		if x, y := git(t, filepath.Join(src, n), "rev-parse", "main"), git(t, filepath.Join(dest, n+".git"), "rev-parse", "main"); x != y {
+			t.Fatalf("%s: main %s vs %s", n, x, y)
+		}
+	}
+	if out, err := cli(t, "verify", cars); err != nil || !strings.Contains(out, "all 2 repos restore") {
+		t.Fatal(out, err)
+	}
+	out, err = cli(t, "show", cars)
+	var set struct {
+		Kind  string
+		Repos []struct {
+			Name      string
+			Snapshots []json.RawMessage
+		}
+	}
+	if err != nil || json.Unmarshal([]byte(out), &set) != nil || set.Kind != "git-archive-set" || len(set.Repos) != 2 || len(set.Repos[0].Snapshots) != 2 {
+		t.Fatalf("show: %v\n%s", err, out)
+	}
+	if out, err := cli(t, "restore", "--only", "nope", cars, t.TempDir()); err == nil {
+		t.Fatal("unknown --only name restored:", out)
+	}
+	// Only https URLs are cloned.
+	for _, u := range []string{"http://example.com/x.git", "file:///etc", "ssh://git@example.com/x"} {
+		if out, err := cli(t, u, "-o", filepath.Join(t.TempDir(), "x.car")); err == nil || !strings.Contains(err.Error(), "only https") {
+			t.Fatalf("%s: %s %v", u, out, err)
+		}
+	}
+}

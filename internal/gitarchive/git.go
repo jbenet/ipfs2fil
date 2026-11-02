@@ -24,6 +24,9 @@ type Git struct {
 	Bin    string // git binary; "git" when empty
 	Dir    string // the repo's git dir
 	Format Format
+	// Alternates are other repos' object directories git may read objects
+	// from, read-only: the bases a set member is packed thin against.
+	Alternates []string
 }
 
 // safeConfig keeps a hostile repo config from running anything while we read.
@@ -67,6 +70,9 @@ func (g *Git) cmd(ctx context.Context, args ...string) *exec.Cmd {
 	full = append(full, args...)
 	c := exec.CommandContext(ctx, g.bin(), full...)
 	c.Env = gitEnv()
+	if len(g.Alternates) > 0 {
+		c.Env = append(c.Env, "GIT_ALTERNATE_OBJECT_DIRECTORIES="+strings.Join(g.Alternates, string(os.PathListSeparator)))
+	}
 	return c
 }
 
