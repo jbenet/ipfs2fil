@@ -57,7 +57,16 @@ type entry struct {
 	realType int
 	realSize int64
 	crc      uint32
+	delta    []byte // a small delta, kept from pass one so pass two need not inflate it again
 }
+
+// deltaCache bounds the deltas pass one keeps for pass two, and
+// maxCachedDelta the size of each: most deltas are small, and inflating
+// each twice was a third of indexing.
+const (
+	deltaCache     = 64 << 20
+	maxCachedDelta = 64 << 10
+)
 
 // countingReader reads one byte at a time from a bufio.Reader so zlib never
 // reads past the end of its stream, and keeps the raw bytes for the CRC.
@@ -153,6 +162,10 @@ type packIndexer struct {
 	thin    bool
 	zr      io.ReadCloser
 	buf     bytes.Buffer
+	cached  int64         // bytes of deltas kept in entries
+	zr2     io.ReadCloser // pass two's reader, reset per object
+	rbuf    *bufio.Reader
+	cbuf    []byte
 }
 
 // scan is pass one: walk every entry in order, inflating each to find where
@@ -218,6 +231,7 @@ func (ix *packIndexer) scan(body int64, count uint32) error {
 		var h hash.Hash
 		w := io.Discard
 		keep := whole && (e.typ == objCommit || e.typ == objTag)
+		keepDelta := !whole && e.size <= maxCachedDelta && ix.cached+e.size <= deltaCache
 		ix.buf.Reset()
 		if whole {
 			h = ix.f.hasher()
@@ -226,12 +240,18 @@ func (ix *packIndexer) scan(body int64, count uint32) error {
 			if keep {
 				w = io.MultiWriter(h, &ix.buf)
 			}
+		} else if keepDelta {
+			w = &ix.buf
 		}
 		if err := ix.inflate(cr, e.size, w); err != nil {
 			return fmt.Errorf("object at %d: %w", e.off, err)
 		}
 		e.end = cr.n
 		e.crc = crc32.ChecksumIEEE(cr.raw)
+		if keepDelta {
+			e.delta = bytes.Clone(ix.buf.Bytes())
+			ix.cached += e.size
+		}
 		idx := len(ix.entries)
 		ix.byOff[e.off] = idx
 		ix.entries = append(ix.entries, e)
@@ -312,13 +332,26 @@ func (ix *packIndexer) inflate(cr *countingReader, want int64, w io.Writer) erro
 	return nil
 }
 
-// inflateTo re-reads e's stored bytes into w.
+// inflateTo re-reads e's stored bytes into w. One zlib reader and one
+// read buffer serve every object: a new reader per delta costs its 32 KiB
+// window, which was most of what indexing allocated.
 func (ix *packIndexer) inflateTo(e *entry, w io.Writer) error {
-	zr, err := zlib.NewReader(io.NewSectionReader(ix.r, e.dataOff, e.end-e.dataOff))
+	sec := io.NewSectionReader(ix.r, e.dataOff, e.end-e.dataOff)
+	if ix.rbuf == nil {
+		ix.rbuf = bufio.NewReaderSize(sec, 64<<10)
+	} else {
+		ix.rbuf.Reset(sec)
+	}
+	var err error
+	if ix.zr2 == nil {
+		ix.zr2, err = zlib.NewReader(ix.rbuf)
+	} else {
+		err = ix.zr2.(zlib.Resetter).Reset(ix.rbuf, nil)
+	}
 	if err != nil {
 		return err
 	}
-	n, err := io.Copy(w, io.LimitReader(zr, e.size+1))
+	n, err := io.CopyBuffer(w, io.LimitReader(ix.zr2, e.size+1), ix.copyBuf())
 	if err != nil {
 		return err
 	}
@@ -326,6 +359,13 @@ func (ix *packIndexer) inflateTo(e *entry, w io.Writer) error {
 		return fmt.Errorf("object at %d inflates to %d bytes, header says %d", e.off, n, e.size)
 	}
 	return nil
+}
+
+func (ix *packIndexer) copyBuf() []byte {
+	if ix.cbuf == nil {
+		ix.cbuf = make([]byte, 32<<10)
+	}
+	return ix.cbuf
 }
 
 func (ix *packIndexer) stored(e *entry) ([]byte, error) {
@@ -411,10 +451,14 @@ func (ix *packIndexer) children(off int64, id string, typ int, base []byte, done
 		if e.id != nil {
 			continue
 		}
-		delta, err := ix.stored(e)
-		if err != nil {
-			return err
+		delta := e.delta
+		if delta == nil {
+			var err error
+			if delta, err = ix.stored(e); err != nil {
+				return err
+			}
 		}
+		e.delta = nil
 		data, err := applyDelta(base, delta)
 		if err != nil {
 			return fmt.Errorf("object at %d: %w", e.off, err)
