@@ -161,6 +161,7 @@ func (r *gitRepo) update(ctx context.Context) error {
 		}
 		o.PrevRoot = root
 		o.Have = func(c cid.Cid) bool { _, ok := prev.at[string(c.Hash())]; return ok }
+		o.Get = r.verified
 	}
 	name := filepath.Join(dir, fmt.Sprintf("%04d.car", len(files)+1))
 	logf("reading git repo %s\n", r.path)

@@ -19,7 +19,12 @@ type RestoreOptions struct {
 	Git     string
 	Strict  bool // git fsck --strict, which some old repos fail
 	Remotes bool // also configure the recorded remotes
+	// Recurse restores archived submodules too, each in modules/<name>
+	// under its parent, where git keeps a checked-out submodule's repo.
+	Recurse bool
 	Log     func(format string, args ...any)
+
+	depth int
 }
 
 // RestoreResult reports what Restore did.
@@ -27,7 +32,8 @@ type RestoreResult struct {
 	Snapshots int
 	Packs     int
 	Refs      int
-	Skipped   []string // remotes not configured, and why
+	Skipped   []string // remotes and submodules not restored, and why
+	Restored  []string // submodule repos restored, by path under dest
 }
 
 // Restore rebuilds the repo of the snapshot at root as a bare repo in dest,
@@ -109,6 +115,30 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 	}
 	if err := g.checkRefs(ctx, last.Refs); err != nil {
 		return nil, err
+	}
+	if o.Recurse {
+		for _, s := range last.Submodules {
+			if s.Record == nil {
+				continue
+			}
+			if !safeSubmoduleName(s.Name) || o.depth >= maxSubmoduleDepth {
+				res.Skipped = append(res.Skipped, fmt.Sprintf("submodule %q: unsafe name or too deep", s.Name))
+				continue
+			}
+			sub := filepath.Join("modules", filepath.FromSlash(s.Name))
+			so := o
+			so.depth++
+			sr, err := Restore(ctx, get, s.Record.Cid, filepath.Join(abs, sub), so)
+			if err != nil {
+				return nil, fmt.Errorf("submodule %s: %w", s.Path, err)
+			}
+			logf("submodule %s: %d refs", s.Path, sr.Refs)
+			res.Restored = append(res.Restored, filepath.ToSlash(sub))
+			for _, r := range sr.Restored {
+				res.Restored = append(res.Restored, filepath.ToSlash(sub)+"/"+r)
+			}
+			res.Skipped = append(res.Skipped, sr.Skipped...)
+		}
 	}
 	return res, nil
 }

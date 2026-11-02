@@ -2265,6 +2265,7 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
     <dt>HEAD</dt><dd>${g.head ? (g.head.startsWith('refs/') ? refTag(g.head) : commitLink(g.head) + ' <span class="faint">(detached)</span>') : '<span class="faint">none</span>'}</dd>
     <dt>Holds</dt><dd>${plural(g.refs.length, 'ref')}, ${plural(g.commits.length + (g.truncated || 0), 'commit')}, in ${plural(g.snapshots.length, 'snapshot')} whose packs come to ${bytes(packBytes)}${g.missing ? ` <span class="warn">(${plural(g.missing, 'log block')} missing)</span>` : ''}</dd>
     ${(g.remotes || []).length ? `<dt>Remotes</dt><dd>${g.remotes.map((r) => `<b>${esc(r[0])}</b> <code class="chipcode">${esc(r[1])}</code>`).join('<br>')}</dd>` : ''}
+    ${(g.submodules || []).length ? `<dt>Submodules</dt><dd>${g.submodules.map((m) => `<b>${esc(m[0])}</b> at <code>${short(m[2])}</code>${m[1] ? ` <code class="chipcode">${esc(m[1])}</code>` : ''}${m[3] ? ' <span class="faint">archived</span>' : ''}`).join('<br>')}</dd>` : ''}
     <dt>Restore</dt><dd><code class="chipcode">git-ipfs-archive restore &lt;CARs&gt; ${esc(g.name)}.git</code> <span class="faint">rebuilds the exact repo; record ${cidx(g.root, true)}</span></dd>
   </dl>
 </section>

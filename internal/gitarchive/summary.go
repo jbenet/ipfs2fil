@@ -17,9 +17,10 @@ type Summary struct {
 	Root         string        `json:"root"`
 	ObjectFormat string        `json:"objectFormat"`
 	Head         string        `json:"head,omitempty"`
-	Refs         [][3]string   `json:"refs"`              // name, id, peeled id of an annotated tag
-	Remotes      [][2]string   `json:"remotes,omitempty"` // name, URL
-	Tips         [][3]string   `json:"tips,omitempty"`    // ref, commit, folder CID
+	Refs         [][3]string   `json:"refs"`                 // name, id, peeled id of an annotated tag
+	Remotes      [][2]string   `json:"remotes,omitempty"`    // name, URL
+	Tips         [][3]string   `json:"tips,omitempty"`       // ref, commit, folder CID
+	Submodules   [][4]string   `json:"submodules,omitempty"` // path, URL, commit, record CID when archived
 	Snapshots    []SnapSummary `json:"snapshots"`
 	// Commits are [id, parents, tree, author, email, author time,
 	// committer time, subject, signed], newest first.
@@ -51,6 +52,13 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 	}
 	for _, r := range last.Remotes {
 		s.Remotes = append(s.Remotes, [2]string{r.Name, r.URL})
+	}
+	for _, m := range last.Submodules {
+		rc := ""
+		if m.Record != nil {
+			rc = m.Record.String()
+		}
+		s.Submodules = append(s.Submodules, [4]string{m.Path, m.URL, m.Commit, rc})
 	}
 	for _, t := range last.Tips {
 		s.Tips = append(s.Tips, [3]string{t.Ref, t.Commit, t.Root.String()})

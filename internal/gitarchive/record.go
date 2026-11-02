@@ -67,7 +67,10 @@ type Record struct {
 	// from options and the repo's ConfigFile, such as archive.tips.
 	Settings map[string]string `cbor:"settings,omitempty"`
 	Tips     []Tip             `cbor:"tips,omitempty"`
-	Tool     string            `cbor:"tool,omitempty"`
+	// Submodules are the submodules at HEAD, each with its own archive's
+	// record when they were archived.
+	Submodules []Submodule `cbor:"submodules,omitempty"`
+	Tool       string      `cbor:"tool,omitempty"`
 }
 
 // Pack is one stored pack: the pack bytes and its .idx, each a UnixFS file.
@@ -167,6 +170,14 @@ func (r *Record) check() error {
 		}
 		if !isID(t.Commit, f) || !isID(t.Tree, f) || !t.Root.Defined() || t.Root.Type() != cid.DagProtobuf {
 			return fmt.Errorf("tip folder of %s is malformed", t.Ref)
+		}
+	}
+	for _, s := range r.Submodules {
+		if !isID(s.Commit, f) || strings.ContainsAny(s.Path, "\x00\n") {
+			return fmt.Errorf("submodule %q is malformed", s.Path)
+		}
+		if s.Record != nil && (!safeSubmoduleName(s.Name) || s.Record.Type() != cid.DagCBOR) {
+			return fmt.Errorf("submodule %q has an unsafe name or a bad record link", s.Name)
 		}
 	}
 	return nil

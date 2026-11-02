@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/ipfs/go-cid"
@@ -127,6 +128,8 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	gitBin := fs.String("git", "", "git binary to run")
 	tips := fs.String("tips", "", "store a folder of the files at these refs: none, default (HEAD's branch), all (every branch), or ref names, comma-separated (default: the repo's "+gitarchive.ConfigFile+", else none)")
 	noConfig := fs.Bool("no-config", false, "ignore the repo's "+gitarchive.ConfigFile)
+	var subs optBool
+	fs.Var(&subs, "submodules", "also archive every submodule's repo, recursively, from the repo's modules/ or a clone of its https URL (default: the repo's "+gitarchive.ConfigFile+", else only list them)")
 	set := kvFlag{}
 	fs.Var(set, "set", "key=value instruction recorded for whatever stores the archive (repeatable), e.g. ipfs2fil.copies=3")
 	fs.Usage = func() {
@@ -141,7 +144,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fs.Usage()
 		return flag.ErrHelp
 	}
-	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig}
+	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig, Submodules: subs.v}
 	if len(set) > 0 {
 		o.Instructions = set
 	}
@@ -153,7 +156,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		if o.Prev, err = gitarchive.LoadRecord(bs.Get, c); err != nil {
 			return err
 		}
-		o.PrevRoot, o.Have = c, bs.Has
+		o.PrevRoot, o.Have, o.Get = c, bs.Has, bs.Get
 	}
 	o.TempDir = filepath.Dir(*out)
 	res, err := gitarchive.WriteCAR(*out, func(put gitarchive.BlockSink) (*gitarchive.Result, error) {
@@ -201,6 +204,7 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	root := fs.String("root", "", "snapshot to restore, when the CARs hold more than one (default: the newest)")
 	strict := fs.Bool("strict", false, "run git fsck --strict")
 	remotes := fs.Bool("remotes", false, "configure the recorded remotes")
+	recurse := fs.Bool("recurse", false, "also restore archived submodules, each in <dest>/modules/<name>")
 	gitBin := fs.String("git", "", "git binary to run")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: git-ipfs-archive restore [flags] <car or dir> <dest>")
@@ -218,7 +222,7 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	if err != nil {
 		return err
 	}
-	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes})
+	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse})
 	if err != nil {
 		return err
 	}
@@ -226,6 +230,9 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fmt.Fprintln(stderr, "skipped", s)
 	}
 	fmt.Fprintf(stdout, "restored %s to %s: %d snapshots, %d packs, %d refs; git fsck passed\n", c, pos[1], res.Snapshots, res.Packs, res.Refs)
+	for _, r := range res.Restored {
+		fmt.Fprintf(stdout, "restored submodule repo %s\n", filepath.Join(pos[1], r))
+	}
 	return nil
 }
 
@@ -256,11 +263,18 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	res, err := gitarchive.Restore(ctx, bs.Get, c, filepath.Join(tmp, "repo.git"), gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict})
+	res, err := gitarchive.Restore(ctx, bs.Get, c, filepath.Join(tmp, "repo.git"), gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Recurse: true})
 	if err != nil {
 		return fmt.Errorf("verify failed: %w", err)
 	}
-	fmt.Fprintf(stdout, "ok %s: %d snapshots, %d packs, %d refs restore and pass git fsck\n", c, res.Snapshots, res.Packs, res.Refs)
+	fmt.Fprintf(stdout, "ok %s: %d snapshots, %d packs, %d refs restore and pass git fsck", c, res.Snapshots, res.Packs, res.Refs)
+	if n := len(res.Restored); n > 0 {
+		fmt.Fprintf(stdout, ", with %d submodule repo", n)
+		if n > 1 {
+			fmt.Fprint(stdout, "s")
+		}
+	}
+	fmt.Fprintln(stdout)
 	return nil
 }
 
@@ -312,3 +326,24 @@ func size(n int64) string {
 	}
 	return fmt.Sprintf("%d B", n)
 }
+
+// optBool is a bool flag that knows whether it was given.
+type optBool struct{ v *bool }
+
+func (b *optBool) String() string {
+	if b == nil || b.v == nil {
+		return ""
+	}
+	return strconv.FormatBool(*b.v)
+}
+
+func (b *optBool) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return err
+	}
+	b.v = &v
+	return nil
+}
+
+func (b *optBool) IsBoolFlag() bool { return true }

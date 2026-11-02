@@ -30,6 +30,8 @@ type Config struct {
 	Found bool
 	Tips  string // "" when the file does not say
 
+	Submodules *bool // submodules.archive
+
 	// Instructions are the keys outside the sections this package reads,
 	// such as ipfs2fil.copies: they are copied into the record for
 	// whatever stores it.
@@ -108,6 +110,13 @@ func parseConfig(ctx context.Context, g *Git, body []byte) (*Config, error) {
 		switch {
 		case key == "archive.tips":
 			cfg.Tips = strings.TrimSpace(val)
+		case key == "submodules.archive":
+			b, ok := parseBool(val, hasVal)
+			if !ok {
+				cfg.Notes = append(cfg.Notes, fmt.Sprintf("%s: submodules.archive = %q is not true or false; ignored", ConfigFile, val))
+				continue
+			}
+			cfg.Submodules = &b
 		case own[sec]:
 			cfg.Notes = append(cfg.Notes, fmt.Sprintf("%s: %s is not a setting this version reads; ignored", ConfigFile, key))
 		case name == "" || notInstructions[sec]:
@@ -125,13 +134,17 @@ func parseConfig(ctx context.Context, g *Git, body []byte) (*Config, error) {
 // settings is what an archive run does, after options, the config file and
 // defaults are combined. Non-defaults are kept in the record.
 type settings struct {
-	tips string
+	tips       string
+	submodules bool
 }
 
 func (s settings) record() map[string]string {
 	m := map[string]string{}
 	if s.tips != "none" {
 		m["archive.tips"] = s.tips
+	}
+	if s.submodules {
+		m["submodules.archive"] = "true"
 	}
 	if len(m) == 0 {
 		return nil
@@ -154,6 +167,16 @@ func resolve(o Options, cfg *Config) (settings, []string) {
 	}
 	if o.Tips != "" {
 		s.tips = o.Tips
+	}
+	if b := cfg.Submodules; b != nil {
+		if o.UntrustedConfig && *b {
+			notes = append(notes, fmt.Sprintf("%s asks to archive submodules; ignored for a repo whose config is not trusted", ConfigFile))
+		} else {
+			s.submodules = *b
+		}
+	}
+	if o.Submodules != nil {
+		s.submodules = *o.Submodules
 	}
 	return s, notes
 }
@@ -178,4 +201,19 @@ func mergeInstructions(o Options, cfg *Config) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// parseBool reads a git config bool: a bare key is true, an empty value
+// false.
+func parseBool(v string, hasVal bool) (bool, bool) {
+	if !hasVal {
+		return true, true
+	}
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "true", "yes", "on", "1":
+		return true, true
+	case "false", "no", "off", "0", "":
+		return false, true
+	}
+	return false, false
 }
