@@ -165,9 +165,13 @@ func hashFile(p string) (string, error) {
 }
 
 // writeLFS stores each object, checking again that its bytes hash to its
-// oid as they are read, and the list in chunks.
-func writeLFS(ctx context.Context, local map[string]string, oids []string, put BlockSink) ([]Link, int, error) {
+// oid as they are read, and the list in chunks. Carried objects, already
+// stored, are listed too (a compacted snapshot lists every one).
+func writeLFS(ctx context.Context, local map[string]string, oids []string, carried map[string]LFSObject, put BlockSink) ([]Link, int, error) {
 	var objs []LFSObject
+	for _, o := range carried {
+		objs = append(objs, o)
+	}
 	for _, oid := range oids {
 		if err := ctx.Err(); err != nil {
 			return nil, 0, err
@@ -186,6 +190,9 @@ func writeLFS(ctx context.Context, local map[string]string, oids []string, put B
 			return nil, 0, fmt.Errorf("LFS object %s changed while it was stored", oid)
 		}
 		objs = append(objs, LFSObject{OID: oid, Size: cw.n, File: Link{c}})
+	}
+	if len(carried) > 0 {
+		sort.Slice(objs, func(i, j int) bool { return objs[i].OID < objs[j].OID })
 	}
 	var links []Link
 	for i := 0; i < len(objs); i += lfsChunkSize {

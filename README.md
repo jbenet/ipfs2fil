@@ -303,6 +303,20 @@ git/git, a month of work is a delta of 1 to 2 MB; the full archive is 367 MB.
 Packs and indexes are UnixFS files with 1 MiB leaves, so any gateway serves
 them, and byte ranges of them.
 
+Deltas pile up, so after 50 thin packs, or once they add up to more than
+half the full pack, the next `--since` run writes a compacted CAR instead
+(`--compact now` forces one, `--compact never` keeps writing deltas). It
+holds one full pack of everything the current refs and every earlier
+snapshot's refs reach, the whole commit log and LFS list, and each earlier
+snapshot's refs, so it stands alone: the earlier CARs are no longer needed.
+Any earlier snapshot still restores from it, by its record CID:
+
+    git-ipfs-archive restore --at <earlier root> cars ./old.git
+
+The refs come back exactly; the repo may also hold objects later snapshots
+added. For kubo, compacting six monthly snapshots took 5 s and wrote a
+57.5 MiB pack.
+
 Every block is keyed by sha256, and git's sha1 ids live only inside the
 archive (in the pack index and the record), never as CIDs announced to IPNI.
 Every object's id is recomputed with SHA-1DC, the collision-detecting SHA-1
@@ -390,7 +404,10 @@ tree or bare repo.
 Each run writes a delta of what is new since the last one to
 `~/.ipfs2fil/git/project-<hash>/`. Once a push has stored the history, later
 pushes keep that piece and add only the new commits' blocks: one small commit
-adds a few KB, not a new copy of the repo. The explorer has a Git viewer
+adds a few KB, not a new copy of the repo. When the deltas have piled up
+(see above), a run writes a compacted snapshot and moves the earlier CARs
+to `project-<hash>.superseded/`; the next push stores the new full pack and
+drops the pieces only the old packs used, as it does for any repo. The explorer has a Git viewer
 (Viewers > Git) with the commit log, each branch's history, branches, tags
 and snapshots.
 

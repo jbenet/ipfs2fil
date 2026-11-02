@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 
 	"github.com/jbenet/ipfs2fil/internal/gitarchive"
@@ -94,6 +95,47 @@ func TestGitRepo(t *testing.T) {
 	// It restores.
 	if _, err := gitarchive.Restore(context.Background(), r.verified, p[0].Root, filepath.Join(t.TempDir(), "r.git"), gitarchive.RestoreOptions{}); err != nil {
 		t.Fatal(err)
+	}
+	second := p[0].Root
+
+	// Compacted: one CAR that stands alone; the earlier ones move aside,
+	// so the repo's blocks are only its own.
+	GitCompact = gitarchive.CompactNow
+	defer func() { GitCompact = "" }()
+	commitFile(t, dir, "c.txt", "c\n")
+	r = open()
+	p, _ = r.Pins(context.Background())
+	if r.rec == nil || !r.rec.Base || len(r.rec.History) != 2 {
+		t.Fatalf("not compacted: %+v", r.rec)
+	}
+	cars, _ = filepath.Glob(filepath.Join(r.archiveDir(), "*.car"))
+	moved, _ := filepath.Glob(filepath.Join(r.archiveDir()+".superseded", "*.car"))
+	if len(cars) != 1 || filepath.Base(cars[0]) != "0003.car" || len(moved) != 2 {
+		t.Fatalf("cars %v, superseded %v", cars, moved)
+	}
+	if !strings.Contains(Describe(r), "3 snapshots") {
+		t.Fatalf("describe %q", Describe(r))
+	}
+	if _, err := r.Get(context.Background(), first.Hash()); err == nil {
+		t.Fatal("the first snapshot's record is still one of the repo's blocks")
+	}
+	for _, at := range []cid.Cid{first, second} {
+		if _, err := gitarchive.Restore(context.Background(), r.verified, p[0].Root, filepath.Join(t.TempDir(), "r.git"), gitarchive.RestoreOptions{At: at}); err != nil {
+			t.Fatalf("restore %s from the compacted snapshot: %v", at, err)
+		}
+	}
+
+	// The next snapshot is a delta again, numbered after the compacted one.
+	GitCompact = ""
+	commitFile(t, dir, "d.txt", "d\n")
+	r = open()
+	r.Pins(context.Background())
+	if r.rec.Base || r.rec.Prev == nil || r.rec.Prev.Cid != p[0].Root {
+		t.Fatalf("after compaction: %+v", r.rec)
+	}
+	cars, _ = filepath.Glob(filepath.Join(r.archiveDir(), "*.car"))
+	if len(cars) != 2 || filepath.Base(cars[1]) != "0004.car" {
+		t.Fatalf("cars %v", cars)
 	}
 }
 
