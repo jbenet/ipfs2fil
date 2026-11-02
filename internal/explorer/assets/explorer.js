@@ -677,6 +677,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     } catch (e) { /* older explore */ }
   }
   const V = window.I2FV || null;
+  let SHOW = null; // the Files page's showIn, for files the Git viewer reads
 
   // Every entry, streamed once from all shards, for search and the library.
   let allP = null;
@@ -722,6 +723,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
       return i < 0 ? '' : accHref(i, e.name.replace(/\.json$/, ''));
     };
     if (V) V.use({ esc, icon, bytes, recordHref, show: showIn });
+    SHOW = showIn;
     LOCAL = await probeLocal();
     // Posts draw from the account summaries, loaded when a post shows up.
     const KX = {};
@@ -790,14 +792,9 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
       if (on) on.focus({ preventScroll: true });
     }
 
-    // A viewer (the Bluesky App) takes the place of the file list.
-    if (S.app === 'git' && GITS[S.an]) {
-      lib();
-      const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
-      $('.fmain').replaceWith(ap);
-      Object.assign(pageKeys, { ArrowDown: () => NAV && navStep(1), ArrowUp: () => NAV && navStep(-1) });
-      return gitApp(ap, S.an);
-    }
+    // A viewer (the Bluesky App) takes the place of the file list. (The Git
+    // viewer starts further down: it shows files with this page's viewers,
+    // which must be set up first.)
     if (S.app === 'bsky' && ACC[S.an]) {
       lib();
       const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
@@ -1749,6 +1746,13 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       enter(d).then(() => { const i = shown.findIndex((e) => e.path === from); if (i >= 0) sel(i); }).catch(fail);
       return true;
     }
+    if (S.app === 'git' && GITS[S.an]) {
+      lib();
+      const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
+      $('.fmain').replaceWith(ap);
+      Object.assign(pageKeys, { ArrowDown: () => NAV && navStep(1), ArrowUp: () => NAV && navStep(-1) });
+      return gitApp(ap, S.an);
+    }
     main().addEventListener('click', (ev) => {
       const t = ev.target;
       const b = t.closest('button, a, [data-i]');
@@ -2234,13 +2238,13 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
   // repo ipfs2fil read). History is stored as git packs; pack summarizes the
   // refs and the commit log of every snapshot into idx/g/<n>.js.
   const gitHref = (gits, n, extra) => { const g = gits[n]; return g && g.href && !/^browse\.html/.test(g.href) ? g.href : 'browse.html?' + qs({ app: 'git', a: n, ...(extra || {}) }); };
-  const GITS_LOADED = {};
+  const GITS_LOADED = {}, GITREPO = {};
   async function gitApp(el, n) {
     const meta = await load('meta');
     const gits = meta.gits || [], gi = gits[n];
     const g = GITS_LOADED[n] || (GITS_LOADED[n] = await load('g/' + n));
     const P = new URLSearchParams(location.search);
-    const S = { tab: P.get('tab') || 'commits', c: P.get('c') || '', ref: P.get('ref') || '', q: P.get('q') || '', limit: 100 };
+    const S = { tab: P.get('tab') || 'commits', c: P.get('c') || '', ref: P.get('ref') || '', q: P.get('q') || '', path: P.get('path') || '', f: P.get('f') || '', limit: 100 };
     const href = (extra) => gitHref(gits, n, { tab: S.tab, ...extra });
     const byId = new Map(g.commits.map((c) => [c[0], c]));
     const short = (id) => esc((id || '').slice(0, 10));
@@ -2301,10 +2305,115 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
   ${c[6] !== c[5] ? `<dt>Committed</dt><dd>${esc(full(c[6]))}</dd>` : ''}
   <dt>Parents</dt><dd>${c[1].length ? c[1].map(commitLink).join(' ') : '<span class="faint">none (a root commit)</span>'}</dd>
   ${kids.length ? `<dt>Children</dt><dd>${kids.map((x) => commitLink(x[0])).join(' ')}</dd>` : ''}
-  <dt>Tree</dt><dd><code class="chipcode">${esc(c[2])}</code> <span class="faint">its files are in the packs; restore the repo to check them out</span></dd>
+  <dt>Files</dt><dd><a class="btn sm" href="${esc(filesHref(c[0]))}">Browse files</a> <span class="faint">tree <code>${short(c[2])}</code>, read from the packs in this browser</span></dd>
   ${c[8] ? '<dt>Signed</dt><dd>Yes; the signature is in the commit object, checked by git after restore</dd>' : ''}
 </dl>`;
       status('commit ' + c[0].slice(0, 10));
+    }
+
+
+    // ---- Files at a commit, read from the packs in this browser
+    // (gitpack.js): every snapshot's idx, then ranges of the packs.
+    const filesHref = (id, path, f) => href({ tab: 'files', c: id, path: path || '', f: f || '' });
+    const packURL = (c, name) => LOCAL ? CONTENT + encodeURIComponent(c) + '?name=' + name : HERE || PUBLIC ? gw(c) : null;
+    function reader() {
+      if (GITREPO[n]) return GITREPO[n];
+      const packs = g.snapshots.slice().reverse().flatMap((s) => s.packs || []).map((p) => ({ pack: packURL(p[0], 'objects.pack'), idx: packURL(p[1], 'objects.idx') }));
+      return (GITREPO[n] = window.I2FGit.open({ packs, format: g.objectFormat }));
+    }
+    const sortTree = (es) => es.slice().sort((a, b) => (b.kind === 'dir') - (a.kind === 'dir') || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const what = (e) => e.kind === 'exec' ? 'executable' : e.kind === 'link' ? 'symlink' : e.kind === 'module' ? `submodule at ${short(e.id)}` : '';
+    async function filesPage(id) {
+      const c = byId.get(id);
+      body.innerHTML = `<div class="titled"><a href="${esc(href({ tab: 'commits', c: id, path: '', f: '' }))}">‹ Commit ${short(id)}</a>${c ? ` <span class="faint">${esc(c[7])}</span>` : ''}</div>
+<nav class="git-crumbs" aria-label="Folder"></nav>
+<div class="git-files"><div class="git-tree"></div><div class="git-file" hidden></div></div>
+<p class="faint git-note"></p>`;
+      const crumbs = body.querySelector('.git-crumbs'), list = body.querySelector('.git-tree'), pane = body.querySelector('.git-file'), note = body.querySelector('.git-note');
+      // moves within the files of this commit stay on the page: the packs' idx are kept
+      body.onclick = (ev) => {
+        const a = ev.target.closest('a[data-nav]');
+        if (!a || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;
+        ev.preventDefault();
+        history.pushState(null, '', a.href);
+        const q = new URL(a.href).searchParams;
+        S.path = q.get('path') || '';
+        S.f = q.get('f') || '';
+        draw();
+      };
+      window.onpopstate = () => {
+        const q = new URLSearchParams(location.search);
+        if (q.get('tab') !== 'files' || q.get('c') !== id) { location.reload(); return; }
+        S.path = q.get('path') || '';
+        S.f = q.get('f') || '';
+        draw();
+      };
+      const up = () => { if (!S.path && !S.f) return false; const u = filesHref(id, S.f ? S.path : S.path.split('/').slice(0, -1).join('/')); history.pushState(null, '', u); S.f = ''; S.path = new URL(u, location.href).searchParams.get('path') || ''; draw(); return true; };
+      pageKeys.u = up;
+      pageKeys.Backspace = up;
+      let gen = 0;
+      async function draw() {
+        const my = ++gen, parts = S.path ? S.path.split('/') : [];
+        crumbs.innerHTML = [`<a data-nav href="${esc(filesHref(id))}">${esc(g.name)}</a>`].concat(parts.map((x, i) => `<a data-nav href="${esc(filesHref(id, parts.slice(0, i + 1).join('/')))}">${esc(x)}</a>`)).join('<span class="faint">/</span>');
+        if (!packURL('x', '')) {
+          list.innerHTML = `<div class="none pad"><p>The packs are read from <code>ipfs2fil explore</code> or an IPFS gateway; this page has neither.</p><button type="button" class="btn sm" data-public>Load from ${GATEWAYS[0][0]}</button></div>`;
+          list.querySelector('[data-public]').onclick = () => { PUBLIC = true; draw(); };
+          return;
+        }
+        if (!window.I2FGit) { list.innerHTML = '<p class="muted pad">This explorer is missing gitpack.js.</p>'; return; }
+        const repo = reader();
+        list.innerHTML = '<p class="muted pad">Reading the packs…</p>';
+        status('reading the packs');
+        try {
+          let tid = c ? c[2] : (await repo.commit(id)).tree;
+          for (let i = 0; i < parts.length; i++) {
+            const d = (await repo.tree(tid)).find((e) => e.name === parts[i] && e.kind === 'dir');
+            if (!d) throw new Error(`There is no folder ${parts.slice(0, i + 1).join('/')} at this commit.`);
+            tid = d.id;
+          }
+          const es = sortTree(await repo.tree(tid));
+          if (my !== gen) return;
+          const kindOfFile = (e) => e.kind === 'dir' ? 'folder' : e.kind === 'module' ? 'repo' : (V && V.arc.kindOf(e.name)) || 'other';
+          const rowHref = (e) => e.kind === 'dir' ? filesHref(id, parts.concat(e.name).join('/')) : filesHref(id, S.path, e.name);
+          list.innerHTML = `<table class="git-log tree"><tbody>${es.slice(0, 5000).map((e) => `<tr${e.name === S.f && e.kind !== 'dir' ? ' aria-current="true"' : ''}><td><a data-nav href="${esc(rowHref(e))}">${icon(kindOfFile(e))} ${esc(e.name)}${e.kind === 'dir' ? '/' : ''}</a></td><td class="faint">${what(e)}</td></tr>`).join('')}${es.length > 5000 ? `<tr><td colspan="2" class="faint">${num(es.length - 5000)} more not listed</td></tr>` : ''}${es.length ? '' : '<tr><td class="faint">An empty folder.</td></tr>'}</tbody></table>`;
+          const fe = S.f ? es.find((e) => e.name === S.f && e.kind !== 'dir') : null;
+          pane.hidden = !fe;
+          if (fe) await showFile(fe, my);
+          if (my !== gen) return;
+          const st = repo.stats;
+          note.textContent = `Read from ${plural(g.snapshots.reduce((a, s) => a + (s.packs || []).length, 0), 'pack')}: ${plural(st.requests, 'request')}, ${bytes(st.fetched)} fetched so far. Every object shown matched its ${g.objectFormat === 'sha256' ? 'SHA-256' : 'SHA-1'} id${st.unchecked ? ` (${plural(st.unchecked, 'object')} unchecked: this page is not on a secure origin)` : ''}; SHA-1 collision detection (SHA-1DC) runs in git-ipfs-archive verify and restore, not here.`;
+          status(plural(es.length, 'item') + (S.path ? ' in ' + S.path : ''));
+        } catch (err) {
+          if (my !== gen) return;
+          list.innerHTML = `<div class="none pad"><p>${esc(err.message)}</p></div>`;
+          status('could not read the packs');
+        }
+      }
+      async function showFile(fe, my) {
+        const path = pathParts().concat(fe.name).join('/');
+        pane.innerHTML = `<div class="pv"><div class="ph"><strong title="${esc(path)}">${esc(fe.name)}</strong></div><p class="muted pad">Reading…</p></div>`;
+        const pv = pane.querySelector('.pv'), ph = pv.querySelector('.ph');
+        const facts = (extra) => `<div class="facts dl"><span>Path</span><span>${esc(path)}</span><span>Blob</span><span><code class="chipcode">${esc(fe.id)}</code></span><span>Mode</span><span>${esc(fe.mode)}${what(fe) ? ' · ' + what(fe) : ''}</span>${extra || ''}</div>`;
+        if (fe.kind === 'module') { pv.innerHTML = ph.outerHTML + `<div class="pad2"><p class="faint">A submodule: another repo, at commit <code>${esc(fe.id)}</code>.</p></div>` + facts(); return; }
+        let o;
+        try { o = await reader().read(fe.id); } catch (err) {
+          if (my === gen) pv.innerHTML = ph.outerHTML + `<div class="pad2"><p>${esc(err.message)}${err.tooBig ? `. Restore the repo to get it: <code class="chipcode">git-ipfs-archive restore &lt;CARs&gt; ${esc(g.name)}.git</code>` : ''}</p></div>` + facts();
+          return;
+        }
+        if (my !== gen) return;
+        if (fe.kind === 'link') { pv.innerHTML = ph.outerHTML + `<div class="pad2"><p>A symlink to <code>${esc(new TextDecoder().decode(o.data))}</code></p></div>` + facts(); return; }
+        const blob = new Blob([o.data]);
+        const kind = (V && (V.arc.kindOf(fe.name) || V.arc.sniff(o.data.subarray(0, 1024)))) || 'other';
+        const e = { name: fe.name, path: 'git/' + path, dir: '', kind, bytes: o.data.length, cid: '', piece: -1, blob, va: { arc: g.name, inner: path } };
+        const url = V ? V.arc.url(e) : URL.createObjectURL(blob);
+        ph.insertAdjacentHTML('beforeend', `<a class="btn sm" href="${esc(url)}" download="${esc(fe.name)}">Download</a>`);
+        pv.querySelector('.muted').outerHTML = '<div class="git-stage"></div>' + `` + facts(`<span>Size</span><span>${bytes(o.data.length)} · ${esc(kindOf(kind)[2])}</span>`);
+        const box = pv.querySelector('.git-stage');
+        if (SHOW) SHOW(box, e);
+        else box.innerHTML = `<pre class="code"><code>${esc(new TextDecoder().decode(o.data.subarray(0, 1 << 20)))}</code></pre>`;
+      }
+      const pathParts = () => S.path ? S.path.split('/') : [];
+      await draw();
     }
 
     function commits() {
@@ -2329,11 +2438,11 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
       const at = (r) => { const c = byId.get(r[2] || r[1]); return c ? c[6] : 0; };
       // a ref with a tip folder links to it in Files (named as the archive lists it)
       const tips = new Map((g.tips || []).map((x) => [x[0], x]));
-      const tipLink = (r) => tips.has(r) && gi && gi.path ? ` <a class="pill" href="${esc(browseHref(gi.path + '/' + r.replace(/^refs\/heads\//, '').replace(/^refs\//, '').replace(/\//g, '%2F')))}" title="The files at ${esc(refName(r))}">files</a>` : '';
+      const tipLink = (r, id) => tips.has(r) && gi && gi.path ? ` <a class="pill" href="${esc(browseHref(gi.path + '/' + r.replace(/^refs\/heads\//, '').replace(/^refs\//, '').replace(/\//g, '%2F')))}" title="The files at ${esc(refName(r))}">files</a>` : byId.has(id) ? ` <a class="pill" href="${esc(filesHref(id))}" title="The files at ${esc(refName(r))}, read from the packs">files</a>` : '';
       list = list.slice().sort((a, b) => (b[0] === g.head) - (a[0] === g.head) || at(b) - at(a));
       body.innerHTML = list.length ? `<table class="git-log refs"><tbody>${list.map((r) => {
         const id = r[2] || r[1], c = byId.get(id);
-        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}${tipLink(r[0])}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
+        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}${tipLink(r[0], id)}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
       }).join('')}</tbody></table>` : `<p class="faint">No ${what}.</p>`;
       status(plural(list.length, what.replace(/s$/, '')));
     }
@@ -2344,6 +2453,7 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
       status(plural(g.snapshots.length, 'snapshot'));
     }
 
+    if (S.tab === 'files' && /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(S.c)) return filesPage(S.c);
     if (S.c && byId.has(S.c)) return commitPage(byId.get(S.c));
     if (S.tab === 'branches') return refs(heads, 'branches');
     if (S.tab === 'tags') return refs(tags, 'tags');
