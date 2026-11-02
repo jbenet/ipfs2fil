@@ -155,6 +155,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		if err != nil {
 			return err
 		}
+		defer bs.Close()
 		if o.Prev, err = gitarchive.LoadRecord(bs.Get, c); err != nil {
 			return err
 		}
@@ -227,6 +228,7 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	if err != nil {
 		return err
 	}
+	defer bs.Close()
 	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse})
 	if err != nil {
 		return err
@@ -263,6 +265,7 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	if err != nil {
 		return err
 	}
+	defer bs.Close()
 	tmp, err := os.MkdirTemp("", "git-ipfs-archive-verify-*")
 	if err != nil {
 		return err
@@ -303,6 +306,7 @@ func cmdShow(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	defer bs.Close()
 	chain, err := gitarchive.Chain(bs.Get, c)
 	if err != nil {
 		return err

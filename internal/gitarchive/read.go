@@ -14,16 +14,35 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/car"
 )
 
-// Blocks is an in-memory block set, checked against CIDs as it is filled.
+// Blocks is a block set, checked against CIDs: blocks Put are kept in
+// memory, blocks in loaded CAR files stay on disk and are read (and checked
+// again) when asked for, so restoring a big archive does not hold it all in
+// memory.
 type Blocks struct {
 	m     map[string][]byte
+	at    map[string]blockAt
+	files []*os.File
 	roots []cid.Cid
 }
 
-func NewBlocks() *Blocks { return &Blocks{m: map[string][]byte{}} }
+type blockAt struct {
+	file int32
+	n    int32
+	off  int64
+}
+
+func NewBlocks() *Blocks { return &Blocks{m: map[string][]byte{}, at: map[string]blockAt{}} }
 
 // Put checks data against c and keeps it.
 func (b *Blocks) Put(c cid.Cid, data []byte) error {
+	if err := check(c, data); err != nil {
+		return err
+	}
+	b.m[string(c.Hash())] = data
+	return nil
+}
+
+func check(c cid.Cid, data []byte) error {
 	got, err := c.Prefix().Sum(data)
 	if err != nil {
 		return err
@@ -31,25 +50,53 @@ func (b *Blocks) Put(c cid.Cid, data []byte) error {
 	if !got.Equals(c) {
 		return fmt.Errorf("block %s: bytes hash to %s", c, got)
 	}
-	b.m[string(c.Hash())] = data
 	return nil
 }
 
 // Get returns a block or an error naming it.
 func (b *Blocks) Get(c cid.Cid) ([]byte, error) {
-	if d, ok := b.m[string(c.Hash())]; ok {
+	k := string(c.Hash())
+	if d, ok := b.m[k]; ok {
 		return d, nil
 	}
-	return nil, fmt.Errorf("block %s is not in the archive", c)
+	at, ok := b.at[k]
+	if !ok {
+		return nil, fmt.Errorf("block %s is not in the archive", c)
+	}
+	d := make([]byte, at.n)
+	if _, err := b.files[at.file].ReadAt(d, at.off); err != nil {
+		return nil, fmt.Errorf("block %s: %w", c, err)
+	}
+	if err := check(c, d); err != nil {
+		return nil, err // the file changed since it was loaded
+	}
+	return d, nil
 }
 
 // Has reports whether b holds a block.
-func (b *Blocks) Has(c cid.Cid) bool { _, ok := b.m[string(c.Hash())]; return ok }
+func (b *Blocks) Has(c cid.Cid) bool {
+	k := string(c.Hash())
+	if _, ok := b.m[k]; ok {
+		return true
+	}
+	_, ok := b.at[k]
+	return ok
+}
+
+// Close closes the loaded CAR files.
+func (b *Blocks) Close() error {
+	for _, f := range b.files {
+		f.Close()
+	}
+	b.files, b.at = nil, map[string]blockAt{}
+	return nil
+}
 
 // Roots are the CAR header roots seen while loading.
 func (b *Blocks) Roots() []cid.Cid { return b.roots }
 
-// Load reads a CAR file, or every .car file in a directory, into b.
+// Load indexes a CAR file, or every .car file in a directory, checking every
+// block's hash as it goes; the blocks stay in the files.
 func (b *Blocks) Load(path string) error {
 	st, err := os.Stat(path)
 	if err != nil {
@@ -85,12 +132,15 @@ func (b *Blocks) loadFile(path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	r, err := car.NewReader(f)
 	if err != nil {
+		f.Close()
 		return err
 	}
+	idx := int32(len(b.files))
+	b.files = append(b.files, f)
 	b.roots = append(b.roots, r.Roots...)
+	off := car.HeaderSize(r.Roots...)
 	for {
 		c, data, err := r.Next()
 		if err == io.EOF {
@@ -99,9 +149,14 @@ func (b *Blocks) loadFile(path string) error {
 		if err != nil {
 			return err
 		}
-		if err := b.Put(c, data); err != nil {
+		if err := check(c, data); err != nil {
 			return err
 		}
+		n := car.EntrySize(c, len(data))
+		if _, ok := b.at[string(c.Hash())]; !ok {
+			b.at[string(c.Hash())] = blockAt{file: idx, n: int32(len(data)), off: off + n - int64(len(data))}
+		}
+		off += n
 	}
 }
 
