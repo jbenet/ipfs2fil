@@ -159,7 +159,7 @@ func Discover(explicit string) (string, error) {
 		if c == "" {
 			continue
 		}
-		if c == explicit && (atproto.IsAccount(c) || isRPC(c) || isCAR(c)) {
+		if c == explicit && (atproto.IsAccount(c) || isRPC(c) || isCAR(c) || isGit(c)) {
 			return c, nil
 		}
 		if _, ok := heliaBlockstore(c); ok && c == explicit {

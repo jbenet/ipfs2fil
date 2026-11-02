@@ -65,6 +65,8 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 		s.Tips = append(s.Tips, [3]string{t.Ref, t.Commit, t.Root.String()})
 	}
 	var commits []Commit
+	read := map[string]bool{} // a chunk is read once, however often it is named
+	full := false             // MaxSummaryCommits reached: list no more
 	for i := len(chain) - 1; i >= 0; i-- {
 		snap := chain[i]
 		ss := SnapSummary{Root: snap.Root.String(), Commits: snap.Record.Commits, Refs: len(snap.Record.Refs), LFS: snap.Record.LFSObjects}
@@ -74,7 +76,15 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 			ss.Packs = append(ss.Packs, [2]string{p.Pack.String(), p.Idx.String()})
 		}
 		s.Snapshots = append(s.Snapshots, ss)
+		listed := 0
 		for _, l := range snap.Record.Log {
+			if full {
+				break
+			}
+			if read[l.KeyString()] {
+				continue
+			}
+			read[l.KeyString()] = true
 			b, err := get(l.Cid)
 			if err != nil {
 				s.Missing++
@@ -86,6 +96,11 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 				continue
 			}
 			commits = append(commits, ch.Commits...)
+			listed += len(ch.Commits)
+			full = len(commits) >= MaxSummaryCommits
+		}
+		if full {
+			s.Truncated += max(0, snap.Record.Commits-listed)
 		}
 	}
 	sort.SliceStable(commits, func(i, j int) bool { return commits[i].Committer.Time > commits[j].Committer.Time })

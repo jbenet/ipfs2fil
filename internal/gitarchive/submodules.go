@@ -30,6 +30,9 @@ type Submodule struct {
 // maxSubmoduleDepth bounds how deep submodules of submodules go.
 const maxSubmoduleDepth = 8
 
+// maxSubmoduleRestores bounds how many submodule repos one restore writes.
+const maxSubmoduleRestores = 256
+
 // cloneSchemes are the URL schemes a submodule missing locally may be
 // cloned from. A local path or file:// URL in .gitmodules could name any
 // repo on this machine, private ones included, so they are not followed;

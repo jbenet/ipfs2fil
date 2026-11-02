@@ -168,7 +168,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 	setupReaders(o)
 	found, err := repo.Discover(path)
 	if errors.Is(err, repo.ErrNotRepo) {
-		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks', or a CAR file", path)
+		return fmt.Errorf("%s is not an IPFS repo; give the directory holding 'config' and 'datastore' or 'blocks', a CAR file, or a git repo", path)
 	}
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
