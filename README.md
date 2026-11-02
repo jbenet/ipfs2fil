@@ -364,6 +364,38 @@ the file (`--no-config` ignores it). Keys outside `[archive]` are recorded
 as instructions for whatever stores the archive; `--set key=value` adds
 more. `git-ipfs-archive show cars` prints every snapshot's record as JSON.
 
+A folder that is not itself a repo archives every repo under it as one set,
+and so do several repos or URLs named together:
+
+    git-ipfs-archive ~/src -o cars/1.car                         # every repo under ~/src
+    git-ipfs-archive ~/src --since cars -o cars/2.car            # only what's new in any of them
+    git-ipfs-archive restore cars ./src                          # each as ./src/<name>.git
+    git-ipfs-archive restore --only forks/kubo cars ./kubo       # just one
+
+The set's record lists each repo's own record, named by its path under the
+folder. Repos are read in name order, and a repo that shares a first commit
+with one before it (a fork, or a second clone) is packed thin against it:
+only what the earlier one lacks is stored. A fork of go-cid with 4 branches
+of its own came to 9 objects and 1.5 KB. Restoring that repo brings in the
+earlier one's packs and then drops every object its own refs don't reach.
+Repos that are added, removed, or fail to read on a later run are noted;
+one that fails keeps its last snapshot. Symlinks are not followed and
+nothing inside a repo (submodules aside) is searched for more repos.
+
+An https URL is cloned to a temporary bare repo next to the output and
+archived like a local one, named by host and path:
+
+    git-ipfs-archive https://github.com/ipfs/kubo -o kubo.car
+    git-ipfs-archive https://github.com/ipfs/kubo --since kubo.car -o kubo-2.car
+    git-ipfs-archive https://github.com/ipfs/kubo https://github.com/someone/kubo -o forks.car
+
+Only https is cloned: http can be altered on the way, and `file://` or a
+local path could name any repo on the machine. A token in the URL is used
+for the clone and stripped from the recorded remote. A cloned repo's
+`.ipfs-archive-config` is someone else's, so it cannot turn on settings that cost
+much more (every branch's files, submodules, LFS fetch) unless you pass
+`--trust-config`; flags still can.
+
 `ipfs2fil` archives git repos itself, the same way: point it at a working
 tree or bare repo.
 

@@ -70,19 +70,16 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 	abs, _ := filepath.Abs(dest)
 	g := &Git{Bin: o.Git, Dir: abs, Format: f}
 	res := &RestoreResult{Snapshots: len(chain), FromHistory: fromHist}
-	indexed := map[string]bool{} // a pack named twice is indexed once
-	for _, s := range chain {
-		for _, p := range s.Record.Packs {
-			if indexed[p.Pack.KeyString()] {
-				continue
-			}
-			indexed[p.Pack.KeyString()] = true
-			if err := g.indexPack(ctx, get, p); err != nil {
-				return nil, fmt.Errorf("snapshot %s: %w", s.Root, err)
-			}
-			res.Packs++
-			logf("pack %d: %d objects", res.Packs, p.Objects)
+	packs, based, err := packsToIndex(get, chain)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range packs {
+		if err := g.indexPack(ctx, get, p.Pack); err != nil {
+			return nil, fmt.Errorf("snapshot %s: %w", p.root, err)
 		}
+		res.Packs++
+		logf("pack %d: %d objects", res.Packs, p.Objects)
 	}
 	if len(last.Shallow) > 0 {
 		if err := os.WriteFile(filepath.Join(abs, "shallow"), []byte(strings.Join(last.Shallow, "\n")+"\n"), 0o644); err != nil {
@@ -118,6 +115,16 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 			if _, err := g.run(ctx, nil, "remote", "add", "--", r.Name, r.URL); err != nil {
 				res.Skipped = append(res.Skipped, fmt.Sprintf("remote %s: %v", r.Name, err))
 			}
+		}
+	}
+	if based {
+		// The bases' packs brought in their repos' objects too; keep only
+		// what this repo's refs reach, as the repo itself had.
+		if _, err := g.run(ctx, nil, "repack", "-a", "-d", "-q", "--no-write-bitmap-index"); err != nil {
+			return nil, err
+		}
+		if _, err := g.run(ctx, nil, "prune", "--expire=now"); err != nil {
+			return nil, err
 		}
 	}
 	args := []string{"fsck", "--full", "--no-dangling", "--no-progress"}
@@ -207,6 +214,67 @@ func restorePlan(get BlockGetter, root, at cid.Cid) ([]Snapshot, *Record, bool, 
 		return nil, nil, false, fmt.Errorf("reading the compacted history: %w", herr)
 	}
 	return nil, nil, false, fmt.Errorf("snapshot %s is not in the archive at %s, nor in its compacted history", at, root)
+}
+
+// maxBaseRecords bounds how many base snapshots one restore follows.
+const maxBaseRecords = 4096
+
+type packAt struct {
+	Pack
+	root cid.Cid // the snapshot naming it
+}
+
+// packsToIndex lists the packs a restore of chain needs, in an order where
+// every thin pack comes after the packs holding its bases: for each
+// snapshot, its bases' chains (recursively), then its own packs. A pack
+// named twice is listed once. based says whether any base was followed.
+func packsToIndex(get BlockGetter, chain []Snapshot) ([]packAt, bool, error) {
+	var out []packAt
+	packs := map[string]bool{}
+	visited := map[string]bool{} // base snapshots already followed
+	based := false
+	loaded := 0 // base snapshots read, counting repeats
+	var walk func(chain []Snapshot, depth int) error
+	walk = func(chain []Snapshot, depth int) error {
+		for _, s := range chain {
+			for _, b := range s.Record.Bases {
+				if visited[b.KeyString()] {
+					continue
+				}
+				visited[b.KeyString()] = true
+				based = true
+				if depth >= maxSubmoduleDepth*2 || len(visited) > maxBaseRecords {
+					return fmt.Errorf("snapshot %s: bases nest too deep or too many", s.Root)
+				}
+				bc, err := Chain(get, b.Cid)
+				if err != nil {
+					return fmt.Errorf("base %s: %w", b.Cid, err)
+				}
+				if loaded += len(bc); loaded > maxChain {
+					return fmt.Errorf("snapshot %s: its bases' chains hold more than %d snapshots", s.Root, maxChain)
+				}
+				if bc[0].Record.ObjectFormat != chain[0].Record.ObjectFormat {
+					return fmt.Errorf("base %s is a %s repo", b.Cid, bc[0].Record.ObjectFormat)
+				}
+				for _, x := range bc {
+					visited[x.Root.KeyString()] = true // its chain is walked now
+				}
+				if err := walk(bc, depth+1); err != nil {
+					return err
+				}
+			}
+			for _, p := range s.Record.Packs {
+				if packs[p.Pack.KeyString()] {
+					continue
+				}
+				packs[p.Pack.KeyString()] = true
+				out = append(out, packAt{p, s.Root})
+			}
+		}
+		return nil
+	}
+	err := walk(chain, 0)
+	return out, based, err
 }
 
 // indexPack streams one stored pack into git index-pack.

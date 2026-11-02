@@ -20,6 +20,11 @@ const Kind = "git-archive"
 // RecordVersion is the record layout this package writes and reads.
 const RecordVersion = 1
 
+// RecordVersionBases is the layout of a record with Bases: its packs need
+// other archives to restore, so a reader that does not know Bases must
+// refuse it rather than restore a broken repo.
+const RecordVersionBases = 2
+
 // Link is a CID in DAG-CBOR (tag 42).
 type Link struct{ cid.Cid }
 
@@ -84,6 +89,11 @@ type Record struct {
 	LFS        []Link `cbor:"lfs,omitempty"`
 	LFSObjects int    `cbor:"lfsObjects,omitempty"`
 	Tool       string `cbor:"tool,omitempty"`
+	// Bases are other repos' snapshots this one's packs build on, as forks
+	// in one set archive do: objects their refs reach are left out of this
+	// snapshot's pack, and its deltas may use them as bases. Restore
+	// indexes their packs first.
+	Bases []Link `cbor:"bases,omitempty"`
 }
 
 // HistoryEntry is an earlier snapshot's state, kept by a compacted
@@ -162,8 +172,11 @@ func DecodeRecord(b []byte) (*Record, error) {
 	if r.Kind != Kind {
 		return nil, fmt.Errorf("not a git archive record (kind %q)", r.Kind)
 	}
-	if r.Version != RecordVersion {
-		return nil, fmt.Errorf("git archive record version %d; this build reads %d", r.Version, RecordVersion)
+	if r.Version != RecordVersion && r.Version != RecordVersionBases {
+		return nil, fmt.Errorf("git archive record version %d; this build reads %d and %d", r.Version, RecordVersion, RecordVersionBases)
+	}
+	if (len(r.Bases) > 0) != (r.Version == RecordVersionBases) {
+		return nil, fmt.Errorf("git archive record version %d with %d bases", r.Version, len(r.Bases))
 	}
 	return &r, r.check()
 }
@@ -196,6 +209,14 @@ func (r *Record) check() error {
 		}
 		if !isID(t.Commit, f) || !isID(t.Tree, f) || !t.Root.Defined() || t.Root.Type() != cid.DagProtobuf {
 			return fmt.Errorf("tip folder of %s is malformed", t.Ref)
+		}
+	}
+	if len(r.Bases) > maxBases {
+		return fmt.Errorf("record names %d bases, more than %d", len(r.Bases), maxBases)
+	}
+	for _, b := range r.Bases {
+		if b.Type() != cid.DagCBOR {
+			return errors.New("record's bases are not DAG-CBOR")
 		}
 	}
 	for _, l := range r.LFS {

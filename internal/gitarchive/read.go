@@ -213,9 +213,9 @@ func Chain(get BlockGetter, root cid.Cid) ([]Snapshot, error) {
 }
 
 // Latest picks the newest snapshot among the CAR roots that are git
-// archive records: the one no other record names as Prev.
+// archive records or set records: the one no other names as Prev.
 func (b *Blocks) Latest() (cid.Cid, error) {
-	heads, _ := LatestOf(b.Get, b.roots)
+	heads, _ := LatestRoot(b.Get, b.roots)
 	switch len(heads) {
 	case 0:
 		return cid.Undef, errors.New("no git archive record among the CAR roots")

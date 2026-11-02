@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -243,8 +244,9 @@ func (p *compactPlan) borrow(ctx context.Context, g *Git, get BlockGetter, tmp s
 			}
 		}
 	}
-	g.Alternates = quoteAlternate(filepath.Join(dir, "objects"))
-	return func() { g.Alternates = ""; done() }, nil
+	before := g.Alternates
+	g.Alternates = append(slices.Clip(before), quoteAlternate(filepath.Join(dir, "objects")))
+	return func() { g.Alternates = before; done() }, nil
 }
 
 // quoteAlternate quotes a path for GIT_ALTERNATE_OBJECT_DIRECTORIES, which

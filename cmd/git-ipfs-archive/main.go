@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -49,6 +50,11 @@ const usage = `git-ipfs-archive turns a git repo into CAR files and back.
 
 Usage:
   git-ipfs-archive [flags] <repo> -o <out.car>   archive a repo (a delta with --since)
+  git-ipfs-archive [flags] <folder> -o <out.car> archive every repo under a folder as one set
+  git-ipfs-archive [flags] <https URL> -o <out.car>
+                                                 clone a repo and archive it
+  git-ipfs-archive [flags] <repo or URL>... -o <out.car>
+                                                 archive several repos as one set
   git-ipfs-archive restore [flags] <car or dir> <dest>
   git-ipfs-archive verify [flags] <car or dir>
   git-ipfs-archive show [flags] <car or dir>
@@ -130,6 +136,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	gitBin := fs.String("git", "", "git binary to run")
 	tips := fs.String("tips", "", "store a folder of the files at these refs: none, default (HEAD's branch), all (every branch), or ref names, comma-separated (default: the repo's "+gitarchive.ConfigFile+", else none)")
 	noConfig := fs.Bool("no-config", false, "ignore the repo's "+gitarchive.ConfigFile)
+	trustConfig := fs.Bool("trust-config", false, "let a cloned repo's "+gitarchive.ConfigFile+" turn on costly settings (tip folders of every branch, submodules, LFS fetch), as a local repo's may")
 	var lfsFetch optBool
 	fs.Var(&lfsFetch, "lfs-fetch", "run git lfs fetch --all first, to store LFS objects only the server has (default: the repo's "+gitarchive.ConfigFile+", else store the local ones)")
 	var subs optBool
@@ -138,14 +145,14 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	set := kvFlag{}
 	fs.Var(set, "set", "key=value instruction recorded for whatever stores the archive (repeatable), e.g. ipfs2fil.copies=3")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: git-ipfs-archive [flags] <repo> -o <out.car>")
+		fmt.Fprintln(stderr, "Usage: git-ipfs-archive [flags] <repo, folder or https URL>... -o <out.car>")
 		fs.PrintDefaults()
 	}
 	pos, err := interleaved(fs, args)
 	if err != nil {
 		return err
 	}
-	if len(pos) != 1 || *out == "" {
+	if len(pos) == 0 || *out == "" {
 		fs.Usage()
 		return flag.ErrHelp
 	}
@@ -157,20 +164,37 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	if len(set) > 0 {
 		o.Instructions = set
 	}
+	o.TempDir = filepath.Dir(*out)
+	in, cleanup, err := inputs(ctx, pos, *gitBin, o.TempDir, !*trustConfig, stderr)
+	defer cleanup()
+	if err != nil {
+		return err
+	}
+	var prevRoot cid.Cid
+	var bs *gitarchive.Blocks
 	if *since != "" {
-		bs, c, err := load(*since, *root)
-		if err != nil {
+		if bs, prevRoot, err = load(*since, *root); err != nil {
 			return err
 		}
 		defer bs.Close()
-		if o.Prev, err = gitarchive.LoadRecord(bs.Get, c); err != nil {
+		o.Have, o.Get = bs.Has, bs.Get
+	}
+	if in.set {
+		return archiveSet(ctx, *out, in.repos, o, bs, prevRoot, stdout, stderr)
+	}
+	if bs != nil {
+		if o.Prev, err = gitarchive.LoadRecord(bs.Get, prevRoot); err != nil {
+			if gitarchive.IsSet(bs.Get, prevRoot) {
+				return fmt.Errorf("--since names a set of repos; archive the same folder or list of repos")
+			}
 			return err
 		}
-		o.PrevRoot, o.Have, o.Get = c, bs.Has, bs.Get
+		o.PrevRoot = prevRoot
 	}
-	o.TempDir = filepath.Dir(*out)
+	r := in.repos[0]
+	o.UntrustedConfig = r.Untrusted
 	res, err := gitarchive.WriteCAR(*out, func(put gitarchive.BlockSink) (*gitarchive.Result, error) {
-		return gitarchive.Archive(ctx, pos[0], o, put)
+		return gitarchive.Archive(ctx, r.Path, o, put)
 	})
 	if err != nil {
 		return err
@@ -205,6 +229,127 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	return nil
 }
 
+type inputSet struct {
+	repos []gitarchive.Input
+	set   bool // archive as a set: a folder, or more than one input
+}
+
+// inputs turns the command line into repos: a URL is cloned (its config
+// untrusted unless trust), a folder that is not a repo stands for every
+// repo under it. One repo or URL is archived alone; anything else is a set.
+// cleanup removes the clones.
+func inputs(ctx context.Context, pos []string, gitBin, tmp string, untrusted bool, stderr io.Writer) (inputSet, func(), error) {
+	var in inputSet
+	var clones []string
+	cleanup := func() {
+		for _, c := range clones {
+			os.RemoveAll(c)
+		}
+	}
+	in.set = len(pos) > 1
+	for _, p := range pos {
+		if gitarchive.IsCloneURL(p) {
+			name := gitarchive.URLName(p)
+			fmt.Fprintf(stderr, "cloning %s\n", gitarchive.StripCredentials(strings.TrimPrefix(p, "git+")))
+			dir, err := gitarchive.Clone(ctx, gitBin, p, tmp)
+			if err != nil {
+				return in, cleanup, err
+			}
+			clones = append(clones, dir)
+			in.repos = append(in.repos, gitarchive.Input{Name: name, Path: dir, Untrusted: untrusted})
+			continue
+		}
+		if strings.Contains(p, "://") {
+			return in, cleanup, fmt.Errorf("%s: only https URLs are cloned", p)
+		}
+		if gitarchive.IsGitRepo(p) {
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				return in, cleanup, err
+			}
+			name := filepath.Base(abs)
+			if name == ".git" {
+				name = filepath.Base(filepath.Dir(abs))
+			}
+			in.repos = append(in.repos, gitarchive.Input{Name: name, Path: p})
+			continue
+		}
+		st, err := os.Stat(p)
+		if err != nil {
+			return in, cleanup, err
+		}
+		if !st.IsDir() {
+			return in, cleanup, fmt.Errorf("%s is not a git repo or a folder", p)
+		}
+		found, notes, err := gitarchive.FindRepos(p)
+		if err != nil {
+			return in, cleanup, err
+		}
+		for _, n := range notes {
+			fmt.Fprintf(stderr, "note: %s\n", n)
+		}
+		if len(found) == 0 {
+			return in, cleanup, fmt.Errorf("no git repos under %s", p)
+		}
+		if len(pos) > 1 {
+			abs, _ := filepath.Abs(p)
+			for i := range found {
+				found[i].Name = filepath.Base(abs) + "/" + found[i].Name
+			}
+		}
+		in.set = true
+		in.repos = append(in.repos, found...)
+	}
+	return in, cleanup, nil
+}
+
+func archiveSet(ctx context.Context, out string, repos []gitarchive.Input, o gitarchive.Options, bs *gitarchive.Blocks, prevRoot cid.Cid, stdout, stderr io.Writer) error {
+	so := gitarchive.SetOptions{Options: o, Log: func(f string, a ...any) { fmt.Fprintf(stderr, "reading "+f, a...) }}
+	if bs != nil {
+		prev, err := gitarchive.LoadSet(bs.Get, prevRoot)
+		if err != nil {
+			if gitarchive.IsRecord(bs.Get, prevRoot) {
+				return fmt.Errorf("--since names one repo's archive, not a set; archive that repo alone")
+			}
+			return err
+		}
+		so.Prev, so.PrevRoot = prev, prevRoot
+	}
+	res, err := gitarchive.ArchiveSetCAR(ctx, out, repos, so)
+	if err != nil {
+		return err
+	}
+	for _, n := range res.Notes {
+		fmt.Fprintf(stderr, "note: %s\n", n)
+	}
+	if res.Unchanged {
+		fmt.Fprintf(stdout, "nothing changed since %s; no CAR written\n", res.Root)
+		return nil
+	}
+	fmt.Fprintf(stdout, "%s\n", res.Root)
+	var objects, commits int
+	var bytes int64
+	for _, m := range res.Repos {
+		if m.Result == nil {
+			continue
+		}
+		line := "unchanged"
+		if !m.Unchanged {
+			objects += m.Objects
+			bytes += m.PackBytes
+			commits += m.Record.Commits
+			line = fmt.Sprintf("%d new objects, %s", m.Objects, size(m.PackBytes))
+		}
+		if len(m.Bases) > 0 {
+			line += ", packed against " + strings.Join(m.Bases, ", ")
+		}
+		fmt.Fprintf(stderr, "  %s: %s\n", m.Name, line)
+	}
+	fmt.Fprintf(stderr, "wrote %s: a set of %d repos, %d new objects in %s of packs, %d commits\n",
+		out, len(res.Record.Repos), objects, size(bytes), commits)
+	return nil
+}
+
 func load(path, root string) (*gitarchive.Blocks, cid.Cid, error) {
 	bs := gitarchive.NewBlocks()
 	if err := bs.Load(path); err != nil {
@@ -227,8 +372,11 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	recurse := fs.Bool("recurse", false, "also restore archived submodules, each in <dest>/modules/<name>")
 	at := fs.String("at", "", "restore this earlier snapshot of the archive, even one a compacted snapshot replaced")
 	gitBin := fs.String("git", "", "git binary to run")
+	var only listFlag
+	fs.Var(&only, "only", "for a set: restore only the repo of this name (repeatable)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: git-ipfs-archive restore [flags] <car or dir> <dest>")
+		fmt.Fprintln(stderr, "A set restores each repo to <dest>/<name>.git.")
 		fs.PrintDefaults()
 	}
 	pos, err := interleaved(fs, args)
@@ -248,7 +396,28 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		return err
 	}
 	defer bs.Close()
-	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse, At: atc})
+	ro := gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse, At: atc}
+	if gitarchive.IsSet(bs.Get, c) {
+		if atc.Defined() {
+			return errors.New("--at names one repo's snapshot; restore it with --root <that repo's record>")
+		}
+		rs, err := gitarchive.RestoreSet(ctx, bs.Get, c, pos[1], only, ro)
+		if err != nil {
+			return err
+		}
+		for _, name := range sortedKeys(rs) {
+			r := rs[name]
+			for _, s := range r.Skipped {
+				fmt.Fprintf(stderr, "%s: skipped %s\n", name, s)
+			}
+			fmt.Fprintf(stdout, "restored %s to %s: %d snapshots, %d packs, %d refs; git fsck passed\n", name, gitarchive.RestoreDir(pos[1], name), r.Snapshots, r.Packs, r.Refs)
+		}
+		return nil
+	}
+	if len(only) > 0 {
+		return fmt.Errorf("--only is for sets; %s is one repo's archive", c)
+	}
+	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], ro)
 	if err != nil {
 		return err
 	}
@@ -301,6 +470,20 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return err
 	}
 	defer os.RemoveAll(tmp)
+	if gitarchive.IsSet(bs.Get, c) {
+		if atc.Defined() {
+			return errors.New("--at names one repo's snapshot; verify it with --root <that repo's record>")
+		}
+		rs, err := gitarchive.RestoreSet(ctx, bs.Get, c, filepath.Join(tmp, "set"), nil, gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Recurse: true})
+		if err != nil {
+			return fmt.Errorf("verify failed: %w", err)
+		}
+		for _, name := range sortedKeys(rs) {
+			fmt.Fprintf(stdout, "ok %s: %d snapshots, %d packs, %d refs\n", name, rs[name].Snapshots, rs[name].Packs, rs[name].Refs)
+		}
+		fmt.Fprintf(stdout, "ok %s: all %d repos restore and pass git fsck\n", c, len(rs))
+		return nil
+	}
 	res, err := gitarchive.Restore(ctx, bs.Get, c, filepath.Join(tmp, "repo.git"), gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Recurse: true, At: atc})
 	if err != nil {
 		return fmt.Errorf("verify failed: %w", err)
@@ -340,29 +523,87 @@ func cmdShow(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer bs.Close()
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	if set, err := gitarchive.LoadSet(bs.Get, c); err == nil {
+		type member struct {
+			Name      string `json:"name"`
+			Note      string `json:"note,omitempty"`
+			Snapshots []snap `json:"snapshots"`
+		}
+		out := struct {
+			Root  string   `json:"root"`
+			Kind  string   `json:"kind"`
+			Prev  string   `json:"prev,omitempty"`
+			Tool  string   `json:"tool,omitempty"`
+			Repos []member `json:"repos"`
+		}{Root: c.String(), Kind: set.Kind, Tool: set.Tool, Repos: []member{}}
+		if set.Prev != nil {
+			out.Prev = set.Prev.String()
+		}
+		for _, m := range set.Repos {
+			ss, err := snaps(bs, m.Record.Cid)
+			if err != nil {
+				return fmt.Errorf("%s: %w", m.Name, err)
+			}
+			out.Repos = append(out.Repos, member{m.Name, m.Note, ss})
+		}
+		return enc.Encode(out)
+	}
+	out, err := snaps(bs, c)
+	if err != nil {
+		return err
+	}
+	return enc.Encode(out)
+}
+
+type snap struct {
+	Root    string                   `json:"root"`
+	Record  *gitarchive.Record       `json:"record,omitempty"`
+	History *gitarchive.HistoryEntry `json:"compacted,omitempty"` // a snapshot a compacted one replaced
+}
+
+// snaps is a repo's snapshots oldest first: those a compacted snapshot
+// replaced, from its history, then the chain.
+func snaps(bs *gitarchive.Blocks, c cid.Cid) ([]snap, error) {
 	chain, err := gitarchive.Chain(bs.Get, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	type snap struct {
-		Root    string                   `json:"root"`
-		Record  *gitarchive.Record       `json:"record,omitempty"`
-		History *gitarchive.HistoryEntry `json:"compacted,omitempty"` // a snapshot a compacted one replaced
-	}
-	var out []snap
 	hist, err := gitarchive.History(bs.Get, chain[0].Record)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var out []snap
 	for i := range hist {
 		out = append(out, snap{Root: hist[i].Root, History: &hist[i]})
 	}
 	for _, s := range chain {
 		out = append(out, snap{Root: s.Root.String(), Record: s.Record})
 	}
-	enc := json.NewEncoder(stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return out, nil
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
+}
+
+// listFlag collects a repeatable flag; commas separate values too.
+type listFlag []string
+
+func (l *listFlag) String() string { return strings.Join(*l, ",") }
+func (l *listFlag) Set(s string) error {
+	for _, v := range strings.Split(s, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			*l = append(*l, v)
+		}
+	}
+	return nil
 }
 
 func optCID(s string) (cid.Cid, error) {
