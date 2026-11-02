@@ -147,6 +147,9 @@ func TestSetOfForks(t *testing.T) {
 	if want := git(t, filepath.Join(dir, "upstream"), "rev-list", "--all", "--count"); fmt.Sprint(len(sum.Commits)) != want {
 		t.Fatalf("summary lists %d commits, repo has %s", len(sum.Commits), want)
 	}
+	if len(sum.BasePacks) != 1 || sum.BasePacks[0][0] != fork.Record.Packs[0].Pack.String() {
+		t.Fatalf("base packs %v", sum.BasePacks)
+	}
 
 	// One member alone, through its record: the base comes along.
 	one := filepath.Join(t.TempDir(), "one.git")

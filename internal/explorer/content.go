@@ -69,6 +69,13 @@ type blockAt struct {
 
 var errNoBlock = errors.New("block not in this archive's pieces")
 
+func init() {
+	// The Git viewer reads packs by range (gitpack.js); named so, their
+	// type needs no sniffing, which would read the file's first block.
+	mime.AddExtensionType(".pack", "application/x-git-packed-objects")
+	mime.AddExtensionType(".idx", "application/x-git-packed-objects-toc")
+}
+
 func newCARBlocks(dirs []string) *carBlocks {
 	return &carBlocks{dirs: dirs, ready: make(chan struct{}), at: map[string]blockAt{}, thumb: newThumbs(), thumbs: newThumbCache()}
 }

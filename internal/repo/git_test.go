@@ -218,3 +218,19 @@ func TestIsGitURL(t *testing.T) {
 		t.Fatalf("token URL: %v", err)
 	}
 }
+
+// A checkout of kubo's own source has a config/ folder and a blocks/
+// folder; it is a git repo, not an IPFS repo (whose config is a file).
+func TestKuboSourceCheckoutIsGit(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	gitT(t, dir, "init", "-q")
+	for _, d := range []string{"config", "blocks", "datastore"} {
+		os.MkdirAll(filepath.Join(dir, d), 0o755)
+	}
+	if !isGit(dir) {
+		t.Fatal("a checkout with config/ and blocks/ folders is not taken for git")
+	}
+}

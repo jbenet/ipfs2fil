@@ -54,7 +54,7 @@ type gitRepo struct {
 var gits sync.Map // abs path -> *gitRepo, so one run archives a repo once
 
 // isGit says whether path is a git repo and not an IPFS repo kept in a git
-// checkout: one with a config and a datastore or blocks, or a Helia
+// checkout: one with a config file and a datastore or blocks folder, or a Helia
 // blockstore, is read as IPFS. (A bare git repo has a config file too, so
 // config alone does not count.)
 func isGit(path string) bool {
@@ -64,9 +64,10 @@ func isGit(path string) bool {
 	if _, ok := heliaBlockstore(path); ok {
 		return false
 	}
-	if _, err := os.Stat(filepath.Join(path, "config")); err == nil {
+	// (kubo's own source has config/ and blocks/ folders: config must be a file)
+	if st, err := os.Stat(filepath.Join(path, "config")); err == nil && st.Mode().IsRegular() {
 		for _, d := range []string{"datastore", "blocks"} {
-			if _, err := os.Stat(filepath.Join(path, d)); err == nil {
+			if st, err := os.Stat(filepath.Join(path, d)); err == nil && st.IsDir() {
 				return false
 			}
 		}

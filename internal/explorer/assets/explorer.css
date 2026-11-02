@@ -485,3 +485,17 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .git-log td.nowrap { width: 110px; }
 .git-log a .git-ref { cursor: pointer; }
 .git-log.snaps td:nth-child(1) { width: 40px; }
+.git-crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 12px; font-weight: 600; }
+.git-files { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+.git-files:has(> .git-file[hidden]) { grid-template-columns: 1fr; }
+.git-tree { min-width: 0; }
+.git-log.tree td:nth-child(2) { width: 34%; }
+.git-log.tree a { display: inline-flex; gap: 6px; align-items: center; }
+.git-log.tree svg { flex: none; }
+.git-log.tree tr[aria-current="true"] td { background: var(--row); }
+.git-file { min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); overflow: auto; display: flex; flex-direction: column; position: sticky; top: 0; max-height: calc(100vh - 140px); }
+.git-file[hidden] { display: none; }
+.git-main:has(.git-files) { overflow: visible; }
+.git-file .stage { min-height: 360px; flex-shrink: 0; }
+.git-note { margin-top: 12px; font-size: 12px; }
+@media (max-width: 800px) { .git-files { grid-template-columns: 1fr; } }

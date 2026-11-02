@@ -22,6 +22,9 @@ type Summary struct {
 	Tips         [][3]string   `json:"tips,omitempty"`       // ref, commit, folder CID
 	Submodules   [][4]string   `json:"submodules,omitempty"` // path, URL, commit, record CID when archived
 	Snapshots    []SnapSummary `json:"snapshots"`
+	// BasePacks are the packs of the repos this one is packed against
+	// (pack CID, idx CID), newest first: a fork's shared objects are there.
+	BasePacks [][2]string `json:"basePacks,omitempty"`
 	// Commits are [id, parents, tree, author, email, author time,
 	// committer time, subject, signed], newest first.
 	Commits   [][9]any `json:"commits"`
@@ -101,6 +104,17 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 		}
 		if full {
 			s.Truncated += max(0, snap.Record.Commits-listed)
+		}
+	}
+	if packs, based, err := packsToIndex(get, chain); err == nil && based {
+		own := map[string]bool{}
+		for _, snap := range chain {
+			own[snap.Root.KeyString()] = true
+		}
+		for i := len(packs) - 1; i >= 0; i-- {
+			if !own[packs[i].root.KeyString()] {
+				s.BasePacks = append(s.BasePacks, [2]string{packs[i].Pack.Pack.String(), packs[i].Idx.String()})
+			}
 		}
 	}
 	if !full {

@@ -80,6 +80,33 @@ stylesheets and scripts inline, pictures and fonts by their content URLs, and
 a small script that sends the page's own fetch, XMLHttpRequest and media
 requests to them too. Such a page gets storage that lasts while it is open.
 
+## Git files at any commit
+
+The Git viewer's commit page has Browse files (and each branch and tag a
+files link). `internal/explorer/assets/gitpack.js` reads the archive's packs
+in the browser: it fetches every snapshot's `.idx` whole, then byte ranges
+of the `.pack` files (HTTP Range, in 256 KiB chunks kept in memory, from
+`ipfs2fil explore`'s `_i2f/content/<cid>` or a gateway's `/ipfs/<cid>`),
+inflates objects with `DecompressionStream('deflate')`, applies ofs and ref
+deltas (a thin pack's ref deltas name bases in earlier snapshots' packs), and
+checks each object it shows against its id. Files show in the same viewers as
+the Files page. Folder moves stay on the page, so the idx files are fetched
+once.
+
+The id check is plain SHA-1 (crypto.subtle, or a small SHA-1 in the file off a
+secure origin), not SHA-1DC: `git-ipfs-archive verify` and `restore` run the
+collision detection, the browser does not. SHA-256 repos off a secure origin
+are shown unchecked, and the page says so.
+
+A hostile archive is bounded (`LIMITS` in gitpack.js): 64 MB objects, delta
+chains of 1024, 512 MB built per read, 128 MB of idx, caches of 48 and 64 MB,
+6 requests at once, and a server that ignores Range only for packs of 32 MB
+or less. `gitpack_test.go` runs it under node against `explore`'s endpoint
+(every commit's tree matches `git ls-tree`) and against hostile packs;
+`GITPACK_REPO=<bare clone>` measures a real repo. On kubo one folder from cold
+costs 4 requests and 3.9 MB (3.5 MB of it idx); on git.git 5 requests and
+12.6 MB, and every file at HEAD 97 requests and 25 MB more.
+
 ## Thumbnails
 
 `ipfs2fil explore` makes them (`internal/explorer/thumbnails.go`), one
