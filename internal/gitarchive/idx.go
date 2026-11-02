@@ -45,7 +45,7 @@ func WriteIdx(w io.Writer, ix *PackIndex) error {
 		if o.Offset < 0x80000000 {
 			binary.Write(&b, binary.BigEndian, uint32(o.Offset))
 		} else {
-			binary.Write(&b, binary.BigEndian, uint32(0x80000000|len(large)))
+			binary.Write(&b, binary.BigEndian, 0x80000000|uint32(len(large)))
 			large = append(large, uint64(o.Offset))
 		}
 	}
