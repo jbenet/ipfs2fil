@@ -96,3 +96,29 @@ func TestGitRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// An IPFS repo kept in a git checkout is still read as an IPFS repo; a bare
+// git repo, which also has a config file, is git.
+func TestIPFSRepoInGitCheckout(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := filepath.Join(extractFixture(t, filepath.Join(fixtureDir, "v18.tar.gz")), "repo")
+	gitT(t, dir, "init", "-q")
+	r, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if r.Kind() != KindFSRepo {
+		t.Fatalf("an fs-repo in a git checkout opened as %s", r.Kind())
+	}
+	if got, err := Discover(dir); err != nil || got != dir {
+		t.Fatalf("discover: %q %v", got, err)
+	}
+	bare := filepath.Join(t.TempDir(), "b.git")
+	gitT(t, t.TempDir(), "init", "-q", "--bare", bare)
+	if b, err := Open(bare); err != nil || b.Kind() != KindGit {
+		t.Fatalf("bare repo: %v", err)
+	}
+}

@@ -146,7 +146,7 @@ func openRepo(o *opts) (repo.Repo, error) {
 		case o.repo != "" && !errors.Is(err, repo.ErrNotRepo):
 			return nil, fmt.Errorf("reading --repo %s: %w", o.repo, err)
 		case o.repo != "":
-			return nil, fmt.Errorf("%s is not an IPFS repo; point --repo at the directory holding 'config' and 'datastore' or 'blocks', or at a CAR file", o.repo)
+			return nil, fmt.Errorf("%s is not an IPFS repo; point --repo at the directory holding 'config' and 'datastore' or 'blocks', at a CAR file, or at a git repo", o.repo)
 		case errors.Is(err, repo.ErrNotRepo):
 			return nil, errors.New("no IPFS repo found in $IPFS_PATH, ~/.ipfs or ~/.go-ipfs; pass --repo <path>")
 		}

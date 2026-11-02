@@ -94,7 +94,12 @@ func storedLFS(get BlockGetter, prevRoot cid.Cid) map[string]bool {
 // readLFS reads a snapshot's LFS list.
 func readLFS(get BlockGetter, r *Record) ([]LFSObject, error) {
 	var out []LFSObject
+	seen := map[string]bool{}
 	for _, l := range r.LFS {
+		if seen[l.KeyString()] {
+			continue
+		}
+		seen[l.KeyString()] = true
 		b, err := get(l.Cid)
 		if err != nil {
 			return out, err
@@ -229,12 +234,17 @@ func (g *Git) fetchLFS(ctx context.Context) string {
 // checking each against its oid.
 func restoreLFS(get BlockGetter, chain []Snapshot, gitDir string) (int, error) {
 	n := 0
+	done := map[string]bool{}
 	for _, s := range chain {
 		objs, err := readLFS(get, s.Record)
 		if err != nil {
 			return n, err
 		}
 		for _, o := range objs {
+			if done[o.OID] {
+				continue
+			}
+			done[o.OID] = true
 			dir := filepath.Join(gitDir, "lfs", "objects", o.OID[:2], o.OID[2:4])
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return n, err

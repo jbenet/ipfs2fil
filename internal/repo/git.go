@@ -49,11 +49,25 @@ type gitRepo struct {
 
 var gits sync.Map // abs path -> *gitRepo, so one run archives a repo once
 
+// isGit says whether path is a git repo and not an IPFS repo kept in a git
+// checkout: one with a config and a datastore or blocks, or a Helia
+// blockstore, is read as IPFS. (A bare git repo has a config file too, so
+// config alone does not count.)
 func isGit(path string) bool {
-	if strings.Contains(path, "://") {
+	if strings.Contains(path, "://") || !gitarchive.IsGitRepo(path) {
 		return false
 	}
-	return gitarchive.IsGitRepo(path)
+	if _, ok := heliaBlockstore(path); ok {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(path, "config")); err == nil {
+		for _, d := range []string{"datastore", "blocks"} {
+			if _, err := os.Stat(filepath.Join(path, d)); err == nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func openGit(path string) (Repo, error) {

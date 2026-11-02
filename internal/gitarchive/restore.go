@@ -25,6 +25,7 @@ type RestoreOptions struct {
 	Log     func(format string, args ...any)
 
 	depth int
+	subs  *int // submodule repos restored so far, across the whole tree
 }
 
 // RestoreResult reports what Restore did.
@@ -62,8 +63,13 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 	abs, _ := filepath.Abs(dest)
 	g := &Git{Bin: o.Git, Dir: abs, Format: f}
 	res := &RestoreResult{Snapshots: len(chain)}
+	indexed := map[string]bool{} // a pack named twice is indexed once
 	for _, s := range chain {
 		for _, p := range s.Record.Packs {
+			if indexed[p.Pack.KeyString()] {
+				continue
+			}
+			indexed[p.Pack.KeyString()] = true
 			if err := g.indexPack(ctx, get, p); err != nil {
 				return nil, fmt.Errorf("snapshot %s: %w", s.Root, err)
 			}
@@ -121,6 +127,9 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 		return nil, err
 	}
 	if o.Recurse {
+		if o.subs == nil {
+			o.subs = new(int)
+		}
 		for _, s := range last.Submodules {
 			if s.Record == nil {
 				continue
@@ -129,6 +138,10 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 				res.Skipped = append(res.Skipped, fmt.Sprintf("submodule %q: unsafe name or too deep", s.Name))
 				continue
 			}
+			if *o.subs >= maxSubmoduleRestores {
+				return nil, fmt.Errorf("submodule %s: the archive names more than %d submodule repos", s.Path, maxSubmoduleRestores)
+			}
+			*o.subs++
 			sub := filepath.Join("modules", filepath.FromSlash(s.Name))
 			so := o
 			so.depth++
