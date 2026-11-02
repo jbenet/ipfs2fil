@@ -281,6 +281,46 @@ deleted since stay in older snapshots. Blobs over about 2 MiB, such as
 videos, are single blocks that `ipfs2fil explore` serves but some public
 gateways will not.
 
+## Git repos
+
+`git-ipfs-archive` turns a git repo into CAR files of IPFS blocks, and back.
+It ships beside `ipfs2fil` (git also runs it as `git ipfs-archive`) and needs
+`git` installed.
+
+    git-ipfs-archive ~/src/project -o cars/1.car                 # full archive
+    git-ipfs-archive ~/src/project --since cars -o cars/2.car    # only what's new
+    git-ipfs-archive verify cars                                 # restore to a temp dir, git fsck
+    git-ipfs-archive restore cars ./project.git                  # the exact repo, as a bare repo
+    ipfs2fil up --repo cars                                      # store the folder on Filecoin
+
+A full archive is the repo's history as one git pack, its `.idx`, a log of
+every commit (id, parents, author, date, subject) and a DAG-CBOR record
+naming HEAD, every ref and annotated tag, and the remotes (user names and
+tokens are stripped from URLs). Each later run with `--since` writes a delta
+CAR: a thin pack of only the new objects, deltified against what is already
+stored, the new commits, and a record pointing back at the last one. For
+git/git, a month of work is a delta of 1 to 2 MB; the full archive is 367 MB.
+Packs and indexes are UnixFS files with 1 MiB leaves, so any gateway serves
+them, and byte ranges of them.
+
+Every block is keyed by sha256, and git's sha1 ids live only inside the
+archive (in the pack index and the record), never as CIDs announced to IPNI.
+Every object's id is recomputed with SHA-1DC, the collision-detecting SHA-1
+git uses, while archiving; an object that shows a known collision attack
+stops the run. Restore rebuilds the packs with `git index-pack`, sets every
+ref, runs `git fsck`, and checks each ref names its recorded object.
+
+It reads working trees and bare repos, sha1 and sha256 repos, and shallow
+clones (the shallow boundary is recorded and restored). It refuses partial
+clones, whose missing objects would need fetching. It runs only git plumbing,
+with hooks off and `GIT_*` variables from your shell ignored. `restore
+--remotes` configures the recorded remotes, skipping any URL that would make
+git run a command (`ext::`, `fd::`).
+
+`--set key=value` records an instruction for whatever stores the archive,
+such as `ipfs2fil.copies=3`; later runs keep it until it is set again.
+`git-ipfs-archive show cars` prints every snapshot's record as JSON.
+
 ## Privacy
 
 Everything ipfs2fil stores on Filecoin is public: storage providers serve

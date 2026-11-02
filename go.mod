@@ -17,7 +17,9 @@ require (
 	github.com/ipfs/go-ipld-format v0.6.4
 	github.com/ipld/go-car/v2 v2.17.0
 	github.com/mr-tron/base58 v1.3.0
+	github.com/multiformats/go-multibase v0.3.0
 	github.com/multiformats/go-multihash v0.2.3
+	github.com/pjbgf/sha1cd v0.7.0
 	github.com/strahe/synapse-go v0.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
 	golang.org/x/term v0.46.0
@@ -89,7 +91,6 @@ require (
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multibase v0.3.0 // indirect
 	github.com/multiformats/go-multicodec v0.10.0 // indirect
 	github.com/multiformats/go-varint v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
