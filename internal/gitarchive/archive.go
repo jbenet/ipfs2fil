@@ -49,6 +49,15 @@ type Options struct {
 	// Have reports whether a block is already stored, as the previous
 	// snapshots' blocks are; such blocks are not put again.
 	Have func(cid.Cid) bool
+
+	// Submodules archives each submodule's repo too, recursively, from
+	// the repo's modules/ or a clone of its https URL; nil leaves it to the
+	// ConfigFile, then off. Off, submodules are only listed in the record.
+	Submodules *bool
+
+	// Get reads earlier snapshots' blocks, so submodules build on their
+	// last archive. Without it they are archived in full.
+	Get BlockGetter
 }
 
 // Result is what Archive made.
@@ -65,6 +74,12 @@ type Result struct {
 // one pack (thin when building on opts.Prev), its .idx, the commit log, and
 // the record, which is put last and is the root.
 func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Result, error) {
+	return archiveRepo(ctx, path, o, dedup(put, o.Have), 0, map[string]bool{})
+}
+
+// archiveRepo is Archive for a repo depth submodules down; seen holds the repos
+// this run has archived, so a submodule cycle ends.
+func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, depth int, seen map[string]bool) (*Result, error) {
 	g, err := OpenRepo(ctx, o.Git, path)
 	if err != nil {
 		return nil, err
@@ -89,7 +104,7 @@ func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Resul
 	if len(rec.Instructions) == 0 {
 		rec.Instructions = nil
 	}
-	put = dedup(put, o.Have)
+	seen[g.Dir] = true
 	if rec.Refs, err = g.Refs(ctx); err != nil {
 		return nil, err
 	}
@@ -104,6 +119,19 @@ func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Resul
 	}
 	if err := checkText(rec); err != nil {
 		return nil, err
+	}
+	if rec.Submodules, err = g.submodules(ctx); err != nil {
+		return nil, err
+	}
+	if set.submodules {
+		so := o
+		so.Submodules = &set.submodules
+		so.UntrustedConfig = o.UntrustedConfig
+		snotes, err := archiveSubmodules(ctx, g, rec.Submodules, so, put, depth, seen)
+		if err != nil {
+			return nil, err
+		}
+		notes = append(notes, snotes...)
 	}
 	if o.Prev != nil && sameState(o.Prev, rec) {
 		return &Result{Root: o.PrevRoot, Record: o.Prev, Unchanged: true, Notes: notes}, nil
@@ -167,7 +195,11 @@ func refTips(refs []Ref) []string {
 
 func sameState(a, b *Record) bool {
 	return a.Head == b.Head && slices.Equal(a.Shallow, b.Shallow) && slices.Equal(a.Refs, b.Refs) && slices.Equal(a.Remotes, b.Remotes) &&
-		maps.Equal(a.Instructions, b.Instructions) && maps.Equal(a.Settings, b.Settings)
+		maps.Equal(a.Instructions, b.Instructions) && maps.Equal(a.Settings, b.Settings) &&
+		slices.EqualFunc(a.Submodules, b.Submodules, func(x, y Submodule) bool {
+			return x.Name == y.Name && x.Path == y.Path && x.URL == y.URL && x.Commit == y.Commit && x.Note == y.Note &&
+				(x.Record == nil) == (y.Record == nil) && (x.Record == nil || x.Record.Cid == y.Record.Cid)
+		})
 }
 
 // dedup puts each block once, and none that have says is stored already.

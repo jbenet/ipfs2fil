@@ -324,10 +324,18 @@ by default because it stores the files again beside the packs. A folder
 whose tree has not changed since the last snapshot is reused, and unchanged
 files are not stored twice.
 
+Submodules are listed in the record (path, URL, pinned commit) but not
+archived unless you pass `--submodules`: then each submodule's repo is
+archived too, recursively, from `.git/modules` or, if it is not checked
+out, a clone of its https URL (local paths in `.gitmodules` are not
+followed). `restore --recurse` puts each one back in `<dest>/modules/<name>`,
+where git keeps a checked-out submodule's repo, and `verify` checks them.
+
 A repo can carry these settings in a committed `.ipfs-archive-config`, in
 git config syntax, which `ipfs2fil up` honors too:
 
     git config -f .ipfs-archive-config archive.tips default
+    git config -f .ipfs-archive-config submodules.archive true
     git config -f .ipfs-archive-config ipfs2fil.copies 3
 
 The copy committed at HEAD counts, not the working tree's. Flags win over
