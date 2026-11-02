@@ -2,6 +2,7 @@ package gitarchive
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,6 +137,18 @@ func TestSetOfForks(t *testing.T) {
 	forkHead := git(t, filepath.Join(dir, "forks", "fork"), "rev-parse", "HEAD")
 	if _, err := (&Git{Dir: upr}).run(context.Background(), nil, "cat-file", "-e", forkHead); err == nil {
 		t.Fatal("restored upstream holds the fork's commit")
+	}
+
+	// The Git viewer lists the fork's whole history, shared commits too.
+	sum, err := Summarize(bs.Get, up.Root, "upstream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := git(t, filepath.Join(dir, "upstream"), "rev-list", "--all", "--count"); fmt.Sprint(len(sum.Commits)) != want {
+		t.Fatalf("summary lists %d commits, repo has %s", len(sum.Commits), want)
+	}
+	if len(sum.BasePacks) != 1 || sum.BasePacks[0][0] != fork.Record.Packs[0].Pack.String() {
+		t.Fatalf("base packs %v", sum.BasePacks)
 	}
 
 	// One member alone, through its record: the base comes along.
@@ -293,7 +306,8 @@ func TestBasesHostile(t *testing.T) {
 	}
 }
 
-// A clone URL becomes a bare clone whose config is untrusted; a token in
+// A clone URL becomes a bare clone whose config guides the archive as a
+// local repo's does (Juan, 2026-11-02: that is the file's job); a token in
 // the URL is not kept in its remote, and local or command URLs are refused.
 func TestCloneURL(t *testing.T) {
 	needGit(t)
@@ -344,6 +358,14 @@ func TestCloneURL(t *testing.T) {
 	}
 	if len(res.Record.Tips) > 1 || res.Record.Settings["archive.submodules"] == "true" {
 		t.Fatalf("untrusted config turned on costly settings: %v %v", res.Record.Settings, res.Notes)
+	}
+	// By default the clone's config is followed: every branch's files.
+	res, err = Archive(context.Background(), dir, Options{TempDir: t.TempDir()}, NewBlocks().Put)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Record.Tips) != 2 {
+		t.Fatalf("clone's config not followed: %d tip folders, notes %v", len(res.Record.Tips), res.Notes)
 	}
 }
 

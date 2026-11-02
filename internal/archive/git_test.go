@@ -217,3 +217,44 @@ func TestGitTipFolderEntries(t *testing.T) {
 		t.Fatalf("entries %q", got)
 	}
 }
+
+// A folder of git repos shows each repo in the Git viewer.
+func TestGitFolderSummaries(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	old := repo.GitDir
+	repo.GitDir = t.TempDir()
+	defer func() { repo.GitDir = old }()
+	src := filepath.Join(t.TempDir(), "src")
+	for _, n := range []string{"one", "two"} {
+		d := filepath.Join(src, n)
+		os.MkdirAll(d, 0o755)
+		gitCmd(t, d, "init", "-q", "-b", "main")
+		os.WriteFile(filepath.Join(d, "f"), []byte(n), 0o644)
+		gitCmd(t, d, "add", ".")
+		gitCmd(t, d, "commit", "-q", "-m", n)
+	}
+	r, err := repo.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	l := newLayout(r)
+	roots, err := l.walkRoots(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.cut(testOptions()); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
+	for _, rt := range roots {
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
+	}
+	gits := l.gitSummaries(ctx, m.Roots)
+	if len(gits) != 2 || gits[0].Name != "src/one" || gits[1].Name != "src/two" || len(gits[0].Commits) != 1 {
+		t.Fatalf("summaries %d: %+v", len(gits), gits)
+	}
+}

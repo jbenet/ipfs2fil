@@ -137,7 +137,7 @@ func archiveSubmodules(ctx context.Context, g *Git, subs []Submodule, o Options,
 			continue
 		}
 		path := filepath.Join(g.Dir, "modules", filepath.FromSlash(s.Name))
-		cloned := false
+
 		if _, err := os.Stat(path); err != nil {
 			p, why, err := cloneSubmodule(ctx, g, s.URL, o.TempDir)
 			if err != nil {
@@ -149,7 +149,7 @@ func archiveSubmodules(ctx context.Context, g *Git, subs []Submodule, o Options,
 				continue
 			}
 			defer os.RemoveAll(p)
-			path, cloned = p, true
+			path = p
 		}
 		abs, _ := filepath.Abs(path)
 		if seen[abs] {
@@ -159,7 +159,7 @@ func archiveSubmodules(ctx context.Context, g *Git, subs []Submodule, o Options,
 		seen[abs] = true
 		so := o
 		so.Prev, so.PrevRoot, so.Tips, so.Instructions = nil, cid.Undef, "none", nil
-		so.UntrustedConfig = o.UntrustedConfig || cloned // a clone's config is someone else's
+		so.UntrustedConfig = o.UntrustedConfig
 		if l := prev[s.Name]; l != nil && o.Get != nil {
 			if r, err := LoadRecord(o.Get, l.Cid); err == nil {
 				so.Prev, so.PrevRoot = r, l.Cid

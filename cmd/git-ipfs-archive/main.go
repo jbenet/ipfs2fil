@@ -136,7 +136,6 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	gitBin := fs.String("git", "", "git binary to run")
 	tips := fs.String("tips", "", "store a folder of the files at these refs: none, default (HEAD's branch), all (every branch), or ref names, comma-separated (default: the repo's "+gitarchive.ConfigFile+", else none)")
 	noConfig := fs.Bool("no-config", false, "ignore the repo's "+gitarchive.ConfigFile)
-	trustConfig := fs.Bool("trust-config", false, "let a cloned repo's "+gitarchive.ConfigFile+" turn on costly settings (tip folders of every branch, submodules, LFS fetch), as a local repo's may")
 	var lfsFetch optBool
 	fs.Var(&lfsFetch, "lfs-fetch", "run git lfs fetch --all first, to store LFS objects only the server has (default: the repo's "+gitarchive.ConfigFile+", else store the local ones)")
 	var subs optBool
@@ -165,7 +164,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		o.Instructions = set
 	}
 	o.TempDir = filepath.Dir(*out)
-	in, cleanup, err := inputs(ctx, pos, *gitBin, o.TempDir, !*trustConfig, stderr)
+	in, cleanup, err := inputs(ctx, pos, *gitBin, o.TempDir, stderr)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -235,10 +234,10 @@ type inputSet struct {
 }
 
 // inputs turns the command line into repos: a URL is cloned (its config
-// untrusted unless trust), a folder that is not a repo stands for every
+// and its ConfigFile followed like a local repo's), a folder that is not a repo stands for every
 // repo under it. One repo or URL is archived alone; anything else is a set.
 // cleanup removes the clones.
-func inputs(ctx context.Context, pos []string, gitBin, tmp string, untrusted bool, stderr io.Writer) (inputSet, func(), error) {
+func inputs(ctx context.Context, pos []string, gitBin, tmp string, stderr io.Writer) (inputSet, func(), error) {
 	var in inputSet
 	var clones []string
 	cleanup := func() {
@@ -256,7 +255,7 @@ func inputs(ctx context.Context, pos []string, gitBin, tmp string, untrusted boo
 				return in, cleanup, err
 			}
 			clones = append(clones, dir)
-			in.repos = append(in.repos, gitarchive.Input{Name: name, Path: dir, Untrusted: untrusted})
+			in.repos = append(in.repos, gitarchive.Input{Name: name, Path: dir})
 			continue
 		}
 		if strings.Contains(p, "://") {

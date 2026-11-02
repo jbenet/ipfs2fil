@@ -51,8 +51,8 @@ func URLName(s string) string {
 
 // Clone makes a bare clone of an https URL (or git+https) in a new
 // directory under tmp, which the caller removes. Branches and tags come
-// along, as git clone brings them; the repo's own settings stay
-// untrusted (archive it with Options.UntrustedConfig). Git runs no hooks
+// along, as git clone brings them. The repo's ConfigFile is followed
+// like a local repo's, since guiding the archive is its job. Git runs no hooks
 // and asks for no credentials: a token in the URL is all it gets.
 func Clone(ctx context.Context, bin, s, tmp string) (string, error) {
 	raw, err := cloneURL(s)
@@ -89,4 +89,21 @@ func stripURL(err error, raw string) error {
 		return err
 	}
 	return fmt.Errorf("%s", strings.ReplaceAll(err.Error(), raw, clean))
+}
+
+// Fetch brings a bare clone made by Clone up to date with its URL:
+// branches and tags as the server has them now, deleted ones pruned.
+func Fetch(ctx context.Context, bin, dir, s string) error {
+	raw, err := cloneURL(s)
+	if err != nil {
+		return err
+	}
+	u, _ := url.Parse(raw)
+	g := &Git{Bin: bin, Dir: dir}
+	_, err = g.run(ctx, nil, "-c", "protocol."+u.Scheme+".allow=always", "fetch", "-q", "--prune", "--no-recurse-submodules", "--", raw,
+		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*")
+	if err != nil {
+		return fmt.Errorf("fetching %s: %w", StripCredentials(raw), stripURL(err, raw))
+	}
+	return nil
 }

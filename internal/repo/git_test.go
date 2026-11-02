@@ -2,6 +2,8 @@ package repo
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,6 +167,102 @@ func TestIPFSRepoInGitCheckout(t *testing.T) {
 	}
 }
 
+// A folder of git repos is one repo of kind git whose pin is a set record;
+// a stray .car in a working tree does not make it a folder of CARs.
+func TestGitFolder(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	old := GitDir
+	GitDir = t.TempDir()
+	defer func() { GitDir = old }()
+	src := filepath.Join(t.TempDir(), "src")
+	a := filepath.Join(src, "a")
+	os.MkdirAll(a, 0o755)
+	gitT(t, a, "init", "-q", "-b", "main")
+	commitFile(t, a, "x.txt", "x\n")
+	gitT(t, src, "clone", "-q", a, "b")
+	commitFile(t, filepath.Join(src, "b"), "y.txt", "y\n")
+	os.WriteFile(filepath.Join(a, "test.car"), []byte("not really"), 0o644)
+
+	if p, err := Discover(src); err != nil || p != src {
+		t.Fatalf("discover %q %v", p, err)
+	}
+	r, err := Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Kind() != KindGit || !strings.Contains(Describe(r), "folder of 2 git repos, 1 snapshot") {
+		t.Fatalf("%s %q", r.Kind(), Describe(r))
+	}
+	pins, err := r.Pins(context.Background())
+	if err != nil || len(pins) != 1 || pins[0].Name != "src" {
+		t.Fatalf("pins %+v %v", pins, err)
+	}
+	g := r.(*gitRepo)
+	set, err := gitarchive.LoadSet(g.verified, pins[0].Root)
+	if err != nil || len(set.Repos) != 2 {
+		t.Fatalf("set %+v %v", set, err)
+	}
+	b, err := gitarchive.LoadRecord(g.verified, set.Repos[1].Record.Cid)
+	if err != nil || len(b.Bases) != 1 {
+		t.Fatalf("fork not packed against a: %+v %v", b, err)
+	}
+	// Unchanged: same process reuses it; a commit makes a new set.
+	if r2, _ := Open(src); r2 != r {
+		t.Fatal("unchanged folder reopened")
+	}
+	commitFile(t, a, "z.txt", "z\n")
+	r3, err := Open(src)
+	if err != nil || r3 == r {
+		t.Fatal("changed folder not reopened", err)
+	}
+	p3, _ := r3.Pins(context.Background())
+	if p3[0].Root == pins[0].Root || !strings.Contains(Describe(r3), "2 snapshots") {
+		t.Fatalf("no new snapshot: %q", Describe(r3))
+	}
+	if _, err := gitarchive.RestoreSet(context.Background(), r3.(*gitRepo).verified, p3[0].Root, filepath.Join(t.TempDir(), "out"), nil, gitarchive.RestoreOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	// The home folder is never archived as a folder of repos.
+	t.Setenv("HOME", src)
+	if _, err := Open(src); err == nil || !strings.Contains(err.Error(), "name a folder of repos") {
+		t.Fatalf("home folder: %v", err)
+	}
+	if _, err := Discover(src); err == nil {
+		t.Fatal("home folder discovered")
+	}
+	// An empty folder is not a git folder.
+	if _, err := Open(t.TempDir()); err == nil {
+		t.Fatal("empty folder opened")
+	}
+}
+
+func TestIsGitURL(t *testing.T) {
+	for s, want := range map[string]bool{
+		"git+https://example.com/x/y":     true,
+		"https://example.com/x/y.git":     true,
+		"https://github.com/ipfs/kubo":    true,
+		"https://github.com/ipfs/kubo/":   true,
+		"https://GitHub.com/ipfs/kubo":    true,
+		"https://github.com/ipfs":         false, // an org page, not a repo
+		"https://example.com:5001":        false, // a kubo RPC API
+		"http://127.0.0.1:5001":           false,
+		"https://ipfs.example.com/api/v0": false,
+		"http://github.com/ipfs/kubo":     false, // http is not cloned
+		"git+http://example.com/x.git":    false,
+		"at://bsky.app":                   false,
+		"/home/me/src/kubo.git":           false,
+	} {
+		if got := IsGitURL(s); got != want {
+			t.Errorf("IsGitURL(%q) = %v", s, got)
+		}
+	}
+	if _, err := Open("https://user:token@github.com/ipfs/kubo"); err == nil || strings.Contains(err.Error(), "token@") {
+		t.Fatalf("token URL: %v", err)
+	}
+}
+
 // A checkout of kubo's own source has a config/ folder and a blocks/
 // folder; it is a git repo, not an IPFS repo (whose config is a file).
 func TestKuboSourceCheckoutIsGit(t *testing.T) {
@@ -178,5 +276,31 @@ func TestKuboSourceCheckoutIsGit(t *testing.T) {
 	}
 	if !isGit(dir) {
 		t.Fatal("a checkout with config/ and blocks/ folders is not taken for git")
+	}
+}
+
+// An https URL that is not obviously git is asked: a git server's smart
+// HTTP answer makes it a git repo, anything else stays a kubo RPC address.
+func TestServesGit(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/team/project/info/refs" && r.URL.Query().Get("service") == "git-upload-pack" {
+			w.Header().Set("Content-Type", "application/x-git-upload-pack-advertisement")
+			w.Write([]byte("001e# service=git-upload-pack\n0000"))
+			return
+		}
+		http.NotFound(w, r) // as kubo answers a GET outside /api/v0
+	}))
+	defer srv.Close()
+	old := gitProbe
+	gitProbe = srv.Client()
+	defer func() { gitProbe = old }()
+	if !IsGitRemote(srv.URL + "/team/project") {
+		t.Error("git server not recognised")
+	}
+	if IsGitRemote(srv.URL) || IsGitRemote(srv.URL+"/api/v0") {
+		t.Error("non-git server taken for git")
+	}
+	if servesGit("http://127.0.0.1:5001") {
+		t.Error("http probed")
 	}
 }

@@ -2318,7 +2318,7 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
     const packURL = (c, name) => LOCAL ? CONTENT + encodeURIComponent(c) + '?name=' + name : HERE || PUBLIC ? gw(c) : null;
     function reader() {
       if (GITREPO[n]) return GITREPO[n];
-      const packs = g.snapshots.slice().reverse().flatMap((s) => s.packs || []).map((p) => ({ pack: packURL(p[0], 'objects.pack'), idx: packURL(p[1], 'objects.idx') }));
+      const packs = g.snapshots.slice().reverse().flatMap((s) => s.packs || []).concat(g.basePacks || []).map((p) => ({ pack: packURL(p[0], 'objects.pack'), idx: packURL(p[1], 'objects.idx') }));
       return (GITREPO[n] = window.I2FGit.open({ packs, format: g.objectFormat }));
     }
     const sortTree = (es) => es.slice().sort((a, b) => (b.kind === 'dir') - (a.kind === 'dir') || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

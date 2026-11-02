@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	gpath "path"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/collection"
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
 
@@ -210,6 +212,8 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 func defaultName(path string) string {
 	if atproto.IsAccount(path) {
 		path = "bsky-" + strings.ReplaceAll(atproto.Account(path), ":", "-")
+	} else if repo.IsGitRemote(path) {
+		path = gpath.Base(gitarchive.URLName(path)) // github.com/ipfs/kubo -> kubo
 	} else if u, err := url.Parse(path); err == nil && u.Host != "" {
 		path = u.Hostname() // a node's RPC API is named after its host
 	}

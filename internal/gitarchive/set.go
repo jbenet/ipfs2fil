@@ -131,6 +131,7 @@ func FindRepos(dir string) (repos []Input, notes []string, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	visited := 0
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if p == root {
@@ -147,6 +148,9 @@ func FindRepos(dir string) (repos []Input, notes []string, err error) {
 		}
 		if d.Name() == ".git" && p != root {
 			return fs.SkipDir // a working tree's git dir is found through its parent
+		}
+		if visited++; visited > maxFindDirs {
+			return fmt.Errorf("%s holds more than %d folders; name a folder of repos", dir, maxFindDirs)
 		}
 		rel, _ := filepath.Rel(root, p)
 		if strings.Count(rel, string(filepath.Separator)) >= maxFindDepth {
@@ -176,8 +180,12 @@ func FindRepos(dir string) (repos []Input, notes []string, err error) {
 	return repos, notes, nil
 }
 
-// maxFindDepth is how many folders deep FindRepos looks.
-const maxFindDepth = 8
+// maxFindDepth is how many folders deep FindRepos looks, and
+// maxFindDirs how many folders it looks in.
+const (
+	maxFindDepth = 8
+	maxFindDirs  = 200_000
+)
 
 // SetOptions steer ArchiveSet.
 type SetOptions struct {

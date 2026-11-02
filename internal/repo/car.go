@@ -16,6 +16,8 @@ import (
 	"github.com/ipfs/go-cid"
 	carv2 "github.com/ipld/go-car/v2"
 	"github.com/multiformats/go-multihash"
+
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 )
 
 // carRepo reads one CAR file, or every .car file under a directory, as a
@@ -76,6 +78,9 @@ func carFiles(dir string) ([]string, error) {
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if d.IsDir() && p != dir && gitarchive.IsGitRepo(p) {
+			return fs.SkipDir // a git repo's own files; a folder of repos is not a folder of CARs
 		}
 		if !d.IsDir() && strings.EqualFold(filepath.Ext(p), ".car") {
 			out = append(out, p)

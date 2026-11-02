@@ -22,6 +22,9 @@ type Summary struct {
 	Tips         [][3]string   `json:"tips,omitempty"`       // ref, commit, folder CID
 	Submodules   [][4]string   `json:"submodules,omitempty"` // path, URL, commit, record CID when archived
 	Snapshots    []SnapSummary `json:"snapshots"`
+	// BasePacks are the packs of the repos this one is packed against
+	// (pack CID, idx CID), newest first: a fork's shared objects are there.
+	BasePacks [][2]string `json:"basePacks,omitempty"`
 	// Commits are [id, parents, tree, author, email, author time,
 	// committer time, subject, signed], newest first.
 	Commits   [][9]any `json:"commits"`
@@ -108,6 +111,20 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 			s.Truncated += max(0, snap.Record.Commits-listed)
 		}
 	}
+	if packs, based, err := packsToIndex(get, chain); err == nil && based {
+		own := map[string]bool{}
+		for _, snap := range chain {
+			own[snap.Root.KeyString()] = true
+		}
+		for i := len(packs) - 1; i >= 0; i-- {
+			if !own[packs[i].root.KeyString()] {
+				s.BasePacks = append(s.BasePacks, [2]string{packs[i].Pack.Pack.String(), packs[i].Idx.String()})
+			}
+		}
+	}
+	if !full {
+		commits = append(commits, baseCommits(get, chain, last, commits, MaxSummaryCommits-len(commits))...)
+	}
 	// A compacted snapshot's log has every commit; the snapshots it
 	// replaced are listed after it, newest first.
 	hist, err := History(get, chain[0].Record)
@@ -170,4 +187,94 @@ func LatestOf(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 		}
 	}
 	return heads, nil
+}
+
+// baseCommits lists the commits a repo's refs reach that are stored in its
+// bases' logs rather than its own, as a fork's shared history is, up to
+// limit. It reads each base's log once.
+func baseCommits(get BlockGetter, chain []Snapshot, last *Record, own []Commit, limit int) []Commit {
+	based := false
+	for _, s := range chain {
+		based = based || len(s.Record.Bases) > 0
+	}
+	if !based || limit <= 0 {
+		return nil
+	}
+	// Every log chunk of every base chain, through the same walk restore does.
+	all := map[string]Commit{}
+	read := map[string]bool{}
+	var walk func(chain []Snapshot, depth int)
+	seen := map[string]bool{}
+	walk = func(chain []Snapshot, depth int) {
+		for _, s := range chain {
+			for _, b := range s.Record.Bases {
+				if seen[b.KeyString()] || depth >= maxSubmoduleDepth*2 || len(seen) > maxBaseRecords {
+					continue
+				}
+				seen[b.KeyString()] = true
+				bc, err := Chain(get, b.Cid)
+				if err != nil {
+					continue
+				}
+				for _, x := range bc {
+					for _, l := range x.Record.Log {
+						if read[l.KeyString()] || len(all) >= MaxSummaryCommits {
+							continue
+						}
+						read[l.KeyString()] = true
+						blk, err := get(l.Cid)
+						if err != nil {
+							continue
+						}
+						var ch LogChunk
+						if decMode.Unmarshal(blk, &ch) != nil {
+							continue
+						}
+						for _, c := range ch.Commits {
+							all[c.ID] = c
+						}
+					}
+				}
+				walk(bc, depth+1)
+			}
+		}
+	}
+	walk(chain, 0)
+	have := map[string]bool{}
+	for _, c := range own {
+		have[c.ID] = true
+	}
+	var queue []string
+	for _, r := range last.Refs {
+		queue = append(queue, r.ID)
+		if r.Peeled != "" {
+			queue = append(queue, r.Peeled)
+		}
+	}
+	// Walk parents from the refs: through own commits, into the bases'.
+	byID := map[string]Commit{}
+	for _, c := range own {
+		byID[c.ID] = c
+	}
+	var out []Commit
+	visited := map[string]bool{}
+	for len(queue) > 0 && len(out) < limit {
+		id := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		if visited[id] {
+			continue
+		}
+		visited[id] = true
+		c, ok := byID[id]
+		if !ok {
+			if c, ok = all[id]; !ok {
+				continue
+			}
+			if !have[id] {
+				out = append(out, c)
+			}
+		}
+		queue = append(queue, c.Parents...)
+	}
+	return out
 }
