@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"sort"
@@ -33,15 +34,31 @@ type Options struct {
 
 	// LogChunk is how many commits go in one log block; 2000 when zero.
 	LogChunk int
+
+	// Tips names the refs to store a UnixFS folder of the files of:
+	// "none", "default" (what HEAD names), "all" (every branch), or ref
+	// names, comma-separated. Empty leaves it to the repo's ConfigFile,
+	// then "none".
+	Tips string
+
+	// NoConfig ignores the repo's ConfigFile. UntrustedConfig reads it but
+	// keeps it from turning on settings that cost much more; set it for a
+	// repo someone else controls.
+	NoConfig, UntrustedConfig bool
+
+	// Have reports whether a block is already stored, as the previous
+	// snapshots' blocks are; such blocks are not put again.
+	Have func(cid.Cid) bool
 }
 
 // Result is what Archive made.
 type Result struct {
 	Root      cid.Cid
 	Record    *Record
-	Unchanged bool  // refs match Prev: Root is PrevRoot and nothing was written
-	Objects   int   // objects in the new pack
-	PackBytes int64 // its size
+	Unchanged bool     // refs match Prev: Root is PrevRoot and nothing was written
+	Objects   int      // objects in the new pack
+	PackBytes int64    // its size
+	Notes     []string // settings ignored, refs skipped: worth telling the user
 }
 
 // Archive reads the git repo at path and sends a snapshot's blocks to put:
@@ -60,13 +77,19 @@ func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Resul
 			return nil, fmt.Errorf("previous snapshot is a %s repo, %s is %s", o.Prev.ObjectFormat, path, g.Format.Name)
 		}
 	}
-	rec := &Record{Kind: Kind, Version: RecordVersion, ObjectFormat: g.Format.Name, Instructions: o.Instructions, Tool: o.Tool}
-	if o.Instructions == nil && o.Prev != nil {
-		rec.Instructions = o.Prev.Instructions // carried forward unless replaced
+	cfg := &Config{}
+	if !o.NoConfig {
+		if cfg, err = g.ReadConfig(ctx); err != nil {
+			return nil, err
+		}
 	}
+	set, notes := resolve(o, cfg)
+	rec := &Record{Kind: Kind, Version: RecordVersion, ObjectFormat: g.Format.Name, Tool: o.Tool,
+		Instructions: mergeInstructions(o, cfg), Settings: set.record()}
 	if len(rec.Instructions) == 0 {
 		rec.Instructions = nil
 	}
+	put = dedup(put, o.Have)
 	if rec.Refs, err = g.Refs(ctx); err != nil {
 		return nil, err
 	}
@@ -83,7 +106,7 @@ func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Resul
 		return nil, err
 	}
 	if o.Prev != nil && sameState(o.Prev, rec) {
-		return &Result{Root: o.PrevRoot, Record: o.Prev, Unchanged: true}, nil
+		return &Result{Root: o.PrevRoot, Record: o.Prev, Unchanged: true, Notes: notes}, nil
 	}
 	if o.Prev != nil {
 		rec.Prev = &Link{o.PrevRoot}
@@ -99,6 +122,11 @@ func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Resul
 		}
 	}
 	res := &Result{Record: rec}
+	folders, tnotes, err := writeTips(ctx, g, set.tips, rec, o.Prev, put)
+	if err != nil {
+		return nil, err
+	}
+	rec.Tips, res.Notes = folders, append(notes, tnotes...)
 	if len(tips) > 0 {
 		pk, commits, err := writePack(ctx, g, tips, exclude, o.Prev != nil, o.TempDir, put)
 		if err != nil {
@@ -138,15 +166,21 @@ func refTips(refs []Ref) []string {
 }
 
 func sameState(a, b *Record) bool {
-	if a.Head != b.Head || !slices.Equal(a.Shallow, b.Shallow) || !slices.Equal(a.Refs, b.Refs) || !slices.Equal(a.Remotes, b.Remotes) || len(a.Instructions) != len(b.Instructions) {
-		return false
-	}
-	for k, v := range a.Instructions {
-		if b.Instructions[k] != v {
-			return false
+	return a.Head == b.Head && slices.Equal(a.Shallow, b.Shallow) && slices.Equal(a.Refs, b.Refs) && slices.Equal(a.Remotes, b.Remotes) &&
+		maps.Equal(a.Instructions, b.Instructions) && maps.Equal(a.Settings, b.Settings)
+}
+
+// dedup puts each block once, and none that have says is stored already.
+func dedup(put BlockSink, have func(cid.Cid) bool) BlockSink {
+	seen := map[string]bool{}
+	return func(c cid.Cid, data []byte) error {
+		k := string(c.Hash())
+		if seen[k] || have != nil && have(c) {
+			return nil
 		}
+		seen[k] = true
+		return put(c, data)
 	}
-	return true
 }
 
 // checkText refuses names DAG-CBOR cannot hold as text. git allows any

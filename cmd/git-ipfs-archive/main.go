@@ -125,6 +125,8 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	since := fs.String("since", "", "build on this earlier archive (a CAR, or a directory of them): write only what is new")
 	root := fs.String("root", "", "with --since: the snapshot to build on, when the CARs hold more than one")
 	gitBin := fs.String("git", "", "git binary to run")
+	tips := fs.String("tips", "", "store a folder of the files at these refs: none, default (HEAD's branch), all (every branch), or ref names, comma-separated (default: the repo's "+gitarchive.ConfigFile+", else none)")
+	noConfig := fs.Bool("no-config", false, "ignore the repo's "+gitarchive.ConfigFile)
 	set := kvFlag{}
 	fs.Var(set, "set", "key=value instruction recorded for whatever stores the archive (repeatable), e.g. ipfs2fil.copies=3")
 	fs.Usage = func() {
@@ -139,7 +141,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fs.Usage()
 		return flag.ErrHelp
 	}
-	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString()}
+	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig}
 	if len(set) > 0 {
 		o.Instructions = set
 	}
@@ -151,7 +153,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		if o.Prev, err = gitarchive.LoadRecord(bs.Get, c); err != nil {
 			return err
 		}
-		o.PrevRoot = c
+		o.PrevRoot, o.Have = c, bs.Has
 	}
 	o.TempDir = filepath.Dir(*out)
 	res, err := gitarchive.WriteCAR(*out, func(put gitarchive.BlockSink) (*gitarchive.Result, error) {
@@ -159,6 +161,9 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	})
 	if err != nil {
 		return err
+	}
+	for _, n := range res.Notes {
+		fmt.Fprintf(stderr, "note: %s\n", n)
 	}
 	if res.Unchanged {
 		fmt.Fprintf(stdout, "nothing changed since %s; no CAR written\n", res.Root)
@@ -171,6 +176,9 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	fmt.Fprintf(stdout, "%s\n", res.Root)
 	fmt.Fprintf(stderr, "wrote %s (%s): %d refs, %d new objects in a %s pack, %d commits\n",
 		*out, kind, len(res.Record.Refs), res.Objects, size(res.PackBytes), res.Record.Commits)
+	for _, t := range res.Record.Tips {
+		fmt.Fprintf(stderr, "files of %s: %s\n", t.Ref, t.Root)
+	}
 	return nil
 }
 

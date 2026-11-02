@@ -63,7 +63,11 @@ type Record struct {
 	Log          []Link            `cbor:"log,omitempty"`
 	Commits      int               `cbor:"commits,omitempty"` // commits in this snapshot's log
 	Instructions map[string]string `cbor:"instructions,omitempty"`
-	Tool         string            `cbor:"tool,omitempty"`
+	// Settings are the non-default settings the snapshot was made with,
+	// from options and the repo's ConfigFile, such as archive.tips.
+	Settings map[string]string `cbor:"settings,omitempty"`
+	Tips     []Tip             `cbor:"tips,omitempty"`
+	Tool     string            `cbor:"tool,omitempty"`
 }
 
 // Pack is one stored pack: the pack bytes and its .idx, each a UnixFS file.
@@ -155,6 +159,14 @@ func (r *Record) check() error {
 	for _, s := range r.Shallow {
 		if !isID(s, f) {
 			return fmt.Errorf("record's shallow list has a bad id %q", s)
+		}
+	}
+	for _, t := range r.Tips {
+		if t.Ref != "HEAD" && (!strings.HasPrefix(t.Ref, "refs/") || strings.ContainsAny(t.Ref, "\x00\n")) {
+			return fmt.Errorf("record has a tip folder for %q, outside refs/", t.Ref)
+		}
+		if !isID(t.Commit, f) || !isID(t.Tree, f) || !t.Root.Defined() || t.Root.Type() != cid.DagProtobuf {
+			return fmt.Errorf("tip folder of %s is malformed", t.Ref)
 		}
 	}
 	return nil

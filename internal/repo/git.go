@@ -160,6 +160,7 @@ func (r *gitRepo) update(ctx context.Context) error {
 			return err
 		}
 		o.PrevRoot = root
+		o.Have = func(c cid.Cid) bool { _, ok := prev.at[string(c.Hash())]; return ok }
 	}
 	name := filepath.Join(dir, fmt.Sprintf("%04d.car", len(files)+1))
 	logf("reading git repo %s\n", r.path)
@@ -173,8 +174,14 @@ func (r *gitRepo) update(ctx context.Context) error {
 		return err
 	}
 	r.made = res
+	for _, n := range res.Notes {
+		logf("  note: %s\n", n)
+	}
 	if !res.Unchanged {
 		logf("  %d new objects, %d commits\n", res.Objects, res.Record.Commits)
+		for _, t := range res.Record.Tips {
+			logf("  files of %s: %s\n", t.Ref, t.Root)
+		}
 		if r.car != nil {
 			r.car.Close()
 		}

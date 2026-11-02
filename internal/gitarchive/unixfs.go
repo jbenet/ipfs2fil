@@ -52,16 +52,20 @@ func (s sinkDAG) RemoveMany(context.Context, []cid.Cid) error { return nil }
 
 // putFile stores r as a UnixFS file with LeafSize raw leaves.
 func putFile(r io.Reader, put BlockSink) (cid.Cid, error) {
-	p := h.DagBuilderParams{Maxlinks: h.DefaultLinksPerBlock, RawLeaves: true, CidBuilder: fileBuilder, Dagserv: sinkDAG{put}}
-	db, err := p.New(chunker.NewSizeSplitter(r, LeafSize))
-	if err != nil {
-		return cid.Undef, err
-	}
-	n, err := balanced.Layout(db)
+	n, err := putFileNode(r, put)
 	if err != nil {
 		return cid.Undef, err
 	}
 	return n.Cid(), nil
+}
+
+func putFileNode(r io.Reader, put BlockSink) (format.Node, error) {
+	p := h.DagBuilderParams{Maxlinks: h.DefaultLinksPerBlock, RawLeaves: true, CidBuilder: fileBuilder, Dagserv: sinkDAG{put}}
+	db, err := p.New(chunker.NewSizeSplitter(r, LeafSize))
+	if err != nil {
+		return nil, err
+	}
+	return balanced.Layout(db)
 }
 
 // BlockGetter returns a block's bytes; it must have checked them against the CID.

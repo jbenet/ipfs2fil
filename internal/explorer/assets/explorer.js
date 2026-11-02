@@ -2326,10 +2326,13 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
 
     function refs(list, what) {
       const at = (r) => { const c = byId.get(r[2] || r[1]); return c ? c[6] : 0; };
+      // a ref with a tip folder links to it in Files (named as the archive lists it)
+      const tips = new Map((g.tips || []).map((x) => [x[0], x]));
+      const tipLink = (r) => tips.has(r) && gi && gi.path ? ` <a class="pill" href="${esc(browseHref(gi.path + '/' + r.replace(/^refs\/heads\//, '').replace(/^refs\//, '').replace(/\//g, '%2F')))}" title="The files at ${esc(refName(r))}">files</a>` : '';
       list = list.slice().sort((a, b) => (b[0] === g.head) - (a[0] === g.head) || at(b) - at(a));
       body.innerHTML = list.length ? `<table class="git-log refs"><tbody>${list.map((r) => {
         const id = r[2] || r[1], c = byId.get(id);
-        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
+        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}${tipLink(r[0])}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
       }).join('')}</tbody></table>` : `<p class="faint">No ${what}.</p>`;
       status(plural(list.length, what.replace(/s$/, '')));
     }
