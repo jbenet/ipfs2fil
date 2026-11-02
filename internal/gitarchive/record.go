@@ -70,7 +70,11 @@ type Record struct {
 	// Submodules are the submodules at HEAD, each with its own archive's
 	// record when they were archived.
 	Submodules []Submodule `cbor:"submodules,omitempty"`
-	Tool       string      `cbor:"tool,omitempty"`
+	// LFS lists the Git LFS objects this snapshot adds, in chunks;
+	// LFSObjects counts them.
+	LFS        []Link `cbor:"lfs,omitempty"`
+	LFSObjects int    `cbor:"lfsObjects,omitempty"`
+	Tool       string `cbor:"tool,omitempty"`
 }
 
 // Pack is one stored pack: the pack bytes and its .idx, each a UnixFS file.
@@ -170,6 +174,11 @@ func (r *Record) check() error {
 		}
 		if !isID(t.Commit, f) || !isID(t.Tree, f) || !t.Root.Defined() || t.Root.Type() != cid.DagProtobuf {
 			return fmt.Errorf("tip folder of %s is malformed", t.Ref)
+		}
+	}
+	for _, l := range r.LFS {
+		if l.Type() != cid.DagCBOR {
+			return errors.New("record's LFS list is not DAG-CBOR")
 		}
 	}
 	for _, s := range r.Submodules {

@@ -331,11 +331,18 @@ out, a clone of its https URL (local paths in `.gitmodules` are not
 followed). `restore --recurse` puts each one back in `<dest>/modules/<name>`,
 where git keeps a checked-out submodule's repo, and `verify` checks them.
 
+Git LFS objects already in the repo (`.git/lfs/objects`) are stored too,
+each checked against its sha256 oid, and later snapshots add only new
+ones. `--lfs-fetch` first runs `git lfs fetch --all` to get the ones only
+the LFS server has; it is the one step that uses your credentials. Restore
+puts them back where git-lfs looks for them.
+
 A repo can carry these settings in a committed `.ipfs-archive-config`, in
 git config syntax, which `ipfs2fil up` honors too:
 
     git config -f .ipfs-archive-config archive.tips default
     git config -f .ipfs-archive-config submodules.archive true
+    git config -f .ipfs-archive-config lfs.fetch true
     git config -f .ipfs-archive-config ipfs2fil.copies 3
 
 The copy committed at HEAD counts, not the working tree's. Flags win over

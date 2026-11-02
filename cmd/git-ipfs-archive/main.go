@@ -128,6 +128,8 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	gitBin := fs.String("git", "", "git binary to run")
 	tips := fs.String("tips", "", "store a folder of the files at these refs: none, default (HEAD's branch), all (every branch), or ref names, comma-separated (default: the repo's "+gitarchive.ConfigFile+", else none)")
 	noConfig := fs.Bool("no-config", false, "ignore the repo's "+gitarchive.ConfigFile)
+	var lfsFetch optBool
+	fs.Var(&lfsFetch, "lfs-fetch", "run git lfs fetch --all first, to store LFS objects only the server has (default: the repo's "+gitarchive.ConfigFile+", else store the local ones)")
 	var subs optBool
 	fs.Var(&subs, "submodules", "also archive every submodule's repo, recursively, from the repo's modules/ or a clone of its https URL (default: the repo's "+gitarchive.ConfigFile+", else only list them)")
 	set := kvFlag{}
@@ -144,7 +146,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fs.Usage()
 		return flag.ErrHelp
 	}
-	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig, Submodules: subs.v}
+	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig, Submodules: subs.v, LFSFetch: lfsFetch.v}
 	if len(set) > 0 {
 		o.Instructions = set
 	}
@@ -179,6 +181,9 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	fmt.Fprintf(stdout, "%s\n", res.Root)
 	fmt.Fprintf(stderr, "wrote %s (%s): %d refs, %d new objects in a %s pack, %d commits\n",
 		*out, kind, len(res.Record.Refs), res.Objects, size(res.PackBytes), res.Record.Commits)
+	if n := res.Record.LFSObjects; n > 0 {
+		fmt.Fprintf(stderr, "  and %d new LFS objects\n", n)
+	}
 	for _, t := range res.Record.Tips {
 		fmt.Fprintf(stderr, "files of %s: %s\n", t.Ref, t.Root)
 	}
@@ -229,7 +234,7 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	for _, s := range res.Skipped {
 		fmt.Fprintln(stderr, "skipped", s)
 	}
-	fmt.Fprintf(stdout, "restored %s to %s: %d snapshots, %d packs, %d refs; git fsck passed\n", c, pos[1], res.Snapshots, res.Packs, res.Refs)
+	fmt.Fprintf(stdout, "restored %s to %s: %d snapshots, %d packs, %d refs, %d LFS objects; git fsck passed\n", c, pos[1], res.Snapshots, res.Packs, res.Refs, res.LFS)
 	for _, r := range res.Restored {
 		fmt.Fprintf(stdout, "restored submodule repo %s\n", filepath.Join(pos[1], r))
 	}

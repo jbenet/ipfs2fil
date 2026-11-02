@@ -31,6 +31,7 @@ type Config struct {
 	Tips  string // "" when the file does not say
 
 	Submodules *bool // submodules.archive
+	LFSFetch   *bool // lfs.fetch
 
 	// Instructions are the keys outside the sections this package reads,
 	// such as ipfs2fil.copies: they are copied into the record for
@@ -117,6 +118,13 @@ func parseConfig(ctx context.Context, g *Git, body []byte) (*Config, error) {
 				continue
 			}
 			cfg.Submodules = &b
+		case key == "lfs.fetch":
+			b, ok := parseBool(val, hasVal)
+			if !ok {
+				cfg.Notes = append(cfg.Notes, fmt.Sprintf("%s: lfs.fetch = %q is not true or false; ignored", ConfigFile, val))
+				continue
+			}
+			cfg.LFSFetch = &b
 		case own[sec]:
 			cfg.Notes = append(cfg.Notes, fmt.Sprintf("%s: %s is not a setting this version reads; ignored", ConfigFile, key))
 		case name == "" || notInstructions[sec]:
@@ -136,6 +144,7 @@ func parseConfig(ctx context.Context, g *Git, body []byte) (*Config, error) {
 type settings struct {
 	tips       string
 	submodules bool
+	lfsFetch   bool
 }
 
 func (s settings) record() map[string]string {
@@ -145,6 +154,9 @@ func (s settings) record() map[string]string {
 	}
 	if s.submodules {
 		m["submodules.archive"] = "true"
+	}
+	if s.lfsFetch {
+		m["lfs.fetch"] = "true"
 	}
 	if len(m) == 0 {
 		return nil
@@ -177,6 +189,16 @@ func resolve(o Options, cfg *Config) (settings, []string) {
 	}
 	if o.Submodules != nil {
 		s.submodules = *o.Submodules
+	}
+	if b := cfg.LFSFetch; b != nil {
+		if o.UntrustedConfig && *b {
+			notes = append(notes, fmt.Sprintf("%s asks to fetch LFS objects; ignored for a repo whose config is not trusted", ConfigFile))
+		} else {
+			s.lfsFetch = *b
+		}
+	}
+	if o.LFSFetch != nil {
+		s.lfsFetch = *o.LFSFetch
 	}
 	return s, notes
 }

@@ -36,7 +36,8 @@ type SnapSummary struct {
 	Objects int         `json:"objects"`
 	Bytes   int64       `json:"bytes"`
 	Refs    int         `json:"refs"`
-	Packs   [][2]string `json:"packs"` // pack CID, idx CID
+	Packs   [][2]string `json:"packs"`         // pack CID, idx CID
+	LFS     int         `json:"lfs,omitempty"` // LFS objects added
 }
 
 // Summarize reads the snapshot at root and every one before it.
@@ -66,7 +67,7 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 	var commits []Commit
 	for i := len(chain) - 1; i >= 0; i-- {
 		snap := chain[i]
-		ss := SnapSummary{Root: snap.Root.String(), Commits: snap.Record.Commits, Refs: len(snap.Record.Refs)}
+		ss := SnapSummary{Root: snap.Root.String(), Commits: snap.Record.Commits, Refs: len(snap.Record.Refs), LFS: snap.Record.LFSObjects}
 		for _, p := range snap.Record.Packs {
 			ss.Objects += p.Objects
 			ss.Bytes += p.Size

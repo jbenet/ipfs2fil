@@ -34,6 +34,7 @@ type RestoreResult struct {
 	Refs      int
 	Skipped   []string // remotes and submodules not restored, and why
 	Restored  []string // submodule repos restored, by path under dest
+	LFS       int      // Git LFS objects restored
 }
 
 // Restore rebuilds the repo of the snapshot at root as a bare repo in dest,
@@ -114,6 +115,9 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 		return nil, fmt.Errorf("restored repo fails fsck: %w", err)
 	}
 	if err := g.checkRefs(ctx, last.Refs); err != nil {
+		return nil, err
+	}
+	if res.LFS, err = restoreLFS(get, chain, abs); err != nil {
 		return nil, err
 	}
 	if o.Recurse {
