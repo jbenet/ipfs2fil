@@ -2,6 +2,7 @@ package gitarchive
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,6 +137,15 @@ func TestSetOfForks(t *testing.T) {
 	forkHead := git(t, filepath.Join(dir, "forks", "fork"), "rev-parse", "HEAD")
 	if _, err := (&Git{Dir: upr}).run(context.Background(), nil, "cat-file", "-e", forkHead); err == nil {
 		t.Fatal("restored upstream holds the fork's commit")
+	}
+
+	// The Git viewer lists the fork's whole history, shared commits too.
+	sum, err := Summarize(bs.Get, up.Root, "upstream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := git(t, filepath.Join(dir, "upstream"), "rev-list", "--all", "--count"); fmt.Sprint(len(sum.Commits)) != want {
+		t.Fatalf("summary lists %d commits, repo has %s", len(sum.Commits), want)
 	}
 
 	// One member alone, through its record: the base comes along.

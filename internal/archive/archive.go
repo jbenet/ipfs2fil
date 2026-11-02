@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -938,6 +939,9 @@ func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto
 	return out
 }
 
+// maxGitSummaries bounds the repos the Git viewer lists from one archive.
+const maxGitSummaries = 4096
+
 // gitSummaries summarizes the roots that are git archive records (from
 // git-ipfs-archive, or a git repo read directly), for the Git viewer.
 func (l *layout) gitSummaries(ctx context.Context, roots []manifest.Root) []*gitarchive.Summary {
@@ -955,6 +959,19 @@ func (l *layout) gitSummaries(ctx context.Context, roots []manifest.Root) []*git
 	for _, rt := range roots {
 		c, err := cid.Decode(rt.CID)
 		if err != nil || c.Type() != cid.DagCBOR || rt.Kind == manifest.KindOrphan {
+			continue
+		}
+		if set, err := gitarchive.LoadSet(get, c); err == nil {
+			// A folder of repos: each member is a repo of its own in the
+			// Git viewer, named <folder>/<path>.
+			for _, m := range set.Repos {
+				if len(out) >= maxGitSummaries {
+					break
+				}
+				if s, err := gitarchive.Summarize(get, m.Record.Cid, path.Join(rt.Name, m.Name)); err == nil {
+					out = append(out, s)
+				}
+			}
 			continue
 		}
 		if !gitarchive.IsRecord(get, c) {

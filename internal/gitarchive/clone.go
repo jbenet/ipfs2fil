@@ -90,3 +90,20 @@ func stripURL(err error, raw string) error {
 	}
 	return fmt.Errorf("%s", strings.ReplaceAll(err.Error(), raw, clean))
 }
+
+// Fetch brings a bare clone made by Clone up to date with its URL:
+// branches and tags as the server has them now, deleted ones pruned.
+func Fetch(ctx context.Context, bin, dir, s string) error {
+	raw, err := cloneURL(s)
+	if err != nil {
+		return err
+	}
+	u, _ := url.Parse(raw)
+	g := &Git{Bin: bin, Dir: dir}
+	_, err = g.run(ctx, nil, "-c", "protocol."+u.Scheme+".allow=always", "fetch", "-q", "--prune", "--no-recurse-submodules", "--", raw,
+		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*")
+	if err != nil {
+		return fmt.Errorf("fetching %s: %w", StripCredentials(raw), stripURL(err, raw))
+	}
+	return nil
+}

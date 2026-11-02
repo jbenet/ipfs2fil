@@ -394,6 +394,25 @@ adds a few KB, not a new copy of the repo. The explorer has a Git viewer
 (Viewers > Git) with the commit log, each branch's history, branches, tags
 and snapshots.
 
+A folder that holds git repos (and is not itself a repo or an IPFS repo) is
+archived as one set, as `git-ipfs-archive` does, with forks packed against
+each other; the Git viewer lists each repo as `<folder>/<path>`. ipfs2fil
+will not do this for your home folder or `/`: name the folder of repos.
+
+    ipfs2fil up --repo ~/src
+
+A git repo can also be named by URL. Plain `https://` addresses are kubo RPC
+APIs to ipfs2fil, so a URL is read as git when it starts with `git+https://`,
+ends in `.git`, or is a repo on github.com, gitlab.com, codeberg.org or
+bitbucket.org:
+
+    ipfs2fil up --repo https://github.com/ipfs/kubo
+    ipfs2fil up --repo git+https://git.example.org/team/project
+
+The first run clones it to `~/.ipfs2fil/git/clones/`; later runs fetch only
+what is new. Its `.ipfs-archive-config` is not trusted. ipfs2fil keeps repo
+paths in its catalog, so it refuses a URL with a user name or token.
+
 ## Privacy
 
 Everything ipfs2fil stores on Filecoin is public: storage providers serve

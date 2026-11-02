@@ -103,6 +103,9 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 			s.Truncated += max(0, snap.Record.Commits-listed)
 		}
 	}
+	if !full {
+		commits = append(commits, baseCommits(get, chain, last, commits, MaxSummaryCommits-len(commits))...)
+	}
 	sort.SliceStable(commits, func(i, j int) bool { return commits[i].Committer.Time > commits[j].Committer.Time })
 	if len(commits) > MaxSummaryCommits {
 		s.Truncated += len(commits) - MaxSummaryCommits
@@ -148,4 +151,94 @@ func LatestOf(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 		}
 	}
 	return heads, nil
+}
+
+// baseCommits lists the commits a repo's refs reach that are stored in its
+// bases' logs rather than its own, as a fork's shared history is, up to
+// limit. It reads each base's log once.
+func baseCommits(get BlockGetter, chain []Snapshot, last *Record, own []Commit, limit int) []Commit {
+	based := false
+	for _, s := range chain {
+		based = based || len(s.Record.Bases) > 0
+	}
+	if !based || limit <= 0 {
+		return nil
+	}
+	// Every log chunk of every base chain, through the same walk restore does.
+	all := map[string]Commit{}
+	read := map[string]bool{}
+	var walk func(chain []Snapshot, depth int)
+	seen := map[string]bool{}
+	walk = func(chain []Snapshot, depth int) {
+		for _, s := range chain {
+			for _, b := range s.Record.Bases {
+				if seen[b.KeyString()] || depth >= maxSubmoduleDepth*2 || len(seen) > maxBaseRecords {
+					continue
+				}
+				seen[b.KeyString()] = true
+				bc, err := Chain(get, b.Cid)
+				if err != nil {
+					continue
+				}
+				for _, x := range bc {
+					for _, l := range x.Record.Log {
+						if read[l.KeyString()] || len(all) >= MaxSummaryCommits {
+							continue
+						}
+						read[l.KeyString()] = true
+						blk, err := get(l.Cid)
+						if err != nil {
+							continue
+						}
+						var ch LogChunk
+						if decMode.Unmarshal(blk, &ch) != nil {
+							continue
+						}
+						for _, c := range ch.Commits {
+							all[c.ID] = c
+						}
+					}
+				}
+				walk(bc, depth+1)
+			}
+		}
+	}
+	walk(chain, 0)
+	have := map[string]bool{}
+	for _, c := range own {
+		have[c.ID] = true
+	}
+	var queue []string
+	for _, r := range last.Refs {
+		queue = append(queue, r.ID)
+		if r.Peeled != "" {
+			queue = append(queue, r.Peeled)
+		}
+	}
+	// Walk parents from the refs: through own commits, into the bases'.
+	byID := map[string]Commit{}
+	for _, c := range own {
+		byID[c.ID] = c
+	}
+	var out []Commit
+	visited := map[string]bool{}
+	for len(queue) > 0 && len(out) < limit {
+		id := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		if visited[id] {
+			continue
+		}
+		visited[id] = true
+		c, ok := byID[id]
+		if !ok {
+			if c, ok = all[id]; !ok {
+				continue
+			}
+			if !have[id] {
+				out = append(out, c)
+			}
+		}
+		queue = append(queue, c.Parents...)
+	}
+	return out
 }
