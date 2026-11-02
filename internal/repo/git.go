@@ -29,11 +29,19 @@ const KindGit = "git"
 
 // GitDir is where git repos' archives are kept between runs, one directory
 // of CARs per repo: a full archive, then one delta per run that saw new
-// commits. The CLI sets it under its home directory.
+// commits. After many deltas a run writes a compacted CAR that stands alone
+// instead, and the CARs before it move to <dir>.superseded, so the repo's
+// blocks are only the compacted snapshot's and what came after: the pieces
+// that held the old packs are then dropped like any piece the repo no
+// longer uses. The CLI sets it under its home directory.
 var GitDir = filepath.Join(os.TempDir(), "ipfs2fil-git")
 
 // GitBin is the git binary to run; "git" when empty.
 var GitBin string
+
+// GitCompact is when a git repo's next snapshot is a compacted one:
+// gitarchive.CompactAuto (when empty), CompactNow or CompactNever.
+var GitCompact string
 
 // gitRepo is a git working tree or bare repo. On first use it brings its
 // archive in GitDir up to date (a delta of what is new since the last run),
@@ -249,7 +257,8 @@ func (r *gitRepo) snapshots() int {
 	if err != nil {
 		return 0
 	}
-	return len(ch)
+	hist, _ := gitarchive.History(r.verified, ch[0].Record)
+	return len(ch) + len(hist)
 }
 
 // stale reports whether the repo's refs or HEAD moved since it was archived,
@@ -332,7 +341,7 @@ func (r *gitRepo) update(ctx context.Context) error {
 			return err
 		}
 	}
-	o := gitarchive.Options{Git: GitBin, TempDir: dir, Tool: "ipfs2fil"}
+	o := gitarchive.Options{Git: GitBin, TempDir: dir, Tool: "ipfs2fil", Compact: GitCompact}
 	var prevRoot cid.Cid
 	files, _ := carFiles(dir)
 	if len(files) > 0 {
@@ -349,10 +358,10 @@ func (r *gitRepo) update(ctx context.Context) error {
 		o.Have = func(c cid.Cid) bool { _, ok := prev.at[string(c.Hash())]; return ok }
 		o.Get = r.verified
 	}
-	name := filepath.Join(dir, fmt.Sprintf("%04d.car", len(files)+1))
+	name := filepath.Join(dir, fmt.Sprintf("%04d.car", nextCAR(files)))
 	logf("reading git %s %s\n", map[bool]string{false: "repo", true: "repos under"}[r.set], gitarchive.StripCredentials(r.path))
 	var root cid.Cid
-	unchanged := false
+	unchanged, compacted := false, false
 	if r.set {
 		so := gitarchive.SetOptions{Options: o, Log: func(f string, a ...any) { logf("  "+f, a...) }}
 		if prevRoot.Defined() {
@@ -414,16 +423,25 @@ func (r *gitRepo) update(ctx context.Context) error {
 			logf("  note: %s\n", n)
 		}
 		if !res.Unchanged {
-			logf("  %d new objects, %d commits\n", res.Objects, res.Record.Commits)
+			if res.Compacted != "" {
+				logf("  compacted (%s): one full pack of %d objects, %d commits; earlier snapshots restore from it\n", res.Compacted, res.Objects, res.Record.Commits)
+			} else {
+				logf("  %d new objects, %d commits\n", res.Objects, res.Record.Commits)
+			}
 			for _, t := range res.Record.Tips {
 				logf("  files of %s: %s\n", t.Ref, t.Root)
 			}
 		}
-		root, r.rec, unchanged = res.Root, res.Record, res.Unchanged
+		root, r.rec, unchanged, compacted = res.Root, res.Record, res.Unchanged, res.Compacted != ""
 	}
 	if !unchanged {
 		if r.car != nil {
 			r.car.Close()
+		}
+		if compacted {
+			if err := supersede(dir, name); err != nil {
+				return err
+			}
 		}
 		c, err := openCAR(dir)
 		if err != nil {
@@ -479,6 +497,52 @@ func (r *gitRepo) mirror(ctx context.Context, name string) (string, error) {
 		return "", err
 	}
 	return dst, nil
+}
+
+// nextCAR numbers the next CAR after the highest in files, so numbers never
+// repeat once older CARs have moved out.
+func nextCAR(files []string) int {
+	n := 0
+	for _, f := range files {
+		var i int
+		if _, err := fmt.Sscanf(filepath.Base(f), "%d.car", &i); err == nil && i > n {
+			n = i
+		}
+	}
+	return n + 1
+}
+
+// supersede moves every CAR in dir but keep to dir.superseded: the
+// compacted snapshot in keep holds all they did.
+func supersede(dir, keep string) error {
+	files, err := carFiles(dir)
+	if err != nil {
+		return err
+	}
+	old := dir + ".superseded"
+	for _, f := range files {
+		if f == keep {
+			continue
+		}
+		rel, err := filepath.Rel(dir, f)
+		if err != nil {
+			return err
+		}
+		to := filepath.Join(old, rel)
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return err
+		}
+		if _, err := os.Stat(to); err == nil {
+			to += fmt.Sprintf(".%d", os.Getpid())
+		}
+		if err := os.Rename(f, to); err != nil {
+			return err
+		}
+	}
+	if len(files) > 1 {
+		logf("  moved the %d earlier CARs to %s (no longer needed)\n", len(files)-1, old)
+	}
+	return nil
 }
 
 // latest finds the newest snapshot among a directory's CAR roots.

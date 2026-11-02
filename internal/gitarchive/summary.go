@@ -41,6 +41,11 @@ type SnapSummary struct {
 	Refs    int         `json:"refs"`
 	Packs   [][2]string `json:"packs"`         // pack CID, idx CID
 	LFS     int         `json:"lfs,omitempty"` // LFS objects added
+	// Base marks a compacted snapshot, which stands alone; Compacted, a
+	// snapshot one replaced, kept only as refs in its history (it
+	// restores from the compacted one).
+	Base      bool `json:"base,omitempty"`
+	Compacted bool `json:"compacted,omitempty"`
 }
 
 // Summarize reads the snapshot at root and every one before it.
@@ -72,7 +77,7 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 	full := false             // MaxSummaryCommits reached: list no more
 	for i := len(chain) - 1; i >= 0; i-- {
 		snap := chain[i]
-		ss := SnapSummary{Root: snap.Root.String(), Commits: snap.Record.Commits, Refs: len(snap.Record.Refs), LFS: snap.Record.LFSObjects}
+		ss := SnapSummary{Root: snap.Root.String(), Commits: snap.Record.Commits, Refs: len(snap.Record.Refs), LFS: snap.Record.LFSObjects, Base: snap.Record.Base}
 		for _, p := range snap.Record.Packs {
 			ss.Objects += p.Objects
 			ss.Bytes += p.Size
@@ -120,6 +125,16 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 	if !full {
 		commits = append(commits, baseCommits(get, chain, last, commits, MaxSummaryCommits-len(commits))...)
 	}
+	// A compacted snapshot's log has every commit; the snapshots it
+	// replaced are listed after it, newest first.
+	hist, err := History(get, chain[0].Record)
+	if err != nil {
+		s.Missing++
+	}
+	for i := len(hist) - 1; i >= 0; i-- {
+		e := hist[i]
+		s.Snapshots = append(s.Snapshots, SnapSummary{Root: e.Root, Commits: e.Commits, Refs: len(e.Refs), Packs: [][2]string{}, Compacted: true})
+	}
 	sort.SliceStable(commits, func(i, j int) bool { return commits[i].Committer.Time > commits[j].Committer.Time })
 	if len(commits) > MaxSummaryCommits {
 		s.Truncated += len(commits) - MaxSummaryCommits
@@ -142,7 +157,8 @@ func IsRecord(get BlockGetter, c cid.Cid) bool {
 }
 
 // LatestOf picks the newest snapshot among roots: the record no other
-// record names as Prev. Roots that are not records are ignored.
+// record names as Prev, or lists in its history (a compacted snapshot
+// supersedes the ones it replaces). Roots that are not records are ignored.
 func LatestOf(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 	var recs []cid.Cid
 	prev := map[string]bool{}
@@ -154,6 +170,12 @@ func LatestOf(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 		recs = append(recs, c)
 		if r.Prev != nil {
 			prev[r.Prev.KeyString()] = true
+		}
+		hist, _ := History(get, r)
+		for _, e := range hist {
+			if hc, err := cid.Decode(e.Root); err == nil {
+				prev[hc.KeyString()] = true
+			}
 		}
 	}
 	var heads []cid.Cid

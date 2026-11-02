@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -92,6 +93,83 @@ func TestGitRepoRerunKeepsPieces(t *testing.T) {
 	t.Logf("data pieces: %d bytes kept, %d new", kept, fresh)
 	if kept < 8<<20 || fresh*10 > kept {
 		t.Errorf("data pieces: %d bytes kept, %d new", kept, fresh)
+	}
+}
+
+// A compacted git snapshot stands alone: the next build keeps none of the
+// data pieces the earlier snapshots used, and notes them as dropped, so a
+// push removes them.
+func TestGitCompactionDropsOldPieces(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	old := repo.GitDir
+	repo.GitDir = t.TempDir()
+	defer func() { repo.GitDir, repo.GitCompact = old, "" }()
+	src := filepath.Join(t.TempDir(), "project")
+	os.Mkdir(src, 0o755)
+	gitCmd(t, src, "init", "-q", "-b", "main")
+	for i := range 4 {
+		b := make([]byte, 3<<20)
+		rand.Read(b)
+		os.WriteFile(filepath.Join(src, string(rune('a'+i))), b, 0o644)
+		gitCmd(t, src, "add", ".")
+		gitCmd(t, src, "commit", "-q", "-m", "c")
+	}
+	dir := t.TempDir()
+	opts := testOptions()
+	opts.MinPiece, opts.MaxPiece = 32<<20, 64<<20
+	build := func() *Result {
+		r, err := repo.Open(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := Build(t.Context(), r, dir, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(t, res)
+		return res
+	}
+	a := build()
+	stored(t, dir)
+	os.WriteFile(filepath.Join(src, "e"), []byte("one more\n"), 0o644)
+	gitCmd(t, src, "add", ".")
+	gitCmd(t, src, "commit", "-q", "-m", "small")
+	b := build() // a delta: keeps the data piece
+	stored(t, dir)
+	var dataA []string
+	for _, p := range a.Manifest.Pieces {
+		if p.Part != manifest.PartIndex && p.Part != manifest.PartMeta && p.Part != manifest.PartHead {
+			dataA = append(dataA, p.PieceCID)
+		}
+	}
+	inB := map[string]bool{}
+	for _, p := range b.Manifest.Pieces {
+		inB[p.PieceCID] = true
+	}
+	for _, pc := range dataA {
+		if !inB[pc] {
+			t.Fatalf("the delta did not keep data piece %s", pc)
+		}
+	}
+
+	repo.GitCompact = "now"
+	os.WriteFile(filepath.Join(src, "f"), []byte("and another\n"), 0o644)
+	gitCmd(t, src, "add", ".")
+	gitCmd(t, src, "commit", "-q", "-m", "small")
+	c := build()
+	inC := map[string]bool{}
+	for _, p := range c.Manifest.Pieces {
+		inC[p.PieceCID] = true
+	}
+	for _, pc := range dataA {
+		if inC[pc] || !slices.Contains(c.Manifest.Dropped, pc) {
+			t.Errorf("data piece %s: still used %v, dropped %v", pc, inC[pc], slices.Contains(c.Manifest.Dropped, pc))
+		}
+	}
+	if len(c.Missing) > 0 {
+		t.Errorf("compacted archive misses %d blocks", len(c.Missing))
 	}
 }
 

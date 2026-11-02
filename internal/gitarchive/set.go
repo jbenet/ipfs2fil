@@ -265,6 +265,10 @@ func ArchiveSet(ctx context.Context, inputs []Input, o SetOptions, put BlockSink
 		logf("%s\n", in.Name)
 		mo := o.Options
 		mo.Prev, mo.PrevRoot, mo.Bases = nil, cid.Undef, nil
+		// Members write deltas only for now: a set's blocks are deduped
+		// across its members and earlier CARs, so a compacted member
+		// would not stand alone.
+		mo.Compact = CompactNever
 		mo.UntrustedConfig = o.UntrustedConfig || in.Untrusted
 		pm, hadPrev := prev[in.Name]
 		if hadPrev && o.Get != nil {
@@ -497,7 +501,8 @@ func insideNewDirs(dest, d string) error {
 }
 
 // LatestRoot picks the newest snapshot among roots, of repos or of sets:
-// the one no other names as Prev.
+// the one no other names as Prev, or lists in a compacted snapshot's
+// history.
 func LatestRoot(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 	var recs []cid.Cid
 	prev := map[string]bool{}
@@ -506,6 +511,12 @@ func LatestRoot(get BlockGetter, roots []cid.Cid) ([]cid.Cid, error) {
 			recs = append(recs, c)
 			if r.Prev != nil {
 				prev[r.Prev.KeyString()] = true
+			}
+			hist, _ := History(get, r)
+			for _, e := range hist {
+				if hc, err := cid.Decode(e.Root); err == nil {
+					prev[hc.KeyString()] = true
+				}
 			}
 		} else if s, err := LoadSet(get, c); err == nil {
 			recs = append(recs, c)
