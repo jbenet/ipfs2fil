@@ -2,6 +2,8 @@ package repo
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -232,5 +234,31 @@ func TestKuboSourceCheckoutIsGit(t *testing.T) {
 	}
 	if !isGit(dir) {
 		t.Fatal("a checkout with config/ and blocks/ folders is not taken for git")
+	}
+}
+
+// An https URL that is not obviously git is asked: a git server's smart
+// HTTP answer makes it a git repo, anything else stays a kubo RPC address.
+func TestServesGit(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/team/project/info/refs" && r.URL.Query().Get("service") == "git-upload-pack" {
+			w.Header().Set("Content-Type", "application/x-git-upload-pack-advertisement")
+			w.Write([]byte("001e# service=git-upload-pack\n0000"))
+			return
+		}
+		http.NotFound(w, r) // as kubo answers a GET outside /api/v0
+	}))
+	defer srv.Close()
+	old := gitProbe
+	gitProbe = srv.Client()
+	defer func() { gitProbe = old }()
+	if !IsGitRemote(srv.URL + "/team/project") {
+		t.Error("git server not recognised")
+	}
+	if IsGitRemote(srv.URL) || IsGitRemote(srv.URL+"/api/v0") {
+		t.Error("non-git server taken for git")
+	}
+	if servesGit("http://127.0.0.1:5001") {
+		t.Error("http probed")
 	}
 }

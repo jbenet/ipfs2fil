@@ -212,7 +212,7 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 func defaultName(path string) string {
 	if atproto.IsAccount(path) {
 		path = "bsky-" + strings.ReplaceAll(atproto.Account(path), ":", "-")
-	} else if repo.IsGitURL(path) {
+	} else if repo.IsGitRemote(path) {
 		path = gpath.Base(gitarchive.URLName(path)) // github.com/ipfs/kubo -> kubo
 	} else if u, err := url.Parse(path); err == nil && u.Host != "" {
 		path = u.Hostname() // a node's RPC API is named after its host

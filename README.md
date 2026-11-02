@@ -378,9 +378,8 @@ archived like a local one, named by host and path:
 Only https is cloned: http can be altered on the way, and `file://` or a
 local path could name any repo on the machine. A token in the URL is used
 for the clone and stripped from the recorded remote. A cloned repo's
-`.ipfs-archive-config` is someone else's, so it cannot turn on settings that cost
-much more (every branch's files, submodules, LFS fetch) unless you pass
-`--trust-config`; flags still can.
+`.ipfs-archive-config` guides its archive just as a local repo's does;
+flags still win, and `--no-config` ignores it.
 
 `ipfs2fil` archives git repos itself, the same way: point it at a working
 tree or bare repo.
@@ -401,16 +400,17 @@ will not do this for your home folder or `/`: name the folder of repos.
 
     ipfs2fil up --repo ~/src
 
-A git repo can also be named by URL. Plain `https://` addresses are kubo RPC
-APIs to ipfs2fil, so a URL is read as git when it starts with `git+https://`,
-ends in `.git`, or is a repo on github.com, gitlab.com, codeberg.org or
-bitbucket.org:
+A git repo can also be named by URL. A URL is read as git when it starts
+with `git+https://`, ends in `.git`, is a repo on github.com, gitlab.com,
+codeberg.org or bitbucket.org, or its server answers git's smart HTTP
+request (`info/refs`, as `git clone` asks first); any other http(s) URL is a
+kubo node's RPC API:
 
     ipfs2fil up --repo https://github.com/ipfs/kubo
     ipfs2fil up --repo git+https://git.example.org/team/project
 
 The first run clones it to `~/.ipfs2fil/git/clones/`; later runs fetch only
-what is new. Its `.ipfs-archive-config` is not trusted. ipfs2fil keeps repo
+what is new. Its `.ipfs-archive-config` is followed. ipfs2fil keeps repo
 paths in its catalog, so it refuses a URL with a user name or token.
 
 ## Privacy

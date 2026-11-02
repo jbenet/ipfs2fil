@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -96,6 +99,49 @@ func IsGitURL(path string) bool {
 	return strings.HasSuffix(p, ".git") || gitHosts[strings.ToLower(u.Hostname())] && strings.Count(strings.Trim(p, "/"), "/") >= 1
 }
 
+// IsGitRemote says whether path is a git repo to clone: IsGitURL, or any
+// other https URL whose server answers git's smart HTTP protocol.
+func IsGitRemote(path string) bool {
+	return IsGitURL(path) || servesGit(path)
+}
+
+// gitProbe is the client servesGit asks with; tests swap it.
+var gitProbe = &http.Client{Timeout: 10 * time.Second}
+
+var probed sync.Map // URL -> bool
+
+// servesGit asks an https URL for its git refs, as git clone would first:
+// a git server answers with the upload-pack advertisement, a kubo RPC API
+// (which takes POSTs under /api/v0) does not.
+func servesGit(path string) bool {
+	if !strings.HasPrefix(path, "https://") || !gitarchive.IsCloneURL(path) {
+		return false
+	}
+	if v, ok := probed.Load(path); ok {
+		return v.(bool)
+	}
+	u, err := url.Parse(path)
+	if err != nil || u.User != nil || u.RawQuery != "" {
+		return false
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/info/refs"
+	u.RawQuery = "service=git-upload-pack"
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "git/2.0 (ipfs2fil)")
+	req.Header.Set("Git-Protocol", "version=2")
+	ok := false
+	if resp, err := gitProbe.Do(req); err == nil {
+		io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+		resp.Body.Close()
+		ok = resp.StatusCode == http.StatusOK && strings.HasPrefix(resp.Header.Get("Content-Type"), "application/x-git-upload-pack-advertisement")
+	}
+	probed.Store(path, ok)
+	return ok
+}
+
 // isGitFolder says whether path is a folder of git repos: not a repo
 // itself, not an IPFS repo or a folder of CARs, with a git repo under it.
 func isGitFolder(path string) bool {
@@ -139,7 +185,7 @@ func openGit(path string) (Repo, error) {
 }
 
 func openGitAs(path string, set bool) (Repo, error) {
-	key, isURL := path, IsGitURL(path)
+	key, isURL := path, strings.Contains(path, "://")
 	if isURL {
 		if u, err := url.Parse(strings.TrimPrefix(path, "git+")); err == nil && u.User != nil {
 			return nil, fmt.Errorf("%s: ipfs2fil lists repos in its catalog, so it takes no user name or token in a URL", gitarchive.StripCredentials(strings.TrimPrefix(path, "git+")))
@@ -286,7 +332,7 @@ func (r *gitRepo) update(ctx context.Context) error {
 			return err
 		}
 	}
-	o := gitarchive.Options{Git: GitBin, TempDir: dir, Tool: "ipfs2fil", UntrustedConfig: r.url}
+	o := gitarchive.Options{Git: GitBin, TempDir: dir, Tool: "ipfs2fil"}
 	var prevRoot cid.Cid
 	files, _ := carFiles(dir)
 	if len(files) > 0 {

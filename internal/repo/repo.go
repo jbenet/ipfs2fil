@@ -104,7 +104,7 @@ func Open(path string) (Repo, error) {
 	if atproto.IsAccount(path) {
 		return openATProto(path)
 	}
-	if IsGitURL(path) {
+	if IsGitRemote(path) {
 		return openGit(path)
 	}
 	if isRPC(path) {

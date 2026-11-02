@@ -51,8 +51,8 @@ func URLName(s string) string {
 
 // Clone makes a bare clone of an https URL (or git+https) in a new
 // directory under tmp, which the caller removes. Branches and tags come
-// along, as git clone brings them; the repo's own settings stay
-// untrusted (archive it with Options.UntrustedConfig). Git runs no hooks
+// along, as git clone brings them. The repo's ConfigFile is followed
+// like a local repo's, since guiding the archive is its job. Git runs no hooks
 // and asks for no credentials: a token in the URL is all it gets.
 func Clone(ctx context.Context, bin, s, tmp string) (string, error) {
 	raw, err := cloneURL(s)

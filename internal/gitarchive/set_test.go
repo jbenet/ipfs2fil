@@ -306,7 +306,8 @@ func TestBasesHostile(t *testing.T) {
 	}
 }
 
-// A clone URL becomes a bare clone whose config is untrusted; a token in
+// A clone URL becomes a bare clone whose config guides the archive as a
+// local repo's does (Juan, 2026-11-02: that is the file's job); a token in
 // the URL is not kept in its remote, and local or command URLs are refused.
 func TestCloneURL(t *testing.T) {
 	needGit(t)
@@ -357,6 +358,14 @@ func TestCloneURL(t *testing.T) {
 	}
 	if len(res.Record.Tips) > 1 || res.Record.Settings["archive.submodules"] == "true" {
 		t.Fatalf("untrusted config turned on costly settings: %v %v", res.Record.Settings, res.Notes)
+	}
+	// By default the clone's config is followed: every branch's files.
+	res, err = Archive(context.Background(), dir, Options{TempDir: t.TempDir()}, NewBlocks().Put)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Record.Tips) != 2 {
+		t.Fatalf("clone's config not followed: %d tip folders, notes %v", len(res.Record.Tips), res.Notes)
 	}
 }
 
