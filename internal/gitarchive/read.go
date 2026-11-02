@@ -43,6 +43,9 @@ func (b *Blocks) Get(c cid.Cid) ([]byte, error) {
 	return nil, fmt.Errorf("block %s is not in the archive", c)
 }
 
+// Has reports whether b holds a block.
+func (b *Blocks) Has(c cid.Cid) bool { _, ok := b.m[string(c.Hash())]; return ok }
+
 // Roots are the CAR header roots seen while loading.
 func (b *Blocks) Roots() []cid.Cid { return b.roots }
 

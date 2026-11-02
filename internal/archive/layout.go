@@ -404,6 +404,26 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		if name == "" {
 			name = path.Base(p)
 		}
+		// A git archive with tip folders is listed as a folder of them, one
+		// per ref, so the Files page shows the code.
+		if g := l.git(rt.c); g != nil && len(g.Tips) > 0 {
+			at := len(out)
+			out = append(out, explorer.Entry{Name: name, Path: p, CID: rt.c.String(), Kind: "folder", Bytes: 0, Piece: int(l.tab[i].piece)})
+			used := map[string]bool{}
+			for _, t := range g.Tips {
+				tc, err := cid.Decode(t[2])
+				if err != nil {
+					continue
+				}
+				j, ok := l.idx[string(tc.Hash())]
+				if !ok {
+					continue
+				}
+				short := strings.TrimPrefix(strings.TrimPrefix(t[0], "refs/heads/"), "refs/")
+				out[at].Bytes += walk(j, p+"/"+segment(short, used), short)
+			}
+			continue
+		}
 		// A root that is an IPLD record rather than a file or folder, such
 		// as a CAR's dag-cbor or dag-json root, is listed as JSON beside the
 		// others of its name: the explorer shows it as JSON.
@@ -443,6 +463,16 @@ func (l *layout) entries(roots []root, m *manifest.Manifest) []explorer.Entry {
 		}
 	}
 	return out
+}
+
+// git returns the summary of the git archive whose record c is.
+func (l *layout) git(c cid.Cid) *gitarchive.Summary {
+	for _, g := range l.gits {
+		if g.Root == c.String() {
+			return g
+		}
+	}
+	return nil
 }
 
 // account returns the summary of the Bluesky account whose commit c is.

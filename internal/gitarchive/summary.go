@@ -19,6 +19,7 @@ type Summary struct {
 	Head         string        `json:"head,omitempty"`
 	Refs         [][3]string   `json:"refs"`              // name, id, peeled id of an annotated tag
 	Remotes      [][2]string   `json:"remotes,omitempty"` // name, URL
+	Tips         [][3]string   `json:"tips,omitempty"`    // ref, commit, folder CID
 	Snapshots    []SnapSummary `json:"snapshots"`
 	// Commits are [id, parents, tree, author, email, author time,
 	// committer time, subject, signed], newest first.
@@ -50,6 +51,9 @@ func Summarize(get BlockGetter, root cid.Cid, name string) (*Summary, error) {
 	}
 	for _, r := range last.Remotes {
 		s.Remotes = append(s.Remotes, [2]string{r.Name, r.URL})
+	}
+	for _, t := range last.Tips {
+		s.Tips = append(s.Tips, [3]string{t.Ref, t.Commit, t.Root.String()})
 	}
 	var commits []Commit
 	for i := len(chain) - 1; i >= 0; i-- {

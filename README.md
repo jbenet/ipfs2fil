@@ -317,9 +317,23 @@ with hooks off and `GIT_*` variables from your shell ignored. `restore
 --remotes` configures the recorded remotes, skipping any URL that would make
 git run a command (`ext::`, `fd::`).
 
-`--set key=value` records an instruction for whatever stores the archive,
-such as `ipfs2fil.copies=3`; later runs keep it until it is set again.
-`git-ipfs-archive show cars` prints every snapshot's record as JSON.
+`--tips default` also stores a plain folder of the files on HEAD's branch,
+so a gateway or the explorer's Files page shows the code without git;
+`--tips all` does every branch, and `--tips main,v1.0` names refs. It is off
+by default because it stores the files again beside the packs. A folder
+whose tree has not changed since the last snapshot is reused, and unchanged
+files are not stored twice.
+
+A repo can carry these settings in a committed `.ipfs-archive-config`, in
+git config syntax, which `ipfs2fil up` honors too:
+
+    git config -f .ipfs-archive-config archive.tips default
+    git config -f .ipfs-archive-config ipfs2fil.copies 3
+
+The copy committed at HEAD counts, not the working tree's. Flags win over
+the file (`--no-config` ignores it). Keys outside `[archive]` are recorded
+as instructions for whatever stores the archive; `--set key=value` adds
+more. `git-ipfs-archive show cars` prints every snapshot's record as JSON.
 
 `ipfs2fil` archives git repos itself, the same way: point it at a working
 tree or bare repo.

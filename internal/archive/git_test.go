@@ -1,10 +1,13 @@
 package archive
 
 import (
+	"context"
 	"crypto/rand"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jbenet/ipfs2fil/internal/manifest"
@@ -89,5 +92,50 @@ func TestGitRepoRerunKeepsPieces(t *testing.T) {
 	t.Logf("data pieces: %d bytes kept, %d new", kept, fresh)
 	if kept < 8<<20 || fresh*10 > kept {
 		t.Errorf("data pieces: %d bytes kept, %d new", kept, fresh)
+	}
+}
+
+// A git repo whose config asks for tip folders lists them in Files.
+func TestGitTipFolderEntries(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	old := repo.GitDir
+	repo.GitDir = t.TempDir()
+	defer func() { repo.GitDir = old }()
+	src := filepath.Join(t.TempDir(), "project")
+	os.MkdirAll(filepath.Join(src, "docs"), 0o755)
+	gitCmd(t, src, "init", "-q", "-b", "main")
+	os.WriteFile(filepath.Join(src, "docs", "a.md"), []byte("# a\n"), 0o644)
+	os.WriteFile(filepath.Join(src, ".ipfs-archive-config"), []byte("[archive]\n\ttips = default\n"), 0o644)
+	gitCmd(t, src, "add", ".")
+	gitCmd(t, src, "commit", "-q", "-m", "c")
+	r, err := repo.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	l := newLayout(r)
+	roots, err := l.walkRoots(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.cut(testOptions()); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{}
+	owned := make([]bool, len(l.tab))
+	for _, rt := range roots {
+		m.Roots = append(m.Roots, l.rootEntry(rt, owned))
+	}
+	l.gits = l.gitSummaries(ctx, m.Roots)
+	got := map[string]string{}
+	for _, e := range l.entries(roots, m) {
+		got[strings.TrimPrefix(e.Path, m.Roots[0].Path)] = e.Name + " " + e.Kind
+	}
+	want := map[string]string{"": "project folder", "/main": "main folder", "/main/.ipfs-archive-config": ".ipfs-archive-config text",
+		"/main/docs": "docs folder", "/main/docs/a.md": "a.md text"}
+	if !maps.Equal(got, want) {
+		t.Fatalf("entries %q", got)
 	}
 }
