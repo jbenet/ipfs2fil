@@ -36,6 +36,8 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		repos    []repoInfo
 		accounts []accountInfo
 		atFiles  = map[int]json.RawMessage{} // at/<n>.js, n in accounts
+		gits     []gitInfo
+		gFiles   = map[int]json.RawMessage{} // g/<n>.js, n in gits
 		types    = map[string]tally{}
 		parts    = map[string]tally{}
 		seen     = map[string]bool{} // CIDs of files in earlier repos
@@ -196,6 +198,19 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 			}
 			accounts = append(accounts, ac)
 		}
+		for i, gi := range mt.Gits {
+			if gi.Path != "" {
+				gi.Path = top + "/" + gi.Path
+			}
+			b, err := os.ReadFile(filepath.Join(a.Dir, "explorer", "idx", "g", fmt.Sprintf("%d.js", i)))
+			if err != nil {
+				gi.Href = href(a) + fmt.Sprintf("browse.html?app=git&a=%d", i)
+			} else {
+				gFiles[len(gits)] = jsValue(b, fmt.Sprintf("g/%d", i))
+				gi.Href = fmt.Sprintf("browse.html?app=git&a=%d", len(gits))
+			}
+			gits = append(gits, gi)
+		}
 		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
 	}
 
@@ -224,7 +239,13 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
 		return nil, nil, err
 	}
-	mt.Types, mt.Parts, mt.Repos, mt.Accounts = types, parts, repos, accounts
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Gits = types, parts, repos, accounts, gits
+	for i, v := range gFiles {
+		k := fmt.Sprintf("g/%d", i)
+		if files[k+".js"], err = jsFile(k, v); err != nil {
+			return nil, nil, err
+		}
+	}
 	for i, v := range atFiles {
 		k := fmt.Sprintf("at/%d", i)
 		if files[k+".js"], err = jsFile(k, v); err != nil {

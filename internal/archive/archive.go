@@ -47,6 +47,7 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -408,6 +409,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 		return &inner
 	}
 	l.accts = l.accounts(ctx, m.Roots)
+	l.gits = l.gitSummaries(ctx, m.Roots)
 	entries := l.entries(roots, m)
 	// With a bundle, the index and meta pieces no copy holds yet go in it,
 	// as do the head blocks and a small last data piece, if all of that
@@ -892,7 +894,7 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 	if idx, err = l.indexDir(ctx, dag, outDir, inner, pieces); err != nil {
 		return nil, nil, err
 	}
-	exp, err = explorerDir(ctx, dag, outDir, inner, entries, l.accts)
+	exp, err = explorerDir(ctx, dag, outDir, inner, entries, explorer.Extras{Accounts: l.accts, Gits: l.gits})
 	return idx, exp, err
 }
 
@@ -931,6 +933,35 @@ func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto
 			} else if plcFor(b) == s.DID {
 				s.PLCLog = rt.CID
 			}
+		}
+	}
+	return out
+}
+
+// gitSummaries summarizes the roots that are git archive records (from
+// git-ipfs-archive, or a git repo read directly), for the Git viewer.
+func (l *layout) gitSummaries(ctx context.Context, roots []manifest.Root) []*gitarchive.Summary {
+	get := func(c cid.Cid) ([]byte, error) {
+		b, err := l.get(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		if ok, err := hashOK(c, b); err != nil || !ok {
+			return nil, fmt.Errorf("block %s does not match its hash", c)
+		}
+		return b, nil
+	}
+	var out []*gitarchive.Summary
+	for _, rt := range roots {
+		c, err := cid.Decode(rt.CID)
+		if err != nil || c.Type() != cid.DagCBOR || rt.Kind == manifest.KindOrphan {
+			continue
+		}
+		if !gitarchive.IsRecord(get, c) {
+			continue
+		}
+		if s, err := gitarchive.Summarize(get, c, rt.Name); err == nil {
+			out = append(out, s)
 		}
 	}
 	return out
@@ -1236,7 +1267,7 @@ func (l *layout) indexDir(ctx context.Context, dag memDAG, outDir string, inner 
 }
 
 // explorerDir has the explorer write its pages into outDir and adds them.
-func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, entries []explorer.Entry, accounts []*atproto.Summary) (format.Node, error) {
+func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Manifest, entries []explorer.Entry, x explorer.Extras) (format.Node, error) {
 	dir := filepath.Join(outDir, "explorer")
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, err
@@ -1244,7 +1275,7 @@ func explorerDir(ctx context.Context, dag memDAG, outDir string, m *manifest.Man
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := explorer.Write(dir, m, entries, accounts...); err != nil {
+	if err := explorer.WriteWith(dir, m, entries, x); err != nil {
 		return nil, fmt.Errorf("explorer: %w", err)
 	}
 	return importDir(ctx, dag, dir)

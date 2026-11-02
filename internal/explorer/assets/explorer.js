@@ -143,6 +143,7 @@
   };
   const kindOf = (k) => KIND[k] || KIND.other;
   // Bluesky's butterfly, small.
+  const GITIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#F05133" stroke-width="1.5" aria-hidden="true"><circle cx="4" cy="3.5" r="1.5"></circle><circle cx="4" cy="12.5" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><path d="M4 5v6M12 7.5c0 2.5-3 2.5-6.5 4"></path></svg>';
   const BSKY = '<svg width="16" height="16" viewBox="0 0 600 530" aria-hidden="true"><path fill="#1185FE" d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
   const KINDS = Object.keys(KIND);
   const icon = (k) => `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${kindOf(k)[1]}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${kindOf(k)[0]}"></path></svg>`;
@@ -709,7 +710,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // Accounts (Bluesky's): each one's posts open in the Bluesky App viewer,
     // here in the main pane, or in its own archive's explorer when this
     // combined one does not hold its summary.
-    const ACC = meta.accounts || [];
+    const ACC = meta.accounts || [], GITS = meta.gits || [];
     const inHere = (a) => !a.href || /^(posts|browse)\.html/.test(a.href);
     const accHref = (i, k) => inHere(ACC[i]) ? appHref(i, k) : ACC[i].href.replace(/#.*/, '') + (k ? '&t=' + encodeURIComponent(k) : '');
     const POSTDIR = '/app.bsky.feed.post/';
@@ -783,13 +784,20 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
       const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
 <div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
-${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
+${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ? `<a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}${GITS.length ? `<a href="${esc(gitHref(GITS, 0))}"${S.app === 'git' ? ' aria-current="page"' : ''}>${GITIC}Git</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
       const on = NAV && $('.lib a[aria-current="page"]');
       if (on) on.focus({ preventScroll: true });
     }
 
     // A viewer (the Bluesky App) takes the place of the file list.
+    if (S.app === 'git' && GITS[S.an]) {
+      lib();
+      const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
+      $('.fmain').replaceWith(ap);
+      Object.assign(pageKeys, { ArrowDown: () => NAV && navStep(1), ArrowUp: () => NAV && navStep(-1) });
+      return gitApp(ap, S.an);
+    }
     if (S.app === 'bsky' && ACC[S.an]) {
       lib();
       const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
@@ -2220,6 +2228,123 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
       D.addEventListener('keydown', key, true);
       D.body.appendChild(d);
     });
+  }
+
+  // ---- Git: a git archive among the roots (from git-ipfs-archive, or a git
+  // repo ipfs2fil read). History is stored as git packs; pack summarizes the
+  // refs and the commit log of every snapshot into idx/g/<n>.js.
+  const gitHref = (gits, n, extra) => { const g = gits[n]; return g && g.href && !/^browse\.html/.test(g.href) ? g.href : 'browse.html?' + qs({ app: 'git', a: n, ...(extra || {}) }); };
+  const GITS_LOADED = {};
+  async function gitApp(el, n) {
+    const meta = await load('meta');
+    const gits = meta.gits || [], gi = gits[n];
+    const g = GITS_LOADED[n] || (GITS_LOADED[n] = await load('g/' + n));
+    const P = new URLSearchParams(location.search);
+    const S = { tab: P.get('tab') || 'commits', c: P.get('c') || '', ref: P.get('ref') || '', q: P.get('q') || '', limit: 100 };
+    const href = (extra) => gitHref(gits, n, { tab: S.tab, ...extra });
+    const byId = new Map(g.commits.map((c) => [c[0], c]));
+    const short = (id) => esc((id || '').slice(0, 10));
+    const t = (s) => s ? new Date(s * 1000) : null;
+    const dt = (s) => s ? day(t(s)) : '';
+    const full = (s) => s ? t(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC' : '';
+    const refsAt = new Map();
+    g.refs.forEach((r) => { const at = r[2] || r[1]; if (!refsAt.has(at)) refsAt.set(at, []); refsAt.get(at).push(r[0]); });
+    const refName = (r) => r.replace(/^refs\/(heads|tags|remotes)\//, '');
+    const refTag = (r) => `<span class="pill git-ref${r.startsWith('refs/tags/') ? ' tag' : ''}" title="${esc(r)}">${esc(refName(r))}</span>`;
+    const commitLink = (id) => byId.has(id) ? `<a class="mono" href="${esc(href({ tab: 'commits', c: id }))}">${short(id)}</a>` : `<code class="faint" title="Not in this archive's log (a shallow clone stops here)">${short(id)}</code>`;
+    pageKeys.cid = () => g.root;
+    const chips = gits.length > 1 ? `<nav class="chips" aria-label="Git repos">${gits.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="${esc(gitHref(gits, i))}">${esc(x.name)}</a>`).join('')}</nav>` : '';
+    const heads = g.refs.filter((r) => r[0].startsWith('refs/heads/') || r[0].startsWith('refs/remotes/'));
+    const tags = g.refs.filter((r) => r[0].startsWith('refs/tags/'));
+    const tabs = [['commits', 'Commits', g.commits.length + (g.truncated || 0)], ['branches', 'Branches', heads.length], ['tags', 'Tags', tags.length], ['snapshots', 'Snapshots', g.snapshots.length]];
+    const packBytes = g.snapshots.reduce((a, s) => a + s.bytes, 0);
+    el.innerHTML = `${chips}
+<section class="card git-head">
+  <div class="titled"><h1>${GITIC} ${esc(g.name)}</h1><span class="faint">git repo, ${esc(g.objectFormat)} object ids</span></div>
+  <dl class="at-held">
+    <dt>HEAD</dt><dd>${g.head ? (g.head.startsWith('refs/') ? refTag(g.head) : commitLink(g.head) + ' <span class="faint">(detached)</span>') : '<span class="faint">none</span>'}</dd>
+    <dt>Holds</dt><dd>${plural(g.refs.length, 'ref')}, ${plural(g.commits.length + (g.truncated || 0), 'commit')}, in ${plural(g.snapshots.length, 'snapshot')} whose packs come to ${bytes(packBytes)}${g.missing ? ` <span class="warn">(${plural(g.missing, 'log block')} missing)</span>` : ''}</dd>
+    ${(g.remotes || []).length ? `<dt>Remotes</dt><dd>${g.remotes.map((r) => `<b>${esc(r[0])}</b> <code class="chipcode">${esc(r[1])}</code>`).join('<br>')}</dd>` : ''}
+    <dt>Restore</dt><dd><code class="chipcode">git-ipfs-archive restore &lt;CARs&gt; ${esc(g.name)}.git</code> <span class="faint">rebuilds the exact repo; record ${cidx(g.root, true)}</span></dd>
+  </dl>
+</section>
+<section class="card git-main">
+  <div class="at-tabs" role="tablist">${tabs.map((c) => `<a role="tab" class="git-tab" href="${esc(gitHref(gits, n, { tab: c[0] }))}" aria-selected="${c[0] === S.tab}">${c[1]} <span class="n">${num(c[2])}</span></a>`).join('')}</div>
+  <div class="git-body"></div>
+</section>`;
+    const body = el.querySelector('.git-body');
+
+    // Commits reachable from a ref, newest first.
+    function reach(id) {
+      const seen = new Set(), out = [], todo = [id];
+      while (todo.length && seen.size < 500000) {
+        const x = todo.pop();
+        if (seen.has(x)) continue;
+        seen.add(x);
+        const c = byId.get(x);
+        if (!c) continue;
+        out.push(c);
+        c[1].forEach((p) => todo.push(p));
+      }
+      return out.sort((a, b) => b[6] - a[6]);
+    }
+    const row = (c) => `<tr><td class="mono">${commitLink(c[0])}</td><td>${(refsAt.get(c[0]) || []).map(refTag).join(' ')} ${esc(c[7])}${c[8] ? ' <span class="faint" title="Signed">✓</span>' : ''}</td><td class="faint">${esc(c[3])}</td><td class="faint nowrap" title="${esc(full(c[6]))}">${esc(dt(c[6]))}</td></tr>`;
+
+    function commitPage(c) {
+      const kids = g.commits.filter((x) => x[1].includes(c[0]));
+      body.innerHTML = `<div class="titled"><a href="${esc(href({ c: '' }))}">‹ All commits</a></div>
+<h2 class="git-subject">${esc(c[7]) || '<span class="faint">(no subject)</span>'}</h2>
+<dl class="at-held">
+  <dt>Commit</dt><dd><code class="chipcode">${esc(c[0])}</code> ${(refsAt.get(c[0]) || []).map(refTag).join(' ')}</dd>
+  <dt>Author</dt><dd>${esc(c[3])} <span class="faint">&lt;${esc(c[4])}&gt;</span>, ${esc(full(c[5]))}</dd>
+  ${c[6] !== c[5] ? `<dt>Committed</dt><dd>${esc(full(c[6]))}</dd>` : ''}
+  <dt>Parents</dt><dd>${c[1].length ? c[1].map(commitLink).join(' ') : '<span class="faint">none (a root commit)</span>'}</dd>
+  ${kids.length ? `<dt>Children</dt><dd>${kids.map((x) => commitLink(x[0])).join(' ')}</dd>` : ''}
+  <dt>Tree</dt><dd><code class="chipcode">${esc(c[2])}</code> <span class="faint">its files are in the packs; restore the repo to check them out</span></dd>
+  ${c[8] ? '<dt>Signed</dt><dd>Yes; the signature is in the commit object, checked by git after restore</dd>' : ''}
+</dl>`;
+      status('commit ' + c[0].slice(0, 10));
+    }
+
+    function commits() {
+      const base = S.ref ? reach((g.refs.find((r) => r[0] === S.ref) || [])[2] || (g.refs.find((r) => r[0] === S.ref) || [])[1]) : g.commits;
+      body.innerHTML = `${S.ref ? `<p>${refTag(S.ref)} <span class="faint">and its history</span> · <a href="${esc(href({ ref: '' }))}">every commit</a></p>` : ''}
+<div class="filter"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" data-q placeholder="Filter by subject, author or id" aria-label="Filter commits" autocomplete="off" spellcheck="false" value="${esc(S.q)}"><kbd>f</kbd></div>
+<table class="git-log commits"><tbody></tbody></table>${g.truncated ? `<p class="faint">${plural(g.truncated, 'older commit')} not listed here; the archive's log holds them.</p>` : ''}`;
+      const tb = body.querySelector('tbody'), q = body.querySelector('[data-q]');
+      const shown = () => { const s = S.q.toLowerCase(); return !s ? base : base.filter((c) => c[0].startsWith(s) || c[7].toLowerCase().includes(s) || c[3].toLowerCase().includes(s) || c[4].toLowerCase().includes(s)); };
+      const render = () => {
+        const list = shown();
+        tb.innerHTML = list.slice(0, S.limit).map(row).join('') + (list.length > S.limit ? `<tr><td colspan="4"><button type="button" class="btn sm" data-more>Show ${num(Math.min(500, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></td></tr>` : '') + (!list.length ? '<tr><td colspan="4" class="faint">No commits match.</td></tr>' : '');
+        status(plural(list.length, 'commit'));
+      };
+      q.oninput = () => { S.q = q.value; S.limit = 100; const u = new URL(location.href); if (S.q) u.searchParams.set('q', S.q); else u.searchParams.delete('q'); history.replaceState(null, '', u.href); render(); };
+      body.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 500; render(); } });
+      pageKeys.f = () => { q.focus(); return true; };
+      render();
+    }
+
+    function refs(list, what) {
+      const at = (r) => { const c = byId.get(r[2] || r[1]); return c ? c[6] : 0; };
+      list = list.slice().sort((a, b) => (b[0] === g.head) - (a[0] === g.head) || at(b) - at(a));
+      body.innerHTML = list.length ? `<table class="git-log refs"><tbody>${list.map((r) => {
+        const id = r[2] || r[1], c = byId.get(id);
+        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
+      }).join('')}</tbody></table>` : `<p class="faint">No ${what}.</p>`;
+      status(plural(list.length, what.replace(/s$/, '')));
+    }
+
+    function snapshots() {
+      body.innerHTML = `<p class="faint">Each run stores a snapshot: the first holds every object in one pack, each later one a thin pack of only what was new, deltified against what is already stored. Newest first.</p>
+<table class="git-log snaps"><tbody>${g.snapshots.map((s, i) => `<tr><td>#${g.snapshots.length - i}</td><td>${cidx(s.root, true)}</td><td>${plural(s.commits, 'new commit')}</td><td>${plural(s.objects, 'object')}, ${bytes(s.bytes)}</td><td>${(s.packs || []).map((p) => `pack ${cidx(p[0], true)} idx ${cidx(p[1], true)}`).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
+      status(plural(g.snapshots.length, 'snapshot'));
+    }
+
+    if (S.c && byId.has(S.c)) return commitPage(byId.get(S.c));
+    if (S.tab === 'branches') return refs(heads, 'branches');
+    if (S.tab === 'tags') return refs(tags, 'tags');
+    if (S.tab === 'snapshots') return snapshots();
+    return commits();
   }
 
   // ---- Search: now part of Files, which searches under any folder.

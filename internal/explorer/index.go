@@ -91,6 +91,9 @@ type meta struct {
 	// Accounts lists the Bluesky (atproto) accounts among the roots, whose
 	// posts and records are in at/<n>.js.
 	Accounts []accountInfo `json:"accounts,omitempty"`
+	// Gits lists the git archives among the roots, whose refs and commit
+	// log are in g/<n>.js.
+	Gits []gitInfo `json:"gits,omitempty"`
 	// SubRepos lists the repos inside the content (see subRepos).
 	SubRepos []string `json:"subRepos,omitempty"`
 }
@@ -113,6 +116,21 @@ type accountInfo struct {
 	Path string `json:"path,omitempty"`
 	// Href is the account's Posts page in its archive's own explorer, set in
 	// a combined index.
+	Href string `json:"href,omitempty"`
+}
+
+// gitInfo is a git archive among the roots.
+type gitInfo struct {
+	Name      string `json:"name"`
+	Root      string `json:"root"`
+	Head      string `json:"head,omitempty"`
+	Format    string `json:"format"`
+	Refs      int    `json:"refs"`
+	Commits   int    `json:"commits"`
+	Snapshots int    `json:"snapshots"`
+	Bytes     int64  `json:"bytes"` // packs, every snapshot
+	Path      string `json:"path,omitempty"`
+	// Href is the Git viewer in the archive's own explorer, in a combined index.
 	Href string `json:"href,omitempty"`
 }
 
@@ -156,6 +174,11 @@ func endsShard(p string, n int) bool {
 
 // buildIndex returns the index files, keyed by path under idx/.
 func buildIndex(m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summary) (map[string][]byte, error) {
+	return buildIndexWith(m, entries, Extras{Accounts: accounts})
+}
+
+func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string][]byte, error) {
+	accounts := x.Accounts
 	byPath := map[string]*Entry{}
 	for i := range entries {
 		e := entries[i]
@@ -335,6 +358,22 @@ func buildIndex(m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summ
 		}
 		mt.Accounts = append(mt.Accounts, ai)
 		if err := put(fmt.Sprintf("at/%d.js", i), fmt.Sprintf("at/%d", i), a); err != nil {
+			return nil, err
+		}
+	}
+	for i, g := range x.Gits {
+		gi := gitInfo{Name: g.Name, Root: g.Root, Head: g.Head, Format: g.ObjectFormat, Refs: len(g.Refs), Commits: len(g.Commits) + g.Truncated, Snapshots: len(g.Snapshots)}
+		for _, s := range g.Snapshots {
+			gi.Bytes += s.Bytes
+		}
+		for _, r := range m.Roots {
+			if r.CID == g.Root {
+				gi.Path = r.Path
+				break
+			}
+		}
+		mt.Gits = append(mt.Gits, gi)
+		if err := put(fmt.Sprintf("g/%d.js", i), fmt.Sprintf("g/%d", i), g); err != nil {
 			return nil, err
 		}
 	}
