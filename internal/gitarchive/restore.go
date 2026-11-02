@@ -23,6 +23,10 @@ type RestoreOptions struct {
 	// under its parent, where git keeps a checked-out submodule's repo.
 	Recurse bool
 	Log     func(format string, args ...any)
+	// At restores an earlier snapshot of the archive at root instead: by
+	// its own blocks when they are there, else from the compacted
+	// snapshot whose history lists it.
+	At cid.Cid
 
 	depth int
 	subs  *int // submodule repos restored so far, across the whole tree
@@ -34,8 +38,12 @@ type RestoreResult struct {
 	Packs     int
 	Refs      int
 	Skipped   []string // remotes and submodules not restored, and why
-	Restored  []string // submodule repos restored, by path under dest
-	LFS       int      // Git LFS objects restored
+	// FromHistory means the snapshot restored was one a compacted snapshot
+	// replaced: its refs are exact, and the repo may hold objects that
+	// later snapshots added too.
+	FromHistory bool
+	Restored    []string // submodule repos restored, by path under dest
+	LFS         int      // Git LFS objects restored
 }
 
 // Restore rebuilds the repo of the snapshot at root as a bare repo in dest,
@@ -47,11 +55,10 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 	if logf == nil {
 		logf = func(string, ...any) {}
 	}
-	chain, err := Chain(get, root)
+	chain, last, fromHist, err := restorePlan(get, root, o.At)
 	if err != nil {
 		return nil, err
 	}
-	last := chain[len(chain)-1].Record
 	f, _ := ParseFormat(last.ObjectFormat)
 	if err := emptyDir(dest); err != nil {
 		return nil, err
@@ -62,7 +69,7 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 	}
 	abs, _ := filepath.Abs(dest)
 	g := &Git{Bin: o.Git, Dir: abs, Format: f}
-	res := &RestoreResult{Snapshots: len(chain)}
+	res := &RestoreResult{Snapshots: len(chain), FromHistory: fromHist}
 	indexed := map[string]bool{} // a pack named twice is indexed once
 	for _, s := range chain {
 		for _, p := range s.Record.Packs {
@@ -158,6 +165,48 @@ func Restore(ctx context.Context, get BlockGetter, root cid.Cid, dest string, o 
 		}
 	}
 	return res, nil
+}
+
+// restorePlan picks the snapshots whose packs to index and the record whose
+// refs to write. With at, that is the part of root's chain up to at; else,
+// when root is a compacted snapshot's descendant whose history names at,
+// the compacted snapshot and a record made from that history entry; else
+// at's own chain, if its blocks are there. History comes before at's own
+// blocks: after compaction, an earlier snapshot's records may outlive its
+// packs.
+func restorePlan(get BlockGetter, root, at cid.Cid) ([]Snapshot, *Record, bool, error) {
+	chain, err := Chain(get, root)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	if !at.Defined() || at.Equals(root) {
+		return chain, chain[len(chain)-1].Record, false, nil
+	}
+	for i, s := range chain {
+		if s.Root.Equals(at) {
+			return chain[:i+1], s.Record, false, nil
+		}
+	}
+	base := chain[0]
+	hist, herr := History(get, base.Record)
+	for _, e := range hist {
+		if e.Root != at.String() {
+			continue
+		}
+		r := &Record{Kind: Kind, Version: RecordVersion, ObjectFormat: base.Record.ObjectFormat,
+			Head: e.Head, Refs: e.Refs, Shallow: e.Shallow, Remotes: e.Remotes, Submodules: e.Submodules}
+		if err := r.check(); err != nil {
+			return nil, nil, false, fmt.Errorf("history entry %s: %w", e.Root, err)
+		}
+		return chain[:1], r, true, nil
+	}
+	if own, err := Chain(get, at); err == nil {
+		return own, own[len(own)-1].Record, false, nil
+	}
+	if herr != nil {
+		return nil, nil, false, fmt.Errorf("reading the compacted history: %w", herr)
+	}
+	return nil, nil, false, fmt.Errorf("snapshot %s is not in the archive at %s, nor in its compacted history", at, root)
 }
 
 // indexPack streams one stored pack into git index-pack.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,5 +89,64 @@ func TestArchiveSinceRestoreVerifyShow(t *testing.T) {
 	os.WriteFile(filepath.Join(bad, "1.car"), whole[:len(whole)-10], 0o644)
 	if out, err := cli(t, "verify", bad); err == nil {
 		t.Fatalf("truncated CAR verified: %s", out)
+	}
+}
+
+func TestCompactedCARStandsAlone(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	repo, cars := t.TempDir(), t.TempDir()
+	git(t, repo, "init", "-q", "-b", "main")
+	var roots []string
+	for i, f := range []string{"a", "b", "c"} {
+		os.WriteFile(filepath.Join(repo, f), []byte(f+"\n"), 0o644)
+		git(t, repo, "add", f)
+		git(t, repo, "commit", "-q", "-m", f)
+		args := []string{repo, "-o", filepath.Join(cars, f+".car"), "--compact", "never"}
+		if i > 0 {
+			args = append(args, "--since", cars)
+		}
+		out, err := cli(t, args...)
+		if err != nil {
+			t.Fatal(out, err)
+		}
+		roots = append(roots, strings.Fields(out)[0])
+	}
+	git(t, repo, "branch", "old")
+	alone := t.TempDir()
+	out, err := cli(t, repo, "--since", cars, "--compact", "now", "-o", filepath.Join(alone, "d.car"))
+	if err != nil || !strings.Contains(out, "compacted") || !strings.Contains(out, "restores all 3 earlier snapshots") {
+		t.Fatal(out, err)
+	}
+	// The compacted CAR alone restores the newest state and each earlier one.
+	if out, err := cli(t, "verify", alone); err != nil || !strings.Contains(out, "1 snapshots, 1 packs, 2 refs") {
+		t.Fatal(out, err)
+	}
+	for i, r := range roots {
+		dest := filepath.Join(t.TempDir(), "r.git")
+		out, err := cli(t, "restore", "--at", r, alone, dest)
+		if err != nil || !strings.Contains(out, "from the compacted snapshot's history") {
+			t.Fatal(out, err)
+		}
+		if got := git(t, dest, "rev-list", "--count", "main"); got != fmt.Sprint(i+1) {
+			t.Fatalf("snapshot %d: main has %s commits", i, got)
+		}
+		if out, err := cli(t, "verify", "--at", r, alone); err != nil || !strings.HasPrefix(out, "ok "+r) {
+			t.Fatal(out, err)
+		}
+	}
+	// Beside the earlier CARs, the compacted one is the newest.
+	os.Rename(filepath.Join(alone, "d.car"), filepath.Join(cars, "d.car"))
+	if out, err := cli(t, "verify", cars); err != nil || !strings.Contains(out, "1 snapshots") {
+		t.Fatal(out, err)
+	}
+	out, err = cli(t, "show", cars)
+	var snaps []struct {
+		Root      string
+		Compacted *struct{ Refs []any }
+	}
+	if err != nil || json.Unmarshal([]byte(out), &snaps) != nil || len(snaps) != 4 || snaps[0].Root != roots[0] || snaps[0].Compacted == nil {
+		t.Fatalf("show: %v\n%s", err, out)
 	}
 }

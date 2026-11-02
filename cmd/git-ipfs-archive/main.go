@@ -1,7 +1,9 @@
 // Command git-ipfs-archive turns a git repo into CAR files of IPFS blocks and
 // back: history as git packs, a commit log, and a DAG-CBOR record naming
 // refs. Each later run with --since writes a delta CAR with one thin pack of
-// what is new. A folder of these CARs restores to the exact repo.
+// what is new. A folder of these CARs restores to the exact repo. After many
+// deltas, --since writes a compacted CAR instead: one full pack that stands
+// alone, from which every earlier snapshot still restores (restore --at).
 //
 // git runs it as `git ipfs-archive` too.
 package main
@@ -132,6 +134,7 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	fs.Var(&lfsFetch, "lfs-fetch", "run git lfs fetch --all first, to store LFS objects only the server has (default: the repo's "+gitarchive.ConfigFile+", else store the local ones)")
 	var subs optBool
 	fs.Var(&subs, "submodules", "also archive every submodule's repo, recursively, from the repo's modules/ or a clone of its https URL (default: the repo's "+gitarchive.ConfigFile+", else only list them)")
+	compact := fs.String("compact", "auto", "with --since: write a compacted CAR that stands alone instead of a delta: auto (after "+strconv.Itoa(gitarchive.DefaultCompactAfter)+" thin packs, or when they add up to half the full pack), now, or never")
 	set := kvFlag{}
 	fs.Var(set, "set", "key=value instruction recorded for whatever stores the archive (repeatable), e.g. ipfs2fil.copies=3")
 	fs.Usage = func() {
@@ -146,7 +149,11 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fs.Usage()
 		return flag.ErrHelp
 	}
-	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig, Submodules: subs.v, LFSFetch: lfsFetch.v}
+	mode, err := gitarchive.ParseCompact(*compact)
+	if err != nil {
+		return err
+	}
+	o := gitarchive.Options{Git: *gitBin, Tool: "git-ipfs-archive " + versionString(), Tips: *tips, NoConfig: *noConfig, Submodules: subs.v, LFSFetch: lfsFetch.v, Compact: mode}
 	if len(set) > 0 {
 		o.Instructions = set
 	}
@@ -176,7 +183,10 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		return nil
 	}
 	kind := "full"
-	if o.Prev != nil {
+	switch {
+	case res.Compacted != "":
+		kind = "compacted"
+	case o.Prev != nil:
 		kind = "delta"
 	}
 	fmt.Fprintf(stdout, "%s\n", res.Root)
@@ -187,6 +197,10 @@ func cmdArchive(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	}
 	for _, t := range res.Record.Tips {
 		fmt.Fprintf(stderr, "files of %s: %s\n", t.Ref, t.Root)
+	}
+	if res.Compacted != "" {
+		fmt.Fprintf(stderr, "compacted (%s): %s stands alone and restores all %d earlier snapshots (restore --at <root>); the earlier CARs are no longer needed\n",
+			res.Compacted, *out, len(res.Record.History))
 	}
 	return nil
 }
@@ -211,6 +225,7 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	strict := fs.Bool("strict", false, "run git fsck --strict")
 	remotes := fs.Bool("remotes", false, "configure the recorded remotes")
 	recurse := fs.Bool("recurse", false, "also restore archived submodules, each in <dest>/modules/<name>")
+	at := fs.String("at", "", "restore this earlier snapshot of the archive, even one a compacted snapshot replaced")
 	gitBin := fs.String("git", "", "git binary to run")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: git-ipfs-archive restore [flags] <car or dir> <dest>")
@@ -224,14 +239,24 @@ func cmdRestore(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		fs.Usage()
 		return flag.ErrHelp
 	}
+	atc, err := optCID(*at)
+	if err != nil {
+		return err
+	}
 	bs, c, err := load(pos[0], *root)
 	if err != nil {
 		return err
 	}
 	defer bs.Close()
-	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse})
+	res, err := gitarchive.Restore(ctx, bs.Get, c, pos[1], gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Remotes: *remotes, Recurse: *recurse, At: atc})
 	if err != nil {
 		return err
+	}
+	if atc.Defined() {
+		c = atc
+	}
+	if res.FromHistory {
+		fmt.Fprintln(stderr, "restored from the compacted snapshot's history: refs are exact; the repo may also hold objects later snapshots added")
 	}
 	for _, s := range res.Skipped {
 		fmt.Fprintln(stderr, "skipped", s)
@@ -247,6 +272,7 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	root := fs.String("root", "", "snapshot to verify (default: the newest)")
+	at := fs.String("at", "", "verify this earlier snapshot of the archive, even one a compacted snapshot replaced")
 	strict := fs.Bool("strict", false, "run git fsck --strict")
 	gitBin := fs.String("git", "", "git binary to run")
 	fs.Usage = func() {
@@ -261,6 +287,10 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		fs.Usage()
 		return flag.ErrHelp
 	}
+	atc, err := optCID(*at)
+	if err != nil {
+		return err
+	}
 	bs, c, err := load(pos[0], *root)
 	if err != nil {
 		return err
@@ -271,9 +301,12 @@ func cmdVerify(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	res, err := gitarchive.Restore(ctx, bs.Get, c, filepath.Join(tmp, "repo.git"), gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Recurse: true})
+	res, err := gitarchive.Restore(ctx, bs.Get, c, filepath.Join(tmp, "repo.git"), gitarchive.RestoreOptions{Git: *gitBin, Strict: *strict, Recurse: true, At: atc})
 	if err != nil {
 		return fmt.Errorf("verify failed: %w", err)
+	}
+	if atc.Defined() {
+		c = atc
 	}
 	fmt.Fprintf(stdout, "ok %s: %d snapshots, %d packs, %d refs restore and pass git fsck", c, res.Snapshots, res.Packs, res.Refs)
 	if n := len(res.Restored); n > 0 {
@@ -312,16 +345,31 @@ func cmdShow(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	type snap struct {
-		Root   string             `json:"root"`
-		Record *gitarchive.Record `json:"record"`
+		Root    string                   `json:"root"`
+		Record  *gitarchive.Record       `json:"record,omitempty"`
+		History *gitarchive.HistoryEntry `json:"compacted,omitempty"` // a snapshot a compacted one replaced
 	}
 	var out []snap
+	hist, err := gitarchive.History(bs.Get, chain[0].Record)
+	if err != nil {
+		return err
+	}
+	for i := range hist {
+		out = append(out, snap{Root: hist[i].Root, History: &hist[i]})
+	}
 	for _, s := range chain {
-		out = append(out, snap{s.Root.String(), s.Record})
+		out = append(out, snap{Root: s.Root.String(), Record: s.Record})
 	}
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(out)
+}
+
+func optCID(s string) (cid.Cid, error) {
+	if s == "" {
+		return cid.Undef, nil
+	}
+	return cid.Decode(s)
 }
 
 func size(n int64) string {

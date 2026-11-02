@@ -50,10 +50,19 @@ func (l *Link) UnmarshalCBOR(b []byte) error {
 // Record is the root of a git archive snapshot. A full archive has no Prev;
 // a delta's Prev is the snapshot it builds on, and its packs hold only
 // objects that snapshot's refs did not reach.
+//
+// A compacted snapshot (Base) is a full archive made after many deltas: no
+// Prev, one full pack holding every object its own refs and every earlier
+// snapshot's refs reach, the whole commit log and LFS list, and History,
+// the earlier snapshots' refs. So restore starts from it, any earlier
+// snapshot's state restores from it alone, and the earlier snapshots'
+// blocks can be dropped.
 type Record struct {
 	Kind         string            `cbor:"kind"`
 	Version      int               `cbor:"version"`
 	Prev         *Link             `cbor:"prev,omitempty"`
+	Base         bool              `cbor:"base,omitempty"`
+	History      []Link            `cbor:"history,omitempty"` // HistoryEntry blocks, oldest first
 	ObjectFormat string            `cbor:"objectFormat"`
 	Head         string            `cbor:"head,omitempty"`
 	Refs         []Ref             `cbor:"refs"`
@@ -75,6 +84,19 @@ type Record struct {
 	LFS        []Link `cbor:"lfs,omitempty"`
 	LFSObjects int    `cbor:"lfsObjects,omitempty"`
 	Tool       string `cbor:"tool,omitempty"`
+}
+
+// HistoryEntry is an earlier snapshot's state, kept by a compacted
+// snapshot: its record's CID as text (not a link, so nothing keeps the
+// earlier blocks alive) and the refs that restore it.
+type HistoryEntry struct {
+	Root       string      `cbor:"root"`
+	Head       string      `cbor:"head,omitempty"`
+	Refs       []Ref       `cbor:"refs"`
+	Shallow    []string    `cbor:"shallow,omitempty"`
+	Remotes    []Remote    `cbor:"remotes,omitempty"`
+	Submodules []Submodule `cbor:"submodules,omitempty"` // without their records
+	Commits    int         `cbor:"commits,omitempty"`
 }
 
 // Pack is one stored pack: the pack bytes and its .idx, each a UnixFS file.
@@ -179,6 +201,20 @@ func (r *Record) check() error {
 	for _, l := range r.LFS {
 		if l.Type() != cid.DagCBOR {
 			return errors.New("record's LFS list is not DAG-CBOR")
+		}
+	}
+	if r.Base && r.Prev != nil {
+		return errors.New("a compacted snapshot has no previous snapshot")
+	}
+	if len(r.History) > 0 && !r.Base {
+		return errors.New("only a compacted snapshot has a history")
+	}
+	if len(r.History) > maxChain {
+		return fmt.Errorf("record's history is longer than %d", maxChain)
+	}
+	for _, l := range r.History {
+		if l.Type() != cid.DagCBOR {
+			return errors.New("record's history is not DAG-CBOR")
 		}
 	}
 	for _, s := range r.Submodules {

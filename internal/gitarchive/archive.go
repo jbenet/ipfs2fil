@@ -61,8 +61,20 @@ type Options struct {
 	LFSFetch *bool
 
 	// Get reads earlier snapshots' blocks, so submodules build on their
-	// last archive. Without it they are archived in full.
+	// last archive. Without it they are archived in full, and there is no
+	// compaction.
 	Get BlockGetter
+
+	// Compact says when to write a compacted snapshot instead of a delta:
+	// CompactAuto (when empty), CompactNow or CompactNever. A compacted
+	// snapshot stands alone; see Record.
+	Compact string
+	// CompactAfter is how many thin packs CompactAuto allows;
+	// DefaultCompactAfter when zero.
+	CompactAfter int
+
+	planned bool         // plan below is this repo's decision
+	plan    *compactPlan // nil: no compaction
 }
 
 // Result is what Archive made.
@@ -73,13 +85,33 @@ type Result struct {
 	Objects   int      // objects in the new pack
 	PackBytes int64    // its size
 	Notes     []string // settings ignored, refs skipped: worth telling the user
+	// Compacted says why the snapshot is a compacted one, which stands
+	// alone: restore needs nothing before it. Empty for a delta.
+	Compacted string
 }
 
 // Archive reads the git repo at path and sends a snapshot's blocks to put:
 // one pack (thin when building on opts.Prev), its .idx, the commit log, and
 // the record, which is put last and is the root.
+//
+// After many deltas (see Options.Compact) it writes a compacted snapshot
+// instead, whose blocks are all put again, even ones Have knows, so it
+// stands alone.
 func Archive(ctx context.Context, path string, o Options, put BlockSink) (*Result, error) {
-	return archiveRepo(ctx, path, o, dedup(put, o.Have), 0, map[string]bool{})
+	plan, note, err := planCompaction(o)
+	if err != nil {
+		return nil, err
+	}
+	o.plan, o.planned = plan, true
+	have := o.Have
+	if plan != nil {
+		have = nil
+	}
+	res, err := archiveRepo(ctx, path, o, dedup(put, have), 0, map[string]bool{})
+	if res != nil && note != "" {
+		res.Notes = append(res.Notes, note)
+	}
+	return res, err
 }
 
 // archiveRepo is Archive for a repo depth submodules down; seen holds the repos
@@ -97,6 +129,13 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 			return nil, fmt.Errorf("previous snapshot is a %s repo, %s is %s", o.Prev.ObjectFormat, path, g.Format.Name)
 		}
 	}
+	plan, planNote := o.plan, ""
+	if !o.planned {
+		if plan, planNote, err = planCompaction(o); err != nil {
+			return nil, err
+		}
+	}
+	o.plan, o.planned = nil, false // submodules decide for themselves
 	cfg := &Config{}
 	if !o.NoConfig {
 		if cfg, err = g.ReadConfig(ctx); err != nil {
@@ -104,6 +143,9 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 		}
 	}
 	set, notes := resolve(o, cfg)
+	if planNote != "" {
+		notes = append(notes, planNote)
+	}
 	rec := &Record{Kind: Kind, Version: RecordVersion, ObjectFormat: g.Format.Name, Tool: o.Tool,
 		Instructions: mergeInstructions(o, cfg), Settings: set.record()}
 	if len(rec.Instructions) == 0 {
@@ -128,10 +170,20 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 	if rec.Submodules, err = g.submodules(ctx); err != nil {
 		return nil, err
 	}
+	if plan != nil && !plan.now && sameRefs(o.Prev, rec) {
+		// Auto compaction waits for a change: an unchanged repo, and its
+		// submodules, stay as they are.
+		plan = nil
+	}
 	if set.submodules {
 		so := o
 		so.Submodules = &set.submodules
 		so.UntrustedConfig = o.UntrustedConfig
+		if plan != nil {
+			// A compacted snapshot stands alone, so its submodules'
+			// archives must too.
+			so.Compact = CompactNow
+		}
 		snotes, err := archiveSubmodules(ctx, g, rec.Submodules, so, put, depth, seen)
 		if err != nil {
 			return nil, err
@@ -152,8 +204,12 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 		return nil, err
 	}
 	notes = append(notes, lnotes...)
-	if o.Prev != nil && len(lfsNew) == 0 && sameState(o.Prev, rec) {
+	if o.Prev != nil && len(lfsNew) == 0 && sameState(o.Prev, rec) && (plan == nil || !plan.now) {
 		return &Result{Root: o.PrevRoot, Record: o.Prev, Unchanged: true, Notes: notes}, nil
+	}
+	res := &Result{Record: rec}
+	if plan != nil {
+		return compactRepo(ctx, g, o, plan, set, rec, res, notes, local, lfsNew, put)
 	}
 	if o.Prev != nil {
 		rec.Prev = &Link{o.PrevRoot}
@@ -168,29 +224,94 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 			return nil, err
 		}
 	}
-	res := &Result{Record: rec}
 	folders, tnotes, err := writeTips(ctx, g, set.tips, rec, o.Prev, put)
 	if err != nil {
 		return nil, err
 	}
 	rec.Tips, res.Notes = folders, append(notes, tnotes...)
-	if rec.LFS, rec.LFSObjects, err = writeLFS(ctx, local, lfsNew, put); err != nil {
+	if rec.LFS, rec.LFSObjects, err = writeLFS(ctx, local, lfsNew, nil, put); err != nil {
 		return nil, err
 	}
-	if len(tips) > 0 {
-		pk, commits, err := writePack(ctx, g, tips, exclude, o.Prev != nil, o.TempDir, put)
-		if err != nil {
-			return nil, err
-		}
-		if pk != nil {
-			rec.Packs = append(rec.Packs, *pk)
-			res.Objects, res.PackBytes = pk.Objects, pk.Size
-		}
-		if rec.Log, err = writeLog(commits, o.LogChunk, put); err != nil {
-			return nil, err
-		}
-		rec.Commits = len(commits)
+	if err := packAndLog(ctx, g, tips, exclude, o.Prev != nil, o, rec, res, put); err != nil {
+		return nil, err
 	}
+	return finish(rec, res, put)
+}
+
+// compactRepo writes a compacted snapshot: one full pack of everything the
+// current refs and every earlier snapshot's refs reach, the whole log and
+// LFS list, tip folders built again, and the history of earlier states.
+func compactRepo(ctx context.Context, g *Git, o Options, plan *compactPlan, set settings, rec *Record, res *Result,
+	notes []string, local map[string]string, lfsNew []string, put BlockSink) (*Result, error) {
+	var hist []HistoryEntry
+	var err error
+	rec.Base = true
+	if rec.History, hist, err = plan.history(o.Get, put); err != nil {
+		return nil, err
+	}
+	tips := compactTips(rec, hist)
+	have, err := g.Present(ctx, tips)
+	if err != nil {
+		return nil, err
+	}
+	if len(have) < len(tips) {
+		// Some earlier snapshot names objects the repo lost: read them from
+		// the archive's own packs.
+		undo, err := plan.borrow(ctx, g, o.Get, o.TempDir)
+		if err != nil {
+			return nil, fmt.Errorf("compacting: %w", err)
+		}
+		defer undo()
+		if have, err = g.Present(ctx, tips); err != nil {
+			return nil, err
+		}
+		if len(have) < len(tips) {
+			return nil, fmt.Errorf("compacting: %d objects earlier snapshots name are in neither the repo nor the archive", len(tips)-len(have))
+		}
+		notes = append(notes, "compacting: read objects the repo no longer has from the earlier snapshots' packs")
+	}
+	folders, tnotes, err := writeTips(ctx, g, set.tips, rec, nil, put)
+	if err != nil {
+		return nil, err
+	}
+	rec.Tips, res.Notes = folders, append(notes, tnotes...)
+	carried, err := plan.carriedLFS(o.Get, put)
+	if err != nil {
+		return nil, err
+	}
+	if rec.LFS, rec.LFSObjects, err = writeLFS(ctx, local, lfsNew, carried, put); err != nil {
+		return nil, err
+	}
+	if err := packAndLog(ctx, g, tips, nil, false, o, rec, res, put); err != nil {
+		return nil, err
+	}
+	res.Compacted = plan.why
+	return finish(rec, res, put)
+}
+
+// packAndLog writes the pack of tips minus exclude and the log of its
+// commits.
+func packAndLog(ctx context.Context, g *Git, tips, exclude []string, thin bool, o Options, rec *Record, res *Result, put BlockSink) error {
+	if len(tips) == 0 {
+		return nil
+	}
+	pk, commits, err := writePack(ctx, g, tips, exclude, thin, o.TempDir, put)
+	if err != nil {
+		return err
+	}
+	if pk != nil {
+		rec.Packs = append(rec.Packs, *pk)
+		res.Objects, res.PackBytes = pk.Objects, pk.Size
+	}
+	if rec.Log, err = writeLog(commits, o.LogChunk, put); err != nil {
+		return err
+	}
+	rec.Commits = len(commits)
+	return nil
+}
+
+// finish checks and puts the record, last.
+func finish(rec *Record, res *Result, put BlockSink) (*Result, error) {
 	if err := rec.check(); err != nil {
 		return nil, err
 	}
@@ -213,6 +334,16 @@ func refTips(refs []Ref) []string {
 	}
 	sort.Strings(ids)
 	return slices.Compact(ids)
+}
+
+// sameRefs is sameState before submodules are archived: their records
+// are not known yet, only the commits the repo pins.
+func sameRefs(a, b *Record) bool {
+	return a.Head == b.Head && slices.Equal(a.Shallow, b.Shallow) && slices.Equal(a.Refs, b.Refs) && slices.Equal(a.Remotes, b.Remotes) &&
+		maps.Equal(a.Instructions, b.Instructions) && maps.Equal(a.Settings, b.Settings) &&
+		slices.EqualFunc(a.Submodules, b.Submodules, func(x, y Submodule) bool {
+			return x.Name == y.Name && x.Path == y.Path && x.URL == y.URL && x.Commit == y.Commit
+		})
 }
 
 func sameState(a, b *Record) bool {

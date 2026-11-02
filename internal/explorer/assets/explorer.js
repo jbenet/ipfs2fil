@@ -2340,7 +2340,7 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
 
     function snapshots() {
       body.innerHTML = `<p class="faint">Each run stores a snapshot: the first holds every object in one pack, each later one a thin pack of only what was new, deltified against what is already stored. Newest first.</p>
-<table class="git-log snaps"><tbody>${g.snapshots.map((s, i) => `<tr><td>#${g.snapshots.length - i}</td><td>${cidx(s.root, true)}</td><td>${plural(s.commits, 'new commit')}</td><td>${plural(s.objects, 'object')}, ${bytes(s.bytes)}${s.lfs ? `<br>${plural(s.lfs, 'LFS object')}` : ''}</td><td>${(s.packs || []).map((p) => `pack ${cidx(p[0], true)} idx ${cidx(p[1], true)}`).join('<br>')}</td></tr>`).join('')}</tbody></table>`;
+<table class="git-log snaps"><tbody>${g.snapshots.map((s, i) => `<tr><td>#${g.snapshots.length - i}</td><td>${cidx(s.root, true)}</td><td>${plural(s.commits, s.base ? 'commit' : 'new commit')}</td>${s.compacted ? `<td colspan="2" class="muted">compacted: restores from the full pack of a later snapshot</td>` : `<td>${plural(s.objects, 'object')}, ${bytes(s.bytes)}${s.base ? ' (compacted, full)' : ''}${s.lfs ? `<br>${plural(s.lfs, 'LFS object')}` : ''}</td><td>${(s.packs || []).map((p) => `pack ${cidx(p[0], true)} idx ${cidx(p[1], true)}`).join('<br>')}</td>`}</tr>`).join('')}</tbody></table>`;
       status(plural(g.snapshots.length, 'snapshot'));
     }
 
