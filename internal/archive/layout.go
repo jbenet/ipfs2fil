@@ -14,6 +14,7 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/atproto"
 	"github.com/jbenet/ipfs2fil/internal/car"
 	"github.com/jbenet/ipfs2fil/internal/explorer"
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 	"github.com/jbenet/ipfs2fil/internal/repo"
 )
@@ -55,12 +56,13 @@ type layout struct {
 	gen        uint32
 	repoBlocks int64
 	repoBytes  int64
-	shared     []SharedBlock      // distinct pieces other archives hold blocks in
-	all        []listed           // the repo's listing, from list
-	accts      []*atproto.Summary // the Bluesky accounts among the roots
-	cars       []repo.CARLayout   // how the repo's CAR files are laid out, if it is made of them
-	unstored   []root             // pins and MFS roots with no block to store: identity CIDs, blocks the repo lacks
-	kept       []keptPiece        // stored pieces of earlier snapshots this one keeps using
+	shared     []SharedBlock         // distinct pieces other archives hold blocks in
+	all        []listed              // the repo's listing, from list
+	accts      []*atproto.Summary    // the Bluesky accounts among the roots
+	gits       []*gitarchive.Summary // the git archives among the roots
+	cars       []repo.CARLayout      // how the repo's CAR files are laid out, if it is made of them
+	unstored   []root                // pins and MFS roots with no block to store: identity CIDs, blocks the repo lacks
+	kept       []keptPiece           // stored pieces of earlier snapshots this one keeps using
 }
 
 func newLayout(r repo.Repo) *layout {

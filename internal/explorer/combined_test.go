@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jbenet/ipfs2fil/internal/atproto"
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 )
 
 // TestCombine: two archives become one data/ with a folder per repo, one
@@ -28,7 +29,15 @@ func TestCombine(t *testing.T) {
 		if name == "server" {
 			accts = append(accts, &atproto.Summary{Name: "@alice.test", DID: "did:plc:alice", Posts: []atproto.Post{{Text: "hello"}}})
 		}
-		if err := Write(filepath.Join(dir, "explorer"), m, entries, accts...); err != nil {
+		var gits []*gitarchive.Summary
+		if name == "laptop" {
+			m.Roots[0].CID = "bafygit" // the named pin is a git archive
+			gits = append(gits, &gitarchive.Summary{Name: "project", Root: "bafygit", ObjectFormat: "sha1", Head: "refs/heads/main",
+				Refs:      [][3]string{{"refs/heads/main", "c1", "commit"}},
+				Commits:   [][9]any{{"c1", []string{}, "t1", "A", "a@x", 1, 1, "first", false}},
+				Snapshots: []gitarchive.SnapSummary{{Root: "bafygit", Commits: 1, Objects: 3, Bytes: 200}}})
+		}
+		if err := WriteWith(filepath.Join(dir, "explorer"), m, entries, Extras{Accounts: accts, Gits: gits}); err != nil {
 			t.Fatal(err)
 		}
 		as = append(as, Archive{Name: name, Dir: dir})
@@ -56,6 +65,15 @@ func TestCombine(t *testing.T) {
 	// the server's account, with its posts, in the combined index
 	if len(mt.Accounts) != 1 || mt.Accounts[0].Name != "@alice.test" || mt.Accounts[0].Href != "browse.html?app=bsky&a=0" {
 		t.Errorf("accounts: %+v", mt.Accounts)
+	}
+	// the laptop's git archive, with its log, in the combined index
+	if len(mt.Gits) != 1 || mt.Gits[0].Name != "project" || mt.Gits[0].Commits != 1 || mt.Gits[0].Bytes != 200 ||
+		mt.Gits[0].Path != "laptop/pins/recursive/bafysite" || mt.Gits[0].Href != "browse.html?app=git&a=0" {
+		t.Errorf("gits: %+v", mt.Gits)
+	}
+	var g gitarchive.Summary
+	if err := json.Unmarshal(jsValue(files["g/0.js"], "g/0"), &g); err != nil || len(g.Commits) != 1 || g.Head != "refs/heads/main" {
+		t.Errorf("g/0.js: %s %v", files["g/0.js"], err)
 	}
 	var at atproto.Summary
 	if err := json.Unmarshal(jsValue(files["at/0.js"], "at/0"), &at); err != nil || len(at.Posts) != 1 || at.Posts[0].Text != "hello" {

@@ -132,6 +132,7 @@ func setupReaders(o *opts) {
 	}
 	if home != "" {
 		repo.ATProtoDir = filepath.Join(home, "atproto")
+		repo.GitDir = filepath.Join(home, "git")
 	}
 	repo.Log = o.stderr
 }

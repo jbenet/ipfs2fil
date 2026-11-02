@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 
 	"github.com/jbenet/ipfs2fil/internal/atproto"
+	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 	"github.com/jbenet/ipfs2fil/internal/manifest"
 )
 
@@ -45,7 +46,19 @@ var assets embed.FS
 // account among the roots. The output depends only on its inputs, so the
 // same archive always gets the same explorer.
 func Write(dir string, m *manifest.Manifest, entries []Entry, accounts ...*atproto.Summary) error {
-	files, err := buildIndex(m, entries, accounts...)
+	return WriteWith(dir, m, entries, Extras{Accounts: accounts})
+}
+
+// Extras are the summaries of roots the explorer has pages for: Bluesky
+// accounts (the Bluesky App viewer) and git archives (the Git viewer).
+type Extras struct {
+	Accounts []*atproto.Summary
+	Gits     []*gitarchive.Summary
+}
+
+// WriteWith is Write with every kind of summary.
+func WriteWith(dir string, m *manifest.Manifest, entries []Entry, x Extras) error {
+	files, err := buildIndexWith(m, entries, x)
 	if err != nil {
 		return err
 	}

@@ -466,3 +466,22 @@ pre.code code span::before { content: counter(ln); display: inline-block; width:
 .gzin { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 0; }
 .gzin > .stage { flex: 1 0 280px; }
 .gzin pre.hex { color: var(--text); }
+/* Git viewer */
+.at-tabs a.git-tab { padding: 14px 14px 12px; color: var(--muted); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; text-decoration: none; }
+.at-tabs a.git-tab[aria-selected="true"] { color: var(--text); border-bottom-color: #F05133; }
+.git-head h1 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 22px; }
+.git-ref { height: auto; padding: 1px 8px; font-size: 12px; cursor: default; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.git-ref.tag { border-style: dashed; }
+.git-log td.mono a, .git-log .mono { font-size: 13px; }
+.git-log .nowrap { white-space: nowrap; }
+.git-subject { margin: 8px 0 12px; font-size: 18px; }
+.git-main { overflow-x: auto; }
+.git-log { table-layout: fixed; }
+.git-log td { overflow-wrap: anywhere; }
+.git-log.commits td:nth-child(1) { width: 110px; }
+.git-log.commits td:nth-child(3) { width: 18%; }
+.git-log.refs td:nth-child(1) { width: 30%; }
+.git-log.refs td:nth-child(2) { width: 110px; }
+.git-log td.nowrap { width: 110px; }
+.git-log a .git-ref { cursor: pointer; }
+.git-log.snaps td:nth-child(1) { width: 40px; }

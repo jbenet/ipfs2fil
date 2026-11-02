@@ -321,6 +321,18 @@ git run a command (`ext::`, `fd::`).
 such as `ipfs2fil.copies=3`; later runs keep it until it is set again.
 `git-ipfs-archive show cars` prints every snapshot's record as JSON.
 
+`ipfs2fil` archives git repos itself, the same way: point it at a working
+tree or bare repo.
+
+    ipfs2fil up --repo ~/src/project
+
+Each run writes a delta of what is new since the last one to
+`~/.ipfs2fil/git/project-<hash>/`. Once a push has stored the history, later
+pushes keep that piece and add only the new commits' blocks: one small commit
+adds a few KB, not a new copy of the repo. The explorer has a Git viewer
+(Viewers > Git) with the commit log, each branch's history, branches, tags
+and snapshots.
+
 ## Privacy
 
 Everything ipfs2fil stores on Filecoin is public: storage providers serve

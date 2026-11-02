@@ -97,8 +97,8 @@ var (
 
 // Open detects what path holds and returns a reader for it: an fs-repo
 // directory, a js-ipfs repo, a Helia blockstore, a CAR file, a directory of
-// CAR files, the http:// address of a kubo node's RPC API, or a Bluesky
-// account (at://handle or a DID).
+// CAR files, the http:// address of a kubo node's RPC API, a Bluesky
+// account (at://handle or a DID), or a git repo.
 func Open(path string) (Repo, error) {
 	if atproto.IsAccount(path) {
 		return openATProto(path)
@@ -108,6 +108,9 @@ func Open(path string) (Repo, error) {
 	}
 	if isCAR(path) {
 		return openCAR(path)
+	}
+	if isGit(path) {
+		return openGit(path)
 	}
 	if blocks, ok := heliaBlockstore(path); ok {
 		return openHelia(path, blocks)
