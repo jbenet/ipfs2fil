@@ -55,6 +55,11 @@ type Options struct {
 	// ConfigFile, then off. Off, submodules are only listed in the record.
 	Submodules *bool
 
+	// LFSFetch runs git lfs fetch --all first, so LFS objects only the
+	// server has are stored too; nil leaves it to the ConfigFile, then
+	// off. Off, the LFS objects already in the repo are stored.
+	LFSFetch *bool
+
 	// Get reads earlier snapshots' blocks, so submodules build on their
 	// last archive. Without it they are archived in full.
 	Get BlockGetter
@@ -133,7 +138,21 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 		}
 		notes = append(notes, snotes...)
 	}
-	if o.Prev != nil && sameState(o.Prev, rec) {
+	if set.lfsFetch {
+		if n := g.fetchLFS(ctx); n != "" {
+			notes = append(notes, n)
+		}
+	}
+	local, err := localLFS(g.Dir)
+	if err != nil {
+		return nil, err
+	}
+	lfsNew, lnotes, err := checkLFS(ctx, local, newLFS(local, storedLFS(o.Get, o.PrevRoot)))
+	if err != nil {
+		return nil, err
+	}
+	notes = append(notes, lnotes...)
+	if o.Prev != nil && len(lfsNew) == 0 && sameState(o.Prev, rec) {
 		return &Result{Root: o.PrevRoot, Record: o.Prev, Unchanged: true, Notes: notes}, nil
 	}
 	if o.Prev != nil {
@@ -155,6 +174,9 @@ func archiveRepo(ctx context.Context, path string, o Options, put BlockSink, dep
 		return nil, err
 	}
 	rec.Tips, res.Notes = folders, append(notes, tnotes...)
+	if rec.LFS, rec.LFSObjects, err = writeLFS(ctx, local, lfsNew, put); err != nil {
+		return nil, err
+	}
 	if len(tips) > 0 {
 		pk, commits, err := writePack(ctx, g, tips, exclude, o.Prev != nil, o.TempDir, put)
 		if err != nil {

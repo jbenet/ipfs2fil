@@ -139,7 +139,7 @@ func TestTipFolders(t *testing.T) {
 func TestConfigFile(t *testing.T) {
 	needGit(t)
 	dir := newRepo(t, "")
-	write(t, filepath.Join(dir, ConfigFile), "[archive]\n\ttips = default\n[ipfs2fil]\n\tcopies = 3\n[lfs]\n\tfetch\n[include]\n\tpath = /etc/passwd\n")
+	write(t, filepath.Join(dir, ConfigFile), "[archive]\n\ttips = default\n[ipfs2fil]\n\tcopies = 3\n[archive]\n\treflogs = true\n[include]\n\tpath = /etc/passwd\n")
 	git(t, dir, "add", ConfigFile)
 	git(t, dir, "commit", "-q", "-m", "config")
 	// the working tree's edit does not count; HEAD's file does
@@ -153,7 +153,7 @@ func TestConfigFile(t *testing.T) {
 	if !maps.Equal(res.Record.Instructions, map[string]string{"ipfs2fil.copies": "3"}) {
 		t.Fatalf("instructions %v", res.Record.Instructions)
 	}
-	if len(res.Notes) != 1 || !strings.Contains(res.Notes[0], "lfs.fetch") {
+	if len(res.Notes) != 1 || !strings.Contains(res.Notes[0], "archive.reflogs") {
 		t.Fatalf("notes %v", res.Notes)
 	}
 	// options win over the file
