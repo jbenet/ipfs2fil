@@ -60,6 +60,7 @@ type layout struct {
 	all        []listed              // the repo's listing, from list
 	accts      []*atproto.Summary    // the Bluesky accounts among the roots
 	gits       []*gitarchive.Summary // the git archives among the roots
+	sites      []*explorer.SiteList  // the site lists among the roots
 	cars       []repo.CARLayout      // how the repo's CAR files are laid out, if it is made of them
 	unstored   []root                // pins and MFS roots with no block to store: identity CIDs, blocks the repo lacks
 	kept       []keptPiece           // stored pieces of earlier snapshots this one keeps using

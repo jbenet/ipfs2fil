@@ -94,6 +94,8 @@ type meta struct {
 	// Gits lists the git archives among the roots, whose refs and commit
 	// log are in g/<n>.js.
 	Gits []gitInfo `json:"gits,omitempty"`
+	// Sites lists the websites of the site lists among the roots.
+	Sites []siteInfo `json:"sites,omitempty"`
 	// SubRepos lists the repos inside the content (see subRepos).
 	SubRepos []string `json:"subRepos,omitempty"`
 }
@@ -377,6 +379,7 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 			return nil, err
 		}
 	}
+	mt.Sites = siteInfos(m, x.Sites)
 	if err := put("meta.js", "meta", mt); err != nil {
 		return nil, err
 	}

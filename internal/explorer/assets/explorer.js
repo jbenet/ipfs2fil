@@ -139,7 +139,9 @@
     // not a file: a repo, archived or inside the content (see repoPaths)
     repo: ['M3.5 1.5h9v13h-9z M3.5 11.5h9 M6 4.5h4 M6 7.5h4', '#2563EB', 'Repository', 'Repositories'],
     // not a file: an account a repo holds (a Bluesky account)
-    account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts']
+    account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts'],
+    // not a file: a website a site list names, its root and where it lives
+    site: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M1.5 8h13 M8 1.5c-2 1.8-2.8 4-2.8 6.5s.8 4.7 2.8 6.5 M8 1.5c2 1.8 2.8 4 2.8 6.5s-.8 4.7-2.8 6.5', '#0369A1', 'Web site', 'Web sites']
   };
   const kindOf = (k) => KIND[k] || KIND.other;
   // Bluesky's butterfly, small.
@@ -555,6 +557,8 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
         video: () => accts.some((a) => a.blobs && a.blobs.videos) ? `${num(accts.reduce((n, a) => n + ((a.blobs && a.blobs.videos) || 0), 0))} attached to posts` : ''
       };
       const rows = KINDS.filter((k) => k !== 'folder' && meta.types[k]).map((k) => [KIND[k][3], meta.types[k][0], meta.types[k][1], (NOTE[k] || (() => ''))(), 'browse.html?deep=1&kind=' + k, k]);
+      const sites = meta.sites || [];
+      if (sites.length) rows.push(['Web sites', sites.length, sites.reduce((n, x) => n + (x.bytes || 0), 0), few(sites.map((x) => x.name)) + (sites.some((x) => x.stale || !x.root) ? ` · <span class="warn">${plural(sites.filter((x) => x.stale || !x.root).length, 'site')} not found last time</span>` : ''), 'browse.html?deep=1&kind=site', 'site']);
       if (accts.length) rows.push(['Accounts', accts.length, accts.reduce((n, a) => n + ((a.blobs && a.blobs.bytes) || 0), 0), few(accts.map((a) => a.name)), 'browse.html?deep=1&kind=account', 'account']);
       const rp = repoPaths(meta);
       if (rp.length) rows.push(['Repositories', rp.length, REPOS ? total : 0, few(rp.map((p) => p.slice(p.lastIndexOf('/') + 1))), 'browse.html?deep=1&kind=repo', 'repo']);
@@ -700,7 +704,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
   const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
   const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
   const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
-  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repositories'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['site', 'Web sites'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repositories'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
   const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
   const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
@@ -738,6 +742,10 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // The accounts, as entries of their own under Library > Accounts.
     const REPOP = repoPaths(meta);
     const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
+    // The websites of site lists, under Library > Web sites: a site is a
+    // root and the live address it came from, where a web page is any HTML.
+    const SITES = meta.sites || [];
+    const SITEE = SITES.map((x, i) => ({ name: x.name, path: x.path || '', dir: (x.path || '').replace(/\/?[^/]*$/, ''), kind: 'site', cid: x.root || 'site ' + i, bytes: x.bytes || 0, piece: -1, site: i }));
     let NAV = false;
     try { NAV = sessionStorage.getItem('i2f.nav') === '1'; } catch (e) { /* private mode */ }
     const navOn = (on) => { NAV = on; try { sessionStorage.setItem('i2f.nav', on ? '1' : ''); } catch (e) { /* private mode */ } };
@@ -783,7 +791,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     function lib() {
       const parts = meta.parts || {}, t = meta.types || {};
       const libOn = S.deep && !S.q && !S.p && !S.app;
-      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
+      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'site' ? SITEE.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
 <div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ? `<a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}${GITS.length ? `<a href="${esc(gitHref(GITS, 0))}"${S.app === 'git' ? ' aria-current="page"' : ''}>${GITIC}Git</a>` : ''}
@@ -831,7 +839,7 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
     }
     function compute() {
       const ql = S.q.trim().toLowerCase();
-      const src = S.deep ? (info && info.virtual ? info.flat : (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p)))) : kids;
+      const src = S.deep ? (info && info.virtual ? info.flat : (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p)), SITEE.filter(under(S.p)))) : kids;
       base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
       if (S.deep) base = once(base);
       counts = {};
@@ -1087,6 +1095,7 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
       if (!e) return folderPane(pane, info, S.p, true);
       if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
       if (e.kind === 'account') return accountPane(pane, e);
+      if (e.kind === 'site') return sitePane(pane, e);
       const P = postOf(e);
       const url = contentURL(e), copies = m.copies || [];
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
@@ -1143,6 +1152,61 @@ ${e.va ? arcFacts(e) : `<div class="facts dl">
 <div class="stage acct" data-kind="account">${K ? `<section class="at-profile">${K.profile()}</section>` : ''}
 <div class="pad2"><p class="faint">A Bluesky account. Its repo is IPLD: the signed commit, records and media are stored as IPFS blocks${a.path ? `, shown as <a href="${esc(browseHref(a.path))}">a folder of records and blobs</a>` : ''}.</p>${archivedHTML(a, K ? K.a : null, a.path ? browseHref(a.path) : '')}</div></div>`;
       lightbox(pane);
+    }
+    // A website: its home page, where it lives, and the roots it has served.
+    async function sitePane(pane, e) {
+      const x = SITES[e.site], gwl = (c) => GATEWAYS.map((g) => `<a href="${esc(g[1] + c)}/" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('');
+      const HOW = { dnslink: 'a domain, by its DNSLink record', url: 'a URL, by its host\'s DNSLink or the X-Ipfs-Path its server sends', ens: 'an ENS name, through an ENS gateway', ipns: 'an IPNS name, by its signed record', ipfs: 'a fixed /ipfs/ path' };
+      const state = !x.root ? `<span class="warn">Not in this archive: ${esc(x.error || 'it could not be looked up')}</span>`
+        : x.stale ? `<span class="warn">Could not be looked up last time (${esc(x.error || '')}), so this is the root found before</span>`
+        : x.kind === 'ipfs' ? 'A fixed version' : 'What it served when last looked up';
+      pane.innerHTML = `<div class="ph"><strong title="${esc(x.name)}">${esc(x.name)}</strong><button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>${x.path ? `<a class="btn sm" href="${esc(browseHref(x.path))}" data-enter title="Browse its files (Enter)">Files</a>` : ''}${x.live ? `<a class="btn sm" href="${esc(x.live)}" target="_blank" rel="noopener" title="The site as it is served now">Live ↗</a>` : ''}${x.path ? fullBtn() : ''}</div>
+<div class="stage" data-kind="site">${x.path ? '<p class="muted pad">Loading…</p>' : `<div class="none">${icon('site')}<p>${x.root ? 'This site\'s root is not among this archive\'s roots.' : 'This site was not found, so nothing of it is in the archive.'}</p></div>`}</div>
+<div class="facts dl">
+  <span>Site</span><span>${esc(x.source)}${x.note ? ` <span class="faint">· ${esc(x.note)}</span>` : ''}</span>
+  <span>Found as</span><span>${esc(HOW[x.kind] || x.kind)}${x.how && x.how !== 'fixed' ? ` <span class="faint">(${esc(x.how)})</span>` : ''}</span>
+  <span>State</span><span>${state}</span>
+  ${x.root ? `<span>Root</span><span>${cidx(x.root)} <button type="button" class="link" data-copy="${esc(x.root)}">Copy</button></span>
+  <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + x.root)}/" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${gwl(x.root)}<a href="${esc(gw(x.root) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
+  ${x.since ? `<span>Since</span><span>${esc(when(x.since))}${x.checked && x.checked !== x.since ? ` <span class="faint">· last seen ${esc(when(x.checked))}</span>` : ''}</span>` : ''}
+  ${x.bytes ? `<span>Size</span><span>${bytes(x.bytes)}</span>` : ''}
+  ${(x.earlier || []).length ? `<span>Before</span><span class="places">${x.earlier.slice(0, 12).map((o) => `<span>${cidx(o.root, true)} <span class="faint">${esc(day(o.since))} to ${esc(day(o.until))}</span></span>`).join('')}${x.earlier.length > 12 ? `<span class="faint">and ${plural(x.earlier.length - 12, 'earlier root')}</span>` : ''}</span>` : ''}
+  ${x.list ? `<span>List</span><span>${esc(x.list)}</span>` : ''}
+</div>`;
+      lightbox(pane);
+      if (!x.path) return;
+      const st0 = pane.querySelector('.stage');
+      // explore serves each site at the root of an origin of its own
+      // (<cid>.ipfs.localhost), so its absolute links work as on the web.
+      if (LOCAL && x.root) {
+        const go = await siteURL(x.root);
+        if (current() !== e || !st0.isConnected) return;
+        if (go) {
+          st0.dataset.kind = 'page';
+          st0.innerHTML = `<iframe sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-same-origin" title="${esc(x.name)}" src="${esc(go)}"></iframe>`;
+          return;
+        }
+      }
+      // Its home page, shown like any web page from the archive.
+      const st = pane.querySelector('.stage'), di = await dirInfo(x.path);
+      const kids = di ? await listDir(di) : [];
+      const home = kids.find((k) => /^index\.html?$/i.test(k.name));
+      if (current() !== e || !st.isConnected) return;
+      if (!home) { st.innerHTML = `<div class="none">${icon('site')}<p>${di ? 'No index.html at its root. Use Files to see what it holds.' : 'Its files are not indexed in this explorer.'}</p></div>`; return; }
+      const page = { ...home, kind: 'page', path: e.path, dir: x.path };
+      const url = contentURL(page);
+      st.dataset.kind = 'page';
+      st.innerHTML = stage(page, url);
+      fill(pane, page, url);
+    }
+    // Where explore serves the site under root, if this browser reaches
+    // <cid>.ipfs.localhost (not every one resolves names under localhost).
+    let siteOK = null;
+    async function siteURL(root) {
+      const target = await fetch(new URL('../_i2f/site/' + encodeURIComponent(root) + '/?where=1', location.href)).then((r) => r.ok ? r.text() : null, () => null);
+      if (!target || !/^http:\/\/[a-z0-9]+\.ipfs\.localhost(:\d+)?\//.test(target)) return null;
+      if (siteOK === null) siteOK = await fetch(target, { mode: 'no-cors' }).then(() => true, () => false);
+      return siteOK ? target : null;
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
@@ -1736,6 +1800,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (!e) return;
       if (isDir(e)) { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
       if (e.kind === 'account') { location.href = accHref(e.acct); return; }
+      if (e.kind === 'site') { if (e.path) { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); } return; }
       if (S.ly !== 'file') { S.ly = 'file'; keep('layout', S.ly); update(true); }
     }
     function up() {
@@ -1875,7 +1940,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       u: up, Backspace: up, f: () => { box.focus(); box.select(); return true; }, '/': () => { box.focus(); box.select(); return true; },
       v: () => { S.view = VIEWS[(VIEWS.findIndex((v) => v[0] === S.view) + 1) % VIEWS.length][0]; keep('view', S.view); update(true); toast(VIEWS.find((v) => v[0] === S.view)[1] + ' view'); return true; },
       l: () => { S.ly = LAYOUTS[(LAYOUTS.findIndex((v) => v[0] === S.ly) + 1) % LAYOUTS.length][0]; keep('layout', S.ly); update(); return true; },
-      d: () => { const e = current(), u = e && e.kind !== 'folder' && e.kind !== 'account' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
+      d: () => { const e = current(), u = e && e.kind !== 'folder' && e.kind !== 'account' && e.kind !== 'site' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
       s: () => { const ks = Object.keys(SORTS); S.sort = ks[(ks.indexOf(S.sort) + 1) % ks.length]; update(); toast('Sorted by ' + $('#fsort').selectedOptions[0].textContent); return true; },
       r: () => { S.dir = -S.dir; update(); return true; },
       F: () => { const e = current(); return isFull() || (e && e.kind !== 'folder' && contentURL(e)) ? full() : false; },

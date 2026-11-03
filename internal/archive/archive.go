@@ -411,6 +411,7 @@ func Build(ctx context.Context, r repo.Repo, outDir string, opts Options) (*Resu
 	}
 	l.accts = l.accounts(ctx, m.Roots)
 	l.gits = l.gitSummaries(ctx, m.Roots)
+	l.sites = l.siteLists(ctx, m.Roots)
 	entries := l.entries(roots, m)
 	// With a bundle, the index and meta pieces no copy holds yet go in it,
 	// as do the head blocks and a small last data piece, if all of that
@@ -895,7 +896,7 @@ func (l *layout) ownDirs(ctx context.Context, dag memDAG, outDir string, inner *
 	if idx, err = l.indexDir(ctx, dag, outDir, inner, pieces); err != nil {
 		return nil, nil, err
 	}
-	exp, err = explorerDir(ctx, dag, outDir, inner, entries, explorer.Extras{Accounts: l.accts, Gits: l.gits})
+	exp, err = explorerDir(ctx, dag, outDir, inner, entries, explorer.Extras{Accounts: l.accts, Gits: l.gits, Sites: l.sites})
 	return idx, exp, err
 }
 
@@ -934,6 +935,29 @@ func (l *layout) accounts(ctx context.Context, roots []manifest.Root) []*atproto
 			} else if plcFor(b) == s.DID {
 				s.PLCLog = rt.CID
 			}
+		}
+	}
+	return out
+}
+
+// siteLists reads the sites.json that site archives pin beside their
+// sites, for the explorer's Library > Web sites.
+func (l *layout) siteLists(ctx context.Context, roots []manifest.Root) []*explorer.SiteList {
+	var out []*explorer.SiteList
+	for _, rt := range roots {
+		c, err := cid.Decode(rt.CID)
+		if err != nil || c.Type() != cid.Raw || rt.Kind != manifest.KindPinDirect || rt.Name != "sites.json" {
+			continue
+		}
+		b, err := l.get(ctx, c)
+		if err != nil || len(b) > 16<<20 {
+			continue
+		}
+		if ok, err := hashOK(c, b); err != nil || !ok {
+			continue
+		}
+		if s, ok := explorer.ParseSites(b); ok {
+			out = append(out, s)
 		}
 	}
 	return out

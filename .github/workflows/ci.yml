@@ -45,6 +45,7 @@ jobs:
           export GOOS=${TARGET%/*} GOARCH=${TARGET#*/} CGO_ENABLED=0
           go build -o /dev/null ./cmd/ipfs2fil
           go build -o /dev/null ./cmd/git-ipfs-archive
+          go build -o /dev/null ./cmd/ipfs-sites
         env:
           TARGET: ${{ matrix.target }}
   release-config:

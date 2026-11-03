@@ -38,7 +38,7 @@ func Serve(ctx context.Context, root string, more []string, addr string, ready f
 		http.Redirect(w, r, "/explorer/", http.StatusFound)
 	})
 	blocks.handle(mux, "")
-	return listen(ctx, addr, wrap(mux, wraps), "/explorer/", ready)
+	return listen(ctx, addr, blocks.siteHosts(wrap(mux, wraps)), "/explorer/", ready)
 }
 
 // Wrap adds to what Serve and ServeMany serve: routes on mux, and a handler
@@ -207,7 +207,7 @@ func ServeMany(ctx context.Context, as []Archive, addr string, ready func(url st
 	blocks.handle(mux, allPrefix)
 	mux.Handle(allPrefix+"/{$}", http.RedirectHandler(allPrefix+"/explorer/", http.StatusFound))
 	mux.Handle("/{$}", http.RedirectHandler(allPrefix+"/explorer/", http.StatusFound))
-	return listen(ctx, addr, wrap(mux, wraps), "/", ready)
+	return listen(ctx, addr, blocks.siteHosts(wrap(mux, wraps)), "/", ready)
 }
 
 // combinedFiles serves the explorer over all of as, laid out like one

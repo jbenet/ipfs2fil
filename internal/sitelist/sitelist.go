@@ -1,16 +1,32 @@
-// Package sitelist reads a site list, a small text file naming websites
-// that live on IPFS, and finds the root CID each one serves now.
+// Package sitelist reads a site list, a small file naming websites that
+// live on IPFS, finds the root CID each one serves now, and keeps what it
+// found in a lock file next to the list.
 //
-// One site per line: where it lives, then optional key=value fields.
-// Everything after a # that starts a line or follows a space is a comment.
+// A list is TOML, named <name>.ipfs-sites.toml (or just ipfs-sites.toml),
+// so a folder can hold many lists:
 //
-//	# my sites
-//	benet.ai                                   # a domain with DNSLink
-//	docs.ipfs.tech        name=ipfs-docs
-//	https://fil.pub/                           # a URL: its host's DNSLink, else the X-Ipfs-Path its server sends
-//	vitalik.eth                                # an ENS name
-//	/ipns/k51qzi5uqu5d... name=blog            # an IPNS name; its signed record is checked
-//	/ipfs/bafybei...      name=launch-2019     # a fixed version, never looked up again
+//	title = "My sites"
+//	sites = [
+//	  "benet.ai",                                # a domain with DNSLink
+//	  "https://fil.pub/",                        # a URL: its host's DNSLink, else the X-Ipfs-Path its server sends
+//	  "vitalik.eth",                             # an ENS name
+//	  { source = "docs.ipfs.tech", name = "ipfs-docs" },
+//	]
+//
+//	[[site]]                                     # the same, one table per site
+//	source = "/ipns/k51qzi5uqu5d..."             # an IPNS name; its signed record is checked
+//	name = "blog"
+//	note = "my blog"
+//
+//	[[site]]
+//	source = "/ipfs/bafybei..."                  # a fixed version, never looked up again
+//	name = "launch-2019"
+//
+// What each site resolved to goes in <name>.ipfs-sites.lock.toml (see
+// Lock), rewritten on each run.
+//
+// The older line format (a .sites file, one site per line with an
+// optional name=) is still read; see ParseText.
 //
 // A site's name is how it is pinned and shown: by default the domain, the
 // ENS name, or the IPNS or IPFS identifier. Names are unique in a list.
@@ -36,20 +52,26 @@ const (
 	KindIPFS    = "ipfs"    // /ipfs/<cid>: fixed
 )
 
-// Site is one line of a list.
+// Site is one site of a list.
 type Site struct {
-	Name   string `json:"name"`
-	Source string `json:"source"` // as written
-	Kind   string `json:"kind"`
-	Host   string `json:"-"` // the domain, ENS name, IPNS key or CID
-	Line   int    `json:"-"`
+	Name   string `json:"name" toml:"name"`
+	Source string `json:"source" toml:"source"` // as written
+	Kind   string `json:"kind" toml:"kind"`
+	Note   string `json:"note,omitempty" toml:"note,omitempty"`
+	Host   string `json:"-" toml:"-"` // the domain, ENS name, IPNS key or CID
+	Line   int    `json:"-" toml:"-"` // in a line-format list
 }
 
 // maxSites bounds a list.
 const maxSites = 10000
 
-// Parse reads a site list.
-func Parse(r io.Reader) ([]Site, error) {
+// ParseText reads a site list in the older line format (a .sites file):
+// one site per line, where it lives and then an optional name=. Everything
+// after a # that starts a line or follows a space is a comment.
+//
+//	benet.ai
+//	/ipns/k51qzi5uqu5d...  name=blog
+func ParseText(r io.Reader) ([]Site, error) {
 	var out []Site
 	names := map[string]int{}
 	sc := bufio.NewScanner(r)

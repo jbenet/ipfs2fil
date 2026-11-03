@@ -11,6 +11,10 @@ package explorer
 //	                           a dag-cbor block (a Bluesky record) or dag-json block comes as JSON;
 //	                           ?w=<px> gets a JPEG thumbnail (see thumbnails.go), or 404
 //	GET  _i2f/path/<cid>/<path> the file at a path under a folder, so pages' relative links work
+//	GET  _i2f/site/<cid>/<path> redirects to http://<cid>.ipfs.localhost:<port>/<path>, where a
+//	                           website is served at the root of an origin of its own, as a
+//	                           subdomain gateway serves it, so its absolute links work too;
+//	                           ?where says where, as text
 //	POST _i2f/thumb/<cid>?w=   keeps a thumbnail the browser made
 //	POST _i2f/parts            CIDs, one per line -> {"<cid>": [have, total]} for files only partly here
 //	POST _i2f/kinds            CIDs, one per line -> {"<cid>": "<kind>"} for the files among them
@@ -328,6 +332,7 @@ func (s *carBlocks) handle(mux *http.ServeMux, prefix string) {
 	})
 	mux.HandleFunc("GET "+prefix+"/_i2f/content/{cid}", s.serveContent)
 	mux.HandleFunc("GET "+prefix+"/_i2f/path/{cid}/{rest...}", s.servePath)
+	mux.HandleFunc("GET "+prefix+"/_i2f/site/{cid}/{rest...}", siteRedirect)
 	mux.HandleFunc("POST "+prefix+"/_i2f/thumb/{cid}", s.keepThumb)
 	mux.HandleFunc("POST "+prefix+"/_i2f/parts", func(w http.ResponseWriter, r *http.Request) {
 		out := map[string][2]int{}
@@ -460,6 +465,58 @@ func (s *carBlocks) servePath(w http.ResponseWriter, r *http.Request) {
 	s.serveFile(w, r, n.Cid(), n, name, true)
 }
 
+// siteHost is the suffix of the names websites are served under: each
+// root at <cid>.ipfs.localhost, like a subdomain gateway on localhost.
+const siteHost = ".ipfs.localhost"
+
+// siteRedirect sends _i2f/site/<cid>/<path> to the site's own origin.
+func siteRedirect(w http.ResponseWriter, r *http.Request) {
+	c, err := cid.Decode(r.PathValue("cid"))
+	if err != nil {
+		http.Error(w, "not a CID", http.StatusBadRequest)
+		return
+	}
+	port := ""
+	if _, p, err := net.SplitHostPort(r.Host); err == nil {
+		port = ":" + p
+	}
+	u := "http://" + cid.NewCidV1(c.Type(), c.Hash()).String() + siteHost + port + "/" + r.PathValue("rest")
+	if r.URL.Query().Has("where") { // the explorer asks, to put it in a frame
+		w.Header().Set("Content-Type", "text/plain")
+		io.WriteString(w, u)
+		return
+	}
+	if r.URL.RawQuery != "" {
+		u += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, u, http.StatusFound)
+}
+
+// siteHosts serves requests to <cid>.ipfs.localhost:<port>/<path> with the
+// file at path under the folder cid (see siteRedirect), and passes others
+// to h.
+func (s *carBlocks) siteHosts(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if hh, _, err := net.SplitHostPort(host); err == nil {
+			host = hh
+		}
+		label, ok := strings.CutSuffix(strings.ToLower(host), siteHost)
+		if !ok || label == "" || strings.Contains(label, ".") {
+			h.ServeHTTP(w, r)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "read only", http.StatusMethodNotAllowed)
+			return
+		}
+		r2 := r.Clone(r.Context())
+		r2.SetPathValue("cid", label)
+		r2.SetPathValue("rest", strings.TrimPrefix(r.URL.Path, "/"))
+		s.servePath(w, r2)
+	})
+}
+
 // pageHost says whether r.Host is the name pages are served under. The
 // explorer is at 127.0.0.1 and shows web pages from localhost, which to a
 // browser is another origin: there a page keeps its own storage, fonts and
@@ -470,7 +527,7 @@ func pageHost(hostport string) bool {
 	if err != nil {
 		h = hostport
 	}
-	return h == "localhost"
+	return h == "localhost" || strings.HasSuffix(strings.ToLower(h), siteHost)
 }
 
 // failed answers a failed block lookup.

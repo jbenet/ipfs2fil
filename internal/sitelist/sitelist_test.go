@@ -23,7 +23,7 @@ func testCID(s string) cid.Cid {
 	return cid.NewCidV1(cid.DagProtobuf, h)
 }
 
-func TestParse(t *testing.T) {
+func TestParseText(t *testing.T) {
 	c := testCID("x")
 	list := `# my sites
 benet.ai
@@ -34,7 +34,7 @@ ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8   name=blo
 /ipns/example.org
 /ipfs/` + c.String() + `/	name=launch-2019
 `
-	sites, err := Parse(strings.NewReader(list))
+	sites, err := ParseText(strings.NewReader(list))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +59,8 @@ ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8   name=blo
 		"", "# nothing\n", "not-a-domain", "https://x.org/some/page", "https://u:p@x.org/", "/ipfs/notacid",
 		"/ipfs/" + c.String() + "/sub", "x.org name=../up", "x.org color=red", "x.org\nx.org", "x.org bare",
 	} {
-		if _, err := Parse(strings.NewReader(bad)); err == nil {
-			t.Errorf("Parse(%q) took it", bad)
+		if _, err := ParseText(strings.NewReader(bad)); err == nil {
+			t.Errorf("ParseText(%q) took it", bad)
 		}
 	}
 }
@@ -122,7 +122,7 @@ func TestResolve(t *testing.T) {
 			return nil, errors.New("no such host")
 		},
 	}
-	sites, err := Parse(strings.NewReader("a.org\nkey.org\nvitalik.eth\n/ipns/" + name.String() + "\n/ipfs/" + site.String() + "\nloop.org\ndeep.eth\n"))
+	sites, err := ParseText(strings.NewReader("a.org\nkey.org\nvitalik.eth\n/ipns/" + name.String() + "\n/ipfs/" + site.String() + "\nloop.org\ndeep.eth\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
