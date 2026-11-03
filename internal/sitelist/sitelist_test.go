@@ -29,7 +29,7 @@ func TestParseText(t *testing.T) {
 benet.ai
 Docs.IPFS.tech.   name=ipfs-docs   # a comment
 https://fil.pub/
-vitalik.eth
+yourname.eth
 ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8   name=blog
 /ipns/example.org
 /ipfs/` + c.String() + `/	name=launch-2019
@@ -42,7 +42,7 @@ ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8   name=blo
 		{"benet.ai", KindDNSLink, "benet.ai"},
 		{"ipfs-docs", KindDNSLink, "docs.ipfs.tech"},
 		{"fil.pub", KindURL, "fil.pub"},
-		{"vitalik.eth", KindENS, "vitalik.eth"},
+		{"yourname.eth", KindENS, "yourname.eth"},
 		{"blog", KindIPNS, "k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8"},
 		{"example.org", KindDNSLink, "example.org"},
 		{"launch-2019", KindIPFS, c.String()},
@@ -95,7 +95,7 @@ func TestResolve(t *testing.T) {
 			} else {
 				w.Write(recBytes)
 			}
-		case r.URL.Path == "/ens/vitalik.eth":
+		case r.URL.Path == "/ens/yourname.eth":
 			w.Header().Set("X-Ipfs-Path", "/ipns/"+name.String()+"/")
 		case r.URL.Path == "/ens/deep.eth":
 			w.Header().Set("X-Ipfs-Path", "/ipfs/"+site.String()+"/index.html")
@@ -122,7 +122,7 @@ func TestResolve(t *testing.T) {
 			return nil, errors.New("no such host")
 		},
 	}
-	sites, err := ParseText(strings.NewReader("a.org\nkey.org\nvitalik.eth\n/ipns/" + name.String() + "\n/ipfs/" + site.String() + "\nloop.org\ndeep.eth\n"))
+	sites, err := ParseText(strings.NewReader("a.org\nkey.org\nyourname.eth\n/ipns/" + name.String() + "\n/ipfs/" + site.String() + "\nloop.org\ndeep.eth\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

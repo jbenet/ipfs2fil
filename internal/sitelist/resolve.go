@@ -81,7 +81,7 @@ func (r *Resolver) resolve(ctx context.Context, kind, host string, how []string,
 		}
 		via := u
 		if pu, err := url.Parse(u); err == nil {
-			via = strings.TrimPrefix(pu.Host, strings.TrimSuffix(host, ".eth")+".") // vitalik.eth.limo -> eth.limo
+			via = strings.TrimPrefix(pu.Host, strings.TrimSuffix(host, ".eth")+".") // yourname.eth.limo -> eth.limo
 		}
 		how = append(how, "ens via "+via)
 	case KindIPNS:
