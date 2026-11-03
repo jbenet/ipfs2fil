@@ -80,7 +80,7 @@ func logTo(bar *progress) {
 }
 
 func repoFlag(fs *flag.FlagSet, o *opts) {
-	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, a node's RPC API as http://host:5001, a Bluesky account as at://handle, every account on a PDS as pds:https://host, the pins on a pinning service as psa:pinata or psa+https://endpoint, a git repo, a folder of git repos, or a git URL as git+https://host/path (default $IPFS_PATH, else ~/.ipfs)")
+	fs.StringVar(&o.repo, "repo", "", "the IPFS repo to read: a kubo-compatible repo, a CAR file or a folder of CARs, a node's RPC API as http://host:5001, a Bluesky account as at://handle, every account on a PDS as pds:https://host, the pins on a pinning service as psa:pinata or psa+https://endpoint, the websites a site list names as a .sites file, a git repo, a folder of git repos, or a git URL as git+https://host/path (default $IPFS_PATH, else ~/.ipfs)")
 }
 
 // repoOnlyFlag accepts --repo on commands that work from --out alone, so the
@@ -134,6 +134,8 @@ func setupReaders(o *opts) {
 		repo.ATProtoDir = filepath.Join(home, "atproto")
 		repo.GitDir = filepath.Join(home, "git")
 		repo.PSADir = filepath.Join(home, "psa")
+		repo.DAGDir = filepath.Join(home, "dags")
+		repo.SitesDir = filepath.Join(home, "sites")
 	}
 	repo.Log = o.stderr
 }

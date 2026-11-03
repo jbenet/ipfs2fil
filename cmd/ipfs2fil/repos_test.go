@@ -259,7 +259,8 @@ func TestDefaultName(t *testing.T) {
 		"http://nas.local:5001": "nas.local", "http://user:pw@10.0.0.2:5001/api/v0": "10.0.0.2", "/backups/2021.car": "2021.car",
 		"at://bsky.app": "bsky-bsky.app", "@Alice.bsky.social": "bsky-alice.bsky.social", "did:plc:abc123": "bsky-did-plc-abc123",
 		"pds:https://pds.example.com": "pds-pds.example.com", "pds://pds.example.com": "pds-pds.example.com", "pds:pds.example.com": "pds-pds.example.com",
-		"psa:pinata": "psa-pinata", "psa+https://api.example.com/psa": "psa-example.com"} {
+		"psa:pinata": "psa-pinata", "psa+https://api.example.com/psa": "psa-example.com",
+		"/x/mine.sites": "sites-mine", "sites:/x/list.txt": "sites-list.txt"} {
 		if got := defaultName(in); got != want {
 			t.Errorf("defaultName(%q) = %q, want %q", in, got, want)
 		}

@@ -321,14 +321,40 @@ never written to the archive or the catalog, and a URL holding one is
 refused. ipfs2fil lists every pin with status `pinned`, then fetches each
 pin's whole DAG as a CAR from public trustless gateways (the services list
 pins but do not serve them), checking every block's hash and that no block
-the DAG links to is missing. Pins are cached by CID in
-`~/.ipfs2fil/psa/cars/`, so later runs fetch only new pins. Each pin becomes
+the DAG links to is missing. DAGs are cached by CID in
+`~/.ipfs2fil/dags/`, so later runs fetch only new pins. Each pin becomes
 a recursive pin under its name (or its CID when it has none). `psa.json`,
 pinned beside them, holds what the service said about every pin: request
 ID, CID, name, creation time, origins and metadata, so the pins can be made
 again elsewhere, and names any pin no gateway served in full. Set
 `$IPFS2FIL_GATEWAYS` (comma-separated) to fetch from other gateways, such as
 a service's own dedicated gateway.
+
+## Site lists
+
+Websites that live on IPFS archive together from one site list, a text file
+ending in `.sites` (or any file, as `sites:<path>`). One site per line, then
+an optional `name=`; `#` starts a comment:
+
+    # my sites
+    benet.ai                                   # a domain with DNSLink
+    docs.ipfs.tech        name=ipfs-docs
+    https://fil.pub/                           # its host's DNSLink, else the X-Ipfs-Path its server sends
+    vitalik.eth                                # an ENS name, through eth.limo
+    /ipns/k51qzi5uqu5d... name=blog            # an IPNS name; its signed record is checked
+    /ipfs/bafybei...      name=launch-2019     # a fixed version, never looked up again
+
+    ipfs2fil up --repo ~/my.sites
+
+Each run finds the root every site serves now (DNSLink chains and IPNS
+records are followed, up to 8 steps; a path inside a DAG is refused), then
+fetches the whole DAG from trustless gateways with every block checked, as
+for pinning services. Each site becomes a recursive pin under its name (the
+domain, ENS name or ID unless `name=` says otherwise). `sites.json`, pinned
+beside them with the list itself, says for each site which root was stored
+and how it was found. A site that cannot be reached keeps the root it had
+last time, marked `stale` with the error. Since every run that finds a new
+root stores a new snapshot, the archive holds each site's history.
 
 ## Git repos
 

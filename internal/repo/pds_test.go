@@ -21,7 +21,7 @@ func TestPDS(t *testing.T) {
 	pdsProbed = sync.Map{}
 	ctx := context.Background()
 
-	if !IsPDS(a.Server.URL) || !IsPDS("pds:" + a.Server.URL) {
+	if !IsPDS(a.Server.URL) || !IsPDS("pds:"+a.Server.URL) {
 		t.Fatal("the fake PDS is not detected")
 	}
 	if IsPDS(a.Server.URL+"/some/path") || IsPDS("pds:https://u:p@host") || IsPDS("/tmp/x") {

@@ -57,6 +57,14 @@ func gatewayOrder() []string {
 	return out
 }
 
+// DAGDir is where DAGs fetched from gateways are kept, one CAR per root
+// CID (<cid>.car), shared by every reader that fetches by CID. The CLI sets
+// it under its home directory.
+var DAGDir = filepath.Join(os.TempDir(), "ipfs2fil-dags")
+
+// dagFile is where the DAG under root is kept.
+func dagFile(root cid.Cid) string { return filepath.Join(DAGDir, root.String()+".car") }
+
 // ErrIncomplete is a DAG a gateway did not send all of.
 var ErrIncomplete = errors.New("the gateway sent part of the DAG")
 

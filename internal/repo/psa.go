@@ -20,9 +20,8 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
-// PSADir is where pins read from pinning services are fetched to: one CAR
-// per pinned CID under cars/, shared by every service. The CLI sets it
-// under its home directory.
+// PSADir holds pinning service tokens, under tokens/. Pins' DAGs go in
+// DAGDir. The CLI sets it under its home directory.
 var PSADir = filepath.Join(os.TempDir(), "ipfs2fil-psa")
 
 // PSAFile names the direct pin that lists what a pinning service holds.
@@ -178,7 +177,7 @@ func (r *psaRepo) fetch() error {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			dest := filepath.Join(PSADir, "cars", c.String()+".car")
+			dest := dagFile(c)
 			err := fetchDAG(ctx, c, dest)
 			mu.Lock()
 			defer mu.Unlock()
