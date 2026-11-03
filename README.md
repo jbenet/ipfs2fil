@@ -40,6 +40,8 @@ The explorer, served by `ipfs2fil explore` or by any gateway:
   `--repo at://you.bsky.social` archives an account like any IPFS repo: its
   signed commit, records, images and video. Its posts, records and media
   join the explorer's library, with a Bluesky App viewer for the feed.
+  `--repo pds:https://pds.example.com` archives every account on a
+  self-hosted PDS as one repo.
 - **Everything in it.** Recursive and direct pins, the MFS tree, and orphan
   blocks no pin reaches (on by default).
 - **Incremental, deterministic pieces.** Pieces are cut where the content says,
@@ -229,6 +231,7 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
     ipfs2fil up --repo ./cars/                     # a folder of CAR files
     ipfs2fil up --repo http://127.0.0.1:5001       # a running kubo node
     ipfs2fil up --repo at://you.bsky.social        # a Bluesky account
+    ipfs2fil up --repo pds:https://pds.example.com # every account on a PDS
 
 A running node on another machine works through an ssh tunnel:
 
@@ -280,6 +283,27 @@ snapshot; unchanged records stay in the pieces already stored, and posts
 deleted since stay in older snapshots. Blobs over about 2 MiB, such as
 videos, are single blocks that `ipfs2fil explore` serves but some public
 gateways will not.
+
+### A whole PDS
+
+Someone who runs their own PDS (a self-hosted Bluesky server) can archive
+the whole server as one repo:
+
+    ipfs2fil up --repo pds:https://pds.example.com
+    ipfs2fil repos add pds:https://pds.example.com   # named pds-pds.example.com
+
+An https URL with no path also works when the server answers as a PDS
+(`com.atproto.server.describeServer`). ipfs2fil lists the server's accounts
+(`com.atproto.sync.listRepos`) and archives each active one exactly as
+`at://` would: its signed commit, blobs, DID document and PLC log, pinned
+under its handle. Accounts the server marks as deactivated or taken down,
+and accounts whose DID document now names another server, are left out.
+`pds.json`, pinned beside them, names the server and every account it
+listed, with each one's commit or the reason it was left out, and each
+account's `blobs.json` lists the blobs that are its own (blobs shared by
+several accounts are stored once). The explorer's library lists every
+account. `ipfs2fil export` writes one folder per account, named by DID,
+each the same as an `at://` fetch, byte for byte.
 
 ## Git repos
 

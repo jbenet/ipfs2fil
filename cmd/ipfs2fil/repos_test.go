@@ -257,7 +257,8 @@ func TestDefaultName(t *testing.T) {
 	for in, want := range map[string]string{"/home/x/.ipfs": "x", "/Users/ada/.ipfs": "ada", "/.ipfs": "ipfs", "/Volumes/old-laptop/ipfs": "old-laptop",
 		"/data/my repo": "my-repo", "/x/kubo-0.43": "kubo-0.43", "/srv/go-ipfs": "go-ipfs",
 		"http://nas.local:5001": "nas.local", "http://user:pw@10.0.0.2:5001/api/v0": "10.0.0.2", "/backups/2021.car": "2021.car",
-		"at://bsky.app": "bsky-bsky.app", "@Alice.bsky.social": "bsky-alice.bsky.social", "did:plc:abc123": "bsky-did-plc-abc123"} {
+		"at://bsky.app": "bsky-bsky.app", "@Alice.bsky.social": "bsky-alice.bsky.social", "did:plc:abc123": "bsky-did-plc-abc123",
+		"pds:https://pds.example.com": "pds-pds.example.com", "pds://pds.example.com": "pds-pds.example.com", "pds:pds.example.com": "pds-pds.example.com"} {
 		if got := defaultName(in); got != want {
 			t.Errorf("defaultName(%q) = %q, want %q", in, got, want)
 		}

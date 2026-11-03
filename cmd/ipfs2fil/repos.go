@@ -208,9 +208,16 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // parent's when that says nothing: ~/.ipfs is named after the home
 // directory (/Users/ada/.ipfs -> ada). A Bluesky account is bsky-<handle>
 // (at://ada.bsky.social -> bsky-ada.bsky.social), so a handle that is a
-// domain does not read as an archive of that website.
+// domain does not read as an archive of that website. A whole PDS is
+// pds-<host>.
 func defaultName(path string) string {
-	if atproto.IsAccount(path) {
+	if strings.HasPrefix(path, "pds:") || strings.HasPrefix(path, "https://") && repo.IsPDS(path) {
+		host := strings.TrimPrefix(strings.TrimPrefix(path, "pds:"), "//")
+		if u, err := url.Parse(host); err == nil && u.Hostname() != "" {
+			host = u.Hostname()
+		}
+		path = "pds-" + host
+	} else if atproto.IsAccount(path) {
 		path = "bsky-" + strings.ReplaceAll(atproto.Account(path), ":", "-")
 	} else if repo.IsGitRemote(path) {
 		path = gpath.Base(gitarchive.URLName(path)) // github.com/ipfs/kubo -> kubo
