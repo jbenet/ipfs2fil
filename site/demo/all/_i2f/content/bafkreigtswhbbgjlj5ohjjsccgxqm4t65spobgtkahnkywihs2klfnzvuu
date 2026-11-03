@@ -1,0 +1,122 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0383: Compact Denylist Format</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0383/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-proposal">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0383: Compact Denylist Format</h1><p id="last-modified"><time datetime="2023-03-09T00:00:00.000Z">9 March 2023</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/issues/298">ipfs/specs/issues/298</a></dd><dd><a href="https://github.com/ipfs/specs/pull/299">ipfs/specs/pull/299</a></dd><dd><a href="https://github.com/ipfs/specs/pull/340">ipfs/specs/pull/340</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0383.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0383.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.3 </bdi>Alternatives</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">4.4 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This IPIP introduces a line-based denylist format for content blocking on IPFS
+focused on simplicity, scalability and ease-of-use.</p>
+<p>A reference Go implementation of a denylist parser and Blocker component for
+the Kubo (go-ipfs) stack exists at <a href="https://github.com/ipfs-shipyard/nopfs">https://github.com/ipfs-shipyard/nopfs</a>.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>IPFS implementations should support content moderation, particularly when it
+comes to deployments of publicly-accessible infrastructure like gateways.</p>
+<p>The first step in a larger strategy to enable decentralized content moderation
+in IPFS setups is to agree in a denylist format that different implementations
+can rely on and share.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>See [<a class="bibref" href="#ref-compact-denylist-format">compact-denylist-format</a>].</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>This proposal introduces a new denylist format which aims to fulfil the
+following aspects, which are a must for such a system:</p>
+<ul>
+<li>Efficient parsing at scale. Compact.</li>
+<li>Simplicity and extensibility for extra features, both in future versions of
+the spec and in custom systems.</li>
+<li>Easy to read and to understand.</li>
+<li>Integration-ready: Avoid the requirement of custom tooling or implementation.
+support to manage denylists. Text-file operations as interface for
+list-editing.</li>
+<li>Support the necessary types of blocks (by cid, by path, double-hash etc.)
+needed by users and operators.</li>
+<li>IPFS and DAGification friendly.</li>
+</ul>
+<p>The proposed design is part of a holistic approach to content-moderation for IPFS for which we have the following detailed wishlist of items ultimately related to the denylist format:</p>
+<ul>
+<li>
+<p>Regarding the type of blocking:</p>
+<ul>
+<li>Ability to block content from being retrieved, stored or served by multihash</li>
+<li>Ability to block content that is referenced with an IPFS-path from a blocked multihash or traversing a blocked multihash.</li>
+<li>Ability to block by regexp-matching an IPFS path</li>
+<li>Ability to block based on content-type (i.e. only store/serve plain-text,and pictures)</li>
+<li>Ability to block based on CID codec (only allow Codec X)</li>
+<li>Ability to block based on multihash function (”no identity multihashes”)</li>
+<li>Ability to block IPNS names</li>
+</ul>
+</li>
+<li>
+<p>Regarding the lists:</p>
+<ul>
+<li>Compact format, compression friendly</li>
+<li>Line-based so that updates can be watched</li>
+<li>Lists support CIDs</li>
+<li>Lists support CIDs+path (explicit)</li>
+<li>Lists support CIDs+path (implicit - everything referenced from CID)</li>
+<li>Lists support double-hashed multi-hashes</li>
+<li>Lists support double-hashed cid+path (current badbits format)</li>
+<li>Lists can be edited by hand on a text editor</li>
+<li>Lists are ipfs-replication-friendly (adding a new entry does not require downloading more than 1 IPFS block, to sync the list).</li>
+<li>Lists support comments</li>
+<li>Lists support gateway http error hints (i.e. type of block)</li>
+<li><code>echo "/ipfs/cid" &gt;&gt; ~/.config/ipfs/denylists/custom</code> should work</li>
+<li>Lists have a header section with information about the list.</li>
+</ul>
+</li>
+<li>
+<p>Regarding the implementation:</p>
+<ul>
+<li>Multiple denylists should be supported</li>
+<li>Hot-reloading of list (no restart of IPFS required)</li>
+<li>List removal does not require restart</li>
+<li>Minimal introduction of latency</li>
+<li>Minimal memory footprint (i.e. only read minimum amount of data into memory)</li>
+<li>Clean denylist module entrypoints (easy integration in current ipfs stack layers)</li>
+<li>Portable architecture (to other IPFS implementations). i.e. good interfaces to switch from an embedded implementation to something that could run separately, or embedded in other languages (i.e. even servicing multiple ipfs daemons).</li>
+<li>Text-based API. <code>ipfs deny &lt;cid&gt;</code> and the like are nice-to-have but not a must to work with denylists.</li>
+<li>Security in mind: do not enable amplification attacks through lists (i.e. someone requesting a recursively blocked CID repeteadly over the gateway endpoint causes traversal of the whole CID-DAG.</li>
+</ul>
+</li>
+<li>
+<p>Regarding list distribution:</p>
+<ul>
+<li>Ability to subscribe to multiple lists, and fetch any updates as they happen</li>
+<li>Ability to publish own lists so that others can subscribe to them</li>
+<li>List-subscription configuration or file details remote lists that the user is subscribed to. Editable by hand.</li>
+<li>Ability to subscribe to list subscriptions.</li>
+<li>List subscriptions can carry context (i.e. publisher, email, type of blocking.</li>
+</ul>
+</li>
+</ul>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>Users and developers will benefit from a list format that is easy to work with because:</p>
+<ul>
+<li>It can be understood by just looking at it.</li>
+<li>It can be edited by hand.</li>
+<li>Implementations can choose to support different aspects (i.e. blocking but no optional hints).</li>
+<li>Denylist parsers are easy and stupid.</li>
+</ul>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>The old JSON-based Protocol Labs denylist format
+<a href="https://web.archive.org/web/20230610082307/https://badbits.dwebops.pub/denylist.json">https://badbits.dwebops.pub/denylist.json</a> can be easily converted into the
+proposed compact format. This is shown at <a href="https://badbits.dwebops.pub/badbits.deny">https://badbits.dwebops.pub/badbits.deny</a>.</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.3 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.3"></a>
+<p>This proposal is a follow up to a <a href="https://github.com/ipfs/specs/pull/340">previous proposal</a>, which has several shortcomings that make it not very practical when working at scale. Both list formats can co-exist though but ultimately it will be a matter of implementation support, and it would be better to settle on one thing.</p>
+<p>It is also a followup on the "badbits" denylist format, which has similar issues and is not flexible enough.</p>
+</section><section id="copyright"><h3><bdi class="secno">4.4 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 4.4"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-compact-denylist-format">[compact-denylist-format]</dt><dd><a href="https://specs.ipfs.tech/compact-denylist-format/"><cite>Compact Denylist Format</cite></a>. Hector Sanjuan; Marcin Rataj. 2023-08-24. URL: <a href="https://specs.ipfs.tech/compact-denylist-format/">https://specs.ipfs.tech/compact-denylist-format/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><dl class="bibliography"><dt>Editor</dt><dd><span>Hector Sanjuan</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/hsanjuan"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

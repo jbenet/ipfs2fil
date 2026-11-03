@@ -1,0 +1,822 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Path Gateway Specification</title>
+    <meta name="description" content="The comprehensive low-level HTTP Gateway enables the integration of IPFS resources into the HTTP stack through /ipfs and /ipns namespaces, supporting both deserialized and verifiable response types.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/path-gateway/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Path Gateway Specification</h1><p id="last-modified"><time datetime="2026-08-24T00:00:00.000Z">24 August 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/path-gateway.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/path-gateway.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The most versatile form of IPFS Gateway is a Path Gateway.</p>
+<p>It exposes namespaces like  <code>/ipfs/</code> and <code>/ipns/</code>  under HTTP server root and
+provides basic primitives for integrating IPFS resources within existing HTTP
+stack.</p>
+<p><strong>Note:</strong> additional Web Gateways aimed for website hosting and web browsers
+extend the below spec and are defined in [<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>] and
+[<a class="bibref" href="#ref-dnslink-gateway">dnslink-gateway</a>]. There is also a minimal [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>]
+specification for use cases where client prefers to perform all validation locally.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#http-api" class="tocxref"><bdi class="secno">1. </bdi>HTTP API</a><ol class="toc"><li><a href="#get-ipfs-cid-path-params" class="tocxref"><bdi class="secno">1.1 </bdi><code>GET /ipfs/{cid}[/{path}][?{params}]</code></a></li><li><a href="#head-ipfs-cid-path-params" class="tocxref"><bdi class="secno">1.2 </bdi><code>HEAD /ipfs/{cid}[/{path}][?{params}]</code></a><ol class="toc"><li><a href="#only-if-cached-head-behavior" class="tocxref"><bdi class="secno">1.2.1 </bdi>only-if-cached HEAD behavior</a></li></ol></li><li><a href="#get-ipns-name-path-params" class="tocxref"><bdi class="secno">1.3 </bdi><code>GET /ipns/{name}[/{path}][?{params}]</code></a></li><li><a href="#head-ipns-name-path-params" class="tocxref"><bdi class="secno">1.4 </bdi><code>HEAD /ipns/{name}[/{path}][?{params}]</code></a></li></ol></li><li><a href="#http-request" class="tocxref"><bdi class="secno">2. </bdi>HTTP Request</a><ol class="toc"><li><a href="#request-headers" class="tocxref"><bdi class="secno">2.1 </bdi>Request Headers</a><ol class="toc"><li><a href="#if-none-match-request-header" class="tocxref"><bdi class="secno">2.1.1 </bdi><code>If-None-Match</code> (request header)</a></li><li><a href="#cache-control-request-header" class="tocxref"><bdi class="secno">2.1.2 </bdi><code>Cache-Control</code> (request header)</a><ol class="toc"><li><a href="#only-if-cached" class="tocxref"><bdi class="secno">2.1.2.1 </bdi><code>only-if-cached</code></a></li></ol></li><li><a href="#accept-request-header" class="tocxref"><bdi class="secno">2.1.3 </bdi><code>Accept</code> (request header)</a></li><li><a href="#range-request-header" class="tocxref"><bdi class="secno">2.1.4 </bdi><code>Range</code> (request header)</a></li><li><a href="#service-worker-request-header" class="tocxref"><bdi class="secno">2.1.5 </bdi><code>Service-Worker</code> (request header)</a></li></ol></li><li><a href="#request-query-parameters" class="tocxref"><bdi class="secno">2.2 </bdi>Request Query Parameters</a><ol class="toc"><li><a href="#filename-request-query-parameter" class="tocxref"><bdi class="secno">2.2.1 </bdi><code>filename</code> (request query parameter)</a></li><li><a href="#download-request-query-parameter" class="tocxref"><bdi class="secno">2.2.2 </bdi><code>download</code> (request query parameter)</a></li><li><a href="#format-request-query-parameter" class="tocxref"><bdi class="secno">2.2.3 </bdi><code>format</code> (request query parameter)</a></li><li><a href="#dag-scope-request-query-parameter" class="tocxref"><bdi class="secno">2.2.4 </bdi><code>dag-scope</code> (request query parameter)</a></li><li><a href="#entity-bytes-request-query-parameter" class="tocxref"><bdi class="secno">2.2.5 </bdi><code>entity-bytes</code> (request query parameter)</a></li><li><a href="#car-version-request-query-parameter" class="tocxref"><bdi class="secno">2.2.6 </bdi><code>car-version</code> (request query parameter)</a></li><li><a href="#car-order-request-query-parameter" class="tocxref"><bdi class="secno">2.2.7 </bdi><code>car-order</code> (request query parameter)</a></li><li><a href="#car-dups-request-query-parameter" class="tocxref"><bdi class="secno">2.2.8 </bdi><code>car-dups</code> (request query parameter)</a></li></ol></li></ol></li><li><a href="#http-response" class="tocxref"><bdi class="secno">3. </bdi>HTTP Response</a><ol class="toc"><li><a href="#response-status-codes" class="tocxref"><bdi class="secno">3.1 </bdi>Response Status Codes</a><ol class="toc"><li><a href="#200-ok" class="tocxref"><bdi class="secno">3.1.1 </bdi><code>200</code> OK</a></li><li><a href="#206-partial-content" class="tocxref"><bdi class="secno">3.1.2 </bdi><code>206</code> Partial Content</a></li><li><a href="#301-moved-permanently" class="tocxref"><bdi class="secno">3.1.3 </bdi><code>301</code> Moved Permanently</a></li><li><a href="#400-bad-request" class="tocxref"><bdi class="secno">3.1.4 </bdi><code>400</code> Bad Request</a></li><li><a href="#404-not-found" class="tocxref"><bdi class="secno">3.1.5 </bdi><code>404</code> Not Found</a></li><li><a href="#406-not-acceptable" class="tocxref"><bdi class="secno">3.1.6 </bdi><code>406</code> Not Acceptable</a></li><li><a href="#410-gone" class="tocxref"><bdi class="secno">3.1.7 </bdi><code>410</code> Gone</a></li><li><a href="#412-precondition-failed" class="tocxref"><bdi class="secno">3.1.8 </bdi><code>412</code> Precondition Failed</a><ol class="toc"><li><a href="#use-with-only-if-cached" class="tocxref"><bdi class="secno">3.1.8.1 </bdi>Use with only-if-cached</a></li></ol></li><li><a href="#429-too-many-requests" class="tocxref"><bdi class="secno">3.1.9 </bdi><code>429</code> Too Many Requests</a></li><li><a href="#451-unavailable-for-legal-reasons" class="tocxref"><bdi class="secno">3.1.10 </bdi><code>451</code> Unavailable For Legal Reasons</a></li><li><a href="#500-internal-server-error" class="tocxref"><bdi class="secno">3.1.11 </bdi><code>500</code> Internal Server Error</a></li><li><a href="#502-bad-gateway" class="tocxref"><bdi class="secno">3.1.12 </bdi><code>502</code> Bad Gateway</a></li><li><a href="#504-gateway-timeout" class="tocxref"><bdi class="secno">3.1.13 </bdi><code>504</code> Gateway Timeout</a></li></ol></li><li><a href="#response-headers" class="tocxref"><bdi class="secno">3.2 </bdi>Response Headers</a><ol class="toc"><li><a href="#etag-response-header" class="tocxref"><bdi class="secno">3.2.1 </bdi><code>Etag</code> (response header)</a></li><li><a href="#cache-control-response-header" class="tocxref"><bdi class="secno">3.2.2 </bdi><code>Cache-Control</code> (response header)</a></li><li><a href="#last-modified-response-header" class="tocxref"><bdi class="secno">3.2.3 </bdi><code>Last-Modified</code> (response header)</a></li><li><a href="#content-type-response-header" class="tocxref"><bdi class="secno">3.2.4 </bdi><code>Content-Type</code> (response header)</a></li><li><a href="#content-disposition-response-header" class="tocxref"><bdi class="secno">3.2.5 </bdi><code>Content-Disposition</code> (response header)</a></li><li><a href="#content-location-response-header" class="tocxref"><bdi class="secno">3.2.6 </bdi><code>Content-Location</code> (response header)</a></li><li><a href="#content-length-response-header" class="tocxref"><bdi class="secno">3.2.7 </bdi><code>Content-Length</code> (response header)</a></li><li><a href="#content-range-response-header" class="tocxref"><bdi class="secno">3.2.8 </bdi><code>Content-Range</code> (response header)</a></li><li><a href="#accept-ranges-response-header" class="tocxref"><bdi class="secno">3.2.9 </bdi><code>Accept-Ranges</code> (response header)</a></li><li><a href="#location-response-header" class="tocxref"><bdi class="secno">3.2.10 </bdi><code>Location</code> (response header)</a><ol class="toc"><li><a href="#use-in-directory-url-normalization" class="tocxref"><bdi class="secno">3.2.10.1 </bdi>Use in directory URL normalization</a></li><li><a href="#use-in-interop-with-subdomain-gateway" class="tocxref"><bdi class="secno">3.2.10.2 </bdi>Use in interop with Subdomain Gateway</a></li></ol></li><li><a href="#ipfs-uri-response-header" class="tocxref"><bdi class="secno">3.2.11 </bdi><code>Ipfs-Uri</code> (response header)</a></li><li><a href="#x-ipfs-path-response-header" class="tocxref"><bdi class="secno">3.2.12 </bdi><code>X-Ipfs-Path</code> (response header)</a></li><li><a href="#x-ipfs-roots-response-header" class="tocxref"><bdi class="secno">3.2.13 </bdi><code>X-Ipfs-Roots</code> (response header)</a></li><li><a href="#x-content-type-options-response-header" class="tocxref"><bdi class="secno">3.2.14 </bdi><code>X-Content-Type-Options</code> (response header)</a></li><li><a href="#retry-after-response-header" class="tocxref"><bdi class="secno">3.2.15 </bdi><code>Retry-After</code> (response header)</a></li><li><a href="#server-timing-response-header" class="tocxref"><bdi class="secno">3.2.16 </bdi><code>Server-Timing</code> (response header)</a></li><li><a href="#traceparent-response-header" class="tocxref"><bdi class="secno">3.2.17 </bdi><code>Traceparent</code> (response header)</a></li><li><a href="#tracestate-response-header" class="tocxref"><bdi class="secno">3.2.18 </bdi><code>Tracestate</code> (response header)</a></li></ol></li><li><a href="#response-payload" class="tocxref"><bdi class="secno">3.3 </bdi>Response Payload</a></li></ol></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">4. </bdi>Appendix: notes for implementers</a><ol class="toc"><li><a href="#content-resolution" class="tocxref"><bdi class="secno">4.1 </bdi>Content resolution</a><ol class="toc"><li><a href="#finding-the-content-root" class="tocxref"><bdi class="secno">4.1.1 </bdi>Finding the content root</a></li><li><a href="#traversing-remaining-path" class="tocxref"><bdi class="secno">4.1.2 </bdi>Traversing remaining path</a></li><li><a href="#traversing-through-unixfs" class="tocxref"><bdi class="secno">4.1.3 </bdi>Traversing through UnixFS</a></li><li><a href="#traversing-through-dag-json-and-dag-cbor" class="tocxref"><bdi class="secno">4.1.4 </bdi>Traversing through DAG-JSON and DAG-CBOR</a></li><li><a href="#handling-traversal-errors" class="tocxref"><bdi class="secno">4.1.5 </bdi>Handling traversal errors</a></li></ol></li><li><a href="#best-practices-for-http-caching" class="tocxref"><bdi class="secno">4.2 </bdi>Best practices for HTTP caching</a></li><li><a href="#denylists" class="tocxref"><bdi class="secno">4.3 </bdi>Denylists</a></li><li><a href="#generated-html-with-directory-index" class="tocxref"><bdi class="secno">4.4 </bdi>Generated HTML with directory index</a></li><li><a href="#recursive-vs-non-recursive-gateways" class="tocxref"><bdi class="secno">4.5 </bdi>Recursive vs non-recursive gateways</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="http-api"><h2><bdi class="secno">1. </bdi>HTTP API</h2><a href="#http-api" class="self-link" aria-label="Section 1."></a>
+<p>Path Gateway provides HTTP interface for requesting content-addressed data at
+specified content path.</p>
+<section id="get-ipfs-cid-path-params"><h3><bdi class="secno">1.1 </bdi><code>GET /ipfs/{cid}[/{path}][?{params}]</code></h3><a href="#get-ipfs-cid-path-params" class="self-link" aria-label="Section 1.1"></a>
+<p>Downloads data at specified <strong>immutable</strong> content path.</p>
+<ul>
+<li><code>cid</code> – a valid content identifier  (<a href="https://docs.ipfs.io/concepts/glossary#cid">CID</a>)</li>
+<li><code>path</code> – optional path parameter pointing at a file or a directory under the <code>cid</code> content root</li>
+<li><code>params</code> – optional query parameters that adjust response behavior</li>
+</ul>
+</section><section id="head-ipfs-cid-path-params"><h3><bdi class="secno">1.2 </bdi><code>HEAD /ipfs/{cid}[/{path}][?{params}]</code></h3><a href="#head-ipfs-cid-path-params" class="self-link" aria-label="Section 1.2"></a>
+<p>Same as GET, but does not return any payload.</p>
+<p>Implementations <em class="rfc2119">SHOULD</em> limit the scope of IPFS data transfer triggered by
+<code>HEAD</code> requests to a minimal DAG subset required for producing response headers
+such as
+<a href="#x-ipfs-roots-response-header"><code>X-Ipfs-Roots</code></a>,
+<a href="#content-length-response-header"><code>Content-Length</code></a>
+and <a href="#content-type-response-header"><code>Content-Type</code></a>.</p>
+<section id="only-if-cached-head-behavior"><h4><bdi class="secno">1.2.1 </bdi>only-if-cached HEAD behavior</h4><a href="#only-if-cached-head-behavior" class="self-link" aria-label="Section 1.2.1"></a>
+<p>HTTP client can send <code>HEAD</code> request with
+<a href="#cache-control-request-header"><code>Cache-Control: only-if-cached</code></a>
+to disable IPFS data transfer and inexpensively probe if the gateway has the data cached.</p>
+<p>Implementation <em class="rfc2119">MUST</em> ensure that handling <code>only-if-cached</code> <code>HEAD</code> response is
+fast and does not generate any additional I/O such as IPFS data transfer. This
+allows light clients to probe and prioritize gateways which already
+have the data.</p>
+</section></section><section id="get-ipns-name-path-params"><h3><bdi class="secno">1.3 </bdi><code>GET /ipns/{name}[/{path}][?{params}]</code></h3><a href="#get-ipns-name-path-params" class="self-link" aria-label="Section 1.3"></a>
+<p>Downloads data at specified <strong>mutable</strong> content path.</p>
+<p>Implementation must resolve the <code>name</code> to a CID, then serve response behind a
+<code>/ipfs/{resolved-cid}[/{path}][?{params}]</code> content path.</p>
+<ul>
+<li><code>name</code> may refer to:
+<ul>
+<li>cryptographic <a href="https://docs.ipfs.io/concepts/glossary/#ipns">IPNS key hash</a></li>
+<li>human-readable DNS name with <a href="https://docs.ipfs.io/concepts/glossary/#dnslink">DNSLink</a> set-up</li>
+</ul>
+</li>
+</ul>
+</section><section id="head-ipns-name-path-params"><h3><bdi class="secno">1.4 </bdi><code>HEAD /ipns/{name}[/{path}][?{params}]</code></h3><a href="#head-ipns-name-path-params" class="self-link" aria-label="Section 1.4"></a>
+<p>Same as GET, but does not return any payload.</p>
+</section></section><section id="http-request"><h2><bdi class="secno">2. </bdi>HTTP Request</h2><a href="#http-request" class="self-link" aria-label="Section 2."></a>
+<section id="request-headers"><h3><bdi class="secno">2.1 </bdi>Request Headers</h3><a href="#request-headers" class="self-link" aria-label="Section 2.1"></a>
+<p>All request headers are optional.</p>
+<section id="if-none-match-request-header"><h4><bdi class="secno">2.1.1 </bdi><code>If-None-Match</code> (request header)</h4><a href="#if-none-match-request-header" class="self-link" aria-label="Section 2.1.1"></a>
+<p>Used for HTTP caching.</p>
+<p>Enables advanced cache control based on <code>Etag</code>,
+allowing client and server to skip data transfer if previously downloaded
+payload did not change.</p>
+<p>The Gateway <em class="rfc2119">MUST</em> compare Etag values sent in <code>If-None-Match</code> with <code>Etag</code> that
+would be sent with response. Positive match <em class="rfc2119">MUST</em> return HTTP status code 304
+(Not Modified), without any payload.</p>
+</section><section id="cache-control-request-header"><h4><bdi class="secno">2.1.2 </bdi><code>Cache-Control</code> (request header)</h4><a href="#cache-control-request-header" class="self-link" aria-label="Section 2.1.2"></a>
+<p>Used for HTTP caching.</p>
+<section id="only-if-cached"><h5><bdi class="secno">2.1.2.1 </bdi><code>only-if-cached</code></h5><a href="#only-if-cached" class="self-link" aria-label="Section 2.1.2.1"></a>
+<p>Client can send <code>Cache-Control: only-if-cached</code> to request data only if the
+gateway already has the data (e.g. in local datastore) and can return it
+immediately.</p>
+<p>If data is not cached locally, and the response requires an expensive remote
+fetch, a <a href="#412-precondition-failed"><code>412 Precondition Failed</code></a> HTTP status code
+should be returned by the gateway without any payload or specific HTTP headers.</p>
+<p>NOTE: when processing a request for a DAG, traversing it and checking every CID
+might be too expensive. Implementations <em class="rfc2119">SHOULD</em> implement own heuristics to
+maximize cache hits while minimizing performance cost of checking if the entire
+DAG is locally cached. A good rule of thumb is to at the minimum test if the root
+block is in the local cache.</p>
+</section></section><section id="accept-request-header"><h4><bdi class="secno">2.1.3 </bdi><code>Accept</code> (request header)</h4><a href="#accept-request-header" class="self-link" aria-label="Section 2.1.3"></a>
+<p>Can be used for requesting specific response format, and/or passing optional
+content type parameters.</p>
+<p>For example:</p>
+<ul>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.raw">application/vnd.ipld.raw</a> – disables <a href="https://ipld.io/docs/codecs/">IPLD codec deserialization</a>, requests a verifiable raw <a href="https://docs.ipfs.io/concepts/glossary/#block">block</a> to be returned</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.car">application/vnd.ipld.car</a> – disables <a href="https://ipld.io/docs/codecs/">IPLD codec deserialization</a>, requests a verifiable <a href="https://docs.ipfs.io/concepts/glossary/#car">CAR</a> stream to be returned with implicit or explicit <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dag-scope-request-query-parameter"><code>dag-scope</code></a> for blocks at the terminus of the specified path and the blocks required to traverse path segments from root CID to the terminus.</li>
+<li><a href="https://en.wikipedia.org/wiki/Tar_(computing)">application/x-tar</a> – returns a UnixFS tree (files and directories) as a <a href="https://en.wikipedia.org/wiki/Tar_(computing)">TAR</a> stream. Returned tree starts at a DAG which name is the same as the terminus segment. Produces 406 Not Acceptable for content that is not UnixFS.</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.dag-json">application/vnd.ipld.dag-json</a> – Returns the block when CID codec is <code>dag-json</code>. Implementations <em class="rfc2119">MAY</em> validate block data before returning. <em class="rfc2119">SHOULD</em> produce 406 Not Acceptable when the CID codec does not match.</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.dag-cbor">application/vnd.ipld.dag-cbor</a> – Returns the block when CID codec is <code>dag-cbor</code>. Implementations <em class="rfc2119">MAY</em> validate block data before returning. <em class="rfc2119">SHOULD</em> produce 406 Not Acceptable when the CID codec does not match.</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/json">application/json</a> – For blocks with CID codec <code>json</code>, returns block data as <code>application/json</code>. Implementations <em class="rfc2119">MAY</em> validate block data before returning. For deserialized UnixFS files that represent text files with valid JSON, implementations <em class="rfc2119">SHOULD</em> allow serving the file content as <code>application/json</code> regardless of the CID codec being <code>dag-pb</code> or <code>raw</code>. <em class="rfc2119">SHOULD</em> produce 406 Not Acceptable in all other cases.</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/cbor">application/cbor</a> – Returns the block when CID codec is <code>cbor</code>. Implementations <em class="rfc2119">MAY</em> validate block data before returning. <em class="rfc2119">SHOULD</em> produce 406 Not Acceptable when the CID codec does not match.</li>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record">application/vnd.ipfs.ipns-record</a> – requests a verifiable [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] to be returned. Produces 400 Bad Request if the content is not under the IPNS namespace, or contains a path.</li>
+<li><a href="https://html.spec.whatwg.org/">text/html</a> – returns a human-readable representation of the requested data which may include a link to download the raw data.</li>
+</ul>
+<div class="note"><p>A Client <em class="rfc2119">SHOULD</em> include the <a href="#format-request-query-parameter"><code>format</code> query parameter</a>
+in the request URL, in addition to the <code>Accept</code> header. This provides the best
+interoperability and ensures consistent HTTP cache behavior across various
+gateway implementations.</p></div>
+</section><section id="range-request-header"><h4><bdi class="secno">2.1.4 </bdi><code>Range</code> (request header)</h4><a href="#range-request-header" class="self-link" aria-label="Section 2.1.4"></a>
+<p><code>Range</code> can be used for requesting specific byte range of UnixFS files and raw
+blocks.</p>
+<p>Gateway implementations <em class="rfc2119">SHOULD</em> be smart enough to require only the minimal DAG subset
+necessary for handling the range request.</p>
+<p>Gateways <em class="rfc2119">SHOULD</em> support single range requests. The support of more than one
+range is optional: implementation <em class="rfc2119">MAY</em> decide to not support more than one range.</p>
+<div class="note"><p>For more advanced use cases such as partial DAG/CAR streaming, or non-UnixFS
+data structures, see <code>dag-scope</code> and <code>entity-bytes</code> from [<a class="bibref" href="#ref-ipip-0402">ipip-0402</a>] and
+ordered CARs from [<a class="bibref" href="#ref-ipip-0412">ipip-0412</a>].</p></div>
+</section><section id="service-worker-request-header"><h4><bdi class="secno">2.1.5 </bdi><code>Service-Worker</code> (request header)</h4><a href="#service-worker-request-header" class="self-link" aria-label="Section 2.1.5"></a>
+<p>Mentioned here for security reasons and should be implemented with care.</p>
+<p>This header is sent by web browser attempting to register a service worker
+script for a specific scope. Allowing too broad scope can allow a single
+content root to take control over gateway endpoint. It is important for
+implementations to handle this correctly.</p>
+<p>Service Worker should only be allowed under specific to content roots under
+<code>/ipfs/{cid}/</code> and <code>/ipns/{name}/</code> (IMPORTANT: note the trailing slash).</p>
+<p>Gateway should refuse attempts to register a service worker for entire
+<code>/ipfs/cid</code> or <code>/ipns/name</code> (IMPORTANT: when trailing slash is missing).</p>
+<p>Requests to these paths with <code>Service-Worker: script</code> <em class="rfc2119">MUST</em> be denied by
+returning HTTP 400 Bad Request error.</p>
+</section></section><section id="request-query-parameters"><h3><bdi class="secno">2.2 </bdi>Request Query Parameters</h3><a href="#request-query-parameters" class="self-link" aria-label="Section 2.2"></a>
+<p>All query parameters are optional.</p>
+<section id="filename-request-query-parameter"><h4><bdi class="secno">2.2.1 </bdi><code>filename</code> (request query parameter)</h4><a href="#filename-request-query-parameter" class="self-link" aria-label="Section 2.2.1"></a>
+<p>Optional, can be used for overriding the filename.</p>
+<p>When set, gateway will include it in <code>Content-Disposition</code> header and may use
+it for <code>Content-Type</code> calculation.</p>
+<p>Example:</p>
+<pre><code>https://ipfs.io/ipfs/QmfM2r8seH2GiRaC4esTjeraXEachRt8ZsSeGaWTPLyMoG?filename=hello_world.txt
+</code></pre>
+</section><section id="download-request-query-parameter"><h4><bdi class="secno">2.2.2 </bdi><code>download</code> (request query parameter)</h4><a href="#download-request-query-parameter" class="self-link" aria-label="Section 2.2.2"></a>
+<p>Optional, can be used to request specific  <code>Content-Disposition</code> to be set on the response.</p>
+<p>Response to HTTP request with <code>download=true</code> <em class="rfc2119">MUST</em> include
+<code>Content-Disposition: attachment[;filename=...]</code>
+to indicate that client should not render the response.</p>
+<p>The <code>attachment</code> context will force user agents such as web browsers to present
+a 'Save as' dialog instead (prefilled with the value of the <code>filename</code>
+parameter, if present)</p>
+</section><section id="format-request-query-parameter"><h4><bdi class="secno">2.2.3 </bdi><code>format</code> (request query parameter)</h4><a href="#format-request-query-parameter" class="self-link" aria-label="Section 2.2.3"></a>
+<p>Optional, <code>format=&lt;format&gt;</code> can be used to request specific response format.</p>
+<p>This is a URL-friendly alternative to sending an <a href="#accept-request-header"><code>Accept</code></a> header.
+These are the equivalents:</p>
+<ul>
+<li><code>format=raw</code> → <code>Accept: application/vnd.ipld.raw</code></li>
+<li><code>format=car</code> → <code>Accept: application/vnd.ipld.car</code></li>
+<li><code>format=tar</code> → <code>Accept: application/x-tar</code></li>
+<li><code>format=dag-json</code> → <code>Accept: application/vnd.ipld.dag-json</code></li>
+<li><code>format=dag-cbor</code> → <code>Accept: application/vnd.ipld.dag-cbor</code></li>
+<li><code>format=json</code> → <code>Accept: application/json</code></li>
+<li><code>format=cbor</code> → <code>Accept: application/cbor</code></li>
+<li><code>format=ipns-record</code> → <code>Accept: application/vnd.ipfs.ipns-record</code></li>
+</ul>
+<p>When both <code>Accept</code> HTTP header  and <code>format</code> query parameter are present,
+<code>format</code> <em class="rfc2119">SHOULD</em> take precedence.</p>
+<div class="note"><p>A Client <em class="rfc2119">SHOULD</em> include the <code>format</code> query parameter in the request URL, in
+addition to the <code>Accept</code> header. This provides the best interoperability and
+ensures consistent HTTP cache behavior across various gateway implementations.</p></div>
+<p>A Gateway <em class="rfc2119">SHOULD</em> include the
+<a href="#content-location-response-header"><code>Content-Location</code></a> header in the response when:</p>
+<ul>
+<li>the request contains an <code>Accept</code> header specifying a well-known response
+format, but the URL does not include the <code>format</code> query parameter</li>
+<li>the <code>format</code> parameter is present, but does not match the format from <code>Accept</code></li>
+</ul>
+</section><section id="dag-scope-request-query-parameter"><h4><bdi class="secno">2.2.4 </bdi><code>dag-scope</code> (request query parameter)</h4><a href="#dag-scope-request-query-parameter" class="self-link" aria-label="Section 2.2.4"></a>
+<p>Optional, can be used to limit the scope of verifiable DAG requests such as CAR, same as <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-dag-scope" data-dfn-type="dfn">dag-scope</a> from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="entity-bytes-request-query-parameter"><h4><bdi class="secno">2.2.5 </bdi><code>entity-bytes</code> (request query parameter)</h4><a href="#entity-bytes-request-query-parameter" class="self-link" aria-label="Section 2.2.5"></a>
+<p>Optional, can be used to limit the scope of verifiable DAG requests such as CAR, same as <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-entity-bytes" data-dfn-type="dfn">entity-bytes</a> from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="car-version-request-query-parameter"><h4><bdi class="secno">2.2.6 </bdi><code>car-version</code> (request query parameter)</h4><a href="#car-version-request-query-parameter" class="self-link" aria-label="Section 2.2.6"></a>
+<p>Optional, specific to CAR requests, same as <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-version" data-dfn-type="dfn">car-version</a> from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="car-order-request-query-parameter"><h4><bdi class="secno">2.2.7 </bdi><code>car-order</code> (request query parameter)</h4><a href="#car-order-request-query-parameter" class="self-link" aria-label="Section 2.2.7"></a>
+<p>Optional, specific to CAR requests, same as <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-order" data-dfn-type="dfn">car-order</a> from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="car-dups-request-query-parameter"><h4><bdi class="secno">2.2.8 </bdi><code>car-dups</code> (request query parameter)</h4><a href="#car-dups-request-query-parameter" class="self-link" aria-label="Section 2.2.8"></a>
+<p>Optional, specific to CAR requests, same as <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-dups" data-dfn-type="dfn">car-dups</a> from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section></section></section><section id="http-response"><h2><bdi class="secno">3. </bdi>HTTP Response</h2><a href="#http-response" class="self-link" aria-label="Section 3."></a>
+<section id="response-status-codes"><h3><bdi class="secno">3.1 </bdi>Response Status Codes</h3><a href="#response-status-codes" class="self-link" aria-label="Section 3.1"></a>
+<section id="200-ok"><h4><bdi class="secno">3.1.1 </bdi><code>200</code> OK</h4><a href="#200-ok" class="self-link" aria-label="Section 3.1.1"></a>
+<p>The request succeeded.</p>
+<p>If the HTTP method was <code>GET</code>, then data is transmitted in the message body.</p>
+<p>If the HTTP method was <code>HEAD</code>, then no body should be sent.</p>
+</section><section id="206-partial-content"><h4><bdi class="secno">3.1.2 </bdi><code>206</code> Partial Content</h4><a href="#206-partial-content" class="self-link" aria-label="Section 3.1.2"></a>
+<p>Partial Content: range request succeeded.</p>
+<p>Returned when requested range of data described by  <a href="#range-request-header"><code>Range</code></a> header of the request.</p>
+</section><section id="301-moved-permanently"><h4><bdi class="secno">3.1.3 </bdi><code>301</code> Moved Permanently</h4><a href="#301-moved-permanently" class="self-link" aria-label="Section 3.1.3"></a>
+<p>Indicates permanent redirection.</p>
+<p>The new, canonical URL is returned in the <a href="#location-response-header"><code>Location</code></a> header.</p>
+</section><section id="400-bad-request"><h4><bdi class="secno">3.1.4 </bdi><code>400</code> Bad Request</h4><a href="#400-bad-request" class="self-link" aria-label="Section 3.1.4"></a>
+<p>A generic client error returned when it is not possible to return a better
+one. For example, this can be used when the CID is malformed or its codec is
+unsupported.</p>
+</section><section id="404-not-found"><h4><bdi class="secno">3.1.5 </bdi><code>404</code> Not Found</h4><a href="#404-not-found" class="self-link" aria-label="Section 3.1.5"></a>
+<p>Error to indicate that request was formally correct but either:</p>
+<ul>
+<li>traversal of the requested content path was not possible due to a invalid or
+missing DAG node, or</li>
+<li>the requested content is not retrievable from this gateway.</li>
+</ul>
+<p>Gateways <em class="rfc2119">MUST</em> use 404 to signal that content is not available, particularly
+when the gateway is <a href="#recursive-vs-non-recursive-gateways">non recursive</a>, and only provides access to a known
+dataset, so that it can assess that the requested content is not part of it.</p>
+<p>NOTE: Gateways <em class="rfc2119">MUST</em> return 404 for missing root blocks. However, for streaming
+responses (such as CAR), once HTTP 200 OK status is sent, gateways cannot
+change it. If a child block is missing during streaming, the gateway <em class="rfc2119">SHOULD</em>
+terminate the stream. Clients <em class="rfc2119">MUST</em> verify response completeness.</p>
+</section><section id="406-not-acceptable"><h4><bdi class="secno">3.1.6 </bdi><code>406</code> Not Acceptable</h4><a href="#406-not-acceptable" class="self-link" aria-label="Section 3.1.6"></a>
+<p>Returned when the requested response format does not match the CID's codec
+and the gateway does not perform cross-codec conversion.</p>
+<p>For example, requesting <code>?format=dag-json</code> on a <code>dag-cbor</code> block, or
+<code>?format=dag-cbor</code> on a <code>dag-pb</code> block, <em class="rfc2119">SHOULD</em> return a 406 response.</p>
+<p>Similarly, requesting <code>?format=tar</code> for content that is not UnixFS <em class="rfc2119">SHOULD</em>
+return 406.</p>
+<p>Implementations <em class="rfc2119">MAY</em> include an actionable hint in the response body (e.g.,
+suggesting the client fetch the raw block with <code>?format=raw</code> and convert
+client-side).</p>
+<p>See [<a class="bibref" href="#ref-ipip-0524">ipip-0524</a>] for details.</p>
+</section><section id="410-gone"><h4><bdi class="secno">3.1.7 </bdi><code>410</code> Gone</h4><a href="#410-gone" class="self-link" aria-label="Section 3.1.7"></a>
+<p>Error to indicate that request was formally correct, but this specific Gateway
+refuses to return requested data even though it would have normally provided
+it.</p>
+<p><code>410</code> is particularly useful to implement <a href="#denylists">deny lists</a>, in order to not serve blocked content.
+The name of deny list and unique identifier of blocked entries can be provided in the response body.</p>
+<p>See: <a href="#denylists">Denylists</a></p>
+<p>See also: <a href="#451-unavailable-for-legal-reasons"><code>451 Unavailable for Legal Reasons</code></a>.</p>
+</section><section id="412-precondition-failed"><h4><bdi class="secno">3.1.8 </bdi><code>412</code> Precondition Failed</h4><a href="#412-precondition-failed" class="self-link" aria-label="Section 3.1.8"></a>
+<p>Error to indicate that request was formally correct, but Gateway is unable to
+return requested data under the additional (usually cache-related) conditions
+sent by the client.</p>
+<section id="use-with-only-if-cached"><h5><bdi class="secno">3.1.8.1 </bdi>Use with only-if-cached</h5><a href="#use-with-only-if-cached" class="self-link" aria-label="Section 3.1.8.1"></a>
+<ul>
+<li>Client sends a request with <a href="#cache-control-request-header"><code>Cache-Control: only-if-cached</code></a></li>
+<li>Gateway does not have requested CIDs in local datastore, and is unable to
+fetch them from other peers due to <code>only-if-cached</code> condition</li>
+<li>Gateway returns status code <code>412</code> to the client
+<ul>
+<li>The code 412 is used instead of 504 because <code>only-if-cached</code> is handled by
+the gateway itself, moving the error to client error range and avoiding
+confusing server errors in places like the browser console.</li>
+</ul>
+</li>
+</ul>
+</section></section><section id="429-too-many-requests"><h4><bdi class="secno">3.1.9 </bdi><code>429</code> Too Many Requests</h4><a href="#429-too-many-requests" class="self-link" aria-label="Section 3.1.9"></a>
+<p>Error to indicate the client has sent too many requests in a given amount of time.</p>
+<p>This error response <em class="rfc2119">SHOULD</em> include <a href="#retry-after-response-header"><code>Retry-After</code></a> HTTP header to indicate how long the client should wait before making a follow-up request.</p>
+</section><section id="451-unavailable-for-legal-reasons"><h4><bdi class="secno">3.1.10 </bdi><code>451</code> Unavailable For Legal Reasons</h4><a href="#451-unavailable-for-legal-reasons" class="self-link" aria-label="Section 3.1.10"></a>
+<p>Error to indicate that request was formally correct, but this specific Gateway
+is unable to return requested data due to legal reasons. Response <em class="rfc2119">SHOULD</em>
+include an explanation, as noted in Section 3 of [<a class="bibref" href="#ref-rfc7725">rfc7725</a>].</p>
+<p>See: <a href="#denylists">Denylists</a></p>
+</section><section id="500-internal-server-error"><h4><bdi class="secno">3.1.11 </bdi><code>500</code> Internal Server Error</h4><a href="#500-internal-server-error" class="self-link" aria-label="Section 3.1.11"></a>
+<p>A generic server error returned when it is not possible to return a better
+one. An internal server error signals the general unavailability of the
+gateway.</p>
+</section><section id="502-bad-gateway"><h4><bdi class="secno">3.1.12 </bdi><code>502</code> Bad Gateway</h4><a href="#502-bad-gateway" class="self-link" aria-label="Section 3.1.12"></a>
+<p>Error that indicates that a Gateway was not able to produce response for a
+known reason: for example, in the case of
+<a href="#recursive-vs-non-recursive-gateways">recursive gateways</a>, in the event of
+failure to find any providers for requested data. <code>502</code> indicates that the
+request can be retried and is not a permanent failure.</p>
+<p>This error response <em class="rfc2119">SHOULD</em> include
+<a href="#retry-after-response-header"><code>Retry-After</code></a> HTTP header to indicate how long
+the client should wait before retrying.</p>
+<p>Gateways <em class="rfc2119">SHOULD</em> return <code>404</code> instead of <code>502</code> when the content is known to be
+unretrievable: for example, when the Gateway is
+<a href="#recursive-vs-non-recursive-gateways">non-recursive</a> and the content is known
+to not be available.</p>
+</section><section id="504-gateway-timeout"><h4><bdi class="secno">3.1.13 </bdi><code>504</code> Gateway Timeout</h4><a href="#504-gateway-timeout" class="self-link" aria-label="Section 3.1.13"></a>
+<p>Error that indicates that the Gateway was not able to produce response under
+set time limits: for example, when gateway failed to retrieve data from a
+remote provider. <code>504</code> indicates that the request can be retried and is not a
+permanent failure.</p>
+<p>There is no generic timeout, Gateway implementations <em class="rfc2119">SHOULD</em> set timeouts based
+on specific use cases.</p>
+<p>This error response <em class="rfc2119">SHOULD</em> include
+<a href="#retry-after-response-header"><code>Retry-After</code></a> HTTP header to indicate how long
+the client should wait before retrying.</p>
+<p>Gateways <em class="rfc2119">SHOULD</em> return <code>404</code> instead of <code>504</code> when the content is known to be
+unretrievable: for example, when the Gateway is
+<a href="#recursive-vs-non-recursive-gateways">non-recursive</a> and the content is known
+to not be available.</p>
+</section></section><section id="response-headers"><h3><bdi class="secno">3.2 </bdi>Response Headers</h3><a href="#response-headers" class="self-link" aria-label="Section 3.2"></a>
+<section id="etag-response-header"><h4><bdi class="secno">3.2.1 </bdi><code>Etag</code> (response header)</h4><a href="#etag-response-header" class="self-link" aria-label="Section 3.2.1"></a>
+<p>Used for HTTP caching.</p>
+<p>An opaque identifier for a specific version of the returned payload. The unique
+value must be wrapped by double quotes as noted in Section 8.8.3 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>].</p>
+<p>In many cases it is not enough to base <code>Etag</code> value on requested CID.</p>
+<p>To ensure <code>Etag</code> is unique enough to avoid issues with caching reverse proxies
+and CDNs, implementations should base it on both CID and response type:</p>
+<ul>
+<li>
+<p>By default, etag should be based on requested CID. Example: <code>Etag: "bafy…foo"</code></p>
+</li>
+<li>
+<p>If a custom <code>format</code> was requested (such as a raw block, CAR), the
+returned etag should be modified to include it. It could be a suffix.</p>
+<ul>
+<li>Example: <code>Etag: "bafy…foo.raw"</code></li>
+</ul>
+</li>
+<li>
+<p>If HTML directory index was generated by the gateway, the etag returned with
+HTTP response should be based on the version of gateway implementation.
+This is to ensure proper cache busting if code responsible for HTML
+generation changes in the future.</p>
+<ul>
+<li>Example: <code>Etag: "DirIndex-2B423AF_CID-bafy…foo"</code></li>
+</ul>
+</li>
+<li>
+<p>When a gateway can’t guarantee byte-for-byte identical responses, a “weak”
+etag should be used.</p>
+<ul>
+<li>Example: If CAR is streamed, and blocks arrive in non-deterministic order,
+the response should have <code>Etag: W/"bafy…foo.car"</code>.</li>
+<li>Example: If TAR stream is generated by traversing an UnixFS directory in non-deterministic
+order, the response should have <code>Etag: W/"bafy…foo.x-tar"</code>.</li>
+</ul>
+</li>
+<li>
+<p>When responding to <a href="#range-request-header"><code>Range</code></a> request, a strong <code>Etag</code>
+should be based on requested range in addition to CID and response format:
+<code>Etag: "bafy..foo.0-42</code></p>
+</li>
+</ul>
+</section><section id="cache-control-response-header"><h4><bdi class="secno">3.2.2 </bdi><code>Cache-Control</code> (response header)</h4><a href="#cache-control-response-header" class="self-link" aria-label="Section 3.2.2"></a>
+<p>Used for HTTP caching.</p>
+<p>An explicit caching directive for the returned response. Informs HTTP client
+and intermediate middleware caches such as CDNs if the response can be stored
+in caches.</p>
+<p>Returned directive depends on requested content path and format:</p>
+<ul>
+<li>
+<p><code>Cache-Control: public, max-age=29030400, immutable</code> <em class="rfc2119">MUST</em> be returned for
+every immutable resource under <code>/ipfs/</code> namespace.</p>
+</li>
+<li>
+<p><code>Cache-Control: public, max-age=&lt;ttl&gt;</code> <em class="rfc2119">SHOULD</em> be returned for mutable
+resources under <code>/ipns/{id-with-ttl}/</code> namespace; <code>max-age=&lt;ttl&gt;</code> <em class="rfc2119">SHOULD</em>
+indicate remaining TTL of the mutable pointer such as [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] or DNSLink
+TXT record.</p>
+<ul>
+<li>Implementations <em class="rfc2119">MAY</em> place an upper bound on any TTL received, as
+noted in Section 8 of [<a class="bibref" href="#ref-rfc2181">rfc2181</a>].</li>
+<li>If TTL value is unknown, implementations <em class="rfc2119">SHOULD</em> not send a <code>Cache-Control</code></li>
+<li>No matter if TTL value is known or not, implementations <em class="rfc2119">SHOULD</em> always
+send a <a href="#last-modified-response-header"><code>Last-Modified</code></a> header with the timestamp of the record resolution.</li>
+</ul>
+</li>
+</ul>
+</section><section id="last-modified-response-header"><h4><bdi class="secno">3.2.3 </bdi><code>Last-Modified</code> (response header)</h4><a href="#last-modified-response-header" class="self-link" aria-label="Section 3.2.3"></a>
+<p>Optional, used as additional hint for HTTP caching.</p>
+<p>Returning this header depends on the information available:</p>
+<ul>
+<li>
+<p>The header can be returned with <code>/ipns/</code> responses when the gateway
+implementation knows the exact time a mutable pointer was updated by the
+publisher.</p>
+</li>
+<li>
+<p>When only TTL is known, <a href="#cache-control-response-header"><code>Cache-Control</code></a>
+should be used instead.</p>
+</li>
+<li>
+<p>Legacy implementations set this header to the current timestamp when reading
+TTL on  <code>/ipns/</code> content paths was not available. This hint was used by web
+browsers in a process called  "Calculating Heuristic Freshness"
+(Section 4.2.2 of [<a class="bibref" href="#ref-rfc9111">rfc9111</a>]). Each browser
+uses different heuristic, making this an inferior, non-deterministic caching
+strategy.</p>
+</li>
+<li>
+<p>New implementations should not return this header if TTL is not known;
+providing a static expiration window in <code>Cache-Control</code> is easier to reason
+about than cache expiration based on the fuzzy “heuristic freshness”.</p>
+</li>
+</ul>
+</section><section id="content-type-response-header"><h4><bdi class="secno">3.2.4 </bdi><code>Content-Type</code> (response header)</h4><a href="#content-type-response-header" class="self-link" aria-label="Section 3.2.4"></a>
+<p>Returned with custom response formats such as <code>application/vnd.ipld.car</code> or
+<code>application/vnd.ipld.raw</code>. CAR must be returned with explicit version.
+Example: <code>Content-Type: application/vnd.ipld.car; version=1</code></p>
+<p>When deserialized responses are enabled,
+and no explicit response format is provided with the request, and the
+requested data itself has no built-in content type metadata, implementations
+<em class="rfc2119">SHOULD</em> perform content type sniffing based on file name
+(from <a href="url">url</a> path, or optional <a href="#filename-request-query-parameter"><code>filename</code></a> parameter)
+and magic bytes to improve the utility of produced responses.</p>
+<p>For example:</p>
+<ul>
+<li>detect plain text file
+and return <code>Content-Type: text/plain</code> instead of <code>application/octet-stream</code></li>
+<li>detect SVG image
+and return <code>Content-Type: image/svg+xml</code> instead of <code>text/xml</code></li>
+</ul>
+</section><section id="content-disposition-response-header"><h4><bdi class="secno">3.2.5 </bdi><code>Content-Disposition</code> (response header)</h4><a href="#content-disposition-response-header" class="self-link" aria-label="Section 3.2.5"></a>
+<p>Returned when <code>download</code>, <code>filename</code> query parameter, or a custom response
+<code>format</code> such as <code>car</code> or <code>raw</code> block are used.</p>
+<p>The first parameter passed in this header indicates if content should be
+displayed <code>inline</code> by the browser, or sent as an <code>attachment</code> that opens the
+“Save As” dialog:</p>
+<ul>
+<li><code>Content-Disposition: inline</code> is the default, returned when request was made
+with  <code>download=false</code>  or a custom <code>filename</code> was provided with the request
+without any explicit <code>download</code> parameter.</li>
+<li><code>Content-Disposition: attachment</code> is returned only when request was made with
+the explicit  <code>download=true</code></li>
+</ul>
+<p>The remainder is an optional <code>filename</code> parameter that will be prefilled in the
+“Save As” dialog.</p>
+<p>NOTE: when the <code>filename</code> includes non-ASCII characters, the header must
+include both ASCII and UTF-8 representations for compatibility with legacy user
+agents and existing web browsers.</p>
+<p>To illustrate, <code>?filename=testтест.pdf</code> should produce:
+<code>Content-Disposition inline; filename="test____.jpg"; filename*=UTF-8''test%D1%82%D0%B5%D1%81%D1%82.jpg</code></p>
+<ul>
+<li>ASCII representation must have non-ASCII characters replaced with <code>_</code></li>
+<li>UTF-8 representation must be wrapped in Percent Encoding (Section 2.1 of [<a class="bibref" href="#ref-rfc3986">rfc3986</a>]).
+<ul>
+<li>NOTE: <code>UTF-8''</code> is not a typo – see Section 3.2.3 of [<a class="bibref" href="#ref-rfc8187">rfc8187</a>].</li>
+</ul>
+</li>
+</ul>
+<p><code>Content-Disposition</code> must be also set when a binary response format was requested:</p>
+<ul>
+<li>
+<p><code>Content-Disposition: attachment; filename="&lt;cid&gt;.car"</code> should be returned
+with <code>Content-Type: application/vnd.ipld.car</code> responses to ensure client does
+not attempt to render streamed bytes. CID and <code>.car</code> file extension should be
+used if  a custom <code>filename</code> was not provided with the request.</p>
+</li>
+<li>
+<p><code>Content-Disposition: attachment; filename="&lt;cid&gt;.bin"</code> should be returned
+with <code>Content-Type: application/vnd.ipld.raw</code> responses to ensure client does
+not attempt to render raw bytes. CID and <code>.bin</code> file extension should be used
+if  a custom <code>filename</code> was not provided with the request.</p>
+</li>
+</ul>
+</section><section id="content-location-response-header"><h4><bdi class="secno">3.2.6 </bdi><code>Content-Location</code> (response header)</h4><a href="#content-location-response-header" class="self-link" aria-label="Section 3.2.6"></a>
+<p>Returned when a non-default content format has been negotiated with the
+<a href="#accept-request-header"><code>Accept</code> header</a> but <code>format</code> was missing from the URL.</p>
+<p>The value of this field <em class="rfc2119">SHOULD</em> include
+the URL of the resource with the <code>format</code> query parameter included, so that
+generic HTTP caches can store deserialized, CAR, and block responses separately.</p>
+<div class="note"><p>For example, a request to <code>/ipfs/{cid}</code> with <code>Accept: application/vnd.ipld.raw</code>
+<em class="rfc2119">SHOULD</em> return a <code>Content-Location: /ipfs/{cid}?format=raw</code> header in order for
+block response to be cached separately from deserialized one.</p></div>
+</section><section id="content-length-response-header"><h4><bdi class="secno">3.2.7 </bdi><code>Content-Length</code> (response header)</h4><a href="#content-length-response-header" class="self-link" aria-label="Section 3.2.7"></a>
+<p>Represents the length of returned HTTP payload.</p>
+<div class="warning"><p>NOTE: the value may differ from the real size of requested data if compression or chunked <code>Transfer-Encoding</code> are used.
+See <a href="https://github.com/ipfs/specs/issues/461">ipfs/specs#461</a>.</p></div>
+</section><section id="content-range-response-header"><h4><bdi class="secno">3.2.8 </bdi><code>Content-Range</code> (response header)</h4><a href="#content-range-response-header" class="self-link" aria-label="Section 3.2.8"></a>
+<p>Returned only when request was a <a href="#range-request-header"><code>Range</code></a> request.</p>
+<p>See Section 14.4 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>].</p>
+</section><section id="accept-ranges-response-header"><h4><bdi class="secno">3.2.9 </bdi><code>Accept-Ranges</code> (response header)</h4><a href="#accept-ranges-response-header" class="self-link" aria-label="Section 3.2.9"></a>
+<p>Optional, returned to explicitly indicate if gateway supports partial HTTP
+<a href="#range-request-header"><code>Range</code></a> requests for a specific resource.</p>
+<p>For example, <code>Accept-Ranges: none</code> should be returned with
+<code>application/vnd.ipld.car</code> responses if the block order in CAR stream is not
+deterministic.</p>
+</section><section id="location-response-header"><h4><bdi class="secno">3.2.10 </bdi><code>Location</code> (response header)</h4><a href="#location-response-header" class="self-link" aria-label="Section 3.2.10"></a>
+<p>Returned only when response status code is <a href="#301-moved-permanently"><code>301</code> Moved Permanently</a>.
+The value informs the HTTP client about new URL for requested resource.</p>
+<section id="use-in-directory-url-normalization"><h5><bdi class="secno">3.2.10.1 </bdi>Use in directory URL normalization</h5><a href="#use-in-directory-url-normalization" class="self-link" aria-label="Section 3.2.10.1"></a>
+<p>Gateway <em class="rfc2119">MUST</em> return a redirect when a valid UnixFS directory was requested
+without the trailing <code>/</code>, for example:</p>
+<ul>
+<li>response for UnixFS directory at <code>https://example.com/ipns/en.wikipedia-on-ipfs.org/wiki</code>
+(no trailing slash) <em class="rfc2119">MUST</em> be HTTP 301 redirect with
+<code>Location: /ipns/en.wikipedia-on-ipfs.org/wiki/</code></li>
+</ul>
+<p>This normalization is required for directory-based relative links
+and security scopes such as Service Worker registrations to work correctly.
+It also ensures the same behavior on path gateways (<code>https://example.com/ipfs/cid/</code> with trailing <code>/</code>)
+and origin-isolated HTTP contexts <code>https://cid.ipfs.dweb.link</code>
+or non-HTTP URLs like <code>ipfs://cid</code>, where empty path component is implicit <code>/</code>.</p>
+</section><section id="use-in-interop-with-subdomain-gateway"><h5><bdi class="secno">3.2.10.2 </bdi>Use in interop with Subdomain Gateway</h5><a href="#use-in-interop-with-subdomain-gateway" class="self-link" aria-label="Section 3.2.10.2"></a>
+<p>See <a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/#location-response-header"><code>Location</code> section</a> of [<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>].</p>
+</section></section><section id="ipfs-uri-response-header"><h4><bdi class="secno">3.2.11 </bdi><code>Ipfs-Uri</code> (response header)</h4><a href="#ipfs-uri-response-header" class="self-link" aria-label="Section 3.2.11"></a>
+<p>Used for HTTP caching and indicating the IPFS address of the data.</p>
+<p>Indicates the original, requested content path before any path resolution and traversal is performed.</p>
+<p>The value is one valid URI: <code>ipfs://</code> for the <code>/ipfs/</code> namespace
+([<a class="bibref" href="#ref-ipfs-uri">ipfs-uri</a>]), or <code>ipns://</code> for <code>/ipns/</code> ([<a class="bibref" href="#ref-ipns-uri">ipns-uri</a>]).</p>
+<p>The content path is the request path, normalized: percent-decode
+each segment once, collapse duplicate slashes, then apply any <code>.</code> and <code>..</code>
+segments. <code>%2F</code> decodes to a separator in the first step, so a request for
+<code>/ipfs/{cid}/a%2F..%2Fb.txt</code> gives the content path <code>/ipfs/{cid}/b.txt</code>.</p>
+<p>One consequence: a UnixFS link whose name contains <code>/</code> cannot be
+addressed by any content path, because path components never contain <code>/</code>
+([<a class="bibref" href="#ref-unixfs">unixfs</a>]); such an entry is reachable only by its own CID.</p>
+<p>The URI authority <em class="rfc2119">SHOULD</em> be the content root in the canonical form
+[<a class="bibref" href="#ref-ipfs-uri">ipfs-uri</a>] and [<a class="bibref" href="#ref-ipns-uri">ipns-uri</a>] define. A trailing dot on a DNS name
+is stripped. Under <code>/ipns/</code>, a legacy base58 peer ID (<code>Qm...</code>,
+<code>12D3Koo...</code>) becomes a <code>libp2p-key</code> CIDv1 in base36. A gateway omits
+this header when it cannot produce such an authority: the root is
+invalid, the IPNS key uses a codec it does not support, or the DNS name
+does not convert to the <code>dnslink-name</code> form. In the DNSLink case, a name
+with no dot, like <code>examplemissingtld</code>, never becomes an authority: on each
+network it can point at different content. A dotted DNSLink name on a
+private network, like <code>example.local</code>, is fine.</p>
+<p>A content root longer than 63 characters is emitted in full and HTTP
+clients <em class="rfc2119">SHOULD</em> accept it: the length guidance in [<a class="bibref" href="#ref-ipfs-uri">ipfs-uri</a>] and
+[<a class="bibref" href="#ref-ipns-uri">ipns-uri</a>] does not apply to this header.</p>
+<p>The URI path mirrors the rest of the content path: split it on <code>/</code>,
+percent-encode each segment, and rejoin with <code>/</code>. A trailing slash is
+kept, and an empty remainder means no path:
+<code>/ipfs/{cid}</code> → <code>ipfs://{cid}</code>, <code>/ipfs/{cid}/</code> → <code>ipfs://{cid}/</code>,
+<code>/ipfs/{cid}/dir/</code> → <code>ipfs://{cid}/dir/</code>. Interior empty segments <em class="rfc2119">MUST NOT</em>
+appear.</p>
+<p>Each segment <em class="rfc2119">MUST</em> be percent-encoded over its UTF-8 bytes: every byte
+outside the unreserved set <code>A-Z a-z 0-9 - . _ ~</code> (Section 2.3 of
+[<a class="bibref" href="#ref-rfc3986">rfc3986</a>]) <em class="rfc2119">MUST</em> be encoded as <code>%XX</code> with uppercase hexadecimal
+digits, and unreserved bytes <em class="rfc2119">MUST NOT</em> be encoded. This covers <code>%</code>, <code>?</code>,
+<code>#</code>, spaces, control characters, and every non-ASCII byte, so the value is
+ASCII-only and always a valid field value (Section 5.5 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>]).</p>
+<p>The one exception: a segment that is exactly <code>.</code> or <code>..</code> <em class="rfc2119">MUST</em> be emitted
+as <code>%2E</code> or <code>%2E%2E</code>, so it cannot be read as a dot segment. The
+normalization above means such segments do not normally occur.</p>
+<p>The value <em class="rfc2119">MUST NOT</em> contain a query or fragment. Request query parameters
+such as <code>?format=car</code> never appear in it.</p>
+<p>An HTTP client that recovers the content path <em class="rfc2119">MUST</em> apply the
+URI-to-content-path mapping of [<a class="bibref" href="#ref-ipfs-uri">ipfs-uri</a>] and [<a class="bibref" href="#ref-ipns-uri">ipns-uri</a>], then
+percent-decode each segment once.</p>
+<p>Example: <code>Ipfs-Uri: ipfs://bafy..ul6/subdir/file.txt</code></p>
+<p>Example: <code>Ipfs-Uri: ipns://dnslink.example.net/wiki/Bogot%C3%A1</code></p>
+<p>This header <em class="rfc2119">SHOULD</em> be returned with deserialized responses, and on
+redirect and error responses once the content root has been parsed.
+Implementations <em class="rfc2119">MAY</em> omit it with trustless response types
+(<code>application/vnd.ipld.raw</code> and <code>application/vnd.ipld.car</code>). They <em class="rfc2119">MAY</em> also
+omit it when the value would exceed 8192 bytes.</p>
+<p>This header supersedes the deprecated
+<a href="#x-ipfs-path-response-header"><code>X-Ipfs-Path</code></a>. HTTP clients <em class="rfc2119">SHOULD</em> prefer
+<code>Ipfs-Uri</code> when both headers are present.</p>
+<p>Gateways serving cross-origin traffic <em class="rfc2119">SHOULD</em> include <code>Ipfs-Uri</code> in
+<code>Access-Control-Expose-Headers</code>.</p>
+</section><section id="x-ipfs-path-response-header"><h4><bdi class="secno">3.2.12 </bdi><code>X-Ipfs-Path</code> (response header)</h4><a href="#x-ipfs-path-response-header" class="self-link" aria-label="Section 3.2.12"></a>
+<div class="warning"><p>This header is deprecated. HTTP header values use a more limited character set
+than IPFS Paths so it is possible to include characters that may break some HTTP
+Clients.</p><p>The <code>Ipfs-Uri</code> response header should be used instead if it is present as it can
+correctly encode all characters that might be found in an IPFS Path.</p></div>
+<p>Used for HTTP caching and indicating the IPFS address of the data.</p>
+<p>Indicates the original, requested content path before any path resolution and traversal is performed.</p>
+<p>Example: <code>X-Ipfs-Path: /ipns/k2..ul6/subdir/file.txt</code></p>
+<p>Gateways <em class="rfc2119">MAY</em> keep returning this header for legacy clients, with the value
+format unchanged. New implementations <em class="rfc2119">SHOULD</em> return only
+<a href="#ipfs-uri-response-header"><code>Ipfs-Uri</code></a>.</p>
+<p>A gateway that returns this header <em class="rfc2119">MUST</em> omit it when the content path
+contains any byte other than HTAB (0x09), SP (0x20), or visible ASCII
+(0x21-0x7E).</p>
+<p>Gateways that return this header <em class="rfc2119">SHOULD</em> do so with deserialized responses.
+Implementations <em class="rfc2119">MAY</em> omit it with trustless response types
+(<code>application/vnd.ipld.raw</code> and <code>application/vnd.ipld.car</code>).</p>
+<p>Gateways that return this header for cross-origin traffic <em class="rfc2119">SHOULD</em> also
+include it in <code>Access-Control-Expose-Headers</code>.</p>
+</section><section id="x-ipfs-roots-response-header"><h4><bdi class="secno">3.2.13 </bdi><code>X-Ipfs-Roots</code> (response header)</h4><a href="#x-ipfs-roots-response-header" class="self-link" aria-label="Section 3.2.13"></a>
+<p>Used for HTTP caching.</p>
+<p>A way to indicate all CIDs required for resolving  logical roots (path
+segments) from the requested content path. The main purpose of this
+header is allowing HTTP caches to make smarter decisions about cache
+invalidation.</p>
+<p>Below, an example to illustrate how <code>X-Ipfs-Roots</code> is constructed from a content path pointing at a DNSLink.</p>
+<p>The traversal of <code>/ipns/en.wikipedia-on-ipfs.org/wiki/Block_of_Wikipedia_in_Turkey</code>
+includes a HAMT-sharded UnixFS directory <code>/wiki/</code>.</p>
+<p>This header only cares about logical roots (one per URL path segment):</p>
+<ol>
+<li><code>/ipns/en.wikipedia-on-ipfs.org</code> → <code>bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze</code></li>
+<li><code>/ipns/en.wikipedia-on-ipfs.org/wiki/</code> → <code>bafybeihn2f7lhumh4grizksi2fl233cyszqadkn424ptjajfenykpsaiw4</code></li>
+<li><code>/ipns/en.wikipedia-on-ipfs.org/wiki/Block_of_Wikipedia_in_Turkey</code> → <code>bafkreibn6euazfvoghepcm4efzqx5l3hieof2frhp254hio5y7n3hv5rma</code></li>
+</ol>
+<p>Final array of roots:</p>
+<pre><code>X-Ipfs-Roots: bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze,bafybeihn2f7lhumh4grizksi2fl233cyszqadkn424ptjajfenykpsaiw4,bafkreibn6euazfvoghepcm4efzqx5l3hieof2frhp254hio5y7n3hv5rma
+</code></pre>
+<p>NOTE: while the first CID will change every time any article is changed,
+the last root (responsible for specific article or a subdirectory) may not
+change at all, allowing for smarter caching beyond what standard Etag offers.</p>
+<p>This header <em class="rfc2119">SHOULD</em> be returned with deserialized responses.
+Implementations <em class="rfc2119">MAY</em> omit it with trustless response types
+(<code>application/vnd.ipld.raw</code> and <code>application/vnd.ipld.car</code>).</p>
+<p>NOTE: Gateways that stream responses (e.g., CAR) without pre-resolving the
+entire path <em class="rfc2119">MAY</em> only include the root CID for simple <code>/ipfs/{cid}</code> requests, or
+<em class="rfc2119">MAY</em> omit this header for path requests where intermediate CIDs are not known
+when headers are sent.</p>
+</section><section id="x-content-type-options-response-header"><h4><bdi class="secno">3.2.14 </bdi><code>X-Content-Type-Options</code> (response header)</h4><a href="#x-content-type-options-response-header" class="self-link" aria-label="Section 3.2.14"></a>
+<p>Optional, present in certain response types:</p>
+<ul>
+<li><code>X-Content-Type-Options: nosniff</code>  should be returned with
+<code>application/vnd.ipld.car</code> and <code>application/vnd.ipld.raw</code> responses to
+indicate that the <a href="#content-type-response-header"><code>Content-Type</code></a> should be
+followed and not be changed. This is a security feature, ensures that
+non-executable binary response types are not used in <code>&lt;script&gt;</code> and <code>&lt;style&gt;</code>
+HTML tags.</li>
+</ul>
+</section><section id="retry-after-response-header"><h4><bdi class="secno">3.2.15 </bdi><code>Retry-After</code> (response header)</h4><a href="#retry-after-response-header" class="self-link" aria-label="Section 3.2.15"></a>
+<p>Gateway <em class="rfc2119">SHOULD</em> return this header with error responses such as <a href="#429-too-many-requests"><code>429 Too Many Requests</code></a>, <a href="#504-gateway-timeout"><code>504 Gateway Timeout</code></a> or <code>503</code> (server maintainance).</p>
+<p>The "Retry-After" header indicates how long the user agent ought to wait before making a follow-up request. It uses the following syntax:</p>
+<pre><code>Retry-After: &lt;delay-seconds&gt;
+</code></pre>
+<p>See Section 10.2.3 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>].</p>
+</section><section id="server-timing-response-header"><h4><bdi class="secno">3.2.16 </bdi><code>Server-Timing</code> (response header)</h4><a href="#server-timing-response-header" class="self-link" aria-label="Section 3.2.16"></a>
+<p>Optional. Implementations <em class="rfc2119">MAY</em> use this header to communicate one or more
+metrics and descriptions for the given request-response cycle.</p>
+<p>See <code>Server-Timing</code> at <a href="https://www.w3.org/TR/server-timing/#the-server-timing-header-field">W3C: Server Timing</a>.</p>
+</section><section id="traceparent-response-header"><h4><bdi class="secno">3.2.17 </bdi><code>Traceparent</code> (response header)</h4><a href="#traceparent-response-header" class="self-link" aria-label="Section 3.2.17"></a>
+<p>Optional. Implementations <em class="rfc2119">MAY</em> use this header to return a globally
+unique identifier to help in debugging errors and performance issues.</p>
+<p>See <code>Traceparent</code> at <a href="https://www.w3.org/TR/trace-context-1/#traceparent-header">W3C: Trace Context</a>.</p>
+</section><section id="tracestate-response-header"><h4><bdi class="secno">3.2.18 </bdi><code>Tracestate</code> (response header)</h4><a href="#tracestate-response-header" class="self-link" aria-label="Section 3.2.18"></a>
+<p>Optional. Implementations <em class="rfc2119">MAY</em> use this header to return a additional
+vendor-specific trace identification information across different distributed
+tracing systems and is a companion header for the <code>Traceparent</code> header.</p>
+<p>See <code>Tracestate</code> at <a href="https://www.w3.org/TR/trace-context-1/#tracestate-header">W3C: Trace Context</a>.</p>
+</section></section><section id="response-payload"><h3><bdi class="secno">3.3 </bdi>Response Payload</h3><a href="#response-payload" class="self-link" aria-label="Section 3.3"></a>
+<p>Data sent with HTTP response depends on the type of the requested IPFS resource, and the requested response type.</p>
+<p>By default, implicit deserialized response type is based on <code>Accept</code> header and the codec of the resolved CID:</p>
+<ul>
+<li>UnixFS, either <code>dag-pb</code> (0x70) or <code>raw</code> (0x55)
+<ul>
+<li>File or <code>raw</code> block
+<ul>
+<li>Bytes representing file/block contents</li>
+<li>When <code>Range</code> is present, only the requested byte range is returned.</li>
+</ul>
+</li>
+<li>Directory
+<ul>
+<li>Generated HTML with directory index (see <a href="#generated-html-with-directory-index">additional notes here</a>)</li>
+<li>When <code>index.html</code> is present, gateway <em class="rfc2119">MUST</em> skip generating directory index and return content from <code>index.html</code> instead.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>JSON (0x0200)
+<ul>
+<li>Bytes representing a JSON file, see <a href="https://www.iana.org/assignments/media-types/application/json">application/json</a>.</li>
+<li>Works exactly the same as <code>raw</code>, but returned <code>Content-Type</code> is <code>application/json</code></li>
+</ul>
+</li>
+<li>CBOR (0x51)
+<ul>
+<li>Bytes representing a CBOR file, see <a href="https://www.iana.org/assignments/media-types/application/cbor">application/cbor</a></li>
+<li>Works exactly the same as <code>raw</code>, but returned <code>Content-Type</code> is <code>application/cbor</code></li>
+</ul>
+</li>
+<li>DAG-JSON (0x0129)
+<ul>
+<li>If the <code>Accept</code> header includes <code>text/html</code>, implementation should return a generated HTML with an option to download DAG-JSON as-is.</li>
+<li>Otherwise, response works exactly the same as <code>raw</code> block, but returned <code>Content-Type</code> is <a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.dag-json">application/vnd.ipld.dag-json</a></li>
+</ul>
+</li>
+<li>DAG-CBOR (0x71)
+<ul>
+<li>If the <code>Accept</code> header includes <code>text/html</code>: implementation should return a generated HTML with an option to download DAG-CBOR as-is.</li>
+<li>Otherwise, response works exactly the same as <code>raw</code> block, but returned <code>Content-Type</code> is <a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.dag-cbor">application/vnd.ipld.dag-cbor</a></li>
+</ul>
+</li>
+</ul>
+<p>The following response types require an explicit opt-in, can only be requested with <a href="#format-request-query-parameter"><code>format</code></a> query parameter or <a href="#accept-request-header"><code>Accept</code></a> header:</p>
+<ul>
+<li>Raw Block (<code>?format=raw</code>)
+<ul>
+<li>Opaque bytes, see <a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.raw">application/vnd.ipld.raw</a>.</li>
+</ul>
+</li>
+<li>CAR (<code>?format=car</code>)
+<ul>
+<li>A CAR file or a stream that contains all blocks required to trustlessly verify the requested content path query, see <a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.car">application/vnd.ipld.car</a> and Section 5 (CAR Responses) at [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</li>
+</ul>
+</li>
+<li>TAR (<code>?format=tar</code>)
+<ul>
+<li>Deserialized UnixFS files and directories as a TAR file or a stream, see [<a class="bibref" href="#ref-ipip-0288">ipip-0288</a>].</li>
+</ul>
+</li>
+<li>IPNS Record
+<ul>
+<li>Protobuf bytes representing a verifiable [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] (multicodec <code>0x0300</code>)</li>
+</ul>
+</li>
+</ul>
+</section></section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">4. </bdi>Appendix: notes for implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 4."></a>
+<section id="content-resolution"><h3><bdi class="secno">4.1 </bdi>Content resolution</h3><a href="#content-resolution" class="self-link" aria-label="Section 4.1"></a>
+<p>Content resolution is a process of turning an HTTP request into an IPFS content
+path, and then traversing it until the content identifier (CID) is found.</p>
+<section id="finding-the-content-root"><h4><bdi class="secno">4.1.1 </bdi>Finding the content root</h4><a href="#finding-the-content-root" class="self-link" aria-label="Section 4.1.1"></a>
+<p>Path Gateway decides what content to serve by taking the path from the URL
+requested and splitting it into two parts: the <em>CID</em>  and the <em>remainder</em> of
+the path.</p>
+<p>The <em>CID</em> provides the starting point, often called <em>content root</em>. The
+<em>remainder</em> of the path, if present,  will be used as instructions to traverse
+IPLD data, starting from that data which the CID identified.</p>
+<p><strong>Note:</strong> Other types of gateway may allow for passing CID by other means, such
+as <code>Host</code> header, changing the rules behind path splitting.
+(See <a href="./SUBDOMAIN_GATEWAY.md">SUBDOMAIN_GATEWAY.md</a>
+and <a href="./DNSLINK_GATEWAY.md">DNSLINK_GATEWAY.md</a>).</p>
+</section><section id="traversing-remaining-path"><h4><bdi class="secno">4.1.2 </bdi>Traversing remaining path</h4><a href="#traversing-remaining-path" class="self-link" aria-label="Section 4.1.2"></a>
+<p>After the content root CID is found, the remaining of the path should be traversed
+and resolved. Depending on the data type, that may occur through UnixFS pathing,
+or DAG-JSON, and DAG-CBOR pathing.</p>
+</section><section id="traversing-through-unixfs"><h4><bdi class="secno">4.1.3 </bdi>Traversing through UnixFS</h4><a href="#traversing-through-unixfs" class="self-link" aria-label="Section 4.1.3"></a>
+<p>UnixFS is an abstraction over the low level <a href="https://ipld.io/specs/codecs/dag-pb/spec/#logical-format">logical DAG-PB pathing</a>
+from IPLD, providing a better user experience:</p>
+<ul>
+<li>Example of UnixFS pathing: <code>/ipfs/cid/dir-name/file-name.txt</code></li>
+</ul>
+<p>For more details regarding DAG-PB pathing, please read the "Path Resolution" section
+of <a href="https://ipld.io/design/tricky-choices/dag-pb-forms-impl-and-use/#path-resolution">this document</a>.</p>
+</section><section id="traversing-through-dag-json-and-dag-cbor"><h4><bdi class="secno">4.1.4 </bdi>Traversing through DAG-JSON and DAG-CBOR</h4><a href="#traversing-through-dag-json-and-dag-cbor" class="self-link" aria-label="Section 4.1.4"></a>
+<p>Traversing through <a href="https://ipld.io/specs/codecs/dag-json/spec/">DAG-JSON</a> and <a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR</a> is possible
+through fields that encode a link:</p>
+<ul>
+<li>DAG-JSON: link are represented as a base encoded CID under the <code>/</code> reserved
+namespace, see <a href="https://ipld.io/specs/codecs/dag-json/spec/#links">specification</a>.</li>
+<li>DAG-CBOR: links are tagged with CBOR tag 42, indicating that they encode a CID,
+see <a href="https://ipld.io/specs/codecs/dag-cbor/spec/#links">specification</a>.</li>
+</ul>
+<p>Note: pathing into <a href="https://ipld.io/docs/data-model/kinds/">IPLD Kind</a> other than Link (CID) is not supported at the moment. Implementations should return HTTP 501 Not Implemented when fully resolved content path has any remainder left.  This feature may be specified in a future <a href="https://github.com/ipfs/in-web-browsers/issues/189">IPIP that introduces data onboarding</a>  and <a href="https://ipld.io/specs/patch/">IPLD Patch</a> semantics.</p>
+</section><section id="handling-traversal-errors"><h4><bdi class="secno">4.1.5 </bdi>Handling traversal errors</h4><a href="#handling-traversal-errors" class="self-link" aria-label="Section 4.1.5"></a>
+<p>Gateway <em class="rfc2119">MUST</em> respond with HTTP error when it is not possible to traverse the requested content path:</p>
+<ul>
+<li><a href="#404-not-found"><code>404 Not Found</code></a> should be returned when the root CID is valid and traversable, but
+the DAG it represents does not include content path remainder.
+<ul>
+<li>Error response body should indicate which part of immutable content path (<code>/ipfs/{cid}/path/to/file</code>) is missing</li>
+</ul>
+</li>
+<li><a href="#400-bad-request"><code>400 Bad Request</code></a> should be returned when the root CID under the <code>ipfs</code> namespace is invalid.</li>
+<li><a href="#500-internal-server-error"><code>500 Internal Server Error</code></a> can be used for remaining traversal errors,
+such as domains that cannot be resolved, or IPNS keys that cannot be resolved.</li>
+</ul>
+</section></section><section id="best-practices-for-http-caching"><h3><bdi class="secno">4.2 </bdi>Best practices for HTTP caching</h3><a href="#best-practices-for-http-caching" class="self-link" aria-label="Section 4.2"></a>
+<ul>
+<li>
+<p>Following <a href="https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-cache">HTTP Caching</a>
+rules around <code>Etag</code> , <code>Cache-Control</code> , <code>If-None-Match</code> and <code>Last-Modified</code>
+should be produce acceptable cache hits.</p>
+</li>
+<li>
+<p>Advanced caching strategies can be built using additional information in
+<code>Ipfs-Uri</code> and <code>X-Ipfs-Roots</code> headers.</p>
+</li>
+<li>
+<p>Implement support for requests sent with
+<a href="#cache-control-request-header"><code>Cache-Control: only-if-cached</code></a>.
+It allows IPFS-aware HTTP clients to probe and prioritize gateways that
+already have the data cached, significantly improving retrieval speeds.</p>
+</li>
+</ul>
+</section><section id="denylists"><h3><bdi class="secno">4.3 </bdi>Denylists</h3><a href="#denylists" class="self-link" aria-label="Section 4.3"></a>
+<p>Optional, but encouraged.</p>
+<p>Implementations are encouraged to support pluggable denylists to allow IPFS
+node operators to opt into not hosting previously flagged content.</p>
+<p>Gateway <em class="rfc2119">MUST</em> respond with HTTP error when requested CID is on any of active denylists:</p>
+<ul>
+<li><a href="#410-gone">410 Gone</a> returned when CID is denied for non-legal reasons, or when the exact reason is unknown</li>
+<li><a href="#451-unavailable-for-legal-reasons">451 Unavailable For Legal Reasons</a> returned when denylist indicates that content was blocked on legal basis</li>
+</ul>
+<p>Gateway implementation <em class="rfc2119">MAY</em> apply some denylists by default as long the gateway
+operator is able to inspect and modify the list of denylists that are applied.</p>
+<p>Examples of public deny lists:</p>
+<ul>
+<li><a href="https://badbits.dwebops.pub/">The Bad Bits Denylist</a> – a list of hashed CIDs
+that have been flagged for various reasons (copyright violation, malware,
+etc). Each entry is <code>sha256()</code> hashed so that it can easily be checked given
+a plaintext CID, but inconvenient to determine otherwise.</li>
+</ul>
+</section><section id="generated-html-with-directory-index"><h3><bdi class="secno">4.4 </bdi>Generated HTML with directory index</h3><a href="#generated-html-with-directory-index" class="self-link" aria-label="Section 4.4"></a>
+<p>While implementations decide on the way HTML directory listing is
+generated and presented to the user, following below suggestions is advised.</p>
+<p>Linking to alternative response types such as CAR and dag-json allows clients
+to consume directory listings programmatically without the need for parsing HTML.</p>
+<p>Directory index response time should not grow with the number of items in a directory.
+It should be always fast, even when a directory has 10k of items.</p>
+<p>The usual optimizations involve:</p>
+<ul>
+<li>
+<p>Skipping size and type resolution for child UnixFS items, and using <code>Tsize</code>
+from <a href="https://ipld.io/specs/codecs/dag-pb/spec/#logical-format">logical format</a> instead, allows gateway to respond much
+faster, as it no longer need to fetch root nodes of child items.</p>
+<ul>
+<li>Instead of showing "file size" GUIs should show "IPFS DAG size". This
+remains useful for quick inspection, but does not require fetching child
+blocks, making directory listing fast, even with tens of thousands of
+blocks.  Example with 10k items:
+<code>bafybeiggvykl7skb2ndlmacg2k5modvudocffxjesexlod2pfvg5yhwrqm</code>.</li>
+<li>Additional information about child nodes, such as exact file size without
+DAG overhead, can be fetched lazily with JS, but only for items in the
+browser's viewport.</li>
+</ul>
+</li>
+<li>
+<p>Alternative approach is resolving child items, but providing pagination UI.</p>
+<ul>
+<li>Opening a big directory can return HTTP 302 to the current URL with
+additional query parameters (<code>?page=0&amp;limit=100</code>),
+limiting the cost of a single page load.</li>
+<li>The downside of this approach is that it will always be slower than
+skipping child block resolution.</li>
+</ul>
+</li>
+</ul>
+</section><section id="recursive-vs-non-recursive-gateways"><h3><bdi class="secno">4.5 </bdi>Recursive vs non-recursive gateways</h3><a href="#recursive-vs-non-recursive-gateways" class="self-link" aria-label="Section 4.5"></a>
+<p>A <em>recursive Gateway</em> is a gateway which generally attempts to fetch content
+from a third party it does not control by triggering lookups and retrievals. A
+recursive Gateway may not know in advance whether it can obtain and return a
+piece of content as the availability of it is out of its control. It may also
+suggest that clients retry failed requests later via <code>502</code> and <code>504</code> responses
+status codes.</p>
+<p>A <em>non-recursive Gateway</em> is gateway which accesses a known content-set and,
+under normal operation conditions, knows with certainty whether content
+requested can be obtained or not. Non-recursive gateways <em class="rfc2119">SHOULD</em> prevent
+unnecessary retries from clients when the content is known to be unavailable
+by returning <code>404</code>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-dnslink-gateway">[dnslink-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/dnslink-gateway/"><cite>DNSLink Gateway Specification</cite></a>. Marcin Rataj; Thibault Meunier. 2022-11-09. URL: <a href="https://specs.ipfs.tech/http-gateways/dnslink-gateway/">https://specs.ipfs.tech/http-gateways/dnslink-gateway/</a></dd><dt id="ref-ipfs-uri">[ipfs-uri]</dt><dd><a href="https://specs.ipfs.tech/ipfs-uri/"><cite>IPFS URI (ipfs://)</cite></a>. Marcin Rataj. 2026-08-03. URL: <a href="https://specs.ipfs.tech/ipfs-uri/">https://specs.ipfs.tech/ipfs-uri/</a></dd><dt id="ref-ipip-0288">[ipip-0288]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0288/"><cite>IPIP-0288: TAR Response Format on HTTP Gateways</cite></a>. Henrique Dias; Marcin Rataj. 2022-06-10. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0288/">https://specs.ipfs.tech/ipips/ipip-0288/</a></dd><dt id="ref-ipip-0402">[ipip-0402]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0402/"><cite>IPIP-0402: Partial CAR Support on Trustless Gateways</cite></a>. Hannah Howard; Adin Schmahmann; Rod Vagg; Marcin Rataj. 2023-04-17. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0402/">https://specs.ipfs.tech/ipips/ipip-0402/</a></dd><dt id="ref-ipip-0412">[ipip-0412]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0412/"><cite>IPIP-0412: Signaling Block Order in CARs on HTTP Gateways</cite></a>. Marcin Rataj; Jorropo. 2023-05-15. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0412/">https://specs.ipfs.tech/ipips/ipip-0412/</a></dd><dt id="ref-ipip-0524">[ipip-0524]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0524/"><cite>IPIP-0524: Remove cross-codec conversion from HTTP Gateways</cite></a>. Alex Potsides; Marcin Rataj. 2026-03-05. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0524/">https://specs.ipfs.tech/ipips/ipip-0524/</a></dd><dt id="ref-ipns-record">[ipns-record]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-record/"><cite>IPNS Record and Protocol</cite></a>. Vasco Santos; Steve Allen; Marcin Rataj; Henrique Dias; Gus Eggert. 2025-02-28. URL: <a href="https://specs.ipfs.tech/ipns/ipns-record/">https://specs.ipfs.tech/ipns/ipns-record/</a></dd><dt id="ref-ipns-uri">[ipns-uri]</dt><dd><a href="https://specs.ipfs.tech/ipns-uri/"><cite>IPNS URI (ipns://)</cite></a>. Marcin Rataj. 2026-08-03. URL: <a href="https://specs.ipfs.tech/ipns-uri/">https://specs.ipfs.tech/ipns-uri/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc2181">[rfc2181]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2181"><cite>Clarifications to the DNS Specification</cite></a>. R. Elz; R. Bush. IETF. July 1997. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc2181">https://www.rfc-editor.org/rfc/rfc2181</a></dd><dt id="ref-rfc3986">[rfc3986]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc3986"><cite>Uniform Resource Identifier (URI): Generic Syntax</cite></a>. T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc3986">https://www.rfc-editor.org/rfc/rfc3986</a></dd><dt id="ref-rfc7725">[rfc7725]</dt><dd><a href="https://httpwg.org/specs/rfc7725.html"><cite>An HTTP Status Code to Report Legal Obstacles</cite></a>. T. Bray. IETF. February 2016. Proposed Standard. URL: <a href="https://httpwg.org/specs/rfc7725.html">https://httpwg.org/specs/rfc7725.html</a></dd><dt id="ref-rfc8187">[rfc8187]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc8187"><cite>Indicating Character Encoding and Language for HTTP Header Field Parameters</cite></a>. J. Reschke. IETF. September 2017. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc8187">https://www.rfc-editor.org/rfc/rfc8187</a></dd><dt id="ref-rfc9110">[rfc9110]</dt><dd><a href="https://httpwg.org/specs/rfc9110.html"><cite>HTTP Semantics</cite></a>. R. Fielding, Ed.; M. Nottingham, Ed.; J. Reschke, Ed.. IETF. June 2022. Internet Standard. URL: <a href="https://httpwg.org/specs/rfc9110.html">https://httpwg.org/specs/rfc9110.html</a></dd><dt id="ref-rfc9111">[rfc9111]</dt><dd><a href="https://httpwg.org/specs/rfc9111.html"><cite>HTTP Caching</cite></a>. R. Fielding, Ed.; M. Nottingham, Ed.; J. Reschke, Ed.. IETF. June 2022. Internet Standard. URL: <a href="https://httpwg.org/specs/rfc9111.html">https://httpwg.org/specs/rfc9111.html</a></dd><dt id="ref-subdomain-gateway">[subdomain-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/"><cite>Subdomain Gateway Specification</cite></a>. Marcin Rataj; Adrian Lanzafame; Vasco Santos; Oli Evans; Thibault Meunier; Steve Loeppky. 2025-04-03. URL: <a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/">https://specs.ipfs.tech/http-gateways/subdomain-gateway/</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd><dt id="ref-unixfs">[unixfs]</dt><dd><a href="https://specs.ipfs.tech/unixfs/"><cite>UnixFS</cite></a>. Hugo Valtier; Marcin Rataj. 2026-09-07. URL: <a href="https://specs.ipfs.tech/unixfs/">https://specs.ipfs.tech/unixfs/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Former Editor</dt><dd><a href="https://hacdias.com/">Henrique Dias</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Adrian Lanzafame</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/lanzafame"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Vasco Santos</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/vasco-santos"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Oli Evans</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/olizilla"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://achingbrain.net">Alex Potsides</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p><div id="ipseity-reports"><details class="ipseity-errors"><summary>1</summary><ol><li>No definition for term "url".</li></ol></details></div></body></html>

@@ -1,0 +1,388 @@
+{
+  "spec": {
+    "title": "IPNS Record and Protocol",
+    "url": "https://specs.ipfs.tech/ipns/ipns-record/"
+  },
+  "dfns": [
+    {
+      "id": "dfn-InterPlanetary Naming System (IPNS)",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-InterPlanetary Naming System (IPNS)",
+      "linkingText": [
+        "interplanetary naming system (ipns)"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-InterPlanetary Naming System (IPNS)",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-InterPlanetary Naming System (IPNS)",
+      "linkingText": [
+        "interplanetary naming system (ipns)s"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-IPNS Name",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name",
+      "linkingText": [
+        "ipns name"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-IPNS Name",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name",
+      "linkingText": [
+        "ipns names"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-IPNS Record",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record",
+      "linkingText": [
+        "ipns record"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-IPNS Record",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record",
+      "linkingText": [
+        "ipns records"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Value",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Value",
+      "linkingText": [
+        "value"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Value",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Value",
+      "linkingText": [
+        "ipns-record-value"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Value",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Value",
+      "linkingText": [
+        "values"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Value",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Value",
+      "linkingText": [
+        "ipns-record-values"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity Type",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity Type",
+      "linkingText": [
+        "validity type"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity Type",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity Type",
+      "linkingText": [
+        "ipns-record-validity-type"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity Type",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity Type",
+      "linkingText": [
+        "validity types"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity Type",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity Type",
+      "linkingText": [
+        "ipns-record-validity-types"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity",
+      "linkingText": [
+        "validity"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity",
+      "linkingText": [
+        "ipns-record-validity"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity",
+      "linkingText": [
+        "validities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Validity",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Validity",
+      "linkingText": [
+        "ipns-record-validities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Sequence",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Sequence",
+      "linkingText": [
+        "sequence"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Sequence",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Sequence",
+      "linkingText": [
+        "ipns-record-sequence"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Sequence",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Sequence",
+      "linkingText": [
+        "sequences"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Sequence",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Sequence",
+      "linkingText": [
+        "ipns-record-sequences"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-TTL",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-TTL",
+      "linkingText": [
+        "ttl"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-TTL",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-TTL",
+      "linkingText": [
+        "ipns-record-ttl"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-TTL",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-TTL",
+      "linkingText": [
+        "ttls"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-TTL",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-TTL",
+      "linkingText": [
+        "ipns-record-ttls"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Public Key",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Public Key",
+      "linkingText": [
+        "public key"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Public Key",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Public Key",
+      "linkingText": [
+        "ipns-record-public-key"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Public Key",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Public Key",
+      "linkingText": [
+        "public keys"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Public Key",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Public Key",
+      "linkingText": [
+        "ipns-record-public-keys"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Signature",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Signature",
+      "linkingText": [
+        "signature"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Signature",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Signature",
+      "linkingText": [
+        "ipns-record-signature"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Signature",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Signature",
+      "linkingText": [
+        "signatures"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Signature",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Signature",
+      "linkingText": [
+        "ipns-record-signatures"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Extensible Data",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Extensible Data",
+      "linkingText": [
+        "extensible data"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Extensible Data",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Extensible Data",
+      "linkingText": [
+        "ipns-record-extensible-data"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Extensible Data",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Extensible Data",
+      "linkingText": [
+        "extensible datum"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Extensible Data",
+      "href": "https://specs.ipfs.tech/ipns/ipns-record/#dfn-Extensible Data",
+      "linkingText": [
+        "ipns-record-extensible-datum"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    }
+  ]
+}

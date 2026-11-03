@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPFS Kademlia DHT",
+    "url": "https://specs.ipfs.tech/routing/kad-dht/"
+  },
+  "dfns": []
+}

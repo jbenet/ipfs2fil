@@ -1,0 +1,62 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>InterPlanetary Naming System | IPFS Standards</title>
+  <meta name="description" content="The InterPlanetary Naming System (IPNS) is a naming system responsible for creating, reading and updating mutable pointers to data.">
+  <link rel="canonical" href="https://specs.ipfs.tech/ipns/">
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/ipseity.min.css">
+  <link rel="icon" href="/img/ipfs-standards.svg">
+</head>
+<body>
+
+
+<nav>
+  <div>
+    <img src="/img/ipfs-standards.svg" alt="InterPlanetary Standards Logo" width="25" height="25" class="logo">
+    <a href="/">IPFS Standards</a>
+  </div>
+</nav>
+
+<header>
+  <div>
+    <h1>InterPlanetary Naming System</h1>
+    <p>The InterPlanetary Naming System (IPNS) is a naming system responsible for creating, reading and updating mutable pointers to data.
+</p>
+  </div>
+</header>
+
+
+<main>
+  <dl>
+  <dt><a href="/ipns/ipns-record/">IPNS Record and Protocol</a></dt>
+    <dd>Specifies the IPNS protocol in a language-agnostic manner, allowing everyone to create a compatible IPNS Record Publisher or Resolver.
+</dd><dt><a href="/ipns/ipns-pubsub-router/">IPNS PubSub Router</a></dt>
+    <dd>Specifies how to publish and retrieve IPNS records using libp2p PubSub router.</dd><dt><a href="/ipns-uri/">IPNS URI (ipns://)</a></dt>
+    <dd>The ipns:// URI scheme for addressing mutable pointers, cryptographic IPNS names and DNSLink names, defined for interoperability with web browsers.
+</dd></dl>
+</main>
+
+</body>
+<footer>
+  <div>
+    <p>
+      <a href="https://ipfs.tech/"><img src="/img/ipfs.svg" width="20" height="20" alt="IPFS logo"> IPFS</a>
+      •
+      <a href="https://ipld.io/"><img src="/img/ipld.svg" width="20" height="20" alt="IPLD logo"> IPLD</a>
+      •
+      <a href="https://libp2p.io/"><img src="/img/libp2p.png" width="20" height="20" alt="libp2p logo"> libp2p</a>
+      •
+      <a href="https://multiformats.io/"><img src="/img/multiformats.svg" width="20" height="20" alt="Multiformats logo"> Multiformats</a>
+    </p>
+    <p>
+      <a href="https://github.com/ipfs/specs/blob/main/SECURITY.md">Reporting security issues</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
+

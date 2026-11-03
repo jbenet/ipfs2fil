@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,16 @@ func TestResolve(t *testing.T) {
 	}
 	if _, err := atproto.Resolve(context.Background(), http.DefaultClient, "at://nobody.test"); err == nil {
 		t.Error("resolved a handle no one has")
+	}
+
+	// A private network's PLC directory goes first; an account it does not
+	// know is looked up in the next one.
+	empty := httptest.NewServer(http.NotFoundHandler())
+	defer empty.Close()
+	atproto.PLCDirectory, atproto.HandleResolver = empty.URL+","+atproto.PLCDirectory, empty.URL+","+atproto.HandleResolver
+	id, err := atproto.Resolve(context.Background(), http.DefaultClient, "at://alice.test")
+	if err != nil || id.DID != a.DID || !strings.Contains(string(id.AuditLog), "plc_operation") {
+		t.Fatalf("with a first PLC directory that does not know it: %+v, %v", id, err)
 	}
 }
 

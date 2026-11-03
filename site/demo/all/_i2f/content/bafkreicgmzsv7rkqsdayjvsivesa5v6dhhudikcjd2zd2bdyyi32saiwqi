@@ -1,0 +1,219 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Bitswap Protocol</title>
+    <meta name="description" content="Bitswap is a libp2p data exchange protocol for finding, sending and receiving content addressed blocks of data. It attempts to acquire blocks from the p2p network that have been requested by the client, and also send blocks to others who want them.">
+    <link rel="canonical" href="https://specs.ipfs.tech/bitswap-protocol/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Bitswap Protocol</h1><p id="last-modified"><time datetime="2022-08-26T00:00:00.000Z">26 August 2022</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/bitswap-protocol.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/bitswap-protocol.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>Bitswap is a libp2p data exchange protocol for sending and receiving content
+addressed blocks of data.</p>
+<p>Bitswap has two primary jobs:</p>
+<ol>
+<li>Attempt to acquire blocks from the network that have been requested by the client.</li>
+<li>Send blocks in its possession to other peers who want them.</li>
+</ol>
+<p>Secondary job (since <a href="#bitswap-1-2-0">v1.2.0</a>) is to act as a basic content routing system for querying connected peers.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a></li><li><a href="#bitswap-protocol-versions" class="tocxref"><bdi class="secno">2. </bdi>Bitswap Protocol Versions</a></li><li><a href="#block-sizes" class="tocxref"><bdi class="secno">3. </bdi>Block Sizes</a></li><li><a href="#bitswap-1-0-0" class="tocxref"><bdi class="secno">4. </bdi>Bitswap 1.0.0</a><ol class="toc"><li><a href="#bitswap-1-0-0-interaction-pattern" class="tocxref"><bdi class="secno">4.1 </bdi>Bitswap 1.0.0: Interaction Pattern</a></li><li><a href="#bitswap-1-0-0-message" class="tocxref"><bdi class="secno">4.2 </bdi>Bitswap 1.0.0: Message</a><ol class="toc"><li><a href="#bitswap-1-0-0-wire-format" class="tocxref"><bdi class="secno">4.2.1 </bdi>Bitswap 1.0.0: Wire Format</a></li></ol></li><li><a href="#bitswap-1-0-0-protocol-format" class="tocxref"><bdi class="secno">4.3 </bdi>Bitswap 1.0.0: Protocol Format</a></li></ol></li><li><a href="#bitswap-1-1-0" class="tocxref"><bdi class="secno">5. </bdi>Bitswap 1.1.0</a><ol class="toc"><li><a href="#bitswap-1-1-0-wire-format" class="tocxref"><bdi class="secno">5.1 </bdi>Bitswap 1.1.0: Wire Format</a></li></ol></li><li><a href="#bitswap-1-2-0" class="tocxref"><bdi class="secno">6. </bdi>Bitswap 1.2.0</a><ol class="toc"><li><a href="#bitswap-1-2-0-interaction-pattern" class="tocxref"><bdi class="secno">6.1 </bdi>Bitswap 1.2.0: Interaction Pattern</a></li><li><a href="#bitswap-1-2-0-wire-format" class="tocxref"><bdi class="secno">6.2 </bdi>Bitswap 1.2.0: Wire Format</a></li></ol></li><li><a href="#implementations" class="tocxref"><bdi class="secno">7. </bdi>Implementations</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>Bitswap is a message-based protocol, as opposed to request-response. All messages
+contain wantlists, and/or blocks. Upon receiving a wantlist, a Bitswap server <em class="rfc2119">SHOULD</em>
+eventually process and respond to the requester with either information about the
+block or the block itself. Upon receiving blocks, the client <em class="rfc2119">SHOULD</em> send a <code>Cancel</code>
+notification to peers that have asked for the data, signifying that the client no
+longer wants the block.</p>
+<p>Bitswap aims to be a simple protocol, so that implementations can balance aspects
+such as throughput, latency, fairness, memory usage, etc. for their specific
+requirements.</p>
+</section><section id="bitswap-protocol-versions"><h2><bdi class="secno">2. </bdi>Bitswap Protocol Versions</h2><a href="#bitswap-protocol-versions" class="self-link" aria-label="Section 2."></a>
+<p>There are multiple Bitswap versions and more may evolve over time. We give brief
+overviews as to the changes behind each protocol version:</p>
+<ul>
+<li><code>/ipfs/bitswap/1.0.0</code> - Initial version</li>
+<li><code>/ipfs/bitswap/1.1.0</code> - Support <a href="https://docs.ipfs.io/concepts/glossary/#cid-v1">CIDv1</a></li>
+<li><code>/ipfs/bitswap/1.2.0</code> - Support Wantlist <code>Have</code>'s and <code>Have</code>/<code>DontHave</code> responses</li>
+</ul>
+</section><section id="block-sizes"><h2><bdi class="secno">3. </bdi>Block Sizes</h2><a href="#block-sizes" class="self-link" aria-label="Section 3."></a>
+<p>Bitswap implementations <em class="rfc2119">MUST</em> support sending and receiving individual blocks of
+sizes less than or equal to 2MiB. Handling blocks larger than 2MiB is not recommended
+so as to keep compatibility with implementations which only support up to 2MiB.</p>
+</section><section id="bitswap-1-0-0"><h2><bdi class="secno">4. </bdi>Bitswap 1.0.0</h2><a href="#bitswap-1-0-0" class="self-link" aria-label="Section 4."></a>
+<section id="bitswap-1-0-0-interaction-pattern"><h3><bdi class="secno">4.1 </bdi>Bitswap 1.0.0: Interaction Pattern</h3><a href="#bitswap-1-0-0-interaction-pattern" class="self-link" aria-label="Section 4.1"></a>
+<p>Given that a client <em>C</em> wants to fetch data from some server <em>S</em>:</p>
+<ol>
+<li><em>C</em> sends a message to <em>S</em> for the blocks it wants, via a stream <code>s_want</code>
+<ol>
+<li><em>C</em> <em class="rfc2119">MAY</em> either send a complete wantlist, or an update to an outstanding wantlist</li>
+<li><em>C</em> <em class="rfc2119">MAY</em> reuse this stream to send new wants</li>
+</ol>
+</li>
+<li><em>S</em> sends back blocks on a stream <code>s_receive</code>. <em>S</em> <em class="rfc2119">MAY</em> reuse this stream to send
+back subsequent responses.
+<ol>
+<li><em>S</em> <em class="rfc2119">SHOULD</em> respect the relative priority of wantlist requests from <em>C</em>, with
+wants that have higher <code>priority</code> values being responded to first.</li>
+</ol>
+</li>
+<li>When <em>C</em> no longer needs a block it previously asked for, it <em class="rfc2119">SHOULD</em> send a <code>Cancel</code>
+message for that block to all peers from which it has not received a response
+about that block</li>
+</ol>
+</section><section id="bitswap-1-0-0-message"><h3><bdi class="secno">4.2 </bdi>Bitswap 1.0.0: Message</h3><a href="#bitswap-1-0-0-message" class="self-link" aria-label="Section 4.2"></a>
+<p>A single Bitswap message <em class="rfc2119">MAY</em> contain any of the following content:</p>
+<ol>
+<li>The sender’s wantlist. This wantlist <em class="rfc2119">MAY</em> either be the sender’s complete wantlist
+or just the changes to the sender’s wantlist that the receiver needs to know.</li>
+<li>Data blocks. These are meant to be blocks that the receiver has requested (i.e.,
+blocks that are on the receiver’s wantlist as far as the sender is aware at the
+time of sending).</li>
+</ol>
+<section id="bitswap-1-0-0-wire-format"><h4><bdi class="secno">4.2.1 </bdi>Bitswap 1.0.0: Wire Format</h4><a href="#bitswap-1-0-0-wire-format" class="self-link" aria-label="Section 4.2.1"></a>
+<p>The wire format for Bitswap is simply a stream of Bitswap messages. The following
+protobuf describes the form of these messages. Note: all protobufs are described
+using <a href="https://protobuf.dev/programming-guides/proto3/">proto3</a> syntax.</p>
+<pre><code class="">message Message {
+  message Wantlist {
+    message Entry {
+      bytes block = 1; // the block key, i.e. a CIDv0
+      int32 priority = 2; // the priority (normalized). default to 1
+      bool cancel = 3;  // whether this revokes an entry
+    }
+
+    repeated Entry entries = 1; // a list of wantlist entries
+    bool full = 2; // whether this is the full wantlist. default to false
+  }
+
+  Wantlist wantlist = 1;
+  repeated bytes blocks = 2;
+}
+</code></pre>
+</section></section><section id="bitswap-1-0-0-protocol-format"><h3><bdi class="secno">4.3 </bdi>Bitswap 1.0.0: Protocol Format</h3><a href="#bitswap-1-0-0-protocol-format" class="self-link" aria-label="Section 4.3"></a>
+<p>All protocol messages sent over a stream are prefixed with the message length in
+bytes, encoded as an unsigned variable length integer as defined by the multiformats
+<a href="https://github.com/multiformats/unsigned-varint">unsigned-varint</a> spec.</p>
+<p>All protocol messages <em class="rfc2119">MUST</em> be less than or equal to 4MiB in size.</p>
+</section></section><section id="bitswap-1-1-0"><h2><bdi class="secno">5. </bdi>Bitswap 1.1.0</h2><a href="#bitswap-1-1-0" class="self-link" aria-label="Section 5."></a>
+<p>Bitswap 1.1.0 introduces a <code>payload</code> field to the protobuf message and deprecates the
+existing 'blocks' field. The 'payload' field is an array of pairs of CID prefixes
+and block data. The CID prefixes are used to ensure the correct codecs and hash
+functions are used to handle the block on the receiving end.</p>
+<p>It is otherwise identical to 1.0.0.</p>
+<section id="bitswap-1-1-0-wire-format"><h3><bdi class="secno">5.1 </bdi>Bitswap 1.1.0: Wire Format</h3><a href="#bitswap-1-1-0-wire-format" class="self-link" aria-label="Section 5.1"></a>
+<pre><code class="">message Message {
+    message Entry {
+      bytes block = 1; // CID of the block
+      int32 priority = 2; // the priority (normalized). default to 1
+      bool cancel = 3; // whether this revokes an entry
+    }
+
+    repeated Entry entries = 1; // a list of wantlist entries
+    bool full = 2; // whether this is the full wantlist. default to false
+  }
+
+  message Block {
+    bytes prefix = 1; // CID prefix (all of the CID components except for the digest of the multihash)
+    bytes data = 2;
+  }
+
+  Wantlist wantlist = 1;
+  repeated Block payload = 3; 
+}
+</code></pre>
+</section></section><section id="bitswap-1-2-0"><h2><bdi class="secno">6. </bdi>Bitswap 1.2.0</h2><a href="#bitswap-1-2-0" class="self-link" aria-label="Section 6."></a>
+<p>Bitswap 1.2.0 extends the Bitswap 1.1.0 protocol with the three changes:</p>
+<ol>
+<li>Being able to ask if a peer has the data, not just to send the data.</li>
+<li>A peer can respond that it does not have some data rather than just not responding.</li>
+<li>Nodes can indicate on messages how much data they have queued to send to the peer
+they are sending the message to.</li>
+</ol>
+<section id="bitswap-1-2-0-interaction-pattern"><h3><bdi class="secno">6.1 </bdi>Bitswap 1.2.0: Interaction Pattern</h3><a href="#bitswap-1-2-0-interaction-pattern" class="self-link" aria-label="Section 6.1"></a>
+<p>Given that a client <em>C</em> wants to fetch data from some server <em>S</em>:</p>
+<ol>
+<li><em>C</em> opens a stream <code>s_want</code> to <em>S</em> and sends a message for the blocks it wants:
+<ol>
+<li><em>C</em> <em class="rfc2119">MAY</em> either send a complete wantlist, or an update to an outstanding wantlist.</li>
+<li><em>C</em> <em class="rfc2119">MAY</em> reuse this stream to send new wants.</li>
+<li>For each of the items in the wantlist <em>C</em> <em class="rfc2119">MAY</em> ask if <em>S</em> has the block
+(i.e. a <code>Have</code> request) or for <em>S</em> to send the block (i.e. a <code>Block</code> request).
+<em>C</em> <em class="rfc2119">MAY</em> also ask <em>S</em> to send back a <code>DontHave</code> message in the event it doesn't
+have the block.</li>
+</ol>
+</li>
+<li><em>S</em> responds back on a stream <code>s_receive</code>. <em>S</em> <em class="rfc2119">MAY</em> reuse this stream to send
+back subsequent responses:
+<ol>
+<li>If <em>C</em> sends <em>S</em> a <code>Have</code> request for data <em>S</em> has (and is willing to give
+to <em>C</em>) it <em class="rfc2119">SHOULD</em> respond with a <code>Have</code>, although it <em class="rfc2119">MAY</em> instead respond
+with the block itself (e.g. if the block is very small).</li>
+<li>If <em>C</em> sends <em>S</em> a <code>Have</code> request for data <em>S</em> does not have (or has but
+is not willing to give to <em>C</em>) and <em>C</em> has requested for <code>DontHave</code> responses
+then <em>S</em> <em class="rfc2119">SHOULD</em> respond with <code>DontHave</code>.</li>
+<li><em>S</em> <em class="rfc2119">MAY</em> choose to include the number of bytes that are pending to be sent
+to <em>C</em> in the response message.</li>
+<li><em>S</em> <em class="rfc2119">SHOULD</em> respect the relative priority of wantlist requests from <em>C</em>,
+with wants that have higher <code>priority</code> values being responded to first.</li>
+</ol>
+</li>
+<li>When <em>C</em> no longer needs a block it previously asked for it <em class="rfc2119">SHOULD</em> send a
+<code>Cancel</code> message for that request to any peers that have not already responded
+about that particular block. It <em class="rfc2119">SHOULD</em> particularly send <code>Cancel</code> messages for
+<code>Block</code> requests (as opposed to <code>Have</code> requests) that have not yet been answered.</li>
+</ol>
+<div class="note"><p><code>Have</code>'s and <code>Have</code>/<code>DontHave</code> responses enable Bitswap to be used as
+bare-bones content routing system for connected peers.</p></div>
+</section><section id="bitswap-1-2-0-wire-format"><h3><bdi class="secno">6.2 </bdi>Bitswap 1.2.0: Wire Format</h3><a href="#bitswap-1-2-0-wire-format" class="self-link" aria-label="Section 6.2"></a>
+<pre><code class="">message Message {
+  message Wantlist {
+    enum WantType {
+      Block = 0;
+      Have = 1;
+    }
+
+    message Entry {
+      bytes block = 1; // CID of the block
+      int32 priority = 2; // the priority (normalized). default to 1
+      bool cancel = 3; // whether this revokes an entry
+      WantType wantType = 4; // Note: defaults to enum 0, ie Block
+      bool sendDontHave = 5; // Note: defaults to false
+    }
+
+    repeated Entry entries = 1; // a list of wantlist entries
+    bool full = 2; // whether this is the full wantlist. default to false
+  }
+  message Block {
+    bytes prefix = 1; // CID prefix (all of the CID components except for the digest of the multihash)
+    bytes data = 2;
+  }
+
+  enum BlockPresenceType {
+    Have = 0;
+    DontHave = 1;
+  }
+  message BlockPresence {
+    bytes cid = 1;
+    BlockPresenceType type = 2;
+  }
+
+  Wantlist wantlist = 1;
+  repeated Block payload = 3;
+  repeated BlockPresence blockPresences = 4;
+  int32 pendingBytes = 5;
+}
+</code></pre>
+</section></section><section id="implementations"><h2><bdi class="secno">7. </bdi>Implementations</h2><a href="#implementations" class="self-link" aria-label="Section 7."></a>
+<ul>
+<li>GO: <a href="https://github.com/ipfs/boxo/tree/main/bitswap"><code>boxo/bitswap</code></a></li>
+<li>JS: <a href="https://github.com/ipfs/js-ipfs-bitswap">js-ipfs-bitswap</a></li>
+</ul>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Juan Benet</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/jbenet"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Jeromy Johnson</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/whyrusleeping"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>David Dias</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/daviddias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Adin Schmahmann</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

@@ -306,6 +306,11 @@ several accounts are stored once). The explorer's library lists every
 account. `ipfs2fil export` writes one folder per account, named by DID,
 each the same as an `at://` fetch, byte for byte.
 
+A PDS on a private atproto network, with its own PLC directory, works too:
+set `$IPFS2FIL_PLC_DIRECTORY` to that directory and
+`$IPFS2FIL_HANDLE_RESOLVER` to a server that resolves its handles (the PDS
+itself does), for `at://` and `pds:` alike.
+
 ## Pins on a pinning service
 
 Pins kept on a pinning service (Pinata, Filebase, 4EVERLAND, or any service

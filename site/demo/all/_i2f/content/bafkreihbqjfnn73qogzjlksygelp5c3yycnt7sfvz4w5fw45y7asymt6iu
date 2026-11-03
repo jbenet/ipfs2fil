@@ -1,0 +1,220 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0513: Routing V1 Returns 200 for Empty Results</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0513/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0513: Routing V1 Returns 200 for Empty Results</h1><p id="last-modified"><time datetime="2025-12-17T00:00:00.000Z">17 December 2025</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/boxo/issues/1024">ipfs/boxo/issues/1024</a></dd><dd><a href="https://github.com/ipfs/specs/pull/337">ipfs/specs/pull/337</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0513.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0513.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a><ol class="toc"><li><a href="#specification-changes" class="tocxref"><bdi class="secno">3.1 </bdi>Specification Changes</a><ol class="toc"><li><a href="#get-routing-v1-providers-cid" class="tocxref"><bdi class="secno">3.1.1 </bdi>GET /routing/v1/providers/{cid}</a></li><li><a href="#get-routing-v1-peers-peer-id" class="tocxref"><bdi class="secno">3.1.2 </bdi>GET /routing/v1/peers/{peer-id}</a></li><li><a href="#get-routing-v1-ipns-name" class="tocxref"><bdi class="secno">3.1.3 </bdi>GET /routing/v1/ipns/{name}</a></li></ol></li><li><a href="#response-format-for-empty-results" class="tocxref"><bdi class="secno">3.2 </bdi>Response Format for Empty Results</a></li><li><a href="#cache-control" class="tocxref"><bdi class="secno">3.3 </bdi>Cache Control</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#industry-best-practices" class="tocxref"><bdi class="secno">4.1 </bdi>Industry Best Practices</a></li><li><a href="#semantic-correctness" class="tocxref"><bdi class="secno">4.2 </bdi>Semantic Correctness</a></li><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.3 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.4 </bdi>Compatibility</a><ol class="toc"><li><a href="#backward-compatibility" class="tocxref"><bdi class="secno">4.4.1 </bdi>Backward Compatibility</a></li><li><a href="#migration-strategy" class="tocxref"><bdi class="secno">4.4.2 </bdi>Migration Strategy</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4.5 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.6 </bdi>Alternatives</a><ol class="toc"><li><a href="#204-no-content" class="tocxref"><bdi class="secno">4.6.1 </bdi>204 No Content</a></li><li><a href="#keep-404-status" class="tocxref"><bdi class="secno">4.6.2 </bdi>Keep 404 Status</a></li><li><a href="#api-versioning-routing-v1-1" class="tocxref"><bdi class="secno">4.6.3 </bdi>API Versioning (/routing/v1.1)</a></li></ol></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#empty-results-tests" class="tocxref"><bdi class="secno">5.1 </bdi>Empty Results Tests</a></li><li><a href="#backward-compatibility-tests" class="tocxref"><bdi class="secno">5.2 </bdi>Backward Compatibility Tests</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.3 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Change the Delegated Routing V1 HTTP API server recommendation to return HTTP status code 200 (OK) with empty results instead of 404 (Not Found) when no matching records are found. This improves semantic correctness, prevents unwanted browser console errors, and provides separate guidance for servers and clients - with clients required to handle both response codes for backward compatibility, resiliency, and maximal interoperability with different server implementations.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>The current Delegated Routing V1 HTTP API specification requires servers to return HTTP 404 (Not Found) when no matching records are found for a query. This creates two significant problems:</p>
+<ol>
+<li>
+<p><strong>Browser Console Errors</strong>: When routing queries are made from web browsers and return 404s, browsers log error messages to the console that cannot be prevented programmatically. These error messages confuse users who understandably think something is broken, when in reality an empty result is a normal and expected outcome for many queries.</p>
+</li>
+<li>
+<p><strong>Semantic Incorrectness</strong>: HTTP 404 means "the requested resource does not exist." However, when querying <code>/routing/v1/providers/{cid}</code>, the endpoint itself exists and is functioning correctly - it simply found no results. Returning 404 conflates "endpoint not found" with "no data found," which are fundamentally different conditions.</p>
+</li>
+</ol>
+<p>As noted in the original issue, querying for a peer with specific filters demonstrates this problem clearly:</p>
+<ul>
+<li>A peer query without filters returns 200 with results</li>
+<li>The same peer query with filters that match nothing returns 404</li>
+<li>This suggests the endpoint suddenly "doesn't exist" when it clearly does</li>
+</ul>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<section id="specification-changes"><h3><bdi class="secno">3.1 </bdi>Specification Changes</h3><a href="#specification-changes" class="self-link" aria-label="Section 3.1"></a>
+<p>Update the following sections in <code>specs/src/routing/http-routing-v1.md</code>:</p>
+<section id="get-routing-v1-providers-cid"><h4><bdi class="secno">3.1.1 </bdi>GET /routing/v1/providers/{cid}</h4><a href="#get-routing-v1-providers-cid" class="self-link" aria-label="Section 3.1.1"></a>
+<p>Current:</p>
+<ul>
+<li><code>404</code> (Not Found): must be returned if no matching records are found.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li><code>200</code> (OK): the response body contains 0 or more records.</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as 200 with 0 results for backward compatibility, resiliency, and maximal interoperability.</li>
+</ul>
+</section><section id="get-routing-v1-peers-peer-id"><h4><bdi class="secno">3.1.2 </bdi>GET /routing/v1/peers/{peer-id}</h4><a href="#get-routing-v1-peers-peer-id" class="self-link" aria-label="Section 3.1.2"></a>
+<p>Current:</p>
+<ul>
+<li><code>404</code> (Not Found): must be returned if no matching records are found.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li><code>200</code> (OK): the response body contains 0 or more peer records.</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as 200 with 0 results for backward compatibility, resiliency, and maximal interoperability.</li>
+</ul>
+</section><section id="get-routing-v1-ipns-name"><h4><bdi class="secno">3.1.3 </bdi>GET /routing/v1/ipns/{name}</h4><a href="#get-routing-v1-ipns-name" class="self-link" aria-label="Section 3.1.3"></a>
+<p>Current:</p>
+<ul>
+<li><code>404</code> (Not Found): must be returned if no matching records are found.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li><code>200</code> (OK): the response body contains the IPNS Record for the given IPNS Name with <code>Content-Type: application/vnd.ipfs.ipns-record</code>. Any other content type <em class="rfc2119">MUST</em> be interpreted as "no record found".</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as "no record found" for backward compatibility, resiliency, and maximal interoperability.</li>
+</ul>
+</section></section><section id="response-format-for-empty-results"><h3><bdi class="secno">3.2 </bdi>Response Format for Empty Results</h3><a href="#response-format-for-empty-results" class="self-link" aria-label="Section 3.2"></a>
+<p>For JSON responses (<code>application/json</code>):</p>
+<pre><code class="">{
+  "Providers": []
+}
+</code></pre>
+<p>or</p>
+<pre><code class="">{
+  "Peers": []
+}
+</code></pre>
+<p>For NDJSON streaming responses (<code>application/x-ndjson</code>):</p>
+<ul>
+<li>Return 200 with an empty stream (zero lines)</li>
+<li>Do not return any data lines</li>
+</ul>
+<p>For IPNS responses:</p>
+<ul>
+<li>Only <code>Content-Type: application/vnd.ipfs.ipns-record</code> indicates a valid IPNS record was found</li>
+<li>Any other content type (e.g., <code>text/plain</code> with error message) <em class="rfc2119">MUST</em> be interpreted as "no record found"</li>
+<li>This allows servers to return 200 with different content types for error conditions while maintaining backward compatibility</li>
+</ul>
+</section><section id="cache-control"><h3><bdi class="secno">3.3 </bdi>Cache Control</h3><a href="#cache-control" class="self-link" aria-label="Section 3.3"></a>
+<p>The existing cache control behavior remains unchanged:</p>
+<ul>
+<li>Empty results should use shorter TTL (typically 15 seconds)</li>
+<li>Non-empty results can use longer TTL based on the data</li>
+</ul>
+</section></section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<section id="industry-best-practices"><h3><bdi class="secno">4.1 </bdi>Industry Best Practices</h3><a href="#industry-best-practices" class="self-link" aria-label="Section 4.1"></a>
+<p>Research into REST API design patterns shows that returning 200 with empty collections is a common and recommended practice:</p>
+<ul>
+<li>Major APIs (GitHub, Google, AWS) follow this pattern for collection endpoints</li>
+<li>REST principles suggest that a successful query with no results is still a success</li>
+<li>The collection resource exists even when empty</li>
+</ul>
+</section><section id="semantic-correctness"><h3><bdi class="secno">4.2 </bdi>Semantic Correctness</h3><a href="#semantic-correctness" class="self-link" aria-label="Section 4.2"></a>
+<p>The HTTP specification defines status codes with specific meanings:</p>
+<ul>
+<li><strong>200 OK</strong>: The request succeeded, here are the results (which may be empty)</li>
+<li><strong>404 Not Found</strong>: The requested resource (endpoint) does not exist</li>
+<li><strong>204 No Content</strong>: Success with explicitly no response body</li>
+</ul>
+<p>For collection/search endpoints, the resource is the endpoint itself, not the data it returns. The endpoint exists and functions correctly regardless of whether it finds matching data.</p>
+</section><section id="user-benefit"><h3><bdi class="secno">4.3 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.3"></a>
+<ol>
+<li>
+<p><strong>Cleaner Browser Console</strong>: Web applications will no longer show error messages for normal operations, reducing user confusion and support requests.</p>
+</li>
+<li>
+<p><strong>Clearer Semantics</strong>: Developers can distinguish between "endpoint doesn't exist" (real 404) and "no results found" (200 with empty data).</p>
+</li>
+<li>
+<p><strong>Consistent Response Structure</strong>: Clients can use the same parsing logic whether results are empty or populated.</p>
+</li>
+</ol>
+</section><section id="compatibility"><h3><bdi class="secno">4.4 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.4"></a>
+<section id="backward-compatibility"><h4><bdi class="secno">4.4.1 </bdi>Backward Compatibility</h4><a href="#backward-compatibility" class="self-link" aria-label="Section 4.4.1"></a>
+<p>This change is designed to be fully backward compatible by following the <a href="https://specs.ipfs.tech/architecture/principles/#robustness">robustness principle</a> - "be conservative in what you send, and liberal in what you accept":</p>
+<ol>
+<li><strong>Servers</strong> (conservative sending): <em class="rfc2119">SHOULD</em> return 200 for empty results</li>
+<li><strong>Clients</strong> (liberal accepting): <em class="rfc2119">MUST</em> handle both:
+<ul>
+<li>200 with empty result list (new behavior)</li>
+<li>404 (old behavior from legacy servers)</li>
+</ul>
+</li>
+</ol>
+<p>This approach ensures maximum interoperability across the ecosystem while gradually transitioning to the semantically correct behavior.</p>
+</section><section id="migration-strategy"><h4><bdi class="secno">4.4.2 </bdi>Migration Strategy</h4><a href="#migration-strategy" class="self-link" aria-label="Section 4.4.2"></a>
+<ol>
+<li>
+<p><strong>Phase 1</strong>: Update server implementations to return 200</p>
+<ul>
+<li>Can be deployed immediately without breaking existing clients that handle both codes</li>
+</ul>
+</li>
+<li>
+<p><strong>Phase 2</strong>: Update clients to have regression tests that ensure they handle both 200 and 404</p>
+<ul>
+<li>Clients must maintain 404 handling indefinitely for compatibility with servers that return 404s</li>
+</ul>
+</li>
+</ol>
+</section></section><section id="security"><h3><bdi class="secno">4.5 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.5"></a>
+<p>This change has no security implications. It only affects the HTTP status code returned for empty results, not the data format, authentication, or authorization mechanisms.</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.6 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.6"></a>
+<section id="204-no-content"><h4><bdi class="secno">4.6.1 </bdi>204 No Content</h4><a href="#204-no-content" class="self-link" aria-label="Section 4.6.1"></a>
+<p><strong>Considered but rejected</strong> for the following reasons:</p>
+<ol>
+<li><strong>Cannot include response body</strong>: 204 explicitly means no response body, but for JSON endpoints we want to maintain consistent response structure (empty arrays/objects)</li>
+<li><strong>Incompatible with streaming</strong>: NDJSON streams need to specify content type and may include headers even when empty</li>
+<li><strong>Inconsistent client handling</strong>: Different code paths needed for empty vs non-empty responses</li>
+<li><strong>Limited applicability</strong>: Could only work for IPNS binary responses, not JSON/NDJSON</li>
+</ol>
+</section><section id="keep-404-status"><h4><bdi class="secno">4.6.2 </bdi>Keep 404 Status</h4><a href="#keep-404-status" class="self-link" aria-label="Section 4.6.2"></a>
+<p><strong>Rejected</strong> because:</p>
+<ol>
+<li><strong>Browser errors</strong>: The primary motivation is eliminating confusing console errors</li>
+<li><strong>Semantic incorrectness</strong>: 404 should mean "endpoint not found" not "no data"</li>
+<li><strong>Inconsistent with filters</strong>: Same endpoint returning different status codes based on filter parameters is confusing</li>
+</ol>
+</section><section id="api-versioning-routing-v1-1"><h4><bdi class="secno">4.6.3 </bdi>API Versioning (/routing/v1.1)</h4><a href="#api-versioning-routing-v1-1" class="self-link" aria-label="Section 4.6.3"></a>
+<p><strong>Rejected</strong> in favor of in-place upgrade because:</p>
+<ol>
+<li><strong>Backward compatible</strong>: The change can be made without breaking existing clients</li>
+<li><strong>Simpler deployment</strong>: No need to maintain multiple API versions</li>
+<li><strong>Faster adoption</strong>: No need for clients to explicitly opt into new version</li>
+</ol>
+</section></section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>Implementations should test the following scenarios:</p>
+<section id="empty-results-tests"><h3><bdi class="secno">5.1 </bdi>Empty Results Tests</h3><a href="#empty-results-tests" class="self-link" aria-label="Section 5.1"></a>
+<ol>
+<li>
+<p><strong>Providers endpoint with no results</strong>:</p>
+<pre><code>GET /routing/v1/providers/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi
+Response: 200 OK
+Body: {"Providers": []}
+</code></pre>
+</li>
+<li>
+<p><strong>NDJSON streaming with no results</strong>:</p>
+<pre><code>GET /routing/v1/providers/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi
+Accept: application/x-ndjson
+Response: 200 OK
+Content-Type: application/x-ndjson
+Body: [empty - no lines]
+</code></pre>
+</li>
+<li>
+<p><strong>IPNS endpoint with no results</strong>:</p>
+<pre><code>GET /routing/v1/ipns/k51qzi5uqu5dhlbegona8wfyei6jnjuhrulz3t8femxtfmak9134qpqncw3poc
+Accept: application/vnd.ipfs.ipns-record
+Response: 200 OK
+Content-Type: text/plain; charset=utf-8
+Body: delegate error: routing: not found
+</code></pre>
+<p>Note: The <code>Content-Type</code> is NOT <code>application/vnd.ipfs.ipns-record</code>, which indicates no record was found and parsing of body can be skipped. In this example, the body contains text/plain error message for convenience.</p>
+</li>
+</ol>
+</section><section id="backward-compatibility-tests"><h3><bdi class="secno">5.2 </bdi>Backward Compatibility Tests</h3><a href="#backward-compatibility-tests" class="self-link" aria-label="Section 5.2"></a>
+<p>Clients <em class="rfc2119">MUST</em> correctly handle:</p>
+<ol>
+<li>Old server returning 404 → treat as empty results</li>
+<li>New server returning 200 with empty body → treat as empty results</li>
+<li>New server returning 200 with results → process normally</li>
+</ol>
+</section><section id="copyright"><h3><bdi class="secno">5.3 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.3"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

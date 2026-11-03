@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>libp2p+HTTP Transport Gateway Specification</title>
+    <meta name="description" content="Describes how HTTP Gateway semantics can be used over libp2p transports and how libp2p can coexist with other HTTP services on the same host.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/libp2p-gateway/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">libp2p+HTTP Transport Gateway Specification</h1><p id="last-modified"><time datetime="2025-03-06T00:00:00.000Z">6 March 2025</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-draft-yellow.svg?style=flat-square" height="20" alt="status: draft"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/libp2p-gateway.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/libp2p-gateway.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>This specification describes how HTTP Gateway semantics
+and APIs can be used over <a href="https://github.com/libp2p/specs">libp2p</a> transports,
+and how libp2p can coexist with other HTTP services on the same host.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#libp2p-http-protocols-manifest" class="tocxref"><bdi class="secno">1. </bdi>libp2p HTTP Protocols Manifest</a><ol class="toc"><li><a href="#well-known-libp2p-protocols" class="tocxref"><bdi class="secno">1.1 </bdi><code>.well-known/libp2p/protocols</code></a><ol class="toc"><li><a href="#protocol-identifier" class="tocxref"><bdi class="secno">1.1.1 </bdi>Protocol Identifier</a></li><li><a href="#protocol-mounting" class="tocxref"><bdi class="secno">1.1.2 </bdi>Protocol Mounting</a></li></ol></li></ol></li><li><a href="#peer-id-authentication" class="tocxref"><bdi class="secno">2. </bdi>Peer ID Authentication</a></li><li><a href="#gateway-type-detection" class="tocxref"><bdi class="secno">3. </bdi>Gateway Type Detection</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="libp2p-http-protocols-manifest"><h2><bdi class="secno">1. </bdi>libp2p HTTP Protocols Manifest</h2><a href="#libp2p-http-protocols-manifest" class="self-link" aria-label="Section 1."></a>
+<p>The <a href="https://github.com/libp2p/specs/blob/master/http/README.md">libp2p+HTTP specification</a>
+describes how to use libp2p with HTTP semantics over stream transports, as well as how
+to do discovery of what protocols are available (and where they are mounted).</p>
+<section id="well-known-libp2p-protocols"><h3><bdi class="secno">1.1 </bdi><code>.well-known/libp2p/protocols</code></h3><a href="#well-known-libp2p-protocols" class="self-link" aria-label="Section 1.1"></a>
+<p>Any libp2p application sub-protocols exposed behind <code>/http/1.1</code> protocol can be
+discovered by the well-known resource ([<a class="bibref" href="#ref-rfc8615">rfc8615</a>]) at <code>.well-known/libp2p/protocols</code>.</p>
+<section id="protocol-identifier"><h4><bdi class="secno">1.1.1 </bdi>Protocol Identifier</h4><a href="#protocol-identifier" class="self-link" aria-label="Section 1.1.1"></a>
+<p>In order for a pure HTTP Gateway protocol like the [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] to
+coexist with libp2p in this environment it requires a protocol identifier to act as a key in
+the <code>.well-known/libp2p/protocols</code> mapping file.</p>
+<p>The <code>/http/1.1</code> sub-protocol identifier for the IPFS Gateway when used over libp2p is:</p>
+<pre><code>/ipfs/gateway
+</code></pre>
+</section><section id="protocol-mounting"><h4><bdi class="secno">1.1.2 </bdi>Protocol Mounting</h4><a href="#protocol-mounting" class="self-link" aria-label="Section 1.1.2"></a>
+<p>A reference <code>.well-known/libp2p/protocols</code> JSON body with mapping that assumes the gateway to be mounted at <code>/</code>:</p>
+<pre><code class="">{
+  "protocols": {
+    "/ipfs/gateway": {"path": "/"},
+  }
+}
+</code></pre>
+</section></section></section><section id="peer-id-authentication"><h2><bdi class="secno">2. </bdi>Peer ID Authentication</h2><a href="#peer-id-authentication" class="self-link" aria-label="Section 2."></a>
+<p><a href="https://github.com/libp2p/specs/blob/master/http/peer-id-auth.md">Peer ID Authentication over HTTP</a> is optional and <em class="rfc2119">SHOULD NOT</em> be required by <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">Trustless Gateway</a>  HTTP endpoint defined for <code>/ipfs/gateway</code> handler.</p>
+<p>Clients following the Trustless Gateway specification <em class="rfc2119">MUST</em> verify each CID individually, without being concerned with peer identity.
+PeerID authentication is not required for trustless retrieval and HTTP-only clients <em class="rfc2119">SHOULD</em> work without it.</p>
+</section><section id="gateway-type-detection"><h2><bdi class="secno">3. </bdi>Gateway Type Detection</h2><a href="#gateway-type-detection" class="self-link" aria-label="Section 3."></a>
+<p>The <code>/ipfs/gateway</code> protocol identifier is shared among all Gateway specifications.</p>
+<p>An HTTP server mounted behind the <code>/ipfs/gateway</code> identifier <em class="rfc2119">MUST</em> expose the most basic <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#block-responses-application-vnd-ipld-raw">block (application/vnd.ipld.raw)</a>
+responses from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>], but <em class="rfc2119">MAY</em> also support other gateway types and features.</p>
+<p>Client implementations <em class="rfc2119">SHOULD</em> <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#dedicated-probe-paths">perform feature detection</a> on their own,
+or assume only the most basic <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#block-responses-application-vnd-ipld-raw">block (application/vnd.ipld.raw)</a>
+response type from [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] is available.</p>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc8615">[rfc8615]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc8615"><cite>Well-Known Uniform Resource Identifiers (URIs)</cite></a>. M. Nottingham. IETF. May 2019. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc8615">https://www.rfc-editor.org/rfc/rfc8615</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Adin Schmahmann</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

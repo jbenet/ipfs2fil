@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0484: Opt-in Filtering in Routing V1 HTTP API</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0484/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0484: Opt-in Filtering in Routing V1 HTTP API</h1><p id="last-modified"><time datetime="2024-10-29T00:00:00.000Z">29 October 2024</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/ipfs-check/issues/70">ipfs/ipfs-check/issues/70</a></dd><dd><a href="https://github.com/ipfs/boxo/pull/678">ipfs/boxo/pull/678</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0484.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0484.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#note-on-terminology" class="tocxref"><bdi class="secno">3. </bdi>Note on terminology</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">4. </bdi>Detailed design</a><ol class="toc"><li><a href="#network-address-filtering" class="tocxref"><bdi class="secno">4.1 </bdi>Network Address Filtering</a></li><li><a href="#ipfs-protocol-filtering" class="tocxref"><bdi class="secno">4.2 </bdi>IPFS Protocol Filtering</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">5. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">5.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">5.2 </bdi>Compatibility</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.3 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Add opt-in support for filtering specific network transports and/or transfer protocols to the Delegated Routing v1 HTTP endpoints via HTTP GET parameters.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>IPFS aims to allow ubiquitous data exchange across different runtimes and platforms. One of the most challenging aspects of this goal is the diversity of network conditions and capabilities across different environments. Web browsers have a very limited network stack, and most web browsers do not support the full range of network transport protocols that are commonly used in other IPFS implementations.</p>
+<p>The Delegated Routing v1 API empowers resource constrained clients like web browsers by significantly reducing the number of network connections necessary to fetch content addressed data directly from provider peers.</p>
+<p>However, there are many cases where most of the results from the Delegated Routing v1 API are not actionable by clients, because the client does not support either the <strong>network transport protocol</strong> or the <strong>transfer protocol</strong> of the provider.</p>
+<p>For instance, web browsers are limited to a specific set of network transport protocols, namely HTTPS, Secure WebSockets, WebTransport (emerging), and WebRTC. Consequently, providing information about providers that exclusively support TCP and/or UDP is not beneficial for browser-based clients, as they are unable to utilize such connections.</p>
+<p>Moreover, <a href="https://github.com/ipfs/helia/">Helia</a>, the most actively maintained browser IPFS implementation, supports block retrieval by CID with Bitswap and Trustless Gateways, but does not support Graphsync.</p>
+<p>This means that returning providers that only support raw TCP, raw UDP/QUIC, or Graphsync from the Delegated Routing API is not useful for browser clients, and results in unnecessary network traffic for browser clients.</p>
+</section><section id="note-on-terminology"><h2><bdi class="secno">3. </bdi>Note on terminology</h2><a href="#note-on-terminology" class="self-link" aria-label="Section 3."></a>
+<p>The term <strong>"transport"</strong> is overloaded in the IPFS ecosystem.</p>
+<p>In the context of this IPIP, we refer to the network layer transport protocol, e.g. TCP, QUIC, WebTransport, as <strong>"network transport protocol"</strong> to avoid ambiguity.</p>
+<p><strong>"Transfer protocol"</strong> refers to data transfer protocols, i.e. content-addressed block retrieval protocols, e.g. Bitswap, Graphsync, HTTP.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">4. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 4."></a>
+<section id="network-address-filtering"><h3><bdi class="secno">4.1 </bdi>Network Address Filtering</h3><a href="#network-address-filtering" class="self-link" aria-label="Section 4.1"></a>
+<p>The proposed change is to add a <code>?filter-addrs</code> parameter to the <code>GET /routing/v1/providers/{cid}</code> and <code>GET /routing/v1/peers/{peer-id}</code> endpoints of [<a class="bibref" href="#ref-http-routing-v1">http-routing-v1</a>]:</p>
+<ul>
+<li>Add a <code>?filter-addrs=&lt;comma-separated-list&gt;</code> optional parameter to <code>GET /routing/v1/providers/{CID}</code> that indicates which network transports to return by filtering the multiaddrs in the <code>Addrs</code> field of the <a href="https://specs.ipfs.tech/routing/http-routing-v1/#peer-schema">Peer schema</a>.</li>
+<li>The value of the <code>filter-addrs</code> parameter is a comma-separated list of network transport protocol <em>name strings</em> as defined in the <a href="https://github.com/multiformats/multiaddr/blob/master/protocols.csv">multiaddr protocol registry</a>, e.g. <code>?filter-addrs=webtransport</code>.</li>
+<li><code>unknown</code> can be be passed to include providers whose multiaddrs are unknown, e.g. <code>?filter-addrs=unknown</code>. This allows filtering providers whose multiaddrs are unknown at the time of filtering.</li>
+<li>Multiaddrs are filtered by checking if the protocol name appears in any of the multiaddrs (logical OR).</li>
+<li>Negative filtering is done by prefixing the protocol name with <code>!</code>, e.g. to skip IPv6 and QUIC addrs: <code>?filter-addrs=!ip6,!quic-v1</code>. Note that negative filtering is done by checking if the protocol name does not appear in any of the multiaddrs (logical AND).</li>
+<li>If no parameter is passed, the default behavior is to return the original list of addresses unchanged.</li>
+<li>If only negative filters are provided, addresses not passing any of the negative filters are included.</li>
+<li>If positive filters are provided, only addresses passing at least one positive filter (and no negative filters) are included.</li>
+<li>If both positive and negative filters are provided, the address must pass all negative filters and at least one positive filter to be included.</li>
+<li>If there are no multiaddrs that match the passed transports, the provider is omitted from the response.</li>
+<li>Filtering is case-insensitive.</li>
+</ul>
+</section><section id="ipfs-protocol-filtering"><h3><bdi class="secno">4.2 </bdi>IPFS Protocol Filtering</h3><a href="#ipfs-protocol-filtering" class="self-link" aria-label="Section 4.2"></a>
+<p>The proposed change is to add a <code>?filter-protocols</code> parameter to the <code>GET /routing/v1/providers/{cid}</code> and <code>GET /routing/v1/peers/{peer-id}</code> endpoints of [<a class="bibref" href="#ref-http-routing-v1">http-routing-v1</a>]:</p>
+<ul>
+<li>Add a <code>?filter-protocols=&lt;comma-separated-list&gt;</code> optional parameter to <code>GET /routing/v1/providers/{CID}</code> to filter providers based on the <code>Protocol</code> field of the <a href="https://specs.ipfs.tech/routing/http-routing-v1/#peer-schema">Peer schema</a>.</li>
+<li>The <code>filter-protocols</code> parameter is a comma-separated list of transfer protocol names, e.g. <code>?filter-protocols=transport-bitswap</code>.</li>
+<li>Transfer protocols names should be treated as opaque strings and have a max length of 63 characters. A non-exhaustive list of transfer protocols are defined per convention in the <a href="https://github.com/multiformats/multicodec/blob/3b7b52deb31481790bc4bae984d8675bda4e0c82/table.csv#L149-L151">multicodec registry</a>.</li>
+<li>Implementations <em class="rfc2119">MUST</em> preserve all transfer protocol names when returning a positive result that matches one or more of them.</li>
+<li>A special <code>unknown</code> name can be be passed to include providers whose transfer protocol list is empty (unknown), e.g. <code>?filter-protocols=unknown</code>. This allows for including providers returned from the DHT that do not contain explicit transfer protocol information.</li>
+<li>Providers are filtered by checking if the transfer protocol name appears in the <code>Protocols</code> array (logical OR).</li>
+<li>If the provider doesn't match any of the passed transfer protocols, the provider is omitted from the response.</li>
+<li>If a provider passes the filter, it is returned unchanged, i.e. the full set of protocols is returned including protocols that not included in the filter. (note that this is different from <code>filter-addrs</code> where only the multiaddrs that pass the filter are returned)</li>
+<li>Filtering is case-insensitive.</li>
+<li>If no parameter is passed, the default behavior is to not filter by transfer protocol.</li>
+</ul>
+<div class="note"><p>Even though some of existing IPFS transfer protocol names start with <code>transport</code>, e.g. <code>transport-bitswap</code>, <code>transport-graphsync-filecoinv1</code>, and <code>transport-ipfs-gateway-http</code>, they should not to be confused with the network transport protocols used in peer addresses, which are filtered using the <code>filter-addrs</code> parameter.</p></div>
+</section></section><section id="design-rationale"><h2><bdi class="secno">5. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 5."></a>
+<ul>
+<li>Using these query parameters improves cache efficiency, as the response will be smaller and more specific to the client's needs.</li>
+<li>Backward compatibility is maintained by not changing the default behavior of the API.</li>
+<li>Use of protocol name rather than codes makes it easier for human debugging.</li>
+<li>DHT providers currently do not contain any transfer protocol information. <code>unknown</code> can be passed to <code>filter-protocols</code> to include such providers.</li>
+<li>Since provider records are independent of peer records, and it's pretty common to have provider records without up-to-date multiaddrs for that peer, <code>unknown</code> can be passed to <code>filter-addrs</code> to include such providers.</li>
+<li>Combining transfer protocol and transport protocol filters is done by ANDing the results of the filters, e.g. <code>?filter-addrs=webtransport&amp;filter-protocols=transport-bitswap</code> will return providers that support bitswap and have a webtransport multiaddr.</li>
+</ul>
+<section id="user-benefit"><h3><bdi class="secno">5.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 5.1"></a>
+<p>By filtering out providers that do not support the desired network transport protocol and/or transfer protocol, the client can reduce the traffic necessary in order to fetch the data.</p>
+<p>Moreover, it makes it much easier to determine whether there are any browser-usable providers for a given CID, which is a common use case for clients.</p>
+</section><section id="compatibility"><h3><bdi class="secno">5.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 5.2"></a>
+<p>This should not effect existing clients or servers.</p>
+<p>The default behavior when <code>?filter-addrs</code> and <code>?filter-protocols</code> is not passed is left unspecified, this IPIP is limited to opt-in behavior.</p>
+</section><section id="copyright"><h3><bdi class="secno">5.3 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.3"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-http-routing-v1">[http-routing-v1]</dt><dd><a href="https://specs.ipfs.tech/routing/http-routing-v1/"><cite>Delegated Routing V1 HTTP API</cite></a>. Henrique Dias; Daniel Norman; Marcin Rataj. 2026-07-29. URL: <a href="https://specs.ipfs.tech/routing/http-routing-v1/">https://specs.ipfs.tech/routing/http-routing-v1/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><dl class="bibliography"><dt>Editor</dt><dd><span>Daniel Norman</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/2color"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

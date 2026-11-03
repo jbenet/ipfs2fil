@@ -1,0 +1,128 @@
+{
+  "spec": {
+    "title": "Spec for Specs",
+    "url": "https://specs.ipfs.tech/meta/spec-for-specs/"
+  },
+  "dfns": [
+    {
+      "id": "dfn-spec",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-spec",
+      "linkingText": [
+        "spec"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-spec",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-spec",
+      "linkingText": [
+        "specs"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-shortname",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-shortname",
+      "linkingText": [
+        "shortname"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-shortname",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-shortname",
+      "linkingText": [
+        "shortnames"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Frontmatter",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-Frontmatter",
+      "linkingText": [
+        "frontmatter"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Frontmatter",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-Frontmatter",
+      "linkingText": [
+        "frontmatters"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "definition"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "dfn"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "def"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "definitions"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "dfns"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-definition",
+      "href": "https://specs.ipfs.tech/meta/spec-for-specs/#dfn-definition",
+      "linkingText": [
+        "defs"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    }
+  ]
+}

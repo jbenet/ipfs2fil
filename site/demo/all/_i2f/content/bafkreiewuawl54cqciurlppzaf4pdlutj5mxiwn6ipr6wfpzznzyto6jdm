@@ -1,0 +1,210 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Spec for Specs</title>
+    <meta name="description" content="Specifies the format and system used to create and maintain specifications for the interplanetary stack.">
+    <link rel="canonical" href="https://specs.ipfs.tech/meta/spec-for-specs/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Spec for Specs</h1><p id="last-modified"><time datetime="2023-03-14T00:00:00.000Z">14 March 2023</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-stable-brightgreen.svg?style=flat-square" height="20" alt="status: stable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/meta/spec-for-specs.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/meta/spec-for-specs.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>This document specifies the format and system used to create and maintain specifications for
+the interplanetary stack.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#structure" class="tocxref"><bdi class="secno">1. </bdi>Structure</a><ol class="toc"><li><a href="#frontmatter" class="tocxref"><bdi class="secno">1.1 </bdi>Frontmatter</a></li><li><a href="#title-sections" class="tocxref"><bdi class="secno">1.2 </bdi>Title &amp; Sections</a></li></ol></li><li><a href="#testable-assertions" class="tocxref"><bdi class="secno">2. </bdi>Testable Assertions</a></li><li><a href="#special-blocks" class="tocxref"><bdi class="secno">3. </bdi>Special Blocks</a></li><li><a href="#definitions" class="tocxref"><bdi class="secno">4. </bdi>Definitions</a></li><li><a href="#refs" class="tocxref"><bdi class="secno">5. </bdi>References</a><ol class="toc"><li><a href="#definitions-0" class="tocxref"><bdi class="secno">5.1 </bdi>Definitions</a></li><li><a href="#bibliographic" class="tocxref"><bdi class="secno">5.2 </bdi>Bibliographic</a></li></ol></li><li><a href="#references-0" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="structure"><h2><bdi class="secno">1. </bdi>Structure</h2><a href="#structure" class="self-link" aria-label="Section 1."></a>
+<p>Interplanetary specs are designed to be easy to write and maintain while still providing support for
+document production features expected from Internet standards. A spec is a Markdown document enriched
+with a small number of additional directives (a deliberate goal being to avoid the proliferation of
+ad hoc syntax) and a specialised processor that knows how to resolve and extract metadata that is
+useful to support rich interlinking in a standards suite.</p>
+<p>The name of the Markdown file matters, because it will be used as the <a href="#dfn-spec" data-dfn-type="dfn">spec</a>'s <a href="#dfn-shortname" data-dfn-type="dfn">shortname</a>.
+The shortname of a <a href="#dfn-spec" data-dfn-type="dfn">spec</a> is the key identifier that is used to refer to it when citing that
+<a href="#dfn-spec" data-dfn-type="dfn">spec</a> or importing its definitions. The <a href="#dfn-shortname" data-dfn-type="dfn">shortname</a> for this <a href="#dfn-spec" data-dfn-type="dfn">spec</a> is <code>spec-for-specs</code>
+which means that you can cite it using <code>:cite[spec-for-specs]</code> which comes out as [<a class="bibref" href="#ref-spec-for-specs">spec-for-specs</a>]
+(a <a href="#dfn-spec" data-dfn-type="dfn">spec</a> citing itself is not all that useful, really, but you can <em>also</em> do it from other
+<a href="#dfn-spec" data-dfn-type="dfn">specs</a>, which is kind of the point). The <a href="#dfn-shortname" data-dfn-type="dfn">shortname</a> <em class="rfc2119">SHOULD</em> be unique inside interplanetary
+<a href="#dfn-spec" data-dfn-type="dfn">specs</a>, and ideally in the entirety of the relevant standards universe, though that can at times
+prove challenging.</p>
+<section id="frontmatter"><h3><bdi class="secno">1.1 </bdi>Frontmatter</h3><a href="#frontmatter" class="self-link" aria-label="Section 1.1"></a>
+<p>A <a href="#dfn-spec" data-dfn-type="dfn">spec</a> <em class="rfc2119">MUST</em> being with <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a>. Frontmatter is a preamble to the document placed
+right at the start, delimited with <code>---</code> and containing YAML data ([<a class="bibref" href="#ref-YAML">YAML</a>]). The <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a>
+for this <a href="#dfn-spec" data-dfn-type="dfn">spec</a> looks like this:</p>
+<pre><code class="">---
+title: Specification Title
+description: A short description for this specification.
+date: 1977-03-15
+editors:
+    - name: Robin Berjon
+      email: robin@berjon.com
+      url: https://berjon.com/
+      github: darobin
+      mastodon: "@robin@mastodon.social"
+      bluesky: robin.berjon.com
+      affiliation:
+          name: Protocol Labs
+          url: https://protocol.ai/
+maturity: stable
+xref:
+  - dom
+  - test-methodology
+tags: ['meta']
+order: 0
+---
+</code></pre>
+<p>The <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a> <em class="rfc2119">MUST</em> contain a <code>title</code> field, which is the title of the specification. In addition,
+it <em class="rfc2119">SHOULD</em> include a <code>description</code> field with the description of the specification.</p>
+<p>The <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a> <em class="rfc2119">MUST</em> also contain an <code>editors</code> field, which is an array of objects describing people
+who are responsible for editing this given <a href="#dfn-spec" data-dfn-type="dfn">spec</a>. The <code>editors</code> field <em class="rfc2119">MUST</em> contain at least one
+person. The fields that describe a person are <code>name</code>, <code>email</code>, <code>url</code>, <code>github</code>, <code>mastodon</code>, <code>twitter</code>,
+<code>bluesky</code>, and <code>affiliation</code> which is in turn an object with fields <code>name</code> and <code>url</code>.
+Each person as well as the affiliation <em class="rfc2119">MUST</em> have a <code>name</code>; every other field is <em class="rfc2119">OPTIONAL</em>.</p>
+<p>The <code>xref</code> field exemplified above is described in the <a href="#refs">references</a> section.</p>
+<p>The <code>maturity</code> field indicates the document's stability. This list is subject to revision, but the
+maturity levels currently supported are:</p>
+<ul>
+<li><img src="https://img.shields.io/badge/status-draft-yellow.svg?style=flat-square" alt="draft"></li>
+<li><img src="https://img.shields.io/badge/status-wip-orange.svg?style=flat-square" alt="WIP"></li>
+<li><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" alt="reliable"></li>
+<li><img src="https://img.shields.io/badge/status-stable-brightgreen.svg?style=flat-square" alt="stable"></li>
+<li><img src="https://img.shields.io/badge/status-permanent-blue.svg?style=flat-square" alt="permanent"></li>
+<li><img src="https://img.shields.io/badge/status-deprecated-red.svg?style=flat-square" alt="deprecated"></li>
+</ul>
+<p>The <code>date</code> field is a <code>YYYY-MM-DD</code> specification of the last dated change to the spec.</p>
+<p>The <code>tags</code> field is an array with strings that indicate which group of specifications this particular
+specification is part of. For example, the specification you are currently reading, Specs for Specs,
+is part of the "meta" group of specifications.</p>
+<p>The <code>order</code> field is a numeric field that includes the order by which the specification will be displayed
+in the lists of specifications in the homepage and group pages. For this, <code>0</code> is the highest order, and <code>999</code>
+is the default value.</p>
+</section><section id="title-sections"><h3><bdi class="secno">1.2 </bdi>Title &amp; Sections</h3><a href="#title-sections" class="self-link" aria-label="Section 1.2"></a>
+<p>A <a href="#dfn-spec" data-dfn-type="dfn">spec</a> <em class="rfc2119">MUST</em> have a title, which is to say an <code>h1</code> heading (<code>title</code> field in the <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a>). It
+also <em class="rfc2119">SHOULD</em> have only one such title (every other heading should be <code>h2</code> or more) and have the title right
+after the <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a>. The behaviour of multiple titles or titles positioned at random places in
+the <a href="#dfn-spec" data-dfn-type="dfn">spec</a> is undefined and has been shown to disappoint kittens under experimental conditions.</p>
+<p>Sections in a <a href="#dfn-spec" data-dfn-type="dfn">spec</a> are nested by using various heading depths. Note that nesting levels are
+enforced automatically. If for instance you have an <code>h5</code> following an <code>h2</code>, it will be promoted to an
+<code>h3</code> (recursively if it had nested <code>h6</code>s of its own).</p>
+<p>All of the content between the <code>h1</code> spec title and the first subheading of the document is considered
+to be the abstract for the document and will be incorporated into the header material.</p>
+<p>Sections automatically get an identifier based on their heading. This is convenient, but it can cause
+broken links when the section heading changes. If you wish to specify your own ID for a section you can
+do so by appending <code>{#your-id}</code> to the heading, like so:</p>
+<pre><code class="">### My Cool Section {#cool}
+</code></pre>
+</section></section><section id="testable-assertions"><h2><bdi class="secno">2. </bdi>Testable Assertions</h2><a href="#testable-assertions" class="self-link" aria-label="Section 2."></a>
+<p>Specifications <em class="rfc2119">SHOULD</em> make use of [<a class="bibref" href="#ref-rfc2119">RFC2119</a>] keywords such as <em class="rfc2119">MUST</em> or <em class="rfc2119">MUST NOT</em> in order to express
+conformance expectations as <a href="testable assertion">testable assertion</a>s.</p>
+<p>All you need to do to avail yourself of these keywords is to type them in all caps, no markup required.
+Additionally, if you use one the processor will automatically add a reference to [<a class="bibref" href="#ref-rfc2119">RFC2119</a>]. The
+available RFC2119 keywords are:</p>
+<ul>
+<li><em class="rfc2119">MUST</em></li>
+<li><em class="rfc2119">MUST NOT</em></li>
+<li><em class="rfc2119">SHOULD</em></li>
+<li><em class="rfc2119">SHOULD NOT</em></li>
+<li><em class="rfc2119">SHALL</em></li>
+<li><em class="rfc2119">SHALL NOT</em></li>
+<li><em class="rfc2119">MAY</em></li>
+<li><em class="rfc2119">REQUIRED</em></li>
+<li><em class="rfc2119">NOT REQUIRED</em></li>
+<li><em class="rfc2119">RECOMMENDED</em></li>
+<li><em class="rfc2119">NOT RECOMMENDED</em></li>
+<li><em class="rfc2119">OPTIONAL</em></li>
+</ul>
+<p>It is probably a bad idea to use the <em class="rfc2119">SHALL</em> variants, and generally it is best to stick to <em class="rfc2119">MUST</em>, <em class="rfc2119">SHOULD</em>, <em class="rfc2119">MAY</em>,
+and their negations. In an ideal world, a <a href="#dfn-spec" data-dfn-type="dfn">spec</a> would stick to only using <em class="rfc2119">MUST</em> and <em class="rfc2119">MUST NOT</em> because
+optionality in standards is harmful. In practice, however, some flexibility can prove necessary.</p>
+<div class="note"><p>I highly recommend reading <a href="https://www.w3.org/TR/test-methodology/"><em>A Method for Writing Testable Conformance Requirements</em></a>
+([<a class="bibref" href="#ref-test-methodology">test-methodology</a>]). Hidden behind that fanciful, almost enticingly romantic title is a treasure trove
+of advice in writing good specification language. The core tenet of that document is simple: a good <a href="#dfn-spec" data-dfn-type="dfn">spec</a>
+is a testable one, because tests are the empirical ground truth of interoperability. And in order to make a
+<a href="#dfn-spec" data-dfn-type="dfn">spec</a> testable, it needs to be built from <a href="testable assertion">testable assertion</a>s and there is an art to writing those
+effectively, which includes the judicious application of RFC2119 keywords.</p></div>
+</section><section id="special-blocks"><h2><bdi class="secno">3. </bdi>Special Blocks</h2><a href="#special-blocks" class="self-link" aria-label="Section 3."></a>
+<p>A number of additional structural constructs are available to capture common blocks that are
+useful in specs: issues, warnings, notes, and examples.</p>
+<p>An issue looks like this:</p>
+<div class="issue"><p>This is a big, big problem.</p></div>
+<p>And the code for it is:</p>
+<pre><code class="">:::issue
+
+This is a big, big problem.
+
+:::
+</code></pre>
+<p>A warning looks like this:</p>
+<div class="warning"><p>Be careful!!!</p><p>Thar be dragons!</p></div>
+<p>And the code for it is:</p>
+<pre><code class="">:::warning
+
+Be careful!!!
+
+Thar be dragons!
+
+:::
+</code></pre>
+<p>A note looks like this:</p>
+<div class="note"><p>Really, you want to pay attention to these things, because they kind of tend to matter, you know.</p></div>
+<p>And the code for it is:</p>
+<pre><code class="">:::note
+
+Really, you want to pay attention to these things, because they kind of tend to matter,
+you know.
+
+:::
+</code></pre>
+<p>An example looks like this:</p>
+<div class="example"><p>And then it's just <code>document.getElementById('foo')</code>.</p></div>
+<p>And the code for it is:</p>
+<pre><code class="">:::example
+
+And then it's just `document.getElementById('foo')`.
+
+:::
+</code></pre>
+<p>When including code, the best option is to specify the code's language as part of the code fence. This enables Prism to
+kick in and to carry out syntax highlighting.</p>
+</section><section id="definitions"><h2><bdi class="secno">4. </bdi>Definitions</h2><a href="#definitions" class="self-link" aria-label="Section 4."></a>
+<p>A definition is a key concept in a specification that can be referenced from other parts of the
+spec or in other specs. The definition is created with a <code>:dfn[defined term]</code> directive. Some definitions can benefit
+from having synonyms, and these can be specified as a comma-separated list with an <code>also</code> attribute as in
+<code>:dfn[defined term]{also="term, def"}</code>.</p>
+<p>Plurals are handled for you (for English-language specs), so that you can reference <a href="#dfn-definition" data-dfn-type="dfn">definitions</a> without trouble.</p>
+</section><section id="references"><h2 id="refs"><bdi class="secno">5. </bdi>References</h2><a href="#refs" class="self-link" aria-label="Section 5."></a>
+<section id="definitions-0"><h3><bdi class="secno">5.1 </bdi>Definitions</h3><a href="#definitions-0" class="self-link" aria-label="Section 5.1"></a>
+<p>There are two primary types of references: to <a href="#dfn-definition" data-dfn-type="dfn">definitions</a> and to full documents that get added to the spec's
+bibliographic references section.</p>
+<p>Once a <a href="#dfn-definition" data-dfn-type="dfn">definition</a> has been created, it can be referenced with <code>:ref[definition]</code>. This includes the synonyms it
+was given, for instance <a href="#dfn-definition" data-dfn-type="dfn">def</a>.</p>
+<p>It's also possible to reference definitions from other specs by importing those other specs by referencing their <a href="#dfn-shortname" data-dfn-type="dfn">shortnames</a>
+in the <code>xref</code> section of the YAML <a href="#dfn-Frontmatter" data-dfn-type="dfn">frontmatter</a>:</p>
+<pre><code class="">xref:
+  - dom
+  - spec-for-specs
+</code></pre>
+<p>Definitions are automatically extracted from each interplanetary <a href="#dfn-spec" data-dfn-type="dfn">spec</a> and stored in the same repository, under
+<code>refs/dfn</code>. You can grep in there to find what you need to import if you are unsure which <a href="#dfn-spec" data-dfn-type="dfn">spec</a> defines a given
+term. For <a href="#dfn-spec" data-dfn-type="dfn">specs</a> from the broader standards universe, you can use the <a href="https://respec.org/xref/">xref tool</a> that
+is part of <a href="https://respec.org/">ReSpec</a> to look them up. Definition from any spec in the
+<a href="https://respec.org/xref/">xref tool</a> can be imported and used in an interplanetary <a href="#dfn-spec" data-dfn-type="dfn">spec</a>. This typically covers
+definitions from the W3C, IETF, WHATWG, ECMA TC39, the Khronos Group, Unicode, and an assortment of others.</p>
+<p>Once that's done, you can reference, say, the DOM concept of <a href="element">element</a> with just <code>:ref[element]</code> as if it were
+defined locally.</p>
+</section><section id="bibliographic"><h3><bdi class="secno">5.2 </bdi>Bibliographic</h3><a href="#bibliographic" class="self-link" aria-label="Section 5.2"></a>
+<p>Citing specs or more generally documents like [<a class="bibref" href="#ref-HTML">html</a>], [<a class="bibref" href="#ref-rfc8890">rfc8890</a>], [<a class="bibref" href="#ref-privacy-principles">privacy-principles</a>], or [<a class="bibref" href="#ref-spec-for-specs">spec-for-specs</a>]
+is accomplished using the shortname in a
+<code>:cite[shortname]</code> block, as in <code>:cite[html], :cite[rfc8890], :cite[privacy-principles], or :cite[spec-for-specs]</code>. The idea
+is to use this mechanism to easily provide context when you are referring to notions defined in another document but not
+specifically a <a href="#dfn-definition" data-dfn-type="dfn">definition</a> in particular.</p>
+<p>Simply by citing a given document it will be added to the bibliographic reference section that is automatically generated
+at the end of your <a href="#dfn-spec" data-dfn-type="dfn">spec</a>. You can use any <a href="#dfn-shortname" data-dfn-type="dfn">shortname</a> listed in <a href="https://www.specref.org/">Specref</a> (there are
+over 50k docs there) as well as any <a href="#dfn-shortname" data-dfn-type="dfn">shortname</a> from the interplanetary space.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references-0"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references-0" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-HTML">[HTML]</dt><dd><a href="https://html.spec.whatwg.org/multipage/"><cite>HTML Standard</cite></a>. Anne van Kesteren; Domenic Denicola; Dominic Farolino; Ian Hickson; Philip Jägenstedt; Simon Pieters. WHATWG. Living Standard. URL: <a href="https://html.spec.whatwg.org/multipage/">https://html.spec.whatwg.org/multipage/</a></dd><dt id="ref-YAML">[YAML]</dt><dd><a href="http://yaml.org/spec/1.2/spec.html"><cite>YAML Ain’t Markup Language (YAML™) Version 1.2</cite></a>. Oren Ben-Kiki; Clark Evans; Ingy döt Net. 1 October 2009. URL: <a href="http://yaml.org/spec/1.2/spec.html">http://yaml.org/spec/1.2/spec.html</a></dd><dt id="ref-privacy-principles">[privacy-principles]</dt><dd><a href="https://www.w3.org/TR/privacy-principles/"><cite>Privacy Principles</cite></a>. Robin Berjon; Jeffrey Yasskin. W3C. 15 May 2025. STMT. URL: <a href="https://www.w3.org/TR/privacy-principles/">https://www.w3.org/TR/privacy-principles/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc8890">[rfc8890]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc8890"><cite>The Internet is for End Users</cite></a>. M. Nottingham. IETF. August 2020. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc8890">https://www.rfc-editor.org/rfc/rfc8890</a></dd><dt id="ref-spec-for-specs">[spec-for-specs]</dt><dd><a href="https://specs.ipfs.tech/meta/spec-for-specs/"><cite>Spec for Specs</cite></a>. Robin Berjon; Henrique Dias. 2023-03-14. URL: <a href="https://specs.ipfs.tech/meta/spec-for-specs/">https://specs.ipfs.tech/meta/spec-for-specs/</a></dd><dt id="ref-test-methodology">[test-methodology]</dt><dd><a href="https://www.w3.org/TR/test-methodology/"><cite>A Method for Writing Testable Conformance Requirements</cite></a>. Dominique Hazaël-Massieux; Marcos Caceres. W3C. 28 January 2010. NOTE. URL: <a href="https://www.w3.org/TR/test-methodology/">https://www.w3.org/TR/test-methodology/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://berjon.com/">Robin Berjon</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="mailto:robin@berjon.com"><img src="/img/email.svg" width="16" height="16" alt="Email: robin@berjon.com"></a> <a href="https://github.com/darobin"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a> <a href="https://mastodon.social/@robin"><img src="/img/mastodon.png" width="16" height="16" alt="Mastodon"></a> <a href="https://bsky.app/profile/robin.berjon.com"><img src="/img/bluesky.png" width="16" height="16" alt="Bluesky"></a></dd><dd><a href="https://hacdias.com/">Henrique Dias</a> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p><div id="ipseity-reports"><details class="ipseity-errors"><summary>3</summary><ol><li>No definition for term "testable assertion".</li><li>No definition for term "testable assertion".</li><li>No definition for term "element".</li></ol></details></div></body></html>

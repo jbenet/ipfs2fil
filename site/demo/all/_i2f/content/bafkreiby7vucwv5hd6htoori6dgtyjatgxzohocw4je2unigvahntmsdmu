@@ -1,0 +1,191 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0428: Allowing V2-Only Records in IPNS</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0428/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0428: Allowing V2-Only Records in IPNS</h1><p id="last-modified"><time datetime="2023-07-24T00:00:00.000Z">24 July 2023</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/issues/376">ipfs/specs/issues/376</a></dd><dd><a href="https://github.com/ipfs/boxo/pull/339">ipfs/boxo/pull/339</a></dd><dd><a href="https://github.com/ipfs/kubo/pull/9932">ipfs/kubo/pull/9932</a></dd><dd><a href="https://github.com/ipfs/js-ipns/pull/234">ipfs/js-ipns/pull/234</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0428.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0428.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#copyright" class="tocxref"><bdi class="secno">5.1 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Introduce support for creation and validation of compact, V2-only IPNS Records.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>IPNS record creation and validation is overly complex due to the legacy of
+decisions made in 2021.</p>
+<p>The "V1+V2" record creation and validation was reverse-engineered and documented
+the current state in <a href="https://github.com/ipfs/specs/pull/319">ipfs/specs#319</a>,
+which created a base for specifications to improve upon.</p>
+<p>A quick refresher on how IPNS Record lifecycle works today (2023 Q2):</p>
+<ul>
+<li>
+<p><em>Record Creation</em> produces both V1 and V2 signatures, and the record has
+duplicated values in both top level protobuf AND <code>data</code> CBOR field.</p>
+</li>
+<li>
+<p><em>Record Validation</em> only cares about V2 signature, but still requires fields
+related to V1 to be always present in a record and match values from CBOR in
+<code>data</code> field, for the record to be considered valid.</p>
+</li>
+</ul>
+<p>We've been producing and expecting these hybrid V1+V2 records <a href="https://github.com/ipfs/js-ipns/pull/121">since 2021</a>.</p>
+<p>An unfortunate result is that all mandatory values <em class="rfc2119">MUST</em> be duplicated, even
+when both ends use a modern client that only cares about <code>signatureV2</code> that
+guards CBOR field, otherwise the record will not be valid.</p>
+<p>What this IPIP aims to improve is allow implementations to produce lean,
+V2-only IPNS records and ensure clients will interpret them as valid IPNS.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>Finish V2 story by making V2-Only records possible, namely:</p>
+<ul>
+<li>
+<p>Record Creation: document and default to lean V2-Only records, keep V1+V2 as legacy
+backward-compatible variant.</p>
+</li>
+<li>
+<p>Record Validation: adjust the algorithm to stop requiring V1 fields when there is no
+<code>signatureV1</code>.</p>
+</li>
+</ul>
+<p>For details, see the updated [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] specification.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>For modern IPNS, the outer <code>IpnsEntry</code> protobuf should effectively only have
+two required fields: <code>data</code> and its <code>signatureV2</code>, and such record, as long
+signature is valid, should be accepted as valid.</p>
+<p>At the same time, we don't want to break existig software, especially software
+and hardware devices which use IPNS for pulling updates.</p>
+<p>We can get to that future in two steps:</p>
+<ol>
+<li>
+<p>Reference implementations (boxo/ipns, js-ipns) will keep producing V1+V2
+records as backward-compatible default, but we adjust validation algorithm
+to allow V2-only records, and support creation of such records as opt-in in
+modern implementations of IPFS+IPNS, like Kubo (GO) and Helia (JS).</p>
+<ul>
+<li>Namely, only check/require fields to be duplicated in top level protobuf IF
+<code>signatureV1</code> is present in the <code>IpnsEntry</code> protobuf.
+<ul>
+<li>IF there is no <code>signatureV1</code>, the V1 record would be invalid anyway.</li>
+<li>IF there is no <code>signatureV1</code> but <code>signatureV2</code> and <code>data</code> fields
+are present and valid, the V2-only record should be considered valid.
+<ul>
+<li>This will allow people to build V2-only systems that produce records that
+are considered valid.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>At some point in the future, e.g. when we see the majority of the public
+swarm supports V2-Only records, libraries like boxo/ipns, js-ipns and
+implementations like Kubo will stop producing V1+V2 and switch to publishing
+V2-only records that are protobuf with only two fields: Data
+CBOR+signatureV2.</p>
+</li>
+</ol>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<ul>
+<li>
+<p>End users: the main benefit for end user is the smaller size of IPNS Records and
+less complexity during creation/validation of modern V2-only records.</p>
+</li>
+<li>
+<p>Developers interested in IPNS: by making IPNS Record creation as simple as
+"create DAG-CBOR with these fields, and sign it", and validation to
+"signatureV2 should match the DAG-CBOR value and key". We've removed surface
+for bugs, making it easier to reason about for use in greenfield projects.</p>
+</li>
+<li>
+<p>IPFS ecosystem: lowering the complexity related to IPNS record creation and
+validation makes it more likely for third-party interoperable IPNS
+implementations to happen.</p>
+</li>
+</ul>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<ul>
+<li>
+<p>This is backward-compatible, we adjust validation logic to allow V2-only
+records, but all V1+V2 records that are being used in the wild today are
+still valid</p>
+</li>
+<li>
+<p>V2-only rollout is not part of this IPIP.</p>
+<ul>
+<li>
+<p>Our suggestion is to default to creating V1+V2 records for now, keeping
+backward-compatibility with the old IPNS clients.</p>
+</li>
+<li>
+<p>Creation of V2-only records should be introduced as an explicit opt-in. It
+is up to implementations to decide when it is feasible to default to
+creating V2-only records on IPNS publish.</p>
+</li>
+</ul>
+</li>
+</ul>
+</section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<ul>
+<li><code>IpnsEntry.signatureV1</code> (protobuf field) is parsed only by legacy clients, modern ones ignore this value</li>
+</ul>
+<p>It is highly advised to implement validation conformance tests using the fixtures
+included at the end of this IPIP.</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<p>Describe alternate designs that were considered and related work.</p>
+<ol>
+<li>
+<p>Just switch to V2-only as the new default!</p>
+<ul>
+<li>No, this would be a breaking change. We have to do this in two steps,
+because we've rushed the way V2 was introduced in 2021, and STILL require
+field copying, even when <code>signatureV1</code> is missing. So technically there
+was never "V2", it was more like "V1.5". Only with this IPIP, we finally
+adjust validation to only care about CBOR values when there is no
+<code>signatureV1</code>.</li>
+</ul>
+</li>
+<li>
+<p>Why keeping the outer protobuf envelope? Could we make IPNS DAG-CBOR-only?</p>
+<ul>
+<li>Due to how long it takes for decentralized network nodes to upgrade, we prefer evolution rather than revolution.</li>
+<li>Protobuf is a useful envelope for two reasons:
+<ol>
+<li>Ensures the opaque V2-only record can be passed and stored in existing infrastructure.</li>
+<li>Allows us to evolve IPNS record ("V3") in the future without impacting existing infrastructure.</li>
+</ol>
+</li>
+</ul>
+</li>
+</ol>
+</section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>To make testing easier below are test vectors in form of IPNS records along
+with the expected verification results. These test records are valid for 100
+years, making them safe for use in CI tests.</p>
+<ol>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dm4tm0wt8srkg9h9suud4wuiwjimndrkydqm81cqtlb5ak6p7ku_v1.ipns-record">V1-only</a> → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dlkw8pxuw9qmqayfdeh4kfebhmreauqdc6a7c3y7d5i9fi8mk9w_v1-v2.ipns-record">V1+V2</a> (both signatures valid) → record valid, value points at <code>/ipfs/bafkqaddwgevxmmraojswg33smq</code></li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dlmit2tuwdvnx4sbnyqgmvbxftl0eo3f33wwtb9gr7yozae9kpw_v1-v2-broken-v1-value.ipns-record">V1+V2</a> (both signatures valid, but 'value' is different in V1 pb vs V2 CBOR) → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5diamp7qnnvs1p1gzmku3eijkeijs3418j23j077zrkok63xdm8c_v1-v2-broken-signature-v2.ipns-record">V1+V2</a> (only signatureV1 valid) → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dilgf7gorsh9vcqqq4myo6jd4zmqkuy9pxyxi5fua3uf7axph4y_v1-v2-broken-signature-v1.ipns-record">V1+V2</a> (only signatureV2 valid) → record valid, value points at <code>/ipfs/bafkqahtwgevxmmrao5uxi2bamjzg623fnyqhg2lhnzqxi5lsmuqhmmi</code></li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dit2ku9mutlfgwyz8u730on38kd10m97m36bjt66my99hb6103f_v2.ipns-record">V2-only</a> (no V1 fields) → record valid</li>
+</ol>
+<p>The records are checked into gateway-conformance under
+<a href="https://github.com/ipfs/gateway-conformance/tree/refs/tags/v0.13.2/fixtures/ipns_records"><code>fixtures/ipns_records/</code></a>,
+and the directory above ships as <code>cars/ipip-0428_ipns-records.car</code> inside
+<a href="https://github.com/user-attachments/files/31090406/ipfs-specs-fixtures.zip"><code>ipfs-specs-fixtures.zip</code></a>.</p>
+<div class="note"><p>Implementers can either write own tests against the above test vectors, or run
+<a href="https://github.com/ipfs/gateway-conformance/">gateway-conformance</a> test suite,
+which includes tests for these vectors since
+<a href="https://github.com/ipfs/gateway-conformance/pull/157">gateway-conformance/pull/157</a>.</p></div>
+<section id="copyright"><h3><bdi class="secno">5.1 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.1"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipns-record">[ipns-record]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-record/"><cite>IPNS Record and Protocol</cite></a>. Vasco Santos; Steve Allen; Marcin Rataj; Henrique Dias; Gus Eggert. 2025-02-28. URL: <a href="https://specs.ipfs.tech/ipns/ipns-record/">https://specs.ipfs.tech/ipns/ipns-record/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://hacdias.com/">Henrique Dias</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

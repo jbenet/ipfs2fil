@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPNS PubSub Router",
+    "url": "https://specs.ipfs.tech/ipns/ipns-pubsub-router/"
+  },
+  "dfns": []
+}

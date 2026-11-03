@@ -1,0 +1,60 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>InterPlanetary Improvement Proposals | IPFS Standards</title>
+  <meta name="description" content="An InterPlanetary Improvement Proposals (IPIP) provides an orderly mechanism for considering proposed changes to IPFS specifications. An IPIP proposal is not to be the spec itself; the approval of an IPIP leads to an update to a specification.">
+  <link rel="canonical" href="https://specs.ipfs.tech/ipips/">
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/ipseity.min.css">
+  <link rel="icon" href="/img/ipfs-standards.svg">
+</head>
+<body>
+
+
+<nav>
+  <div>
+    <img src="/img/ipfs-standards.svg" alt="InterPlanetary Standards Logo" width="25" height="25" class="logo">
+    <a href="/">IPFS Standards</a>
+  </div>
+</nav>
+
+<header>
+  <div>
+    <h1>InterPlanetary Improvement Proposals</h1>
+    <p>An InterPlanetary Improvement Proposals (IPIP) provides an orderly mechanism for
+considering proposed changes to IPFS specifications. An IPIP proposal is not to be the spec itself;
+the approval of an IPIP leads to an update to a specification.
+</p>
+  </div>
+</header>
+
+
+<main>
+  <dl>
+  <dt><a href="/ipips/ipip-0550/">IPIP-0550: PBNode field ordering</a></dt><dt><a href="/ipips/ipip-0548/">IPIP-0548: Sunset X-Ipfs-Path header</a></dt><dt><a href="/ipips/ipip-0524/">IPIP-0524: Remove cross-codec conversion from HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0523/">IPIP-0523: Prefer format param over Accept header</a></dt><dt><a href="/ipips/ipip-0513/">IPIP-0513: Routing V1 Returns 200 for Empty Results</a></dt><dt><a href="/ipips/ipip-0512/">IPIP-0512: Limit Identity CID Size to 128 Bytes in UnixFS Contexts</a></dt><dt><a href="/ipips/ipip-0499/">IPIP-0499: UnixFS CID Profiles</a></dt><dt><a href="/ipips/ipip-0484/">IPIP-0484: Opt-in Filtering in Routing V1 HTTP API</a></dt><dt><a href="/ipips/ipip-0476/">IPIP-0476: Delegated Routing DHT Closest Peers API</a></dt><dt><a href="/ipips/ipip-0428/">IPIP-0428: Allowing V2-Only Records in IPNS</a></dt><dt><a href="/ipips/ipip-0417/">IPIP-0417: Delegated Peer Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0412/">IPIP-0412: Signaling Block Order in CARs on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0410/">IPIP-0410: Streaming NDJSON in Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0402/">IPIP-0402: Partial CAR Support on Trustless Gateways</a></dt><dt><a href="/ipips/ipip-0386/">IPIP-0386: Subdomain Gateway Interop with _redirects</a></dt><dt><a href="/ipips/ipip-0383/">IPIP-0383: Compact Denylist Format</a></dt><dt><a href="/ipips/ipip-0379/">IPIP-0379: Delegated IPNS HTTP API</a></dt><dt><a href="/ipips/ipip-0351/">IPIP-0351: IPNS Signed Records Response Format on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0337/">IPIP-0337: Delegated Content Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0328/">IPIP-0328: JSON and CBOR Response Formats on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0288/">IPIP-0288: TAR Response Format on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0280/">IPIP-0280: App Conventions for Gateway Detection</a></dt><dt><a href="/ipips/ipip-0002/">IPIP-0002: _redirects File Support on Web Gateways</a></dt><dt><a href="/ipips/ipip-0001/">IPIP-0001: Lightweight Improvement Process for IPFS Specifications</a></dt></dl>
+
+</main>
+
+</body>
+<footer>
+  <div>
+    <p>
+      <a href="https://ipfs.tech/"><img src="/img/ipfs.svg" width="20" height="20" alt="IPFS logo"> IPFS</a>
+      •
+      <a href="https://ipld.io/"><img src="/img/ipld.svg" width="20" height="20" alt="IPLD logo"> IPLD</a>
+      •
+      <a href="https://libp2p.io/"><img src="/img/libp2p.png" width="20" height="20" alt="libp2p logo"> libp2p</a>
+      •
+      <a href="https://multiformats.io/"><img src="/img/multiformats.svg" width="20" height="20" alt="Multiformats logo"> Multiformats</a>
+    </p>
+    <p>
+      <a href="https://github.com/ipfs/specs/blob/main/SECURITY.md">Reporting security issues</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
+

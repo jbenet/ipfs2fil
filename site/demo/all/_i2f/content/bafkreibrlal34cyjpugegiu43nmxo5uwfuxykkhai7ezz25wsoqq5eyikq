@@ -1,0 +1,465 @@
+{
+  "bitswap-protocol": {
+    "title": "Bitswap Protocol",
+    "authors": [
+      "Juan Benet",
+      "Jeromy Johnson",
+      "David Dias",
+      "Adin Schmahmann"
+    ],
+    "date": "2022-08-26",
+    "shortName": "bitswap-protocol",
+    "href": "https://specs.ipfs.tech/bitswap-protocol/"
+  },
+  "compact-denylist-format": {
+    "title": "Compact Denylist Format",
+    "authors": [
+      "Hector Sanjuan",
+      "Marcin Rataj"
+    ],
+    "date": "2023-08-24",
+    "shortName": "compact-denylist-format",
+    "href": "https://specs.ipfs.tech/compact-denylist-format/"
+  },
+  "ipns-uri": {
+    "title": "IPNS URI (ipns://)",
+    "authors": [
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-03",
+    "shortName": "ipns-uri",
+    "href": "https://specs.ipfs.tech/ipns-uri/"
+  },
+  "ipfs-uri": {
+    "title": "IPFS URI (ipfs://)",
+    "authors": [
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-03",
+    "shortName": "ipfs-uri",
+    "href": "https://specs.ipfs.tech/ipfs-uri/"
+  },
+  "unixfs": {
+    "title": "UnixFS",
+    "authors": [
+      "Hugo Valtier",
+      "Marcin Rataj"
+    ],
+    "date": "2026-09-17",
+    "shortName": "unixfs",
+    "href": "https://specs.ipfs.tech/unixfs/"
+  },
+  "principles": {
+    "title": "IPFS Principles",
+    "authors": [
+      "Robin Berjon"
+    ],
+    "date": "2023-03-28",
+    "shortName": "principles",
+    "href": "https://specs.ipfs.tech/architecture/principles/"
+  },
+  "cid": {
+    "title": "CID (Content IDentifier)",
+    "authors": [
+      "Juan Benet",
+      "Marcin Rataj",
+      "Robin Berjon"
+    ],
+    "date": "2026-06-26",
+    "shortName": "cid",
+    "href": "https://specs.ipfs.tech/cid/"
+  },
+  "dnslink-gateway": {
+    "title": "DNSLink Gateway Specification",
+    "authors": [
+      "Marcin Rataj",
+      "Thibault Meunier"
+    ],
+    "date": "2022-11-09",
+    "shortName": "dnslink-gateway",
+    "href": "https://specs.ipfs.tech/http-gateways/dnslink-gateway/"
+  },
+  "gateway-detection": {
+    "title": "User-Preferred Gateway Detection",
+    "authors": [
+      "Mark Gaiser",
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-07",
+    "shortName": "gateway-detection",
+    "href": "https://specs.ipfs.tech/http-gateways/gateway-detection/"
+  },
+  "subdomain-gateway": {
+    "title": "Subdomain Gateway Specification",
+    "authors": [
+      "Marcin Rataj",
+      "Adrian Lanzafame",
+      "Vasco Santos",
+      "Oli Evans",
+      "Thibault Meunier",
+      "Steve Loeppky"
+    ],
+    "date": "2025-04-03",
+    "shortName": "subdomain-gateway",
+    "href": "https://specs.ipfs.tech/http-gateways/subdomain-gateway/"
+  },
+  "libp2p-gateway": {
+    "title": "libp2p+HTTP Transport Gateway Specification",
+    "authors": [
+      "Adin Schmahmann",
+      "Marcin Rataj"
+    ],
+    "date": "2025-03-06",
+    "shortName": "libp2p-gateway",
+    "href": "https://specs.ipfs.tech/http-gateways/libp2p-gateway/"
+  },
+  "path-gateway": {
+    "title": "Path Gateway Specification",
+    "authors": [
+      "Henrique Dias",
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-24",
+    "shortName": "path-gateway",
+    "href": "https://specs.ipfs.tech/http-gateways/path-gateway/"
+  },
+  "ipip-0002": {
+    "title": "IPIP-0002: _redirects File Support on Web Gateways",
+    "authors": [
+      "Justin Johnson",
+      "Marcin Rataj",
+      "Henrique Dias"
+    ],
+    "date": "2022-06-15",
+    "shortName": "ipip-0002",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0002/"
+  },
+  "ipip-0001": {
+    "title": "IPIP-0001: Lightweight Improvement Process for IPFS Specifications",
+    "authors": [
+      "Marcin Rataj",
+      "wilkyr31d"
+    ],
+    "date": "2022-06-10",
+    "shortName": "ipip-0001",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0001/"
+  },
+  "ipip-0280": {
+    "title": "IPIP-0280: App Conventions for Gateway Detection",
+    "authors": [
+      "Mark Gaiser",
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-07",
+    "shortName": "ipip-0280",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0280/"
+  },
+  "web-redirects-file": {
+    "title": "Web _redirects File Specification",
+    "authors": [
+      "Justin Johnson",
+      "Marcin Rataj"
+    ],
+    "date": "2025-03-19",
+    "shortName": "web-redirects-file",
+    "href": "https://specs.ipfs.tech/http-gateways/web-redirects-file/"
+  },
+  "ipip-0288": {
+    "title": "IPIP-0288: TAR Response Format on HTTP Gateways",
+    "authors": [
+      "Henrique Dias",
+      "Marcin Rataj"
+    ],
+    "date": "2022-06-10",
+    "shortName": "ipip-0288",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0288/"
+  },
+  "ipip-0328": {
+    "title": "IPIP-0328: JSON and CBOR Response Formats on HTTP Gateways",
+    "authors": [
+      "Henrique Dias",
+      "Marcin Rataj",
+      "Gus Eggert"
+    ],
+    "date": "2022-10-07",
+    "shortName": "ipip-0328",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0328/"
+  },
+  "ipip-0379": {
+    "title": "IPIP-0379: Delegated IPNS HTTP API",
+    "authors": [
+      "Masih H. Derkani",
+      "Marcin Rataj"
+    ],
+    "date": "2023-02-13",
+    "shortName": "ipip-0379",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0379/"
+  },
+  "ipip-0383": {
+    "title": "IPIP-0383: Compact Denylist Format",
+    "authors": [
+      "Hector Sanjuan"
+    ],
+    "date": "2023-03-09",
+    "shortName": "ipip-0383",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0383/"
+  },
+  "ipip-0337": {
+    "title": "IPIP-0337: Delegated Content Routing HTTP API",
+    "authors": [
+      "Gus Eggert",
+      "Marcin Rataj"
+    ],
+    "date": "2022-10-18",
+    "shortName": "ipip-0337",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0337/"
+  },
+  "ipip-0386": {
+    "title": "IPIP-0386: Subdomain Gateway Interop with _redirects",
+    "authors": [
+      "suicide"
+    ],
+    "date": "2023-03-18",
+    "shortName": "ipip-0386",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0386/"
+  },
+  "ipip-0402": {
+    "title": "IPIP-0402: Partial CAR Support on Trustless Gateways",
+    "authors": [
+      "Hannah Howard",
+      "Adin Schmahmann",
+      "Rod Vagg",
+      "Marcin Rataj"
+    ],
+    "date": "2023-04-17",
+    "shortName": "ipip-0402",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0402/"
+  },
+  "trustless-gateway": {
+    "title": "Trustless Gateway Specification",
+    "authors": [
+      "Henrique Dias",
+      "Marcin Rataj",
+      "Héctor Sanjuán",
+      "Adin Schmahmann"
+    ],
+    "date": "2026-03-05",
+    "shortName": "trustless-gateway",
+    "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/"
+  },
+  "ipip-0410": {
+    "title": "IPIP-0410: Streaming NDJSON in Routing HTTP API",
+    "authors": [
+      "Henrique Dias"
+    ],
+    "date": "2023-05-12",
+    "shortName": "ipip-0410",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0410/"
+  },
+  "ipip-0412": {
+    "title": "IPIP-0412: Signaling Block Order in CARs on HTTP Gateways",
+    "authors": [
+      "Marcin Rataj",
+      "Jorropo"
+    ],
+    "date": "2023-05-15",
+    "shortName": "ipip-0412",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0412/"
+  },
+  "ipip-0417": {
+    "title": "IPIP-0417: Delegated Peer Routing HTTP API",
+    "authors": [
+      "Henrique Dias"
+    ],
+    "date": "2023-05-29",
+    "shortName": "ipip-0417",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0417/"
+  },
+  "ipip-0428": {
+    "title": "IPIP-0428: Allowing V2-Only Records in IPNS",
+    "authors": [
+      "Marcin Rataj",
+      "Henrique Dias"
+    ],
+    "date": "2023-07-24",
+    "shortName": "ipip-0428",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0428/"
+  },
+  "ipip-0351": {
+    "title": "IPIP-0351: IPNS Signed Records Response Format on HTTP Gateways",
+    "authors": [
+      "Henrique Dias",
+      "Marcin Rataj"
+    ],
+    "date": "2022-11-29",
+    "shortName": "ipip-0351",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0351/"
+  },
+  "ipip-0476": {
+    "title": "IPIP-0476: Delegated Routing DHT Closest Peers API",
+    "authors": [
+      "Alex Potsides",
+      "Marcin Rataj"
+    ],
+    "date": "2025-11-20",
+    "shortName": "ipip-0476",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0476/"
+  },
+  "ipip-0512": {
+    "title": "IPIP-0512: Limit Identity CID Size to 128 Bytes in UnixFS Contexts",
+    "authors": [
+      "Marcin Rataj"
+    ],
+    "date": "2025-09-09",
+    "shortName": "ipip-0512",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0512/"
+  },
+  "ipip-0484": {
+    "title": "IPIP-0484: Opt-in Filtering in Routing V1 HTTP API",
+    "authors": [
+      "Daniel Norman"
+    ],
+    "date": "2024-10-29",
+    "shortName": "ipip-0484",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0484/"
+  },
+  "ipip-0499": {
+    "title": "IPIP-0499: UnixFS CID Profiles",
+    "authors": [
+      "Michelle Lee",
+      "Daniel Norman",
+      "Marcin Rataj"
+    ],
+    "date": "2026-03-05",
+    "shortName": "ipip-0499",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0499/"
+  },
+  "ipip-0513": {
+    "title": "IPIP-0513: Routing V1 Returns 200 for Empty Results",
+    "authors": [
+      "Marcin Rataj"
+    ],
+    "date": "2025-12-17",
+    "shortName": "ipip-0513",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0513/"
+  },
+  "ipip-0523": {
+    "title": "IPIP-0523: Prefer format param over Accept header",
+    "authors": [
+      "Alex Potsides",
+      "Marcin Rataj"
+    ],
+    "date": "2026-03-05",
+    "shortName": "ipip-0523",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0523/"
+  },
+  "ipip-0524": {
+    "title": "IPIP-0524: Remove cross-codec conversion from HTTP Gateways",
+    "authors": [
+      "Alex Potsides",
+      "Marcin Rataj"
+    ],
+    "date": "2026-03-05",
+    "shortName": "ipip-0524",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0524/"
+  },
+  "ipip-0550": {
+    "title": "IPIP-0550: PBNode field ordering",
+    "authors": [
+      "Alex Potsides",
+      "Marcin Rataj"
+    ],
+    "date": "2026-09-07",
+    "shortName": "ipip-0550",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0550/"
+  },
+  "ipns-pubsub-router": {
+    "title": "IPNS PubSub Router",
+    "authors": [
+      "Adin Schmahmann",
+      "Marcin Rataj"
+    ],
+    "date": "2022-11-09",
+    "shortName": "ipns-pubsub-router",
+    "href": "https://specs.ipfs.tech/ipns/ipns-pubsub-router/"
+  },
+  "ipip-0548": {
+    "title": "IPIP-0548: Sunset X-Ipfs-Path header",
+    "authors": [
+      "Alex Potsides",
+      "Marcin Rataj"
+    ],
+    "date": "2026-08-27",
+    "shortName": "ipip-0548",
+    "href": "https://specs.ipfs.tech/ipips/ipip-0548/"
+  },
+  "code-of-conduct": {
+    "title": "Code of Conduct",
+    "authors": [
+      "Juan Benet",
+      "Harlan T Wood",
+      "Richard Littauer",
+      "Michelle Hertzfeld",
+      "Matt Zumwalt",
+      "Hector Sanjuan",
+      "Jim Garrison"
+    ],
+    "date": "2015-03-19",
+    "shortName": "code-of-conduct",
+    "href": "https://specs.ipfs.tech/meta/code-of-conduct/"
+  },
+  "ipns-record": {
+    "title": "IPNS Record and Protocol",
+    "authors": [
+      "Vasco Santos",
+      "Steve Allen",
+      "Marcin Rataj",
+      "Henrique Dias",
+      "Gus Eggert"
+    ],
+    "date": "2025-02-28",
+    "shortName": "ipns-record",
+    "href": "https://specs.ipfs.tech/ipns/ipns-record/"
+  },
+  "ipip-process": {
+    "title": "IPIP: Improvement Process for IPFS Specifications",
+    "authors": [
+      "Marcin Rataj",
+      "Guillaume Michel",
+      "Henrique Dias"
+    ],
+    "date": "2023-02-23",
+    "shortName": "ipip-process",
+    "href": "https://specs.ipfs.tech/meta/ipip-process/"
+  },
+  "spec-for-specs": {
+    "title": "Spec for Specs",
+    "authors": [
+      "Robin Berjon",
+      "Henrique Dias"
+    ],
+    "date": "2023-03-14",
+    "shortName": "spec-for-specs",
+    "href": "https://specs.ipfs.tech/meta/spec-for-specs/"
+  },
+  "http-routing-v1": {
+    "title": "Delegated Routing V1 HTTP API",
+    "authors": [
+      "Henrique Dias",
+      "Daniel Norman",
+      "Marcin Rataj"
+    ],
+    "date": "2026-07-29",
+    "shortName": "http-routing-v1",
+    "href": "https://specs.ipfs.tech/routing/http-routing-v1/"
+  },
+  "kad-dht": {
+    "title": "IPFS Kademlia DHT",
+    "authors": [
+      "Guillaume Michel"
+    ],
+    "date": "2025-11-20",
+    "shortName": "kad-dht",
+    "href": "https://specs.ipfs.tech/routing/kad-dht/"
+  }
+}

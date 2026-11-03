@@ -1,0 +1,8 @@
+# Security contact for specs.ipfs.tech, in the format defined by RFC 9116.
+# https://www.rfc-editor.org/rfc/rfc9116
+
+Contact: mailto:security@ipfs.io
+Expires: 2027-09-01T00:00:00Z
+Policy: https://github.com/ipfs/community/blob/master/SECURITY.md
+Canonical: https://specs.ipfs.tech/.well-known/security.txt
+Preferred-Languages: en

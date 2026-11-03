@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0351: IPNS Signed Records Response Format on HTTP Gateways",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0351/"
+  },
+  "dfns": []
+}

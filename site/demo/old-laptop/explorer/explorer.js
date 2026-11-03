@@ -76,7 +76,8 @@
   const isDir = (e) => !!e && (e.kind === 'folder' || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
   // Shards name pieces by PieceCID; PIECE maps them to their index here.
   let PIECE = {};
-  const pieceAt = (cid) => (cid && PIECE[cid] != null ? PIECE[cid] : -1);
+  // This snapshot's bundle is "" there: its PieceCID was not known yet.
+  const pieceAt = (cid) => (typeof cid === 'string' && PIECE[cid] != null ? PIECE[cid] : -1);
   function entryOf(s, r) {
     const dir = s.dirs[r[0]], seg = r.length > 6 ? r[6] : r[1];
     return { dir, name: r[1], kind: r[2], bytes: r[3], cid: r[4], piece: r[5] >= 0 ? pieceAt(s.pieces[r[5]]) : -1, path: dir ? dir + '/' + seg : seg };
@@ -117,7 +118,7 @@
   const plural = (n, one, many) => num(n) + ' ' + (n === 1 ? one : many || one + 's');
   // sourceLabel names the kind of repo an archive came from; archives with no
   // kind came from kubo fs-repos.
-  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account', 'js-ipfs': `a js-ipfs repo · repo ${esc(s.repoVersion)}`, helia: 'a Helia blockstore' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
+  const sourceLabel = (s) => ({ car: 'CAR files', 'kubo-rpc': 'a kubo node, read through its RPC API', atproto: 'a Bluesky account', 'atproto-pds': 'a Bluesky PDS, every account on it', psa: 'the pins on a pinning service', sites: 'websites from a site list', git: 'git repos', 'js-ipfs': `a js-ipfs repo · repo ${esc(s.repoVersion)}`, helia: 'a Helia blockstore' })[s.kind] || `a kubo repo · fs-repo ${esc(s.repoVersion)}`;
   const segs = (p) => p.split('/').map(encodeURIComponent).join('/');
 
   // Kinds: icon path, color, label, plural label. From the boards.
@@ -138,10 +139,13 @@
     // not a file: a repo, archived or inside the content (see repoPaths)
     repo: ['M3.5 1.5h9v13h-9z M3.5 11.5h9 M6 4.5h4 M6 7.5h4', '#2563EB', 'Repository', 'Repositories'],
     // not a file: an account a repo holds (a Bluesky account)
-    account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts']
+    account: ['M8 2a3 3 0 1 0 0 6a3 3 0 0 0 0-6z M2.5 14c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5', '#0F766E', 'Account', 'Accounts'],
+    // not a file: a website a site list names, its root and where it lives
+    site: ['M8 1.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z M1.5 8h13 M8 1.5c-2 1.8-2.8 4-2.8 6.5s.8 4.7 2.8 6.5 M8 1.5c2 1.8 2.8 4 2.8 6.5s-.8 4.7-2.8 6.5', '#0369A1', 'Web site', 'Web sites']
   };
   const kindOf = (k) => KIND[k] || KIND.other;
   // Bluesky's butterfly, small.
+  const GITIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#F05133" stroke-width="1.5" aria-hidden="true"><circle cx="4" cy="3.5" r="1.5"></circle><circle cx="4" cy="12.5" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><path d="M4 5v6M12 7.5c0 2.5-3 2.5-6.5 4"></path></svg>';
   const BSKY = '<svg width="16" height="16" viewBox="0 0 600 530" aria-hidden="true"><path fill="#1185FE" d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
   const KINDS = Object.keys(KIND);
   const icon = (k) => `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${kindOf(k)[1]}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${kindOf(k)[0]}"></path></svg>`;
@@ -553,6 +557,8 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
         video: () => accts.some((a) => a.blobs && a.blobs.videos) ? `${num(accts.reduce((n, a) => n + ((a.blobs && a.blobs.videos) || 0), 0))} attached to posts` : ''
       };
       const rows = KINDS.filter((k) => k !== 'folder' && meta.types[k]).map((k) => [KIND[k][3], meta.types[k][0], meta.types[k][1], (NOTE[k] || (() => ''))(), 'browse.html?deep=1&kind=' + k, k]);
+      const sites = meta.sites || [];
+      if (sites.length) rows.push(['Web sites', sites.length, sites.reduce((n, x) => n + (x.bytes || 0), 0), few(sites.map((x) => x.name)) + (sites.some((x) => x.stale || !x.root) ? ` · <span class="warn">${plural(sites.filter((x) => x.stale || !x.root).length, 'site')} not found last time</span>` : ''), 'browse.html?deep=1&kind=site', 'site']);
       if (accts.length) rows.push(['Accounts', accts.length, accts.reduce((n, a) => n + ((a.blobs && a.blobs.bytes) || 0), 0), few(accts.map((a) => a.name)), 'browse.html?deep=1&kind=account', 'account']);
       const rp = repoPaths(meta);
       if (rp.length) rows.push(['Repositories', rp.length, REPOS ? total : 0, few(rp.map((p) => p.slice(p.lastIndexOf('/') + 1))), 'browse.html?deep=1&kind=repo', 'repo']);
@@ -675,6 +681,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     } catch (e) { /* older explore */ }
   }
   const V = window.I2FV || null;
+  let SHOW = null; // the Files page's showIn, for files the Git viewer reads
 
   // Every entry, streamed once from all shards, for search and the library.
   let allP = null;
@@ -697,7 +704,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
   const SORTS = { name: (e) => e.name.toLowerCase(), size: (e) => e.bytes, kind: (e) => kindOf(e.kind)[2], piece: (e) => e.piece, where: (e) => e.dir };
   const VIEWS = [['list', 'List', 'M2 4h12M2 8h12M2 12h12'], ['grid', 'Grid', 'M2 2h5v5h-5z M9 2h5v5h-5z M2 9h5v5h-5z M9 9h5v5h-5z'], ['tree', 'Tree', 'M3 2v11h4M3 7.5h4M9 4.5h5M9 7.5h5M9 13h5'], ['cols', 'Columns', 'M1.5 2.5h13v11h-13z M6 2.5v11 M10.5 2.5v11']];
   const LAYOUTS = [['list', 'Wide list', 'M1.5 2.5h15v11h-15z M13 2.5v11'], ['split', 'Split', 'M1.5 2.5h15v11h-15z M9 2.5v11'], ['file', 'Wide file', 'M1.5 2.5h15v11h-15z M5 2.5v11']];
-  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repositories'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
+  const LIB = [['all', 'Everything'], ['image', 'Photos'], ['video', 'Videos'], ['audio', 'Audio'], ['post', 'Posts'], ['doc', 'Documents'], ['site', 'Web sites'], ['page', 'Web pages'], ['text', 'Text'], ['code', 'Code'], ['record', 'Records'], ['account', 'Accounts'], ['repo', 'Repositories'], ['archive', 'Archives'], ['disk', 'Disk images'], ['other', 'Other']];
   const pref = (k, d) => { try { return localStorage.getItem('i2f.' + k) || d; } catch (e) { return d; } };
   const keep = (k, v) => { try { localStorage.setItem('i2f.' + k, v); } catch (e) { /* private mode */ } };
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
@@ -708,7 +715,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // Accounts (Bluesky's): each one's posts open in the Bluesky App viewer,
     // here in the main pane, or in its own archive's explorer when this
     // combined one does not hold its summary.
-    const ACC = meta.accounts || [];
+    const ACC = meta.accounts || [], GITS = meta.gits || [];
     const inHere = (a) => !a.href || /^(posts|browse)\.html/.test(a.href);
     const accHref = (i, k) => inHere(ACC[i]) ? appHref(i, k) : ACC[i].href.replace(/#.*/, '') + (k ? '&t=' + encodeURIComponent(k) : '');
     const POSTDIR = '/app.bsky.feed.post/';
@@ -720,6 +727,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
       return i < 0 ? '' : accHref(i, e.name.replace(/\.json$/, ''));
     };
     if (V) V.use({ esc, icon, bytes, recordHref, show: showIn });
+    SHOW = showIn;
     LOCAL = await probeLocal();
     // Posts draw from the account summaries, loaded when a post shows up.
     const KX = {};
@@ -734,6 +742,10 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // The accounts, as entries of their own under Library > Accounts.
     const REPOP = repoPaths(meta);
     const ACCTS = ACC.map((a, i) => ({ name: a.name, path: a.path || '', dir: '', kind: 'account', cid: a.did || 'account ' + i, bytes: (a.blobs && a.blobs.bytes) || 0, piece: -1, acct: i }));
+    // The websites of site lists, under Library > Web sites: a site is a
+    // root and the live address it came from, where a web page is any HTML.
+    const SITES = meta.sites || [];
+    const SITEE = SITES.map((x, i) => ({ name: x.name, path: x.path || '', dir: (x.path || '').replace(/\/?[^/]*$/, ''), kind: 'site', cid: x.root || 'site ' + i, bytes: x.bytes || 0, piece: -1, site: i }));
     let NAV = false;
     try { NAV = sessionStorage.getItem('i2f.nav') === '1'; } catch (e) { /* private mode */ }
     const navOn = (on) => { NAV = on; try { sessionStorage.setItem('i2f.nav', on ? '1' : ''); } catch (e) { /* private mode */ } };
@@ -779,16 +791,18 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     function lib() {
       const parts = meta.parts || {}, t = meta.types || {};
       const libOn = S.deep && !S.q && !S.p && !S.app;
-      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
+      const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'site' ? SITEE.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
 <div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
-${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}
+${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ? `<a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}${GITS.length ? `<a href="${esc(gitHref(GITS, 0))}"${S.app === 'git' ? ' aria-current="page"' : ''}>${GITIC}Git</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
       const on = NAV && $('.lib a[aria-current="page"]');
       if (on) on.focus({ preventScroll: true });
     }
 
-    // A viewer (the Bluesky App) takes the place of the file list.
+    // A viewer (the Bluesky App) takes the place of the file list. (The Git
+    // viewer starts further down: it shows files with this page's viewers,
+    // which must be set up first.)
     if (S.app === 'bsky' && ACC[S.an]) {
       lib();
       const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
@@ -825,7 +839,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
     }
     function compute() {
       const ql = S.q.trim().toLowerCase();
-      const src = S.deep ? (info && info.virtual ? info.flat : (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p)))) : kids;
+      const src = S.deep ? (info && info.virtual ? info.flat : (all || []).filter(under(S.p)).concat(ACCTS.filter(under(S.p)), SITEE.filter(under(S.p)))) : kids;
       base = src.filter((e) => (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)) && (S.size === 'any' || (e.kind !== 'folder' && sizeTest(e, S.size))));
       if (S.deep) base = once(base);
       counts = {};
@@ -1081,6 +1095,7 @@ ${ACC.length ? `<div class="h">Viewers</div><a href="${esc(accHref(ACC.findIndex
       if (!e) return folderPane(pane, info, S.p, true);
       if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
       if (e.kind === 'account') return accountPane(pane, e);
+      if (e.kind === 'site') return sitePane(pane, e);
       const P = postOf(e);
       const url = contentURL(e), copies = m.copies || [];
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
@@ -1137,6 +1152,61 @@ ${e.va ? arcFacts(e) : `<div class="facts dl">
 <div class="stage acct" data-kind="account">${K ? `<section class="at-profile">${K.profile()}</section>` : ''}
 <div class="pad2"><p class="faint">A Bluesky account. Its repo is IPLD: the signed commit, records and media are stored as IPFS blocks${a.path ? `, shown as <a href="${esc(browseHref(a.path))}">a folder of records and blobs</a>` : ''}.</p>${archivedHTML(a, K ? K.a : null, a.path ? browseHref(a.path) : '')}</div></div>`;
       lightbox(pane);
+    }
+    // A website: its home page, where it lives, and the roots it has served.
+    async function sitePane(pane, e) {
+      const x = SITES[e.site], gwl = (c) => GATEWAYS.map((g) => `<a href="${esc(g[1] + c)}/" target="_blank" rel="noopener">${g[0]} ↗</a>`).join('');
+      const HOW = { dnslink: 'a domain, by its DNSLink record', url: 'a URL, by its host\'s DNSLink or the X-Ipfs-Path its server sends', ens: 'an ENS name, through an ENS gateway', ipns: 'an IPNS name, by its signed record', ipfs: 'a fixed /ipfs/ path' };
+      const state = !x.root ? `<span class="warn">Not in this archive: ${esc(x.error || 'it could not be looked up')}</span>`
+        : x.stale ? `<span class="warn">Could not be looked up last time (${esc(x.error || '')}), so this is the root found before</span>`
+        : x.kind === 'ipfs' ? 'A fixed version' : 'What it served when last looked up';
+      pane.innerHTML = `<div class="ph"><strong title="${esc(x.name)}">${esc(x.name)}</strong><button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>${x.path ? `<a class="btn sm" href="${esc(browseHref(x.path))}" data-enter title="Browse its files (Enter)">Files</a>` : ''}${x.live ? `<a class="btn sm" href="${esc(x.live)}" target="_blank" rel="noopener" title="The site as it is served now">Live ↗</a>` : ''}${x.path ? fullBtn() : ''}</div>
+<div class="stage" data-kind="site">${x.path ? '<p class="muted pad">Loading…</p>' : `<div class="none">${icon('site')}<p>${x.root ? 'This site\'s root is not among this archive\'s roots.' : 'This site was not found, so nothing of it is in the archive.'}</p></div>`}</div>
+<div class="facts dl">
+  <span>Site</span><span>${esc(x.source)}${x.note ? ` <span class="faint">· ${esc(x.note)}</span>` : ''}</span>
+  <span>Found as</span><span>${esc(HOW[x.kind] || x.kind)}${x.how && x.how !== 'fixed' ? ` <span class="faint">(${esc(x.how)})</span>` : ''}</span>
+  <span>State</span><span>${state}</span>
+  ${x.root ? `<span>Root</span><span>${cidx(x.root)} <button type="button" class="link" data-copy="${esc(x.root)}">Copy</button></span>
+  <span>Open in</span><span class="gw">${HERE ? `<a href="${esc(HERE + x.root)}/" target="_blank" rel="noopener">this gateway ↗</a>` : ''}${gwl(x.root)}<a href="${esc(gw(x.root) + '?format=car')}" target="_blank" rel="noopener">CAR</a></span>` : ''}
+  ${x.since ? `<span>Since</span><span>${esc(when(x.since))}${x.checked && x.checked !== x.since ? ` <span class="faint">· last seen ${esc(when(x.checked))}</span>` : ''}</span>` : ''}
+  ${x.bytes ? `<span>Size</span><span>${bytes(x.bytes)}</span>` : ''}
+  ${(x.earlier || []).length ? `<span>Before</span><span class="places">${x.earlier.slice(0, 12).map((o) => `<span>${cidx(o.root, true)} <span class="faint">${esc(day(o.since))} to ${esc(day(o.until))}</span></span>`).join('')}${x.earlier.length > 12 ? `<span class="faint">and ${plural(x.earlier.length - 12, 'earlier root')}</span>` : ''}</span>` : ''}
+  ${x.list ? `<span>List</span><span>${esc(x.list)}</span>` : ''}
+</div>`;
+      lightbox(pane);
+      if (!x.path) return;
+      const st0 = pane.querySelector('.stage');
+      // explore serves each site at the root of an origin of its own
+      // (<cid>.ipfs.localhost), so its absolute links work as on the web.
+      if (LOCAL && x.root) {
+        const go = await siteURL(x.root);
+        if (current() !== e || !st0.isConnected) return;
+        if (go) {
+          st0.dataset.kind = 'page';
+          st0.innerHTML = `<iframe sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-same-origin" title="${esc(x.name)}" src="${esc(go)}"></iframe>`;
+          return;
+        }
+      }
+      // Its home page, shown like any web page from the archive.
+      const st = pane.querySelector('.stage'), di = await dirInfo(x.path);
+      const kids = di ? await listDir(di) : [];
+      const home = kids.find((k) => /^index\.html?$/i.test(k.name));
+      if (current() !== e || !st.isConnected) return;
+      if (!home) { st.innerHTML = `<div class="none">${icon('site')}<p>${di ? 'No index.html at its root. Use Files to see what it holds.' : 'Its files are not indexed in this explorer.'}</p></div>`; return; }
+      const page = { ...home, kind: 'page', path: e.path, dir: x.path };
+      const url = contentURL(page);
+      st.dataset.kind = 'page';
+      st.innerHTML = stage(page, url);
+      fill(pane, page, url);
+    }
+    // Where explore serves the site under root, if this browser reaches
+    // <cid>.ipfs.localhost (not every one resolves names under localhost).
+    let siteOK = null;
+    async function siteURL(root) {
+      const target = await fetch(new URL('../_i2f/site/' + encodeURIComponent(root) + '/?where=1', location.href)).then((r) => r.ok ? r.text() : null, () => null);
+      if (!target || !/^http:\/\/[a-z0-9]+\.ipfs\.localhost(:\d+)?\//.test(target)) return null;
+      if (siteOK === null) siteOK = await fetch(target, { mode: 'no-cors' }).then(() => true, () => false);
+      return siteOK ? target : null;
     }
     // Every folder the file sits in, under its name there.
     function places(e) {
@@ -1730,6 +1800,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       if (!e) return;
       if (isDir(e)) { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); return; }
       if (e.kind === 'account') { location.href = accHref(e.acct); return; }
+      if (e.kind === 'site') { if (e.path) { S.deep = false; S.q = ''; box.value = ''; S.kind = 'all'; enter(e.path).catch(fail); } return; }
       if (S.ly !== 'file') { S.ly = 'file'; keep('layout', S.ly); update(true); }
     }
     function up() {
@@ -1739,6 +1810,13 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       S.deep = false; S.q = ''; box.value = '';
       enter(d).then(() => { const i = shown.findIndex((e) => e.path === from); if (i >= 0) sel(i); }).catch(fail);
       return true;
+    }
+    if (S.app === 'git' && GITS[S.an]) {
+      lib();
+      const ap = Object.assign(D.createElement('section'), { className: 'fapp' });
+      $('.fmain').replaceWith(ap);
+      Object.assign(pageKeys, { ArrowDown: () => NAV && navStep(1), ArrowUp: () => NAV && navStep(-1) });
+      return gitApp(ap, S.an);
     }
     main().addEventListener('click', (ev) => {
       const t = ev.target;
@@ -1862,7 +1940,7 @@ ${typeRows.length ? `<div class="pad2">${bar(typeRows.map((t) => [KIND[t[0]][3],
       u: up, Backspace: up, f: () => { box.focus(); box.select(); return true; }, '/': () => { box.focus(); box.select(); return true; },
       v: () => { S.view = VIEWS[(VIEWS.findIndex((v) => v[0] === S.view) + 1) % VIEWS.length][0]; keep('view', S.view); update(true); toast(VIEWS.find((v) => v[0] === S.view)[1] + ' view'); return true; },
       l: () => { S.ly = LAYOUTS[(LAYOUTS.findIndex((v) => v[0] === S.ly) + 1) % LAYOUTS.length][0]; keep('layout', S.ly); update(); return true; },
-      d: () => { const e = current(), u = e && e.kind !== 'folder' && e.kind !== 'account' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
+      d: () => { const e = current(), u = e && e.kind !== 'folder' && e.kind !== 'account' && e.kind !== 'site' && contentURL(e, { dl: 1 }); if (u) location.href = u; return !!u; },
       s: () => { const ks = Object.keys(SORTS); S.sort = ks[(ks.indexOf(S.sort) + 1) % ks.length]; update(); toast('Sorted by ' + $('#fsort').selectedOptions[0].textContent); return true; },
       r: () => { S.dir = -S.dir; update(); return true; },
       F: () => { const e = current(); return isFull() || (e && e.kind !== 'folder' && contentURL(e)) ? full() : false; },
@@ -2221,6 +2299,233 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
     });
   }
 
+  // ---- Git: a git archive among the roots (from git-ipfs-archive, or a git
+  // repo ipfs2fil read). History is stored as git packs; pack summarizes the
+  // refs and the commit log of every snapshot into idx/g/<n>.js.
+  const gitHref = (gits, n, extra) => { const g = gits[n]; return g && g.href && !/^browse\.html/.test(g.href) ? g.href : 'browse.html?' + qs({ app: 'git', a: n, ...(extra || {}) }); };
+  const GITS_LOADED = {}, GITREPO = {};
+  async function gitApp(el, n) {
+    const meta = await load('meta');
+    const gits = meta.gits || [], gi = gits[n];
+    const g = GITS_LOADED[n] || (GITS_LOADED[n] = await load('g/' + n));
+    const P = new URLSearchParams(location.search);
+    const S = { tab: P.get('tab') || 'commits', c: P.get('c') || '', ref: P.get('ref') || '', q: P.get('q') || '', path: P.get('path') || '', f: P.get('f') || '', limit: 100 };
+    const href = (extra) => gitHref(gits, n, { tab: S.tab, ...extra });
+    const byId = new Map(g.commits.map((c) => [c[0], c]));
+    const short = (id) => esc((id || '').slice(0, 10));
+    const t = (s) => s ? new Date(s * 1000) : null;
+    const dt = (s) => s ? day(t(s)) : '';
+    const full = (s) => s ? t(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC' : '';
+    const refsAt = new Map();
+    g.refs.forEach((r) => { const at = r[2] || r[1]; if (!refsAt.has(at)) refsAt.set(at, []); refsAt.get(at).push(r[0]); });
+    const refName = (r) => r.replace(/^refs\/(heads|tags|remotes)\//, '');
+    const refTag = (r) => `<span class="pill git-ref${r.startsWith('refs/tags/') ? ' tag' : ''}" title="${esc(r)}">${esc(refName(r))}</span>`;
+    const commitLink = (id) => byId.has(id) ? `<a class="mono" href="${esc(href({ tab: 'commits', c: id }))}">${short(id)}</a>` : `<code class="faint" title="Not in this archive's log (a shallow clone stops here)">${short(id)}</code>`;
+    pageKeys.cid = () => g.root;
+    const chips = gits.length > 1 ? `<nav class="chips" aria-label="Git repos">${gits.map((x, i) => `<a class="pill" aria-pressed="${i === n}" href="${esc(gitHref(gits, i))}">${esc(x.name)}</a>`).join('')}</nav>` : '';
+    const heads = g.refs.filter((r) => r[0].startsWith('refs/heads/') || r[0].startsWith('refs/remotes/'));
+    const tags = g.refs.filter((r) => r[0].startsWith('refs/tags/'));
+    const tabs = [['commits', 'Commits', g.commits.length + (g.truncated || 0)], ['branches', 'Branches', heads.length], ['tags', 'Tags', tags.length], ['snapshots', 'Snapshots', g.snapshots.length]];
+    const packBytes = g.snapshots.reduce((a, s) => a + s.bytes, 0);
+    el.innerHTML = `${chips}
+<section class="card git-head">
+  <div class="titled"><h1>${GITIC} ${esc(g.name)}</h1><span class="faint">git repo, ${esc(g.objectFormat)} object ids</span></div>
+  <dl class="at-held">
+    <dt>HEAD</dt><dd>${g.head ? (g.head.startsWith('refs/') ? refTag(g.head) : commitLink(g.head) + ' <span class="faint">(detached)</span>') : '<span class="faint">none</span>'}</dd>
+    <dt>Holds</dt><dd>${plural(g.refs.length, 'ref')}, ${plural(g.commits.length + (g.truncated || 0), 'commit')}, in ${plural(g.snapshots.length, 'snapshot')} whose packs come to ${bytes(packBytes)}${g.missing ? ` <span class="warn">(${plural(g.missing, 'log block')} missing)</span>` : ''}</dd>
+    ${(g.remotes || []).length ? `<dt>Remotes</dt><dd>${g.remotes.map((r) => `<b>${esc(r[0])}</b> <code class="chipcode">${esc(r[1])}</code>`).join('<br>')}</dd>` : ''}
+    ${(g.submodules || []).length ? `<dt>Submodules</dt><dd>${g.submodules.map((m) => `<b>${esc(m[0])}</b> at <code>${short(m[2])}</code>${m[1] ? ` <code class="chipcode">${esc(m[1])}</code>` : ''}${m[3] ? ' <span class="faint">archived</span>' : ''}`).join('<br>')}</dd>` : ''}
+    <dt>Restore</dt><dd><code class="chipcode">git-ipfs-archive restore &lt;CARs&gt; ${esc(g.name)}.git</code> <span class="faint">rebuilds the exact repo; record ${cidx(g.root, true)}</span></dd>
+  </dl>
+</section>
+<section class="card git-main">
+  <div class="at-tabs" role="tablist">${tabs.map((c) => `<a role="tab" class="git-tab" href="${esc(gitHref(gits, n, { tab: c[0] }))}" aria-selected="${c[0] === S.tab}">${c[1]} <span class="n">${num(c[2])}</span></a>`).join('')}</div>
+  <div class="git-body"></div>
+</section>`;
+    const body = el.querySelector('.git-body');
+
+    // Commits reachable from a ref, newest first.
+    function reach(id) {
+      const seen = new Set(), out = [], todo = [id];
+      while (todo.length && seen.size < 500000) {
+        const x = todo.pop();
+        if (seen.has(x)) continue;
+        seen.add(x);
+        const c = byId.get(x);
+        if (!c) continue;
+        out.push(c);
+        c[1].forEach((p) => todo.push(p));
+      }
+      return out.sort((a, b) => b[6] - a[6]);
+    }
+    const row = (c) => `<tr><td class="mono">${commitLink(c[0])}</td><td>${(refsAt.get(c[0]) || []).map(refTag).join(' ')} ${esc(c[7])}${c[8] ? ' <span class="faint" title="Signed">✓</span>' : ''}</td><td class="faint">${esc(c[3])}</td><td class="faint nowrap" title="${esc(full(c[6]))}">${esc(dt(c[6]))}</td></tr>`;
+
+    function commitPage(c) {
+      const kids = g.commits.filter((x) => x[1].includes(c[0]));
+      body.innerHTML = `<div class="titled"><a href="${esc(href({ c: '' }))}">‹ All commits</a></div>
+<h2 class="git-subject">${esc(c[7]) || '<span class="faint">(no subject)</span>'}</h2>
+<dl class="at-held">
+  <dt>Commit</dt><dd><code class="chipcode">${esc(c[0])}</code> ${(refsAt.get(c[0]) || []).map(refTag).join(' ')}</dd>
+  <dt>Author</dt><dd>${esc(c[3])} <span class="faint">&lt;${esc(c[4])}&gt;</span>, ${esc(full(c[5]))}</dd>
+  ${c[6] !== c[5] ? `<dt>Committed</dt><dd>${esc(full(c[6]))}</dd>` : ''}
+  <dt>Parents</dt><dd>${c[1].length ? c[1].map(commitLink).join(' ') : '<span class="faint">none (a root commit)</span>'}</dd>
+  ${kids.length ? `<dt>Children</dt><dd>${kids.map((x) => commitLink(x[0])).join(' ')}</dd>` : ''}
+  <dt>Files</dt><dd><a class="btn sm" href="${esc(filesHref(c[0]))}">Browse files</a> <span class="faint">tree <code>${short(c[2])}</code>, read from the packs in this browser</span></dd>
+  ${c[8] ? '<dt>Signed</dt><dd>Yes; the signature is in the commit object, checked by git after restore</dd>' : ''}
+</dl>`;
+      status('commit ' + c[0].slice(0, 10));
+    }
+
+
+    // ---- Files at a commit, read from the packs in this browser
+    // (gitpack.js): every snapshot's idx, then ranges of the packs.
+    const filesHref = (id, path, f) => href({ tab: 'files', c: id, path: path || '', f: f || '' });
+    const packURL = (c, name) => LOCAL ? CONTENT + encodeURIComponent(c) + '?name=' + name : HERE || PUBLIC ? gw(c) : null;
+    function reader() {
+      if (GITREPO[n]) return GITREPO[n];
+      const packs = g.snapshots.slice().reverse().flatMap((s) => s.packs || []).concat(g.basePacks || []).map((p) => ({ pack: packURL(p[0], 'objects.pack'), idx: packURL(p[1], 'objects.idx') }));
+      return (GITREPO[n] = window.I2FGit.open({ packs, format: g.objectFormat }));
+    }
+    const sortTree = (es) => es.slice().sort((a, b) => (b.kind === 'dir') - (a.kind === 'dir') || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const what = (e) => e.kind === 'exec' ? 'executable' : e.kind === 'link' ? 'symlink' : e.kind === 'module' ? `submodule at ${short(e.id)}` : '';
+    async function filesPage(id) {
+      const c = byId.get(id);
+      body.innerHTML = `<div class="titled"><a href="${esc(href({ tab: 'commits', c: id, path: '', f: '' }))}">‹ Commit ${short(id)}</a>${c ? ` <span class="faint">${esc(c[7])}</span>` : ''}</div>
+<nav class="git-crumbs" aria-label="Folder"></nav>
+<div class="git-files"><div class="git-tree"></div><div class="git-file" hidden></div></div>
+<p class="faint git-note"></p>`;
+      const crumbs = body.querySelector('.git-crumbs'), list = body.querySelector('.git-tree'), pane = body.querySelector('.git-file'), note = body.querySelector('.git-note');
+      // moves within the files of this commit stay on the page: the packs' idx are kept
+      body.onclick = (ev) => {
+        const a = ev.target.closest('a[data-nav]');
+        if (!a || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;
+        ev.preventDefault();
+        history.pushState(null, '', a.href);
+        const q = new URL(a.href).searchParams;
+        S.path = q.get('path') || '';
+        S.f = q.get('f') || '';
+        draw();
+      };
+      window.onpopstate = () => {
+        const q = new URLSearchParams(location.search);
+        if (q.get('tab') !== 'files' || q.get('c') !== id) { location.reload(); return; }
+        S.path = q.get('path') || '';
+        S.f = q.get('f') || '';
+        draw();
+      };
+      const up = () => { if (!S.path && !S.f) return false; const u = filesHref(id, S.f ? S.path : S.path.split('/').slice(0, -1).join('/')); history.pushState(null, '', u); S.f = ''; S.path = new URL(u, location.href).searchParams.get('path') || ''; draw(); return true; };
+      pageKeys.u = up;
+      pageKeys.Backspace = up;
+      let gen = 0;
+      async function draw() {
+        const my = ++gen, parts = S.path ? S.path.split('/') : [];
+        crumbs.innerHTML = [`<a data-nav href="${esc(filesHref(id))}">${esc(g.name)}</a>`].concat(parts.map((x, i) => `<a data-nav href="${esc(filesHref(id, parts.slice(0, i + 1).join('/')))}">${esc(x)}</a>`)).join('<span class="faint">/</span>');
+        if (!packURL('x', '')) {
+          list.innerHTML = `<div class="none pad"><p>The packs are read from <code>ipfs2fil explore</code> or an IPFS gateway; this page has neither.</p><button type="button" class="btn sm" data-public>Load from ${GATEWAYS[0][0]}</button></div>`;
+          list.querySelector('[data-public]').onclick = () => { PUBLIC = true; draw(); };
+          return;
+        }
+        if (!window.I2FGit) { list.innerHTML = '<p class="muted pad">This explorer is missing gitpack.js.</p>'; return; }
+        const repo = reader();
+        list.innerHTML = '<p class="muted pad">Reading the packs…</p>';
+        status('reading the packs');
+        try {
+          let tid = c ? c[2] : (await repo.commit(id)).tree;
+          for (let i = 0; i < parts.length; i++) {
+            const d = (await repo.tree(tid)).find((e) => e.name === parts[i] && e.kind === 'dir');
+            if (!d) throw new Error(`There is no folder ${parts.slice(0, i + 1).join('/')} at this commit.`);
+            tid = d.id;
+          }
+          const es = sortTree(await repo.tree(tid));
+          if (my !== gen) return;
+          const kindOfFile = (e) => e.kind === 'dir' ? 'folder' : e.kind === 'module' ? 'repo' : (V && V.arc.kindOf(e.name)) || 'other';
+          const rowHref = (e) => e.kind === 'dir' ? filesHref(id, parts.concat(e.name).join('/')) : filesHref(id, S.path, e.name);
+          list.innerHTML = `<table class="git-log tree"><tbody>${es.slice(0, 5000).map((e) => `<tr${e.name === S.f && e.kind !== 'dir' ? ' aria-current="true"' : ''}><td><a data-nav href="${esc(rowHref(e))}">${icon(kindOfFile(e))} ${esc(e.name)}${e.kind === 'dir' ? '/' : ''}</a></td><td class="faint">${what(e)}</td></tr>`).join('')}${es.length > 5000 ? `<tr><td colspan="2" class="faint">${num(es.length - 5000)} more not listed</td></tr>` : ''}${es.length ? '' : '<tr><td class="faint">An empty folder.</td></tr>'}</tbody></table>`;
+          const fe = S.f ? es.find((e) => e.name === S.f && e.kind !== 'dir') : null;
+          pane.hidden = !fe;
+          if (fe) await showFile(fe, my);
+          if (my !== gen) return;
+          const st = repo.stats;
+          note.textContent = `Read from ${plural(g.snapshots.reduce((a, s) => a + (s.packs || []).length, 0), 'pack')}: ${plural(st.requests, 'request')}, ${bytes(st.fetched)} fetched so far. Every object shown matched its ${g.objectFormat === 'sha256' ? 'SHA-256' : 'SHA-1'} id${st.unchecked ? ` (${plural(st.unchecked, 'object')} unchecked: this page is not on a secure origin)` : ''}; SHA-1 collision detection (SHA-1DC) runs in git-ipfs-archive verify and restore, not here.`;
+          status(plural(es.length, 'item') + (S.path ? ' in ' + S.path : ''));
+        } catch (err) {
+          if (my !== gen) return;
+          list.innerHTML = `<div class="none pad"><p>${esc(err.message)}</p></div>`;
+          status('could not read the packs');
+        }
+      }
+      async function showFile(fe, my) {
+        const path = pathParts().concat(fe.name).join('/');
+        pane.innerHTML = `<div class="pv"><div class="ph"><strong title="${esc(path)}">${esc(fe.name)}</strong></div><p class="muted pad">Reading…</p></div>`;
+        const pv = pane.querySelector('.pv'), ph = pv.querySelector('.ph');
+        const facts = (extra) => `<div class="facts dl"><span>Path</span><span>${esc(path)}</span><span>Blob</span><span><code class="chipcode">${esc(fe.id)}</code></span><span>Mode</span><span>${esc(fe.mode)}${what(fe) ? ' · ' + what(fe) : ''}</span>${extra || ''}</div>`;
+        if (fe.kind === 'module') { pv.innerHTML = ph.outerHTML + `<div class="pad2"><p class="faint">A submodule: another repo, at commit <code>${esc(fe.id)}</code>.</p></div>` + facts(); return; }
+        let o;
+        try { o = await reader().read(fe.id); } catch (err) {
+          if (my === gen) pv.innerHTML = ph.outerHTML + `<div class="pad2"><p>${esc(err.message)}${err.tooBig ? `. Restore the repo to get it: <code class="chipcode">git-ipfs-archive restore &lt;CARs&gt; ${esc(g.name)}.git</code>` : ''}</p></div>` + facts();
+          return;
+        }
+        if (my !== gen) return;
+        if (fe.kind === 'link') { pv.innerHTML = ph.outerHTML + `<div class="pad2"><p>A symlink to <code>${esc(new TextDecoder().decode(o.data))}</code></p></div>` + facts(); return; }
+        const blob = new Blob([o.data]);
+        const kind = (V && (V.arc.kindOf(fe.name) || V.arc.sniff(o.data.subarray(0, 1024)))) || 'other';
+        const e = { name: fe.name, path: 'git/' + path, dir: '', kind, bytes: o.data.length, cid: '', piece: -1, blob, va: { arc: g.name, inner: path } };
+        const url = V ? V.arc.url(e) : URL.createObjectURL(blob);
+        ph.insertAdjacentHTML('beforeend', `<a class="btn sm" href="${esc(url)}" download="${esc(fe.name)}">Download</a>`);
+        pv.querySelector('.muted').outerHTML = '<div class="git-stage"></div>' + `` + facts(`<span>Size</span><span>${bytes(o.data.length)} · ${esc(kindOf(kind)[2])}</span>`);
+        const box = pv.querySelector('.git-stage');
+        if (SHOW) SHOW(box, e);
+        else box.innerHTML = `<pre class="code"><code>${esc(new TextDecoder().decode(o.data.subarray(0, 1 << 20)))}</code></pre>`;
+      }
+      const pathParts = () => S.path ? S.path.split('/') : [];
+      await draw();
+    }
+
+    function commits() {
+      const base = S.ref ? reach((g.refs.find((r) => r[0] === S.ref) || [])[2] || (g.refs.find((r) => r[0] === S.ref) || [])[1]) : g.commits;
+      body.innerHTML = `${S.ref ? `<p>${refTag(S.ref)} <span class="faint">and its history</span> · <a href="${esc(href({ ref: '' }))}">every commit</a></p>` : ''}
+<div class="filter"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"></circle><path d="M11 11l3.5 3.5"></path></svg><input type="search" data-q placeholder="Filter by subject, author or id" aria-label="Filter commits" autocomplete="off" spellcheck="false" value="${esc(S.q)}"><kbd>f</kbd></div>
+<table class="git-log commits"><tbody></tbody></table>${g.truncated ? `<p class="faint">${plural(g.truncated, 'older commit')} not listed here; the archive's log holds them.</p>` : ''}`;
+      const tb = body.querySelector('tbody'), q = body.querySelector('[data-q]');
+      const shown = () => { const s = S.q.toLowerCase(); return !s ? base : base.filter((c) => c[0].startsWith(s) || c[7].toLowerCase().includes(s) || c[3].toLowerCase().includes(s) || c[4].toLowerCase().includes(s)); };
+      const render = () => {
+        const list = shown();
+        tb.innerHTML = list.slice(0, S.limit).map(row).join('') + (list.length > S.limit ? `<tr><td colspan="4"><button type="button" class="btn sm" data-more>Show ${num(Math.min(500, list.length - S.limit))} more of ${num(list.length - S.limit)}</button></td></tr>` : '') + (!list.length ? '<tr><td colspan="4" class="faint">No commits match.</td></tr>' : '');
+        status(plural(list.length, 'commit'));
+      };
+      q.oninput = () => { S.q = q.value; S.limit = 100; const u = new URL(location.href); if (S.q) u.searchParams.set('q', S.q); else u.searchParams.delete('q'); history.replaceState(null, '', u.href); render(); };
+      body.addEventListener('click', (ev) => { if (ev.target.closest('[data-more]')) { S.limit += 500; render(); } });
+      pageKeys.f = () => { q.focus(); return true; };
+      render();
+    }
+
+    function refs(list, what) {
+      const at = (r) => { const c = byId.get(r[2] || r[1]); return c ? c[6] : 0; };
+      // a ref with a tip folder links to it in Files (named as the archive lists it)
+      const tips = new Map((g.tips || []).map((x) => [x[0], x]));
+      const tipLink = (r, id) => tips.has(r) && gi && gi.path ? ` <a class="pill" href="${esc(browseHref(gi.path + '/' + r.replace(/^refs\/heads\//, '').replace(/^refs\//, '').replace(/\//g, '%2F')))}" title="The files at ${esc(refName(r))}">files</a>` : byId.has(id) ? ` <a class="pill" href="${esc(filesHref(id))}" title="The files at ${esc(refName(r))}, read from the packs">files</a>` : '';
+      list = list.slice().sort((a, b) => (b[0] === g.head) - (a[0] === g.head) || at(b) - at(a));
+      body.innerHTML = list.length ? `<table class="git-log refs"><tbody>${list.map((r) => {
+        const id = r[2] || r[1], c = byId.get(id);
+        return `<tr><td><a href="${esc(href({ tab: 'commits', ref: r[0] }))}" title="Its history">${refTag(r[0])}</a>${g.head === r[0] ? ' <span class="faint">HEAD</span>' : ''}${tipLink(r[0], id)}</td><td class="mono">${commitLink(id)}</td><td>${c ? esc(c[7]) : ''}</td><td class="faint nowrap">${c ? esc(dt(c[6])) : ''}</td></tr>`;
+      }).join('')}</tbody></table>` : `<p class="faint">No ${what}.</p>`;
+      status(plural(list.length, what.replace(/s$/, '')));
+    }
+
+    function snapshots() {
+      body.innerHTML = `<p class="faint">Each run stores a snapshot: the first holds every object in one pack, each later one a thin pack of only what was new, deltified against what is already stored. Newest first.</p>
+<table class="git-log snaps"><tbody>${g.snapshots.map((s, i) => `<tr><td>#${g.snapshots.length - i}</td><td>${cidx(s.root, true)}</td><td>${plural(s.commits, s.base ? 'commit' : 'new commit')}</td>${s.compacted ? `<td colspan="2" class="muted">compacted: restores from the full pack of a later snapshot</td>` : `<td>${plural(s.objects, 'object')}, ${bytes(s.bytes)}${s.base ? ' (compacted, full)' : ''}${s.lfs ? `<br>${plural(s.lfs, 'LFS object')}` : ''}</td><td>${(s.packs || []).map((p) => `pack ${cidx(p[0], true)} idx ${cidx(p[1], true)}`).join('<br>')}</td>`}</tr>`).join('')}</tbody></table>`;
+      status(plural(g.snapshots.length, 'snapshot'));
+    }
+
+    if (S.tab === 'files' && /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(S.c)) return filesPage(S.c);
+    if (S.c && byId.has(S.c)) return commitPage(byId.get(S.c));
+    if (S.tab === 'branches') return refs(heads, 'branches');
+    if (S.tab === 'tags') return refs(tags, 'tags');
+    if (S.tab === 'snapshots') return snapshots();
+    return commits();
+  }
+
   // ---- Search: now part of Files, which searches under any folder.
   function search() {
     const q = params.get('q') || '', w = params.get('where');
@@ -2234,7 +2539,12 @@ ${recs.length ? `<section class="card"><h2>Other records</h2><p class="faint">Co
   manifest().then((m) => {
     ROOTS = {};
     PIECE = {};
-    (m.pieces || []).forEach((p) => { PIECE[p.pieceCid] = p.index; });
+    let bundle = null;
+    (m.pieces || []).forEach((p) => {
+      PIECE[p.pieceCid] = p.index;
+      if (p.part === 'bundle' && p.blockList && (!bundle || p.snapshot >= bundle.snapshot)) bundle = p;
+    });
+    if (bundle) PIECE[''] = bundle.index;
     (m.roots || []).forEach((r) => { ROOTS[r.path] = r; });
     return load('meta').then((meta) => {
       REPOS = meta.repos || null;

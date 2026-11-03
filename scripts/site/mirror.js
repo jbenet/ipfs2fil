@@ -43,6 +43,26 @@ const save = (u, body) => {
     for (const r of repos) await visit(`/${r}/explorer/${page}`);
   }
   await b.close();
+  // Every index file, not only those the pages above asked for: folder
+  // buckets (d/, opened as you browse), git repos (g/), accounts (at/) and
+  // search shards (s/).
+  for (const ex of ['all', ...repos]) {
+    const t = await (await fetch(`${base}/${ex}/explorer/idx/meta.js`)).text();
+    let m = null;
+    new Function('I2F', t)({ put: (k, v) => { if (k === 'meta') m = v; } });
+    if (!m) continue;
+    const want = [];
+    for (let i = 0; i < (m.buckets || 0); i++) want.push('d/' + i);
+    for (let i = 0; i < (m.gits || []).length; i++) want.push('g/' + i);
+    for (let i = 0; i < (m.accounts || []).length; i++) want.push('at/' + i);
+    for (const s of m.shards || []) want.push('s/' + s);
+    for (const w of want) {
+      const u = `${base}/${ex}/explorer/idx/${w}.js`;
+      if (seen.has(u)) continue;
+      const r = await fetch(u);
+      if (r.ok) { seen.add(u); save(u, Buffer.from(await r.arrayBuffer())); }
+    }
+  }
   save(base + '/all/_i2f/info', JSON.stringify({ content: true }));
   // Per-repo explorers read file contents from the combined one's copy.
   for (const r of repos) save(`${base}/${r}/_i2f/info`, JSON.stringify({ content: '../../all/_i2f/content/', all: info.all ? '../../all/explorer/' : undefined }));

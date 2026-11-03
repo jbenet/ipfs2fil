@@ -1,0 +1,63 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Exchange | IPFS Standards</title>
+  <meta name="description" content="Exchange is the way to for sending and receiving content-addressed blocks of data.">
+  <link rel="canonical" href="https://specs.ipfs.tech/exchange/">
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/ipseity.min.css">
+  <link rel="icon" href="/img/ipfs-standards.svg">
+</head>
+<body>
+
+
+<nav>
+  <div>
+    <img src="/img/ipfs-standards.svg" alt="InterPlanetary Standards Logo" width="25" height="25" class="logo">
+    <a href="/">IPFS Standards</a>
+  </div>
+</nav>
+
+<header>
+  <div>
+    <h1>Exchange</h1>
+    <p>Exchange is the way to for sending and receiving content-addressed blocks of data.
+</p>
+  </div>
+</header>
+
+
+<main>
+  <dl>
+  <dt><a href="/http-gateways/trustless-gateway/">Trustless Gateway Specification</a></dt>
+    <dd>The minimal subset of HTTP Gateway response types facilitates data retrieval via CID and ensures integrity verification, all while eliminating the need to trust the gateway itself.
+</dd><dt><a href="/bitswap-protocol/">Bitswap Protocol</a></dt>
+    <dd>Bitswap is a libp2p data exchange protocol for finding, sending and receiving content addressed blocks of data. It attempts to acquire blocks from the p2p network that have been requested by the client, and also send blocks to others who want them.
+</dd><dt><a href="/http-gateways/libp2p-gateway/">libp2p+HTTP Transport Gateway Specification</a></dt>
+    <dd>Describes how HTTP Gateway semantics can be used over libp2p transports and how libp2p can coexist with other HTTP services on the same host.
+</dd></dl>
+</main>
+
+</body>
+<footer>
+  <div>
+    <p>
+      <a href="https://ipfs.tech/"><img src="/img/ipfs.svg" width="20" height="20" alt="IPFS logo"> IPFS</a>
+      •
+      <a href="https://ipld.io/"><img src="/img/ipld.svg" width="20" height="20" alt="IPLD logo"> IPLD</a>
+      •
+      <a href="https://libp2p.io/"><img src="/img/libp2p.png" width="20" height="20" alt="libp2p logo"> libp2p</a>
+      •
+      <a href="https://multiformats.io/"><img src="/img/multiformats.svg" width="20" height="20" alt="Multiformats logo"> Multiformats</a>
+    </p>
+    <p>
+      <a href="https://github.com/ipfs/specs/blob/main/SECURITY.md">Reporting security issues</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
+

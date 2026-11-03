@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "User-Preferred Gateway Detection",
+    "url": "https://specs.ipfs.tech/http-gateways/gateway-detection/"
+  },
+  "dfns": []
+}

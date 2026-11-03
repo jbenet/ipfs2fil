@@ -1,8 +1,8 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
-  "dataRoot": "bafybeicbbxyrbheyxryrqp2g3g45zsfamuakkmw3au4voty7vtsv6j3ak4",
+  "root": "bafybeigwlho7qlrvpu3cr536okzfksewfiecg3tjh2wsvqql7kubsuhn7a",
+  "dataRoot": "bafybeibv6gebzmpwhrk43d23yizkxjwuz4wivhvzdkk6fhccuwq3pjgsla",
   "source": {
     "repoVersion": 18,
     "blocks": 1504,
@@ -119,7 +119,7 @@
       "lastPiece": 0
     },
     {
-      "cid": "QmPePDshmUMSLTXr7shwBTP9m9vEQNsn5qJWqkwFez13eh",
+      "cid": "QmbY3bx9r6GmSX8AGqEq4GD4RbzUrrdxYnT6WAEpswuBxh",
       "kind": "mfs",
       "path": "mfs",
       "bytes": 454535,
@@ -129,12 +129,12 @@
       "lastPiece": 0
     },
     {
-      "cid": "bafybeidu6mpzvgbn233sm4u36wjokqmorirqvamd2mp5764axw3oboc6ki",
+      "cid": "bafybeibglr23lcmfcit6senxeo2f2toye4iuizfoh3skg6kls5dwt3q6pq",
       "kind": "orphan",
-      "path": "orphans/bafybeidu6mpzvgbn233sm4u36wjokqmorirqvamd2mp5764axw3oboc6ki",
-      "bytes": 454395,
-      "blocks": 18,
-      "own": 197,
+      "path": "orphans/bafybeibglr23lcmfcit6senxeo2f2toye4iuizfoh3skg6kls5dwt3q6pq",
+      "bytes": 454343,
+      "blocks": 17,
+      "own": 149,
       "firstPiece": 0,
       "lastPiece": 0
     },
@@ -159,12 +159,12 @@
       "lastPiece": 0
     },
     {
-      "cid": "bafybeigl73o2ipsbjhdl5p2b6s7cqyikwzpbriyxmale4bwyhonrcddoum",
+      "cid": "bafybeigm3mpwhjnxqr3gvlr43aqjapbnibwortvc443z6qy76ipxooizw4",
       "kind": "orphan",
-      "path": "orphans/bafybeigl73o2ipsbjhdl5p2b6s7cqyikwzpbriyxmale4bwyhonrcddoum",
-      "bytes": 454343,
-      "blocks": 17,
-      "own": 149,
+      "path": "orphans/bafybeigm3mpwhjnxqr3gvlr43aqjapbnibwortvc443z6qy76ipxooizw4",
+      "bytes": 454395,
+      "blocks": 18,
+      "own": 197,
       "firstPiece": 0,
       "lastPiece": 0
     },
@@ -182,28 +182,12 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibfqhqpayyymtnbqsauzeeijh557nklupltkvxigzpxrojvhghag5p4kbvfjuma",
-      "carBytes": 323211263,
-      "blocks": 1504,
+      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
+      "carBytes": 523317785,
+      "blocks": 19016,
       "blockList": "pieces/0000",
-      "snapshot": 0
-    },
-    {
-      "index": 1,
-      "pieceCid": "bafkzcibe4xsqgdtmd5bjyjsbnpfyb4muewh3veqtwcj5gwd5khlnpoz527ntg2cbcy",
-      "carBytes": 458011,
-      "blocks": 19,
-      "blockList": "",
-      "part": "index",
-      "snapshot": 0
-    },
-    {
-      "index": 2,
-      "pieceCid": "bafkzcibdripqtmlhxcqguleofynecpzy6hj3azbwcircwpdtigobyxkkruix2vy7",
-      "carBytes": 12278,
-      "blocks": 8,
-      "blockList": "",
-      "part": "head",
+      "part": "bundle",
+      "dataBytes": 323211206,
       "snapshot": 0
     }
   ],
@@ -212,9 +196,7 @@
       "provider": "2",
       "dataSetId": "5310",
       "pieceIds": {
-        "0": "2",
-        "1": "1",
-        "2": "0"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -222,9 +204,7 @@
       "provider": "9",
       "dataSetId": "5311",
       "pieceIds": {
-        "0": "2",
-        "1": "1",
-        "2": "0"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -232,21 +212,17 @@
       "provider": "16",
       "dataSetId": "5312",
       "pieceIds": {
-        "0": "2",
-        "1": "0",
-        "2": "1"
+        "0": "0"
       },
       "service": "unknown"
     }
   ],
   "snapshots": [
     {
-      "time": "2026-11-01T08:54:05Z",
-      "root": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
+      "time": "2026-11-03T10:29:42Z",
+      "root": "bafybeigwlho7qlrvpu3cr536okzfksewfiecg3tjh2wsvqql7kubsuhn7a",
       "newPieces": [
-        0,
-        1,
-        2
+        0
       ]
     }
   ],

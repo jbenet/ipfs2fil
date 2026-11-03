@@ -1,0 +1,90 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPNS PubSub Router</title>
+    <meta name="description" content="Specifies how to publish and retrieve IPNS records using libp2p PubSub router.">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipns/ipns-pubsub-router/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPNS PubSub Router</h1><p id="last-modified"><time datetime="2022-11-09T00:00:00.000Z">9 November 2022</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipns/ipns-pubsub-router.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipns/ipns-pubsub-router.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p><a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-InterPlanetary Naming System (IPNS)" data-dfn-type="dfn">InterPlanetary Naming System (IPNS)</a>  is a naming system responsible for the creating, reading and updating of mutable pointers to data.
+IPNS consists of a public/private asymmetric cryptographic key pair, a record type and a protocol.
+Part of the protocol involves a routing layer that is used for the distribution and discovery of new or updated IPNS records.</p>
+<p>The IPNS PubSub router uses <a href="https://github.com/libp2p/specs/tree/master/pubsub">libp2p PubSub</a> as a base, and adds persistence on top of it to ensure IPNS updates are always available to a connected network.
+An inherent property of the IPNS PubSub Router is that IPNS records are republishable by peers other than the peer that originated the record.
+This implies that as long as a peer on the network has an IPNS record it can be made available to other peers (although the records may be ignored if they are received after the IPNS record's End-of-Life/EOL).</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc no-depth"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a></li><li><a href="#pubsub-protocol-overview" class="tocxref"><bdi class="secno">2. </bdi>PubSub Protocol Overview</a></li><li><a href="#translating-an-ipns-record-name-to-from-a-pubsub-topic" class="tocxref"><bdi class="secno">3. </bdi>Translating an IPNS record name to/from a PubSub topic</a></li><li><a href="#layering-persistence-onto-libp2p-pubsub" class="tocxref"><bdi class="secno">4. </bdi>Layering persistence onto libp2p PubSub</a></li><li><a href="#protocol" class="tocxref"><bdi class="secno">5. </bdi>Protocol</a></li><li><a href="#implementations" class="tocxref"><bdi class="secno">6. </bdi>Implementations</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>Each time a node publishes an updated IPNS record for a particular key it is propagated by the router into the network where network nodes can choose to accept or reject the new record.
+When a node attempts to retrieve an IPNS record from the network it uses the router to query for the IPNS record(s) associated with the IPNS key; the node then validates the received records.</p>
+<p>In this spec we address building a router based on a PubSub system, particularly focusing on libp2p PubSub.</p>
+</section><section id="pubsub-protocol-overview"><h2><bdi class="secno">2. </bdi>PubSub Protocol Overview</h2><a href="#pubsub-protocol-overview" class="self-link" aria-label="Section 2."></a>
+<p>The protocol has four components:</p>
+<ul>
+<li>IPNS Records and Validation ([<a class="bibref" href="#ref-ipns-record">ipns-record</a>])</li>
+<li><a href="https://github.com/libp2p/specs/tree/master/pubsub">libp2p PubSub</a></li>
+<li>Translating an IPNS record name to/from a PubSub topic</li>
+<li>Layering persistence onto libp2p PubSub</li>
+</ul>
+</section><section id="translating-an-ipns-record-name-to-from-a-pubsub-topic"><h2><bdi class="secno">3. </bdi>Translating an IPNS record name to/from a PubSub topic</h2><a href="#translating-an-ipns-record-name-to-from-a-pubsub-topic" class="self-link" aria-label="Section 3."></a>
+<p>For a given IPNS local record key described in the IPNS Specification the PubSub topic is:</p>
+<p><strong>Topic format:</strong> <code>/record/base64url-unpadded(key)</code></p>
+<p>where base64url-unpadded is an unpadded base64url as specified in [<a class="bibref" href="#ref-rfc4648">rfc4648</a>].</p>
+</section><section id="layering-persistence-onto-libp2p-pubsub"><h2><bdi class="secno">4. </bdi>Layering persistence onto libp2p PubSub</h2><a href="#layering-persistence-onto-libp2p-pubsub" class="self-link" aria-label="Section 4."></a>
+<p>libp2p PubSub does not have any notion of persistent data built into it. However, we can layer persistence on top of PubSub by utilizing <a href="https://github.com/libp2p/specs/tree/master/fetch">libp2p Fetch</a>.</p>
+<p>The protocol has the following steps:</p>
+<ol>
+<li>Start State: Node <code>A</code> subscribes to the PubSub topic <code>t</code> corresponding to the local IPNS record key <code>k</code></li>
+<li><code>A</code> notices that a node <code>B</code> has connected to it and subscribed to <code>t</code></li>
+<li>Some time passes (might be 0 seconds, or could use a more complex system to determine the duration)</li>
+<li><code>A</code> sends <code>B</code> a Fetch request for <code>k</code></li>
+<li>If Fetch returns a record that supersedes <code>A</code>'s current record then <code>A</code> updates its record and Publishes it to the network</li>
+</ol>
+<p>Note: PubSub does not guarantee that a message sent by a peer <code>A</code> will be received by a peer <code>B</code> and it's possible
+(e.g. in systems like <a href="https://github.com/libp2p/specs/tree/master/pubsub/gossipsub">gossipsub</a>)
+that this is true even if <code>A</code> and <code>B</code> are already connected. Therefore, whenever <code>A</code> notices <strong>any</strong> node that has
+connected to it and subscribed to <code>t</code> it should run the Fetch protocol as described above. However, developers may have routers
+with properties that allow the amount of time in step 3 to increase arbitrarily large (including infinite) amounts.</p>
+</section><section id="protocol"><h2><bdi class="secno">5. </bdi>Protocol</h2><a href="#protocol" class="self-link" aria-label="Section 5."></a>
+<p>A node <code>A</code> putting and getting updates to an IPNS key <code>k</code>, with computed PubSub topic <code>t</code></p>
+<ol>
+<li>PubSub subscribe to <code>t</code></li>
+<li>Run the persistence protocol, both to fetch data and return data to those that request it</li>
+<li>When updating a record do a PubSub Publish and keep the record locally</li>
+<li>When receiving a record if it's better than the current record keep it and republish the message</li>
+<li>(Optional) Periodically republish the best record available</li>
+</ol>
+<p>Note: 5 is optional because it is not necessary. However, receiving duplicate records are already handled efficiently
+by the above logic and properly running the persistence protocol can be difficult (as in the example below). Periodic
+republishing can then act as a fall-back plan in the event of errors in the persistence protocol.</p>
+<p>Persistence Error Example:</p>
+<ol>
+<li><code>B</code> connects to <code>A</code></li>
+<li><code>A</code> gets the latest record (<code>R1</code>) from <code>B</code></li>
+<li><code>B</code> then disconnects from <code>A</code></li>
+<li><code>B</code> publishes <code>R2</code></li>
+<li><code>B</code> reconnects to <code>A</code></li>
+</ol>
+<p>If <code>A</code>'s checking of when <code>B</code> reconnects has problems it could miss <code>R2</code> (e.g. if it polled subscribed peers
+every 10 seconds)</p>
+</section><section id="implementations"><h2><bdi class="secno">6. </bdi>Implementations</h2><a href="#implementations" class="self-link" aria-label="Section 6."></a>
+<ul>
+<li>Kubo
+<ul>
+<li><a href="https://github.com/ipfs/go-namesys">https://github.com/ipfs/go-namesys</a></li>
+<li><a href="https://github.com/libp2p/go-libp2p-pubsub-router">https://github.com/libp2p/go-libp2p-pubsub-router</a></li>
+<li><a href="https://github.com/ipfs/kubo/blob/master/docs/experimental-features.md#ipns-pubsub">https://github.com/ipfs/kubo/blob/master/docs/experimental-features.md#ipns-pubsub</a></li>
+<li><a href="https://github.com/ipfs/kubo/issues/8591">https://github.com/ipfs/kubo/issues/8591</a></li>
+</ul>
+</li>
+</ul>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipns-record">[ipns-record]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-record/"><cite>IPNS Record and Protocol</cite></a>. Vasco Santos; Steve Allen; Marcin Rataj; Henrique Dias; Gus Eggert. 2025-02-28. URL: <a href="https://specs.ipfs.tech/ipns/ipns-record/">https://specs.ipfs.tech/ipns/ipns-record/</a></dd><dt id="ref-rfc4648">[rfc4648]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc4648"><cite>The Base16, Base32, and Base64 Data Encodings</cite></a>. S. Josefsson. IETF. October 2006. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc4648">https://www.rfc-editor.org/rfc/rfc4648</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Adin Schmahmann</span> <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

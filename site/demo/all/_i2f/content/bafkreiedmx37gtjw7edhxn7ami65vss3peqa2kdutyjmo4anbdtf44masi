@@ -1,0 +1,128 @@
+{
+  "spec": {
+    "title": "IPFS Principles",
+    "url": "https://specs.ipfs.tech/architecture/principles/"
+  },
+  "dfns": [
+    {
+      "id": "dfn-IPFS Implementation",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-IPFS Implementation",
+      "linkingText": [
+        "ipfs implementation"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-IPFS Implementation",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-IPFS Implementation",
+      "linkingText": [
+        "ipfs implementations"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Authority",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Authority",
+      "linkingText": [
+        "authority"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Authority",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Authority",
+      "linkingText": [
+        "authorities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Naming authority",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Naming authority",
+      "linkingText": [
+        "naming authority"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Naming authority",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Naming authority",
+      "linkingText": [
+        "naming authorities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Addressability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Addressability",
+      "linkingText": [
+        "addressability"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Addressability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Addressability",
+      "linkingText": [
+        "addressabilities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Verifiability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Verifiability",
+      "linkingText": [
+        "verifiability"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Verifiability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Verifiability",
+      "linkingText": [
+        "verifiabilities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Self-certifying addressability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Self-certifying addressability",
+      "linkingText": [
+        "self-certifying addressability"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Self-certifying addressability",
+      "href": "https://specs.ipfs.tech/architecture/principles/#dfn-Self-certifying addressability",
+      "linkingText": [
+        "self-certifying addressabilities"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    }
+  ]
+}

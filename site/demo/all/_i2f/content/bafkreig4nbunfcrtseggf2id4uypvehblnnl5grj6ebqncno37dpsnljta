@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>User-Preferred Gateway Detection</title>
+    <meta name="description" content="How applications detect the user-preferred IPFS Gateway via the IPFS_GATEWAY environment variable or a well-known gateway file.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/gateway-detection/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">User-Preferred Gateway Detection</h1><p id="last-modified"><time datetime="2026-08-07T00:00:00.000Z">7 August 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/gateway-detection.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/gateway-detection.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a></li><li><a href="#specification" class="tocxref"><bdi class="secno">2. </bdi>Specification</a><ol class="toc"><li><a href="#ipfs_gateway-environment-variable" class="tocxref"><bdi class="secno">2.1 </bdi><code>IPFS_GATEWAY</code> Environment Variable</a></li><li><a href="#the-gateway-configuration-file" class="tocxref"><bdi class="secno">2.2 </bdi>The <code>gateway</code> Configuration File</a></li><li><a href="#security" class="tocxref"><bdi class="secno">2.3 </bdi>Security</a></li><li><a href="#privacy-and-user-control" class="tocxref"><bdi class="secno">2.4 </bdi>Privacy and User Control</a></li><li><a href="#compatibility-and-testing" class="tocxref"><bdi class="secno">2.5 </bdi>Compatibility and Testing</a></li></ol></li><li><a href="#copyright" class="tocxref"><bdi class="secno">3. </bdi>Copyright</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>This document defines conventions for how applications can identify an available
+IPFS Gateway, and how IPFS Gateway implementations can signal their own endpoint to
+client applications.</p>
+</section><section id="specification"><h2><bdi class="secno">2. </bdi>Specification</h2><a href="#specification" class="self-link" aria-label="Section 2."></a>
+<p>There are two ways of hinting the user-preferred gateway URL:</p>
+<ul>
+<li>Setting the <code>IPFS_GATEWAY</code> environment variable</li>
+<li>Creating a <code>gateway</code> file at a well-known path</li>
+</ul>
+<p>Applications <em class="rfc2119">SHOULD</em> evaluate these hints in order and stop on the first match:</p>
+<ol>
+<li>Check if a valid <code>IPFS_GATEWAY</code> environment variable is set</li>
+<li>Check if a valid <code>gateway</code> file is present at one of the well-known filesystem paths</li>
+</ol>
+<p>If a hint is present but its value is not a valid URL, applications <em class="rfc2119">SHOULD</em>
+report an error instead of silently falling back to the next hint.</p>
+<p>If no valid hint is found, gateway selection is unconfigured. Applications
+<em class="rfc2119">SHOULD NOT</em> fall back to a hard-coded non-localhost gateway (see Security below).</p>
+<section id="ipfs_gateway-environment-variable"><h3><bdi class="secno">2.1 </bdi><code>IPFS_GATEWAY</code> Environment Variable</h3><a href="#ipfs_gateway-environment-variable" class="self-link" aria-label="Section 2.1"></a>
+<p>When the <code>IPFS_GATEWAY</code> environment variable is set, the value <em class="rfc2119">SHOULD</em> be interpreted
+as the URL of the IPFS Gateway to use. The value holds a single URL, following
+the same rules as the first line of the <code>gateway</code> file.</p>
+<p>Applications <em class="rfc2119">SHOULD</em> give this variable precedence over gateway URLs from
+internal application configuration. Explicit per-invocation user input, such as
+a command-line argument, <em class="rfc2119">MAY</em> take precedence over this variable.</p>
+</section><section id="the-gateway-configuration-file"><h3><bdi class="secno">2.2 </bdi>The <code>gateway</code> Configuration File</h3><a href="#the-gateway-configuration-file" class="self-link" aria-label="Section 2.2"></a>
+<p>Client application <em class="rfc2119">SHOULD</em> check if file is present at specific filesystem paths, in order:</p>
+<ol>
+<li>If <code>IPFS_PATH</code> is set, try <code>$IPFS_PATH/gateway</code></li>
+<li>Otherwise, if <code>HOME</code> is set, try <code>$HOME/.ipfs/gateway</code> (the default <code>IPFS_PATH</code> location)</li>
+<li>Try OS-specific paths:
+<ul>
+<li>Linux/Unix:
+<ol>
+<li><code>$XDG_CONFIG_HOME/ipfs/gateway</code> (only if <code>XDG_CONFIG_HOME</code> is set)</li>
+<li><code>$HOME/.config/ipfs/gateway</code> (default XDG location)</li>
+<li><code>/etc/ipfs/gateway</code> (system-wide)</li>
+</ol>
+</li>
+<li>Windows:
+<ol>
+<li><code>%LOCALAPPDATA%/ipfs/gateway</code> (local user)</li>
+<li><code>%APPDATA%/ipfs/gateway</code> (roaming user)</li>
+<li><code>%PROGRAMDATA%/ipfs/gateway</code> (system-wide)</li>
+</ol>
+</li>
+<li>macOS:
+<ol>
+<li><code>$HOME/Library/Application Support/ipfs/gateway</code> (user)</li>
+<li><code>/Library/Application Support/ipfs/gateway</code> (system-wide)</li>
+</ol>
+</li>
+</ul>
+</li>
+</ol>
+<p>When <code>gateway</code> file is present, the file contents <em class="rfc2119">MUST</em> be interpreted as an
+ASCII text file with one URL per line (separated by <code>\n</code> or <code>\r\n</code>).</p>
+<p>The first line <em class="rfc2119">MUST</em> be a valid <code>http://</code> or <code>https://</code> URL consisting only of
+a scheme, host, and optional port, with no path, query, or fragment
+(e.g., <code>http://127.0.0.1:8080</code>). The gateway at this URL <em class="rfc2119">MUST</em> support
+[<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>], <em class="rfc2119">SHOULD</em> support [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] when deserialized
+responses are required, and <em class="rfc2119">SHOULD</em> support [<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>] when Origin
+isolation is required.</p>
+<p>Implementations <em class="rfc2119">MAY</em> support additional lines for gateway pools or failover.
+Additional lines, when present, <em class="rfc2119">MUST</em> follow the same URL rules, and empty
+lines <em class="rfc2119">MUST</em> be ignored. Implementations that do not support multiple URLs
+<em class="rfc2119">SHOULD</em> read only the first line and ignore the rest of the file.</p>
+</section><section id="security"><h3><bdi class="secno">2.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 2.3"></a>
+<p>Applications that integrate IPFS support via HTTP gateways:</p>
+<ul>
+<li><em class="rfc2119">SHOULD NOT</em> hard-code a non-localhost URL as a default fallback. Instead, they
+<em class="rfc2119">SHOULD</em> ask the user to define a preferred IPFS gateway using one of the
+methods defined in this document.</li>
+<li><em class="rfc2119">SHOULD</em> either warn the user when a non-localhost gateway is used for
+deserialized responses (risk of MITM), or (preferred) limit HTTP use
+outside of localhost to verifiable response types defined in
+[<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</li>
+<li>When running in a web browser, <em class="rfc2119">SHOULD</em> use a gateway URL that qualifies as a
+<a href="https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts">secure context</a>:
+either <code>https://</code>, or localhost (e.g., <code>http://127.0.0.1:8080</code>), which
+browsers treat as potentially trustworthy.</li>
+<li>When Origin isolation is required, <em class="rfc2119">SHOULD</em> use a [<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>]
+(e.g., <code>http://{cid}.ipfs.localhost:8080</code>), so each content root is loaded
+from its own origin.</li>
+</ul>
+</section><section id="privacy-and-user-control"><h3><bdi class="secno">2.4 </bdi>Privacy and User Control</h3><a href="#privacy-and-user-control" class="self-link" aria-label="Section 2.4"></a>
+<p>Applications <em class="rfc2119">SHOULD NOT</em> default to public gateways (see Security above).
+Instead, applications <em class="rfc2119">SHOULD</em> suggest to the user how to run a local node.</p>
+</section><section id="compatibility-and-testing"><h3><bdi class="secno">2.5 </bdi>Compatibility and Testing</h3><a href="#compatibility-and-testing" class="self-link" aria-label="Section 2.5"></a>
+<p>Implementers <em class="rfc2119">SHOULD</em> test against implementations mentioned in [<a class="bibref" href="#ref-ipip-0280">ipip-0280</a>]
+as the baseline for making decisions around maximizing interoperability.</p>
+</section></section><section id="copyright"><h2><bdi class="secno">3. </bdi>Copyright</h2><a href="#copyright" class="self-link" aria-label="Section 3."></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipip-0280">[ipip-0280]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0280/"><cite>IPIP-0280: App Conventions for Gateway Detection</cite></a>. Mark Gaiser; Marcin Rataj. 2026-08-07. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0280/">https://specs.ipfs.tech/ipips/ipip-0280/</a></dd><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-subdomain-gateway">[subdomain-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/"><cite>Subdomain Gateway Specification</cite></a>. Marcin Rataj; Adrian Lanzafame; Vasco Santos; Oli Evans; Thibault Meunier; Steve Loeppky. 2025-04-03. URL: <a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/">https://specs.ipfs.tech/http-gateways/subdomain-gateway/</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Mark Gaiser</span> <a href="https://github.com/markg85"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Tim Perry</span> <a href="https://github.com/pimterry"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Dietrich Ayala</span> <a href="https://github.com/autonome"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Dave Justice</span> <a href="https://github.com/meandavejustice"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>dirkf</span> <a href="https://github.com/dirkf"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Daniel Norman</span> <a href="https://github.com/2color"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

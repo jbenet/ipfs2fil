@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0280: App Conventions for Gateway Detection</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0280/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0280: App Conventions for Gateway Detection</h1><p id="last-modified"><time datetime="2026-08-07T00:00:00.000Z">7 August 2026</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/kubo/issues/8847">ipfs/kubo/issues/8847</a></dd><dd><a href="https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/f889837e00d3b2388a24c0a9d075ad62f47da825">git.ffmpeg.org/gitweb/ffmpeg.git/commit/f889837e00d3b2388a24c0a9d075ad62f47da825</a></dd><dd><a href="https://github.com/curl/curl/pull/8805">curl/curl/pull/8805</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0280.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0280.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a><ol class="toc"><li><a href="#kubo" class="tocxref"><bdi class="secno">4.2.1 </bdi>Kubo</a></li><li><a href="#ipfs-chromium" class="tocxref"><bdi class="secno">4.2.2 </bdi>IPFS Chromium</a></li><li><a href="#ffmpeg" class="tocxref"><bdi class="secno">4.2.3 </bdi>FFMPEG</a></li><li><a href="#curl" class="tocxref"><bdi class="secno">4.2.4 </bdi>Curl</a></li><li><a href="#ipfsspec" class="tocxref"><bdi class="secno">4.2.5 </bdi>ipfsspec</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a><ol class="toc"><li><a href="#browser-environment-detection" class="tocxref"><bdi class="secno">4.4.1 </bdi>Browser Environment Detection</a></li><li><a href="#gateway-health-checking" class="tocxref"><bdi class="secno">4.4.2 </bdi>Gateway Health Checking</a></li><li><a href="#stale-gateway-file-handling" class="tocxref"><bdi class="secno">4.4.3 </bdi>Stale Gateway File Handling</a></li></ol></li><li><a href="#copyright" class="tocxref"><bdi class="secno">4.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This IPIP creates conventions for how applications can identify an available IPFS gateway,
+and how IPFS gateway implementations can signal their own endpoint.</p>
+<p>This convention has been implemented and in use since 2022 (Kubo 0.15, ffmpeg),
+with curl support added in curl 8.4.0 (2023).</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Applications wanting to leverage IPFS Gateways are, without a common
+convention, left to invent their own ways of finding a gateway, including naive
+approaches such as localhost port scanning.</p>
+<p>This IPIP introduces specification that defines how an application wanting to
+implement IPFS support can find a local or user-preferred gateways.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>We introduce two ways of hinting user-preferred gateway URL to cover
+the majority of runtimes and use cases:</p>
+<ul>
+<li><code>IPFS_GATEWAY</code> environment variable</li>
+<li><code>gateway</code> file and filesystem paths to look for it</li>
+</ul>
+<p>See: [<a class="bibref" href="#ref-gateway-detection">gateway-detection</a>] for details.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>End users can define their preferred gateway once, and benefit from
+opportunistic support in applications they use.</p>
+<p>Application developers save time as they only need to implement support for
+vendor-agnostic convention to be able to read user preferred gateway.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<section id="kubo"><h4><bdi class="secno">4.2.1 </bdi>Kubo</h4><a href="#kubo" class="self-link" aria-label="Section 4.2.1"></a>
+<p>Kubo (<a href="https://github.com/ipfs/kubo/blob/master/docs/changelogs/v0.15.md#-ipfs_pathgateway-file">0.15.0 and later</a>)
+creates a hint file in <code>$IPFS_PATH/gateway</code> (default being <code>$HOME/.ipfs/gateway</code>, see <a href="https://github.com/ipfs/kubo/issues/8847">kubo#8847</a>).</p>
+<p>The file contains a single line being the local HTTP gateway URL. For example: <code>http://localhost:8080</code>.</p>
+<p>Every time <code>ipfs daemon</code> starts with the gateway enabled, it updates the content of <code>$IPFS_PATH/gateway</code> or creates the file if it doesn't exist.</p>
+</section><section id="ipfs-chromium"><h4><bdi class="secno">4.2.2 </bdi>IPFS Chromium</h4><a href="#ipfs-chromium" class="self-link" aria-label="Section 4.2.2"></a>
+<p>ipfs-chromium uses <code>IPFS_GATEWAY</code> environment variable
+(<a href="https://github.com/little-bear-labs/ipfs-chromium/issues/29">ipfs-chromium#29</a>).</p>
+<p>It can be a single URL, or a whitespace-separated URLs to be used as the initial gateway pool.</p>
+<p>Ref. <a href="https://blog.ipfs.tech/2023-05-multigateway-chromium-client/">https://blog.ipfs.tech/2023-05-multigateway-chromium-client/</a></p>
+</section><section id="ffmpeg"><h4><bdi class="secno">4.2.3 </bdi>FFMPEG</h4><a href="#ffmpeg" class="self-link" aria-label="Section 4.2.3"></a>
+<p>FFMPEG's libavformat tries the <code>-gateway</code> option first, then the <code>IPFS_GATEWAY</code>
+environment variable, then the <code>gateway</code> file under <code>$IPFS_PATH</code> or <code>$HOME/.ipfs/</code>
+(<a href="https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/f889837e00d3b2388a24c0a9d075ad62f47da825">ffmpeg.git/commit/f889837</a>).
+Note that ffmpeg joins <code>$IPFS_PATH</code> and <code>gateway</code> without a path separator, so
+file detection via <code>IPFS_PATH</code> works only when the value ends with <code>/</code>.</p>
+<p>The initial implementation fell back to a hard-coded public gateway; this was
+removed in <a href="https://git.ffmpeg.org/gitweb/ffmpeg.git/commit/412922cc6fa790897ef6bb2be5d6f9a5f030754d">ffmpeg.git/commit/412922c</a>
+for the reason the Security section of [<a class="bibref" href="#ref-gateway-detection">gateway-detection</a>] codifies.</p>
+<p>Ref. <a href="https://ffmpeg.org/ffmpeg-protocols.html#ipfs">https://ffmpeg.org/ffmpeg-protocols.html#ipfs</a>, <a href="https://blog.ipfs.tech/2022-08-01-ipfs-and-ffmpeg/">https://blog.ipfs.tech/2022-08-01-ipfs-and-ffmpeg/</a></p>
+</section><section id="curl"><h4><bdi class="secno">4.2.4 </bdi>Curl</h4><a href="#curl" class="self-link" aria-label="Section 4.2.4"></a>
+<p>Curl (8.4.0 and later, <a href="https://github.com/curl/curl/pull/8805">curl#8805</a>)
+will try the <code>IPFS_GATEWAY</code> environment variable first, and then look for
+<code>$IPFS_PATH/gateway</code> or <code>$HOME/.ipfs/gateway</code>, if present. The <code>--ipfs-gateway</code>
+flag takes precedence over both.</p>
+<p>It expects a single URL. Since curl 8.5.0 only the first line of the <code>gateway</code>
+file is read; 8.4.0 concatenated all lines.</p>
+<p>Ref. <a href="https://curl.se/docs/ipfs.html">https://curl.se/docs/ipfs.html</a></p>
+</section><section id="ipfsspec"><h4><bdi class="secno">4.2.5 </bdi>ipfsspec</h4><a href="#ipfsspec" class="self-link" aria-label="Section 4.2.5"></a>
+<p>Python's <a href="https://github.com/fsspec/ipfsspec">ipfsspec</a> (0.5.0 and later,
+<a href="https://github.com/fsspec/ipfsspec/issues/29">ipfsspec#29</a>) enables <code>ipfs://</code>
+support in the fsspec ecosystem. It tries the <code>IPFS_GATEWAY</code> environment
+variable first (a single URL), then reads the first line of a <code>gateway</code> file,
+checking <code>$IPFS_PATH/gateway</code>, <code>$HOME/.ipfs/gateway</code>,
+<code>$XDG_CONFIG_HOME/ipfs/gateway</code>, <code>/etc/ipfs/gateway</code>, and OS-specific paths,
+in that order (<a href="https://github.com/fsspec/ipfsspec/blob/main/ipfsspec/async_ipfs.py"><code>get_gateway</code> in <code>async_ipfs.py</code></a>).
+When no gateway is found, it raises an error suggesting to run a local node
+instead of falling back to a public gateway.</p>
+</section></section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>See "Security" section of [<a class="bibref" href="#ref-gateway-detection">gateway-detection</a>].</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<section id="browser-environment-detection"><h4><bdi class="secno">4.4.1 </bdi>Browser Environment Detection</h4><a href="#browser-environment-detection" class="self-link" aria-label="Section 4.4.1"></a>
+<p>Detection via browser APIs (e.g., <code>localStorage.getItem('IPFS_GATEWAY')</code>) was
+considered but is explicitly out of scope. Any JavaScript running on a page
+could overwrite such values and hijack gateway requests. Browser-based detection
+requires a separate IPIP with proper security review.</p>
+</section><section id="gateway-health-checking"><h4><bdi class="secno">4.4.2 </bdi>Gateway Health Checking</h4><a href="#gateway-health-checking" class="self-link" aria-label="Section 4.4.2"></a>
+<p>This specification does not mandate health checking of detected gateways.
+Implementations <em class="rfc2119">MAY</em> verify that a gateway is responsive before using it,
+but the specific approach is left to implementers.</p>
+</section><section id="stale-gateway-file-handling"><h4><bdi class="secno">4.4.3 </bdi>Stale Gateway File Handling</h4><a href="#stale-gateway-file-handling" class="self-link" aria-label="Section 4.4.3"></a>
+<p>If a daemon crashes without removing the <code>gateway</code> file, it may contain a stale
+URL. This specification does not mandate specific handling. Implementations <em class="rfc2119">MAY</em>
+implement timeout-based health checks or other recovery mechanisms.</p>
+</section></section><section id="copyright"><h3><bdi class="secno">4.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 4.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-gateway-detection">[gateway-detection]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/gateway-detection/"><cite>User-Preferred Gateway Detection</cite></a>. Mark Gaiser; Marcin Rataj. 2026-08-07. URL: <a href="https://specs.ipfs.tech/http-gateways/gateway-detection/">https://specs.ipfs.tech/http-gateways/gateway-detection/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Mark Gaiser</span> <a href="https://github.com/markg85"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Tim Perry</span> <a href="https://github.com/pimterry"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Dietrich Ayala</span> <a href="https://github.com/autonome"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Dave Justice</span> <a href="https://github.com/meandavejustice"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>dirkf</span> <a href="https://github.com/dirkf"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Daniel Norman</span> <a href="https://github.com/2color"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

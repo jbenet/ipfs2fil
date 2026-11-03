@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0524: Remove cross-codec conversion from HTTP Gateways",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0524/"
+  },
+  "dfns": []
+}

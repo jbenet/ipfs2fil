@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0476: Delegated Routing DHT Closest Peers API",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0476/"
+  },
+  "dfns": []
+}

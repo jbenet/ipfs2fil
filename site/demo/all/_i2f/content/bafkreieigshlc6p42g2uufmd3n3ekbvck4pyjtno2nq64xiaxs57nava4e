@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0386: Subdomain Gateway Interop with _redirects</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0386/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0386: Subdomain Gateway Interop with _redirects</h1><p id="last-modified"><time datetime="2023-03-18T00:00:00.000Z">18 March 2023</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/boxo/pull/326">ipfs/boxo/pull/326</a></dd><dd><a href="https://github.com/ipfs/boxo/pull/412">ipfs/boxo/pull/412</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0386.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0386.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">4. </bdi>Test fixtures</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">5. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">5.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">5.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">5.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">5.4 </bdi>Alternatives</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This IPIP provides a detailed clarification on the interoperability between the
+Path and Subdomain Gateway. Specifically, it ensures that features such as
+[<a class="bibref" href="#ref-web-redirects-file">web-redirects-file</a>] are executed only AFTER a redirect to a subdomain has
+taken place.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>When hosting a modern Single Page Application on IPFS, one wants to use native
+URLs to share the app with other users, e.g. <code>ipns://example.org/cool/feature</code>.
+On traditional hosting, deep links are redirected or rewritten to a single
+entry point, e.g. <code>/index.html</code>, and the router on the client side evaluates
+the path segments to render the correct content.</p>
+<p>The <code>_redirects</code> file, defined in [<a class="bibref" href="#ref-web-redirects-file">web-redirects-file</a>],
+supports such applications when a Subdomain Gateway is used directly. However,
+the current resolution of native URLs uses a Path Gateway link scheme and
+subsequently fails to resolve the URL correctly.</p>
+<p>For example:</p>
+<ul>
+<li><code>ipns://example.org/some/path</code> is resolved as</li>
+<li><code>http://{gateway}/ipns/example.org/some/path</code></li>
+<li>this request fails with 404 as the resource <code>/some/path</code> does not exist.</li>
+</ul>
+<p>NOTE: The <code>kubo</code> (&lt;0.20) gateway returns a 404 including a new <code>Location</code> header
+already pointing to the correct subdomain URL. But browsers do not follow the
+header as the status is 404, and the response contains a <code>text/plain</code> body
+string.</p>
+<p>When using a Subdomain Gateway on the proper host, the path can be resolved
+using the <code>_redirects</code> file:</p>
+<ul>
+<li><code>http://example-org.ipns.{gateway}/some/path</code> is redirected (301) to</li>
+<li><code>http://example-org.ipns.{gateway}/correct/path</code> as defined in
+<code>_redirects</code>file</li>
+</ul>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>This IPIP suggests the following resolution steps for DNSLink names, CIDs
+should be resolved similarly:</p>
+<ul>
+<li><code>ipns://example.org/some/path</code> is resolved as</li>
+<li><code>http://{gateway}/ipns/example.org/some/path</code> is redirected (301) to the
+Subdomain Gateway</li>
+<li><code>http://example-org.ipns.{gateway}/some/path</code> is redirected (301) to</li>
+<li><code>http://example-org.ipns.{gateway}/correct/path</code> as defined in <code>_redirects</code>.</li>
+</ul>
+<p>A Subdomain Gateway that provides interoperability with Path-Gateway-style URLs
+should redirect to a Subdomain-Gateway-style URL first and then try to resolve
+a given path. This allows the usage of a potential <code>_redirects</code> file in the
+root.</p>
+<p>This change subsequently fixes the resolution of native URLs in browsers using
+the companion extension and browsers like Brave.</p>
+<p>A paragraph is added to the [<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>]
+spec that describes the preservation of path segments and query parameters
+during the interop redirect. Furthermore, it specifies that gateway
+implementations should redirect to subdomain URLs if a resource is initially
+not found in the directory identified by the CID or DNSLink name.</p>
+</section><section id="test-fixtures"><h2><bdi class="secno">4. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 4."></a>
+<p>The example from the [<a class="bibref" href="#ref-web-redirects-file">web-redirects-file</a>] can be re-used,
+<code>QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj</code>. It is the <code>examples/</code>
+directory inside
+<a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/redirects_file/redirects.car"><code>redirects.car</code></a>.</p>
+<pre><code>$ ipfs ls /ipfs/QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj
+Qmd9GD7Bauh6N2ZLfNnYS3b7QVAijbud83b8GE8LPMNBBP 7   404.html
+QmSmR9NShZ89VEBrn9SBy7Xxvjw8Qe6XArD5GqtHvbtBM3 7   410.html
+QmVQqj9oZig9tH3ENHo4bxV5pNgssUwFCXUjAJAVcZVbJG 7   451.html
+QmZU3kboiyi9jV59D8Mw8wzuvsr3HmvskqhYRRhdFA8wRq 317 _redirects
+QmaWDLb4gnJcJbT1Df5X3j91ysiwkkyxw6329NLiC1KMDR -   articles/
+QmS6ZNKE9s8fsHoEnArsZXnzMWijKddhXXDsAev8LdTT5z 9   index.html
+QmNwEgMrExwSsE8DCjZjahYfHUfkSWRhtqSkQUh4Fk3udD 7   one.html
+QmVe2GcTbEPZkMbjVoQ9YieVGKCHmuHMcJ2kbSCzuBKh2s -   redirected-splat/
+QmUGVnZaofnd5nEDvT2bxcFck7rHyJRbpXkh9znjrJNV92 7   two.html
+</code></pre>
+<p>The <code>_redirects</code> file is as follows.</p>
+<pre><code>$ ipfs cat /ipfs/QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj/_redirects
+/redirect-one /one.html
+/301-redirect-one /one.html 301
+/302-redirect-two /two.html 302
+/200-index /index.html 200
+/posts/:year/:month/:day/:title /articles/:year/:month/:day/:title 301
+/splat/* /redirected-splat/:splat 301
+/not-found/* /404.html 404
+/gone/* /410.html 410
+/unavail/* /451.html 451
+/* /index.html 200
+</code></pre>
+<p>Following redirects should occur:</p>
+<pre><code>$ curl -v http://{gateway}/ipfs/QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj/redirect-one
+...
+&lt; HTTP/1.1 301 Moved Permanently
+&lt; Location: http://bafybeiesjgoros75o5meijhfvnxmy7kzkynhqijlzmypw3nry6nvsjqkzy.ipfs.{gateway}/redirect-one
+...
+</code></pre>
+<p>Subsequent requests should comply with [<a class="bibref" href="#ref-ipip-0002">ipip-0002</a>].</p>
+</section><section id="design-rationale"><h2><bdi class="secno">5. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 5."></a>
+<p>Gateways like <code>kubo</code> (before v0.20) already support the <code>_redirect</code> and
+subdomain redirect, but block the redirect chain by returning a 404 when a
+resource is not found on the Path Gateway. By moving the 404 to occur at the
+subdomain, users get another chance to find the resources they are looking for.</p>
+<section id="user-benefit"><h3><bdi class="secno">5.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 5.1"></a>
+<p>Currently, users are presented with an error message when they request a
+resource on a Path Gateway intended for a Subdomain Gateway. Since a given
+gateway would redirect on a valid resource anyway, redirecting to the subdomain
+URL on a potentially invalid resource would improve usability and
+compatibility.</p>
+</section><section id="compatibility"><h3><bdi class="secno">5.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 5.2"></a>
+<p>This proposal fixes a bug in handling of <code>_redirects</code> files.</p>
+<p>The current behavior is defined in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>]. The
+404 return code indicates that a resource does not exist. Changing this to a
+301 redirect that is subsequently answered with a 404 from the subdomain URL
+is a breaking change, but the old behavior should be considered as a bug.</p>
+<p>Requesting an existing resource on the Path Gateway URL in <code>kubo</code> already
+returns a 301 redirect: client expectation is for the behavior to be the same
+for invalid paths.</p>
+</section><section id="security"><h3><bdi class="secno">5.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 5.3"></a>
+<p>Security should not be compromised as the resource is not delivered from the
+Path Gateway URL but from the subsequent subdomain URL that offers improved
+security due to host separation.</p>
+</section><section id="alternatives"><h3><bdi class="secno">5.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 5.4"></a>
+<p>Gateways could continue to return a 404 response for the non-existing resource,
+but also include an HTML body containing a redirect link. This would help users
+to find the requested site, but comes with worse UX than the fix proposed in
+this IPIP.</p>
+</section><section id="copyright"><h3><bdi class="secno">5.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipip-0002">[ipip-0002]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0002/"><cite>IPIP-0002: _redirects File Support on Web Gateways</cite></a>. Justin Johnson; Marcin Rataj; Henrique Dias. 2022-06-15. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0002/">https://specs.ipfs.tech/ipips/ipip-0002/</a></dd><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-subdomain-gateway">[subdomain-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/"><cite>Subdomain Gateway Specification</cite></a>. Marcin Rataj; Adrian Lanzafame; Vasco Santos; Oli Evans; Thibault Meunier; Steve Loeppky. 2025-04-03. URL: <a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/">https://specs.ipfs.tech/http-gateways/subdomain-gateway/</a></dd><dt id="ref-web-redirects-file">[web-redirects-file]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/"><cite>Web _redirects File Specification</cite></a>. Justin Johnson; Marcin Rataj. 2025-03-19. URL: <a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/">https://specs.ipfs.tech/http-gateways/web-redirects-file/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><dl class="bibliography"><dt>Editor</dt><dd><span>suicide</span> <a href="https://github.com/suicide"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

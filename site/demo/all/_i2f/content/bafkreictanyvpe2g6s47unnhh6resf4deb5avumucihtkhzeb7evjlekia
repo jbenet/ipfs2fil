@@ -1,0 +1,240 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>IPFS Standards</title>
+  
+  <link rel="canonical" href="https://specs.ipfs.tech/">
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/ipseity.min.css">
+  <link rel="icon" href="/img/ipfs-standards.svg">
+</head>
+<body>
+
+
+<header>
+  <div>
+    <img src="/img/ipfs-standards.svg" alt="InterPlanetary Standards Logo" width="60" height="60" class="logo">
+    <h1>IPFS Standards</h1>
+    <p>
+      The purpose of <em>IPFS Standards</em> is to foster interoperability between independent implementations of
+      the IPFS stack by producing Internet-grade specifications and test suites.
+    </p>
+  </div>
+</header>
+
+<main>
+  <h2 class="pitch-title">Specifying IPFS and the InterPlanetary stack.</h2>
+  <p class="pitch-subtitle">
+    The technology that powers the content-addressable web is being standardized here.
+  </p>
+  <!--
+  <div class="basic-grid">
+    <div class="pitch">
+      <h3>High-quality open standards</h3>
+      <p>
+        We aim to fully define implementation behaviour and to empower anyone to build their
+        own system that fits into the interplanetary ecosystem without needing to reverse-engineer
+        the behavior of other implementations.
+      </p>
+    </div>
+    <div class="pitch">
+      <h3>Comprehensive test suites</h3>
+      <p>
+        A specification is only as useful as it is both testable and tested. We are building extensive
+        test suites that allow specifications to prove their interoperability and implementations to demonstrate
+        their correctness.
+        </p>
+    </div>
+    <div class="pitch">
+      <h3>Testing infrastructure</h3>
+      <p>
+        We build tools to support detecting interoperability issues early and often as part of CI/CD pipelines
+        and to report on implementation maturity as the stack evolves so that people who build on top of the
+        interplanetary stack can know what they can use in production.
+      </p>
+    </div>
+    <div class="pitch">
+      <h3>An open governance model</h3>
+      <p>
+        We guarantee community ownership of the standards, of the standards-production process, and of
+        the infrastructure to operate it, in collective pursuit of efficient, transformative, ethical
+        technology.
+      </p>
+    </div>
+  </div>
+  -->
+  <section>
+    <h2>Specifications</h2>
+    <p>
+      The specifications are broken up into multiple areas that cover the stack.
+    </p>
+    <div class="basic-grid">
+      <section>
+        <h3><a href="/architecture/">Architecture</a></h3>
+        <p>
+          These documents define the architectural principles that IPFS is built upon, and can be used as tools to evaluate
+          implementations and applications of IPFS.
+        </p>
+        <dl>
+  <dt><a href="/architecture/principles/">IPFS Principles</a></dt>
+    <dd>IPFS is a suite of specifications and tools that are defined by two key characteristics: content-addressing and transport-agnosticity. This document provides context and details about these characteristics. In doing so it defines what is or is not an IPFS implementation.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/meta/">Meta</a></h3>
+        <p>
+          <em>Meta</em> contains all the non-technical documents that conspire to make the standards
+          project work: what the core values are, what the governance model is, how to produce documents,
+          etc.
+        </p>
+        <dl>
+  <dt><a href="/meta/code-of-conduct/">Code of Conduct</a></dt>
+    <dd>The code of conduct that all community participants are held to.</dd><dt><a href="/meta/spec-for-specs/">Spec for Specs</a></dt>
+    <dd>Specifies the format and system used to create and maintain specifications for the interplanetary stack.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/routing/">Routing</a></h3>
+        <p>
+          Routing is the way to determine where to find a given content, peer, or IPNS record.
+        </p>
+        <dl>
+  <dt><a href="/routing/kad-dht/">IPFS Kademlia DHT</a></dt>
+    <dd>The IPFS Distributed Hash Table (DHT) specification defines a structured overlay network used for peer and content routing in the InterPlanetary File System (IPFS). It extends the libp2p Kademlia DHT specification, adapting and adding features to support IPFS-specific requirements.
+</dd><dt><a href="/bitswap-protocol/">Bitswap Protocol</a></dt>
+    <dd>Bitswap is a libp2p data exchange protocol for finding, sending and receiving content addressed blocks of data. It attempts to acquire blocks from the p2p network that have been requested by the client, and also send blocks to others who want them.
+</dd><dt><a href="/routing/http-routing-v1/">Delegated Routing V1 HTTP API</a></dt>
+    <dd>Delegated routing is a mechanism for IPFS implementations to use for offloading content routing, peer routing and naming to another process/server. This specification describes an HTTP API for delegated routing of content, peers, and IPNS.
+</dd><dt><a href="/ipfs-uri/">IPFS URI (ipfs://)</a></dt>
+    <dd>The ipfs:// URI scheme for addressing immutable, content-addressed data by CID, defined for interoperability with web browsers.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/exchange/">Exchange</a></h3>
+        <p>
+          Exchange is the way to for sending and receiving content-addressed blocks of data.
+        </p>
+        <dl>
+  <dt><a href="/http-gateways/trustless-gateway/">Trustless Gateway Specification</a></dt>
+    <dd>The minimal subset of HTTP Gateway response types facilitates data retrieval via CID and ensures integrity verification, all while eliminating the need to trust the gateway itself.
+</dd><dt><a href="/bitswap-protocol/">Bitswap Protocol</a></dt>
+    <dd>Bitswap is a libp2p data exchange protocol for finding, sending and receiving content addressed blocks of data. It attempts to acquire blocks from the p2p network that have been requested by the client, and also send blocks to others who want them.
+</dd><dt><a href="/http-gateways/libp2p-gateway/">libp2p+HTTP Transport Gateway Specification</a></dt>
+    <dd>Describes how HTTP Gateway semantics can be used over libp2p transports and how libp2p can coexist with other HTTP services on the same host.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/http-gateways/">HTTP Gateways</a></h3>
+        <p>
+          IPFS Gateway acts as a bridge between traditional HTTP clients and IPFS. Through the gateway, users can download files,
+          directories and other IPLD data stored in IPFS as if they were stored in a traditional web server.
+        </p>
+        <p>
+          Low-level HTTP semantics:
+        </p>
+        <dl>
+  <dt><a href="/http-gateways/path-gateway/">Path Gateway Specification</a></dt>
+    <dd>The comprehensive low-level HTTP Gateway enables the integration of IPFS resources into the HTTP stack through /ipfs and /ipns namespaces, supporting both deserialized and verifiable response types.
+</dd><dt><a href="/http-gateways/trustless-gateway/">Trustless Gateway Specification</a></dt>
+    <dd>The minimal subset of HTTP Gateway response types facilitates data retrieval via CID and ensures integrity verification, all while eliminating the need to trust the gateway itself.
+</dd></dl>
+        <p>
+          Web semantics (for website hosting and web browsers):
+        </p>
+        <dl>
+  <dt><a href="/http-gateways/subdomain-gateway/">Subdomain Gateway Specification</a></dt>
+    <dd>Defines how HTTP Gateway can implement support for HTTP Host headers to enable isolated website hosting based on root CID-derived Origins. This ensures compatibility with native ipfs:// and ipns:// URIs, and aligns with the existing Same-origin security model in web browsers, including relative URL pathing and permission scopes of Web APIs.
+</dd><dt><a href="/http-gateways/dnslink-gateway/">DNSLink Gateway Specification</a></dt>
+    <dd>Defines how to utilize the HTTP Host header to serve a content path from a DNSLink record as a website under a particular DNS name.
+</dd><dt><a href="/http-gateways/web-redirects-file/">Web _redirects File Specification</a></dt>
+    <dd>Defines how URL redirects and rewrites can be implemented by adding rules to a plain text file stored underneath the root CID of a website.
+</dd></dl>
+        <p>
+          Other integrations:
+        </p>
+        <dl>
+  <dt><a href="/http-gateways/libp2p-gateway/">libp2p+HTTP Transport Gateway Specification</a></dt>
+    <dd>Describes how HTTP Gateway semantics can be used over libp2p transports and how libp2p can coexist with other HTTP services on the same host.
+</dd><dt><a href="/http-gateways/gateway-detection/">User-Preferred Gateway Detection</a></dt>
+    <dd>How applications detect the user-preferred IPFS Gateway via the IPFS_GATEWAY environment variable or a well-known gateway file.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/data-formats">Data Formats</a></h3>
+        <p>
+          IPFS basic primitive is an opaque block of bytes identified by a CID. CID includes codec that informs IPFS System about data format: how to parse the block, and how to link from one block to another.
+        </p>
+        <p>
+          The most popular data formats used by IPFS Systems are RAW (an opaque block), <a href="https://specs.ipfs.tech/unixfs/">UnixFS</a> (filesystem abstraction built with <a href="https://ipld.io/docs/codecs/known/dag-pb/">DAG-PB</a> and RAW codecs), <a href="https://ipld.io/docs/codecs/known/dag-cbor/">DAG-CBOR</a>/<a href="https://ipld.io/docs/codecs/known/dag-json/">DAG-JSON</a>, however IPFS ecosystem is not limited to them, and IPFS systems are free to choose the level of interoperability, or even implement support for own, additional formats. A complimentary <a href="https://ipld.io/specs/transport/car/">CAR</a> is a codec-agnostic archive format for transporting multiple opaque blocks.
+        </p>
+        <p>
+          Specifications:
+        </p>
+        <dl>
+  <dt><a href="/cid/">CID (Content IDentifier)</a></dt>
+    <dd>Self-describing content-addressed identifiers for distributed systems
+</dd><dt><a href="/unixfs/">UnixFS</a></dt>
+    <dd>UnixFS is a Protocol Buffers-based format for describing files and directories as dag-pb DAGs and raw blocks in IPFS.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/ipns/">IPNS</a></h3>
+        <p>
+          The InterPlanetary Naming System (IPNS) is a naming system responsible for creating, reading and updating mutable pointers to data.
+        </p>
+        <dl>
+  <dt><a href="/ipns/ipns-record/">IPNS Record and Protocol</a></dt>
+    <dd>Specifies the IPNS protocol in a language-agnostic manner, allowing everyone to create a compatible IPNS Record Publisher or Resolver.
+</dd><dt><a href="/ipns/ipns-pubsub-router/">IPNS PubSub Router</a></dt>
+    <dd>Specifies how to publish and retrieve IPNS records using libp2p PubSub router.</dd><dt><a href="/ipns-uri/">IPNS URI (ipns://)</a></dt>
+    <dd>The ipns:// URI scheme for addressing mutable pointers, cryptographic IPNS names and DNSLink names, defined for interoperability with web browsers.
+</dd></dl>
+      </section>
+      <section>
+        <h3>Content Filtering</h3>
+        <p>
+          How IPFS service operators can control the content hosted on their nodes.
+        </p>
+        <dl>
+  <dt><a href="/compact-denylist-format/">Compact Denylist Format</a></dt>
+    <dd>How content blocking rules can be represented as a .deny file.
+</dd></dl>
+      </section>
+      <section>
+        <h3><a href="/ipips/">InterPlanetary Improvement Proposals</a></h3>
+        <p>
+          InterPlanetary Improvement Proposals (IPIP) are an <a href="/meta/ipip-process">orderly mechanism</a> to consider
+          changes to the IPFS specification. They are not changes to the specification itself,
+          but their approval leads to a change in the specification.
+        </p>
+        <dl>
+  <dt><a href="/ipips/ipip-0550/">IPIP-0550: PBNode field ordering</a></dt><dt><a href="/ipips/ipip-0548/">IPIP-0548: Sunset X-Ipfs-Path header</a></dt><dt><a href="/ipips/ipip-0524/">IPIP-0524: Remove cross-codec conversion from HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0523/">IPIP-0523: Prefer format param over Accept header</a></dt><dt><a href="/ipips/ipip-0513/">IPIP-0513: Routing V1 Returns 200 for Empty Results</a></dt><dt><a href="/ipips/ipip-0512/">IPIP-0512: Limit Identity CID Size to 128 Bytes in UnixFS Contexts</a></dt><dt><a href="/ipips/ipip-0499/">IPIP-0499: UnixFS CID Profiles</a></dt><dt><a href="/ipips/ipip-0484/">IPIP-0484: Opt-in Filtering in Routing V1 HTTP API</a></dt><dt><a href="/ipips/ipip-0476/">IPIP-0476: Delegated Routing DHT Closest Peers API</a></dt><dt><a href="/ipips/ipip-0428/">IPIP-0428: Allowing V2-Only Records in IPNS</a></dt><dt><a href="/ipips/ipip-0417/">IPIP-0417: Delegated Peer Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0412/">IPIP-0412: Signaling Block Order in CARs on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0410/">IPIP-0410: Streaming NDJSON in Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0402/">IPIP-0402: Partial CAR Support on Trustless Gateways</a></dt><dt><a href="/ipips/ipip-0386/">IPIP-0386: Subdomain Gateway Interop with _redirects</a></dt><dt><a href="/ipips/ipip-0383/">IPIP-0383: Compact Denylist Format</a></dt><dt><a href="/ipips/ipip-0379/">IPIP-0379: Delegated IPNS HTTP API</a></dt><dt><a href="/ipips/ipip-0351/">IPIP-0351: IPNS Signed Records Response Format on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0337/">IPIP-0337: Delegated Content Routing HTTP API</a></dt><dt><a href="/ipips/ipip-0328/">IPIP-0328: JSON and CBOR Response Formats on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0288/">IPIP-0288: TAR Response Format on HTTP Gateways</a></dt><dt><a href="/ipips/ipip-0280/">IPIP-0280: App Conventions for Gateway Detection</a></dt><dt><a href="/ipips/ipip-0002/">IPIP-0002: _redirects File Support on Web Gateways</a></dt><dt><a href="/ipips/ipip-0001/">IPIP-0001: Lightweight Improvement Process for IPFS Specifications</a></dt></dl>
+
+      </section>
+    </div>
+  </section>
+</main>
+
+</body>
+<footer>
+  <div>
+    <p>
+      <a href="https://ipfs.tech/"><img src="/img/ipfs.svg" width="20" height="20" alt="IPFS logo"> IPFS</a>
+      •
+      <a href="https://ipld.io/"><img src="/img/ipld.svg" width="20" height="20" alt="IPLD logo"> IPLD</a>
+      •
+      <a href="https://libp2p.io/"><img src="/img/libp2p.png" width="20" height="20" alt="libp2p logo"> libp2p</a>
+      •
+      <a href="https://multiformats.io/"><img src="/img/multiformats.svg" width="20" height="20" alt="Multiformats logo"> Multiformats</a>
+    </p>
+    <p>
+      <a href="https://github.com/ipfs/specs/blob/main/SECURITY.md">Reporting security issues</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
+

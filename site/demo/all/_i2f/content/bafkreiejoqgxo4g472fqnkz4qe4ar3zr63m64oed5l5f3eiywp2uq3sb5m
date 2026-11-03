@@ -1,0 +1,120 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0288: TAR Response Format on HTTP Gateways</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0288/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0288: TAR Response Format on HTTP Gateways</h1><p id="last-modified"><time datetime="2022-06-10T00:00:00.000Z">10 June 2022</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/pull/288">ipfs/specs/pull/288</a></dd><dd><a href="https://github.com/ipfs/go-ipfs/pull/9029">ipfs/go-ipfs/pull/9029</a></dd><dd><a href="https://github.com/ipfs/go-ipfs/pull/9034">ipfs/go-ipfs/pull/9034</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0288.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0288.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">4. </bdi>Test fixtures</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">5. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">5.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">5.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">5.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">5.4 </bdi>Alternatives</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Add TAR response format to the [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Currently, the HTTP Gateway only allows for UnixFS deserialization of a single
+UnixFS file. Directories have to be downloaded one file at a time, using
+multiple requests, or as a CAR, which requires deserialization in userland,
+via additional tools like <a href="https://www.npmjs.com/package/ipfs-car">ipfs-car</a>.</p>
+<p>This is to illustrate we have a functional gap where user is currently unable
+to leverage trusted HTTP gateway for deserializing UnixFS directory tree. We
+would like to remove the need for dealing with CARs when a gateway is trusted
+(e.g., a localhost gateway).</p>
+<p>An example use case is for the IPFS Web UI, which currently allows users to
+download directories using a workaround. This workaround works via a proprietary
+Kubo RPC API that only supports <code>POST</code> requests and the Web UI has to store the entire
+directory in memory before the user can download it.</p>
+<p>By introducing TAR responses on the HTTP Gateway, we provide vendor-agnosic way
+of downloading entire directories in deserialized form, which increases utility
+and interop provided by HTTP gateways.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>The solution is to allow the Gateway to support producing TAR archives
+by requesting them using either the <code>Accept</code> HTTP header or the <code>format</code>
+URL query.</p>
+</section><section id="test-fixtures"><h2><bdi class="secno">4. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 4."></a>
+<p>Existing <code>curl</code> and <code>tar</code> tools can be used by implementers for testing.</p>
+<p>Providing static test vectors has little value here, as different TAR libraries
+may produce different byte-to-byte files due to unspecified ordering of files and
+directories inside.</p>
+<p>However, there are certain behaviors, detailed in the <a href="#security">security section</a>
+that should be handled. To test such behaviors, the following fixtures can be used:</p>
+<ul>
+<li>
+<p><a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/path_gateway_tar/inside-root.car"><code>bafybeibfevfxlvxp5vxobr5oapczpf7resxnleb7tkqmdorc4gl5cdva3y</code></a>
+is a UnixFS DAG that contains a file with a name that looks like a relative
+path that points inside the root directory. Downloading it as a TAR must
+work.</p>
+</li>
+<li>
+<p><a href="https://github.com/user-attachments/files/31090406/ipfs-specs-fixtures.zip"><code>bafkreict7qp5aqs52445bk4o7iuymf3davw67tpqqiscglujx3w6r7hwoq</code></a>
+is an example TAR file that corresponds to the aforementioned UnixFS DAG. Its
+structure can be inspected in order to check if new implementations conform
+to the specification. It ships as <code>cars/ipip-0288_tar-export.car</code> inside the
+linked archive.</p>
+</li>
+<li>
+<p><a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/path_gateway_tar/outside-root.car"><code>bafybeicaj7kvxpcv4neaqzwhrqqmdstu4dhrwfpknrgebq6nzcecfucvyu</code></a>
+is a UnixFS DAG that contains a file with a name that looks like a relative
+path that points outside the root directory. Downloading it as a TAR must
+error.</p>
+</li>
+</ul>
+</section><section id="design-rationale"><h2><bdi class="secno">5. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 5."></a>
+<p>The current gateway already supports different response formats via the
+<code>Accept</code> HTTP header and the <code>format</code> URL query. This IPIP proposes adding
+one more supported format to that list.</p>
+<section id="user-benefit"><h3><bdi class="secno">5.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 5.1"></a>
+<p>Users will be able to directly download deserialized UnixFS directories from
+the gateway. Having a single TAR stream is saving resources on both client and
+HTTP server, and removes complexity related to redundant buffering or CAR
+deserialization when gateway is trusted.</p>
+<p>In the Web UI, for example, we will be able to create a direct link to download
+a directory, instead of using the API to put the whole file in memory before
+downloading it.</p>
+<p>CLI users will be able to download a directory with existing tools like <code>curl</code> and <code>tar</code> without
+having to talk to implementation-specific RPC APIs like <code>/api/v0/get</code> from Kubo.</p>
+<p>Fetching a directory from a local gateway will be as simple as:</p>
+<pre><code class="">$ export DIR_CID=bafybeigccimv3zqm5g4jt363faybagywkvqbrismoquogimy7kvz2sj7sq
+$ curl "http://127.0.0.1:8080/ipfs/$DIR_CID?format=tar" | tar xv
+bafybeigccimv3zqm5g4jt363faybagywkvqbrismoquogimy7kvz2sj7sq
+bafybeigccimv3zqm5g4jt363faybagywkvqbrismoquogimy7kvz2sj7sq/1 - Barrel - Part 1 - alt.txt
+bafybeigccimv3zqm5g4jt363faybagywkvqbrismoquogimy7kvz2sj7sq/1 - Barrel - Part 1 - transcript.txt
+bafybeigccimv3zqm5g4jt363faybagywkvqbrismoquogimy7kvz2sj7sq/1 - Barrel - Part 1.png
+</code></pre>
+</section><section id="compatibility"><h3><bdi class="secno">5.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 5.2"></a>
+<p>This IPIP is backwards compatible: adds a new opt-in response type, does not
+modify preexisting behaviors.</p>
+<p>Existing content type <code>application/x-tar</code> is used when request is made with an <code>Accept</code> header.</p>
+</section><section id="security"><h3><bdi class="secno">5.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 5.3"></a>
+<p>Third-party UnixFS file names may include unexpected values, such as <code>../</code>.</p>
+<p>Manually created UnixFS DAGs can be turned into malicious TAR files. For example,
+if a UnixFS directory contains a file that points at a relative path outside
+its root, the unpacking of the TAR file may overwrite local files outside the expected
+destination.</p>
+<p>In order to prevent this, the specification requires implementations to do
+basic sanitization of paths returned inside a TAR response.</p>
+<p>If the UnixFS directory contains a file whose path
+points outside the root, the TAR file download <strong>should</strong> fail by force-closing
+the HTTP connection, leading to a network error.</p>
+<p>To test this, we provide some <a href="#test-fixtures">test fixtures</a>. The user should be
+suggested to use a CAR file if they want to download the raw files.</p>
+</section><section id="alternatives"><h3><bdi class="secno">5.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 5.4"></a>
+<p>One discussed alternative would be to support uncompressed ZIP files. However,
+TAR and TAR-related libraries are already supported by some IPFS
+implementations, and are easier to work with in CLI. TAR provides simpler
+abstraction, and layering compression on top of TAR stream allows for greater
+flexibility than alternative options that come with own, opinionated approaches
+to compression.</p>
+<p>In addition, we considered supporting <a href="https://github.com/ipfs/go-ipfs/pull/9034">Gzipped TAR</a> out of the box,
+but decided against it as gzip or alternative compression may be introduced on the HTTP transport layer.</p>
+</section><section id="copyright"><h3><bdi class="secno">5.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://hacdias.com/">Henrique Dias</a> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

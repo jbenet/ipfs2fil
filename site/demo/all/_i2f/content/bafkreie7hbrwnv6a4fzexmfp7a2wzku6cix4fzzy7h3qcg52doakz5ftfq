@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Subdomain Gateway Specification</title>
+    <meta name="description" content="Defines how HTTP Gateway can implement support for HTTP Host headers to enable isolated website hosting based on root CID-derived Origins. This ensures compatibility with native ipfs:// and ipns:// URIs, and aligns with the existing Same-origin security model in web browsers, including relative URL pathing and permission scopes of Web APIs.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Subdomain Gateway Specification</h1><p id="last-modified"><time datetime="2025-04-03T00:00:00.000Z">3 April 2025</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/subdomain-gateway.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/subdomain-gateway.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>Subdomain Gateways extend [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] with HTTP <a href="#host-request-header">Host</a>
+header support. Below should be read as a delta on top of that spec.</p>
+<p>This specification enables isolated website hosting based on root CID-derived
+Origins, ensures compatibility with native ipfs:// and ipns:// URIs, and aligns
+with the existing Same-origin security model in web browsers,
+including relative URL pathing and permission scopes of Web APIs.</p>
+<p>Summary:</p>
+<ul>
+<li>Requests carry the CID as a sub-domain in the <code>Host</code> header rather than as a URL path prefix
+<ul>
+<li>Case-insensitive <a href="https://docs.ipfs.io/concepts/glossary/#cid-v1">CIDv1</a> encoding is used in sub-domain (see <a href="#dns-label-limits">DNS label limits</a>)</li>
+<li>e.g. <code>{cidv1}.ipfs.example.net</code> instead of <code>example.net/ipfs/{cid}</code></li>
+</ul>
+</li>
+<li>The root CID is used to define the <a href="https://en.wikipedia.org/wiki/Same-origin_policy">Resource Origin</a>, aligning it with the web's security model.
+<ul>
+<li>Files in a DAG defined by the root CID may request other files within the same DAG as part of the same Origin Sandbox.</li>
+</ul>
+</li>
+<li>Data is retrieved from IPFS in a way that is compatible with URL-based addressing
+<ul>
+<li>URL’s path <code>/</code> points at the content root identified by the CID</li>
+</ul>
+</li>
+</ul>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#http-api" class="tocxref"><bdi class="secno">1. </bdi>HTTP API</a><ol class="toc"><li><a href="#get-path-params" class="tocxref"><bdi class="secno">1.1 </bdi><code>GET /[{path}][?{params}]</code></a></li><li><a href="#head-path-params" class="tocxref"><bdi class="secno">1.2 </bdi><code>HEAD /[{path}][?{params}]</code></a></li></ol></li><li><a href="#http-request" class="tocxref"><bdi class="secno">2. </bdi>HTTP Request</a><ol class="toc"><li><a href="#request-headers" class="tocxref"><bdi class="secno">2.1 </bdi>Request Headers</a><ol class="toc"><li><a href="#host-request-header" class="tocxref"><bdi class="secno">2.1.1 </bdi><code>Host</code> (request header)</a></li><li><a href="#x-forwarded-proto-request-header" class="tocxref"><bdi class="secno">2.1.2 </bdi><code>X-Forwarded-Proto</code> (request header)</a></li><li><a href="#x-forwarded-host-request-header" class="tocxref"><bdi class="secno">2.1.3 </bdi><code>X-Forwarded-Host</code> (request header)</a></li></ol></li><li><a href="#request-query-parameters" class="tocxref"><bdi class="secno">2.2 </bdi>Request Query Parameters</a><ol class="toc"><li><a href="#uri-request-query-parameter" class="tocxref"><bdi class="secno">2.2.1 </bdi><code>uri</code> (request query parameter)</a></li></ol></li></ol></li><li><a href="#http-response" class="tocxref"><bdi class="secno">3. </bdi>HTTP Response</a><ol class="toc"><li><a href="#response-headers" class="tocxref"><bdi class="secno">3.1 </bdi>Response Headers</a><ol class="toc"><li><a href="#location-response-header" class="tocxref"><bdi class="secno">3.1.1 </bdi><code>Location</code> (response header)</a><ol class="toc"><li><a href="#use-in-interop-with-path-gateway" class="tocxref"><bdi class="secno">3.1.1.1 </bdi>Use in interop with Path Gateway</a></li><li><a href="#use-in-uri-router" class="tocxref"><bdi class="secno">3.1.1.2 </bdi>Use in URI router</a></li></ol></li></ol></li></ol></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">4. </bdi>Appendix: Notes for implementers</a><ol class="toc"><li><a href="#migrating-from-path-to-subdomain-gateway" class="tocxref"><bdi class="secno">4.1 </bdi>Migrating from Path to Subdomain Gateway</a></li><li><a href="#dns-label-limits" class="tocxref"><bdi class="secno">4.2 </bdi>DNS label limits</a></li><li><a href="#security-considerations" class="tocxref"><bdi class="secno">4.3 </bdi>Security considerations</a><ol class="toc"><li><a href="#wildcard-tls-certificates" class="tocxref"><bdi class="secno">4.3.1 </bdi>Wildcard TLS certificates</a></li><li><a href="#public-suffix-list-and-etld-enforcement" class="tocxref"><bdi class="secno">4.3.2 </bdi>Public Suffix List and eTLD enforcement</a></li></ol></li><li><a href="#uri-router" class="tocxref"><bdi class="secno">4.4 </bdi>URI router</a></li><li><a href="#redirects-single-page-applications-and-custom-404s" class="tocxref"><bdi class="secno">4.5 </bdi>Redirects, single-page applications, and custom 404s</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="http-api"><h2><bdi class="secno">1. </bdi>HTTP API</h2><a href="#http-api" class="self-link" aria-label="Section 1."></a>
+<p>The API is a superset of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>], the differences are documented below.</p>
+<p>The main one is that Subdomain Gateway expects CID to be present in the <code>Host</code> header.</p>
+<section id="get-path-params"><h3><bdi class="secno">1.1 </bdi><code>GET /[{path}][?{params}]</code></h3><a href="#get-path-params" class="self-link" aria-label="Section 1.1"></a>
+<p>Downloads data at specified content path.</p>
+<ul>
+<li><code>path</code> – optional path to a file or a directory under the content root sent in <code>Host</code> HTTP header</li>
+</ul>
+</section><section id="head-path-params"><h3><bdi class="secno">1.2 </bdi><code>HEAD /[{path}][?{params}]</code></h3><a href="#head-path-params" class="self-link" aria-label="Section 1.2"></a>
+<p>Same as GET, but does not return any payload.</p>
+</section></section><section id="http-request"><h2><bdi class="secno">2. </bdi>HTTP Request</h2><a href="#http-request" class="self-link" aria-label="Section 2."></a>
+<p>Below <em class="rfc2119">MUST</em> be implemented <strong>in addition</strong> to "HTTP Request" of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<section id="request-headers"><h3><bdi class="secno">2.1 </bdi>Request Headers</h3><a href="#request-headers" class="self-link" aria-label="Section 2.1"></a>
+<section id="host-request-header"><h4><bdi class="secno">2.1.1 </bdi><code>Host</code> (request header)</h4><a href="#host-request-header" class="self-link" aria-label="Section 2.1.1"></a>
+<p>Defines the root that should be prepended to the <code>path</code> before IPFS content
+path resolution is performed.</p>
+<p>The value in <code>Host</code> header must be a valid FQDN with at least three DNS labels:
+a case-insensitive content root identifier followed by <code>ipfs</code> or <code>ipns</code>
+namespace, and finally the domain name used by the gateway.</p>
+<p>Converting <code>Host</code> into a content path depends on the nature of requested resource:</p>
+<ul>
+<li>For content at <code>/ipfs/{cid}</code>:
+<ul>
+<li><code>Host: {cid-mbase32}.ipfs.example.net</code>
+<ul>
+<li>Example: <code>Host: bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.dweb.link</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>For content at <code>/ipns/{libp2p-key}</code>:
+<ul>
+<li><code>Host: {libp2p-key-mbase36}.ipns.example.net</code>
+<ul>
+<li>Example: <code>Host: k2k4r8jl0yz8qjgqbmc2cdu5hkqek5rj6flgnlkyywynci20j0iuyfuj.ipns.dweb.link</code></li>
+<li>Note: Base36 must be used to ensure CIDv1 with ED25519 fits in a single DNS label (63 characters).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>For content at <code>/ipns/{dnslink-name}</code>:
+<ul>
+<li><code>Host: {inlined-dnslink-name}.ipns.example.net</code>
+<ul>
+<li>DNSLink names include <code>.</code> which means they  <em class="rfc2119">MUST</em> be inlined into a single DNS label to provide unique origin and work with wildcard TLS certificates.
+<ul>
+<li>DNSLink label encoding:
+<ul>
+<li>Every <code>-</code> is replaced with <code>--</code></li>
+<li>Every <code>.</code> is replaced with <code>-</code></li>
+</ul>
+</li>
+<li>DNSLink label decoding
+<ul>
+<li>Every standalone <code>-</code> is replaced with <code>.</code></li>
+<li>Every remaining <code>--</code> is replaced with <code>-</code></li>
+</ul>
+</li>
+<li>Example:
+<ul>
+<li><code>example.net/ipns/en.wikipedia-on-ipfs.org</code> → <code>Host: en-wikipedia--on--ipfs-org.ipns.example.net</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>If <code>Host</code> header does not include any subdomain, but the requested path is a
+valid content path, gateway <em class="rfc2119">MUST</em> attempt to
+<a href="#migrating-from-path-to-subdomain-gateway">migrate from Path to Subdomain Gateway</a>.</li>
+<li>Finally, if it is impossible to construct a content path from <code>Host</code>,
+return HTTP Error <code>400</code> Bad Request, as seen in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</li>
+</ul>
+</section><section id="x-forwarded-proto-request-header"><h4><bdi class="secno">2.1.2 </bdi><code>X-Forwarded-Proto</code> (request header)</h4><a href="#x-forwarded-proto-request-header" class="self-link" aria-label="Section 2.1.2"></a>
+<p>Optional. Allows <code>http://</code> gateway implementation to be deployed behind
+reverse proxies that provide TLS (<code>https://</code>) termination.</p>
+<p>Setting <code>X-Forwarded-Proto: https</code> on reverse proxy informs gateway
+implementation that it <em class="rfc2119">MUST</em>:</p>
+<ol>
+<li>set all absolute redirect URLs to <code>https://</code> (not <code>http://</code>)</li>
+<li>inline DNSLink names to fit in a single DNS label, making it compatible with
+a single wildcard TLS certificate:</li>
+</ol>
+<p>Example (GET with <code>X-Forwarded-Proto: https</code>):</p>
+<ul>
+<li><code>GET http://dweb.link/ipfs/{cid}</code> → HTTP 301 with <code>Location: https://{cid}.ipfs.dweb.link</code></li>
+<li><code>GET http://dweb.link/ipns/your-dnslink.site.example.com</code> → HTTP 301 with <code>Location: https://your--dnslink-site-example-com.ipfs.dweb.link</code></li>
+</ul>
+</section><section id="x-forwarded-host-request-header"><h4><bdi class="secno">2.1.3 </bdi><code>X-Forwarded-Host</code> (request header)</h4><a href="#x-forwarded-host-request-header" class="self-link" aria-label="Section 2.1.3"></a>
+<p>Optional. Enables Path Gateway requests to be redirected to a Subdomain Gateway
+on a different domain name.</p>
+<p>See also: <a href="#migrating-from-path-to-subdomain-gateway">migrating from Path to Subdomain Gateway</a>.</p>
+<p>Example (GET with <code>X-Forwarded-Host: example.com</code>):</p>
+<ul>
+<li><code>GET https://dweb.link/ipfs/{cid}</code> → HTTP 301 with <code>Location: https://{cid}.ipfs.example.com</code></li>
+</ul>
+</section></section><section id="request-query-parameters"><h3><bdi class="secno">2.2 </bdi>Request Query Parameters</h3><a href="#request-query-parameters" class="self-link" aria-label="Section 2.2"></a>
+<section id="uri-request-query-parameter"><h4><bdi class="secno">2.2.1 </bdi><code>uri</code> (request query parameter)</h4><a href="#uri-request-query-parameter" class="self-link" aria-label="Section 2.2.1"></a>
+<p>Optional. When present, passed address should override regular path routing.</p>
+<p>See <a href="#uri-router">URI router</a> section for usage and implementation details.</p>
+</section></section></section><section id="http-response"><h2><bdi class="secno">3. </bdi>HTTP Response</h2><a href="#http-response" class="self-link" aria-label="Section 3."></a>
+<p>Below <em class="rfc2119">MUST</em> be implemented <strong>in addition</strong> to "HTTP Response" of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<section id="response-headers"><h3><bdi class="secno">3.1 </bdi>Response Headers</h3><a href="#response-headers" class="self-link" aria-label="Section 3.1"></a>
+<section id="location-response-header"><h4><bdi class="secno">3.1.1 </bdi><code>Location</code> (response header)</h4><a href="#location-response-header" class="self-link" aria-label="Section 3.1.1"></a>
+<p>Below <em class="rfc2119">MUST</em> be implemented <strong>in addition</strong> to <code>Location</code> requirements defined in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<section id="use-in-interop-with-path-gateway"><h5><bdi class="secno">3.1.1.1 </bdi>Use in interop with Path Gateway</h5><a href="#use-in-interop-with-path-gateway" class="self-link" aria-label="Section 3.1.1.1"></a>
+<p>The <code>Location</code> HTTP header is returned with <code>301</code> Moved Permanently
+([<a class="bibref" href="#ref-path-gateway">path-gateway</a>]) when <code>Host</code> header does
+not follow the subdomain naming convention, but the requested URL path happens
+to be a valid <code>/ipfs/{cid}[/{path}][?{query}]</code> or <code>/ipfs/..</code> content path.</p>
+<p>This redirect allows a subdomain gateway to be used as a drop-in replacement
+compatible with regular path gateways, as long as the rules below are followed:</p>
+<ul>
+<li>Redirect from a path gateway URL to the corresponding subdomain URL <em class="rfc2119">MUST</em>
+preserve the originally requested <code>{path}</code> and <code>{query}</code> parameters, if
+present.
+<ul>
+<li>Content path validation before the redirect <em class="rfc2119">SHOULD</em> be limited to the
+correctness of the root CID. If the content path includes any subpath or
+query parameters, they <em class="rfc2119">SHOULD</em> be preserved and processed after the redirect
+to a subdomain is completed.
+<ul>
+<li>Namely, additional logic, such as IPLD path traversal or processing the
+<code>_redirects</code> file, <em class="rfc2119">SHOULD</em> only be executed by the subdomain gateway after
+the redirect.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Before redirecting, the content root identifier <em class="rfc2119">MUST</em> be converted to
+case-insensitive/inlined form if necessary. For example:
+<ul>
+<li><code>https://dweb.link/ipfs/QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR</code>
+returns HTTP 301 redirect to the same CID but in case-insensitive base32:
+<ul>
+<li><code>Location: https://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi.ipfs.dweb.link/</code></li>
+</ul>
+</li>
+<li><code>https://dweb.link/ipns/en.wikipedia-on-ipfs.org</code> returns HTTP 301 redirect
+to subdomain with DNSLink name correctly inlined:
+<ul>
+<li><code>Location: https://en-wikipedia--on--ipfs-org.ipns.dweb.link/</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>See also: <a href="#migrating-from-path-to-subdomain-gateway">Migrate from Path to Subdomain Gateway</a>.</p>
+</section><section id="use-in-uri-router"><h5><bdi class="secno">3.1.1.2 </bdi>Use in URI router</h5><a href="#use-in-uri-router" class="self-link" aria-label="Section 3.1.1.2"></a>
+<p>See: <a href="#uri-router">URI router</a></p>
+</section></section></section></section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">4. </bdi>Appendix: Notes for implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 4."></a>
+<section id="migrating-from-path-to-subdomain-gateway"><h3><bdi class="secno">4.1 </bdi>Migrating from Path to Subdomain Gateway</h3><a href="#migrating-from-path-to-subdomain-gateway" class="self-link" aria-label="Section 4.1"></a>
+<p>Subdomain Gateway <em class="rfc2119">MUST</em> implement a redirect on paths defined in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<p>HTTP redirect will route path requests to correct subdomains on the same domain
+name, unless <a href="#x-forwarded-host-request-header"><code>X-Forwarded-Host</code></a> is present.</p>
+<p><strong>NOTE:</strong></p>
+<p>During the migration from a path gateway to a subdomain gateway, even though
+the <a href="#location-response-header"><code>Location</code></a> header is present, some clients may
+check for HTTP 200, and consider other responses as invalid.</p>
+<p>It is up to the gateway operator to clearly communicate when such a transition
+is to happen, or use a different domain name for subdomain gateway to avoid
+breaking legacy clients that are unable to follow HTTP 301 redirects.</p>
+</section><section id="dns-label-limits"><h3><bdi class="secno">4.2 </bdi>DNS label limits</h3><a href="#dns-label-limits" class="self-link" aria-label="Section 4.2"></a>
+<p>DNS labels, must be case-insensitive, and up to a maximum of 63 characters
+per label (Section 11 of [<a class="bibref" href="#ref-rfc2181">rfc2181</a>]). Representing CIDs within these limits
+requires some care.</p>
+<p>Base32 multibase encoding is used for CIDs to ensure case-insensitive,
+URL safe characters are used.</p>
+<p>Base36 multibase is used for ED25519 libp2p keys to get the string
+representation to safely fit with the 63 character limit.</p>
+<p>How to represent CIDs with a string representation greater than 63
+characters, such as those for <code>sha2-512</code> hashes, remains an
+<a href="https://github.com/ipfs/go-ipfs/issues/7318">open question</a>.</p>
+<p>Until a solution is found, subdomain gateway implementations
+should return HTTP 400 Bad Request for CIDs longer than 63.</p>
+</section><section id="security-considerations"><h3><bdi class="secno">4.3 </bdi>Security considerations</h3><a href="#security-considerations" class="self-link" aria-label="Section 4.3"></a>
+<section id="wildcard-tls-certificates"><h4><bdi class="secno">4.3.1 </bdi>Wildcard TLS certificates</h4><a href="#wildcard-tls-certificates" class="self-link" aria-label="Section 4.3.1"></a>
+<p>Wildcard TLS certificates <em class="rfc2119">SHOULD</em> be set for <code>*.ipfs.example.net</code>
+and <code>*.ipns.example.net</code> if a subdomain gateway is to be exposed on the public
+internet.</p>
+<p>If TLS termination takes place outside of gateway implementation, then setting
+<a href="#x-forwarded-proto-request-header"><code>X-Forwarded-Proto</code></a> at a reverse HTTP
+proxy is <em class="rfc2119">RECOMMENDED</em> for preserving <code>https</code> protocol.</p>
+</section><section id="public-suffix-list-and-etld-enforcement"><h4><bdi class="secno">4.3.2 </bdi>Public Suffix List and eTLD enforcement</h4><a href="#public-suffix-list-and-etld-enforcement" class="self-link" aria-label="Section 4.3.2"></a>
+<p>Subdomain gateways assign each content root a unique origin, yet these origins
+share the gateway’s parent domain. Without proper isolation, all subdomains
+under the same effective Top-Level Domain (eTLD) face risks: a single
+problematic CID could trigger widespread blocking of the entire gateway by
+software like Safe Browsing
+(<a href="https://web.archive.org/web/20230930054837/https://blog.nft.storage/posts/2022-04-29-gateways-and-gatekeepers">incident example</a>).</p>
+<p>To mitigate this and align with the web’s Same-origin security model, operators
+<em class="rfc2119">SHOULD</em> register a wildcard entry like <code>*.example.net</code>
+with the <a href="https://publicsuffix.org/">Public Suffix List (PSL)</a>.</p>
+<p>This will make <code>ipfs.example.net</code> and <code>ipns.example.net</code> eTLDs, treating each
+identifier (e.g., <code>cid.ipfs.example.net</code>) as a distinct top-level Origin.
+The <a href="https://docs.ipfs.tech/concepts/public-utilities/#public-ipfs-gateways">public good gateway</a>,
+listed as <code>*.dweb.link</code> and <code>*.inbrowser.link</code> on the PSL, exemplifies this approach.</p>
+<p>Browsers supporting IPFS natively <em class="rfc2119">SHOULD</em> detect URI patterns such as
+<code>https://{content-root-id}.ip[f|n]s.example.net</code> and dynamically update their
+internal PSL, bolstering security and compatibility without relying solely on
+operator action.</p>
+</section></section><section id="uri-router"><h3><bdi class="secno">4.4 </bdi>URI router</h3><a href="#uri-router" class="self-link" aria-label="Section 4.4"></a>
+<p>Optional <a href="#uri-request-query-parameter"><code>uri</code></a> query parameter overrides regular path routing.</p>
+<p>Subdomain gateway implementations <em class="rfc2119">MUST</em> provide URI router for <code>ipfs://</code> and
+<code>ipns://</code> protocol schemes, allowing external apps to resolve these native
+addresses on a gateway.</p>
+<p>The <code>/ipfs/?uri=%s</code> endpoint <em class="rfc2119">MUST</em> be compatible with <a href="registerprotocolhandler(scheme, url)">registerProtocolHandler(scheme, url)</a>,
+present in web browsers. The value passed in <code>%s</code> should be <a href="utf-8 percent-encode">UTF-8 percent-encode</a>.</p>
+<div class="example"><p>Given registration:</p><pre><code>navigator.registerProtocolHandler('ipfs', 'https://dweb.link/ipfs/?uri=%s', 'IPFS resolver')
+navigator.registerProtocolHandler('ipns', 'https://dweb.link/ipns/?uri=%s', 'IPNS resolver')
+</code></pre><p>Opening <code>ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi</code>
+should produce an HTTP GET request for
+<code>https://dweb.link/ipfs/?uri=ipfs%3A%2F%2Fbafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi</code>
+which in turn should redirect to
+<code>https://dweb.link/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi</code>.</p><p>From there, regular subdomain gateway logic applies.</p></div>
+</section><section id="redirects-single-page-applications-and-custom-404s"><h3><bdi class="secno">4.5 </bdi>Redirects, single-page applications, and custom 404s</h3><a href="#redirects-single-page-applications-and-custom-404s" class="self-link" aria-label="Section 4.5"></a>
+<p>Subdomain Gateway implementations <em class="rfc2119">SHOULD</em> include <code>_redirects</code> file
+support defined in [<a class="bibref" href="#ref-web-redirects-file">web-redirects-file</a>].</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc2181">[rfc2181]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2181"><cite>Clarifications to the DNS Specification</cite></a>. R. Elz; R. Bush. IETF. July 1997. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc2181">https://www.rfc-editor.org/rfc/rfc2181</a></dd><dt id="ref-web-redirects-file">[web-redirects-file]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/"><cite>Web _redirects File Specification</cite></a>. Justin Johnson; Marcin Rataj. 2025-03-19. URL: <a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/">https://specs.ipfs.tech/http-gateways/web-redirects-file/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Adrian Lanzafame</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/lanzafame"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Vasco Santos</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/vasco-santos"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Oli Evans</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/olizilla"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Thibault Meunier</span> (<a href="https://cloudflare.com/">Cloudflare</a>) <a href="https://github.com/thibmeu"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Steve Loeppky</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/BigLep"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p><div id="ipseity-reports"><details class="ipseity-errors"><summary>2</summary><ol><li>No definition for term "registerprotocolhandler(scheme, url)".</li><li>No definition for term "utf-8 percent-encode".</li></ol></details></div></body></html>

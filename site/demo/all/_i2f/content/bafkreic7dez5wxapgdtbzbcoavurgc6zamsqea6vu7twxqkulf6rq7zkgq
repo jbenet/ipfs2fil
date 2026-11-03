@@ -1,0 +1,128 @@
+{
+  "spec": {
+    "title": "UnixFS",
+    "url": "https://specs.ipfs.tech/unixfs/"
+  },
+  "dfns": [
+    {
+      "id": "dfn-Node",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Node",
+      "linkingText": [
+        "node"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Node",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Node",
+      "linkingText": [
+        "nodes"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-File",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-File",
+      "linkingText": [
+        "file"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-File",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-File",
+      "linkingText": [
+        "files"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Directory",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Directory",
+      "linkingText": [
+        "directory"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Directory",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Directory",
+      "linkingText": [
+        "directories"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-HAMT Directory",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-HAMT Directory",
+      "linkingText": [
+        "hamt directory"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-HAMT Directory",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-HAMT Directory",
+      "linkingText": [
+        "hamt directories"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Symlink",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Symlink",
+      "linkingText": [
+        "symlink"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Symlink",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Symlink",
+      "linkingText": [
+        "symlinks"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Profile",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Profile",
+      "linkingText": [
+        "profile"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-Profile",
+      "href": "https://specs.ipfs.tech/unixfs/#dfn-Profile",
+      "linkingText": [
+        "profiles"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    }
+  ]
+}

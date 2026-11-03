@@ -1,0 +1,1302 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>UnixFS</title>
+    <meta name="description" content="UnixFS is a Protocol Buffers-based format for describing files and directories as dag-pb DAGs and raw blocks in IPFS.">
+    <link rel="canonical" href="https://specs.ipfs.tech/unixfs/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">UnixFS</h1><p id="last-modified"><time datetime="2026-09-17T00:00:00.000Z">17 September 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-draft-yellow.svg?style=flat-square" height="20" alt="status: draft"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/unixfs.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/unixfs.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#node-types" class="tocxref"><bdi class="secno">1. </bdi>Node Types</a></li><li><a href="#raw-node" class="tocxref"><bdi class="secno">2. </bdi><code>raw</code> Node</a></li><li><a href="#dag-pb-node" class="tocxref"><bdi class="secno">3. </bdi><code>dag-pb</code> Node</a><ol class="toc"><li><a href="#dag-pb-types" class="tocxref"><bdi class="secno">3.1 </bdi><code>dag-pb</code> Types</a><ol class="toc"><li><a href="#dag-pb-file" class="tocxref"><bdi class="secno">3.1.1 </bdi><code>dag-pb</code> <code>File</code></a><ol class="toc"><li><a href="#the-sister-lists-pbnode-links-and-decode-pbnode-data-blocksizes" class="tocxref"><bdi class="secno">3.1.1.1 </bdi>The <em>sister-lists</em> <code>PBNode.Links</code> and <code>decode(PBNode.Data).blocksizes</code></a></li><li><a href="#decode-pbnode-data-data" class="tocxref"><bdi class="secno">3.1.1.2 </bdi><code>decode(PBNode.Data).Data</code></a></li><li><a href="#pbnode-links-name" class="tocxref"><bdi class="secno">3.1.1.3 </bdi><code>PBNode.Links[].Name</code></a></li><li><a href="#decode-pbnode-data-blocksize" class="tocxref"><bdi class="secno">3.1.1.4 </bdi><code>decode(PBNode.Data).Blocksize</code></a></li><li><a href="#decode-pbnode-data-filesize" class="tocxref"><bdi class="secno">3.1.1.5 </bdi><code>decode(PBNode.Data).filesize</code></a></li><li><a href="#dag-pb-file-path-resolution" class="tocxref"><bdi class="secno">3.1.1.6 </bdi><code>dag-pb</code> <code>File</code> Path Resolution</a></li></ol></li><li><a href="#dag-pb-directory" class="tocxref"><bdi class="secno">3.1.2 </bdi><code>dag-pb</code> <code>Directory</code></a><ol class="toc"><li><a href="#dag-pb-directory-link-ordering" class="tocxref"><bdi class="secno">3.1.2.1 </bdi><code>dag-pb</code> <code>Directory</code> Link Ordering</a></li><li><a href="#dag-pb-directory-path-resolution" class="tocxref"><bdi class="secno">3.1.2.2 </bdi><code>dag-pb</code> <code>Directory</code> Path Resolution</a></li></ol></li><li><a href="#dag-pb-hamtdirectory" class="tocxref"><bdi class="secno">3.1.3 </bdi><code>dag-pb</code> <code>HAMTDirectory</code></a><ol class="toc"><li><a href="#hamt-structure-and-parameters" class="tocxref"><bdi class="secno">3.1.3.1 </bdi>HAMT Structure and Parameters</a></li><li><a href="#dag-pb-hamtdirectory-path-resolution" class="tocxref"><bdi class="secno">3.1.3.2 </bdi><code>dag-pb</code> <code>HAMTDirectory</code> Path Resolution</a></li><li><a href="#when-to-use-hamt-sharding" class="tocxref"><bdi class="secno">3.1.3.3 </bdi>When to Use HAMT Sharding</a></li></ol></li><li><a href="#dag-pb-symlink" class="tocxref"><bdi class="secno">3.1.4 </bdi><code>dag-pb</code> <code>Symlink</code></a><ol class="toc"><li><a href="#dag-pb-symlink-path-resolution" class="tocxref"><bdi class="secno">3.1.4.1 </bdi><code>dag-pb</code> <code>Symlink</code> Path Resolution</a></li></ol></li><li><a href="#dag-pb-tsize-cumulative-dag-size" class="tocxref"><bdi class="secno">3.1.5 </bdi><code>dag-pb</code> <code>TSize</code> (cumulative DAG size)</a></li><li><a href="#dag-pb-optional-metadata" class="tocxref"><bdi class="secno">3.1.6 </bdi><code>dag-pb</code> Optional Metadata</a><ol class="toc"><li><a href="#mode-field" class="tocxref"><bdi class="secno">3.1.6.1 </bdi><code>mode</code> Field</a></li><li><a href="#mtime-field" class="tocxref"><bdi class="secno">3.1.6.2 </bdi><code>mtime</code> Field</a></li></ol></li></ol></li><li><a href="#unixfs-paths" class="tocxref"><bdi class="secno">3.2 </bdi>UnixFS Paths</a><ol class="toc"><li><a href="#path-escaping" class="tocxref"><bdi class="secno">3.2.1 </bdi>Path Escaping</a></li><li><a href="#relative-path-components" class="tocxref"><bdi class="secno">3.2.2 </bdi>Relative Path Components</a></li><li><a href="#restricted-names" class="tocxref"><bdi class="secno">3.2.3 </bdi>Restricted Names</a></li></ol></li></ol></li><li><a href="#profiles" class="tocxref"><bdi class="secno">4. </bdi>Profiles</a></li><li><a href="#appendix-test-vectors" class="tocxref"><bdi class="secno">5. </bdi>Appendix: Test Vectors</a><ol class="toc"><li><a href="#file-test-vectors" class="tocxref"><bdi class="secno">5.1 </bdi>File Test Vectors</a><ol class="toc"><li><a href="#single-raw-block-file" class="tocxref"><bdi class="secno">5.1.1 </bdi>Single <code>raw</code> Block File</a></li><li><a href="#single-dag-pb-block-file" class="tocxref"><bdi class="secno">5.1.2 </bdi>Single <code>dag-pb</code> Block File</a></li><li><a href="#multi-block-file" class="tocxref"><bdi class="secno">5.1.3 </bdi>Multi-block File</a></li><li><a href="#file-with-missing-blocks" class="tocxref"><bdi class="secno">5.1.4 </bdi>File with Missing Blocks</a></li><li><a href="#range-requests-with-missing-blocks" class="tocxref"><bdi class="secno">5.1.5 </bdi>Range Requests with Missing Blocks</a></li></ol></li><li><a href="#directory-test-vectors" class="tocxref"><bdi class="secno">5.2 </bdi>Directory Test Vectors</a><ol class="toc"><li><a href="#simple-directory" class="tocxref"><bdi class="secno">5.2.1 </bdi>Simple Directory</a></li><li><a href="#nested-directories" class="tocxref"><bdi class="secno">5.2.2 </bdi>Nested Directories</a></li><li><a href="#special-characters-in-filenames" class="tocxref"><bdi class="secno">5.2.3 </bdi>Special Characters in Filenames</a></li><li><a href="#directory-with-missing-blocks" class="tocxref"><bdi class="secno">5.2.4 </bdi>Directory with Missing Blocks</a></li><li><a href="#hamt-sharded-directory" class="tocxref"><bdi class="secno">5.2.5 </bdi>HAMT Sharded Directory</a></li><li><a href="#pbnode-field-ordering" class="tocxref"><bdi class="secno">5.2.6 </bdi>PBNode Field Ordering</a></li></ol></li><li><a href="#special-cases-and-advanced-features" class="tocxref"><bdi class="secno">5.3 </bdi>Special Cases and Advanced Features</a><ol class="toc"><li><a href="#well-known-unixfs-cids" class="tocxref"><bdi class="secno">5.3.1 </bdi>Well-Known UnixFS CIDs</a></li><li><a href="#identity-cid-size-limit" class="tocxref"><bdi class="secno">5.3.2 </bdi>Identity CID Size Limit</a></li><li><a href="#symbolic-links" class="tocxref"><bdi class="secno">5.3.3 </bdi>Symbolic Links</a></li><li><a href="#mixed-block-sizes" class="tocxref"><bdi class="secno">5.3.4 </bdi>Mixed Block Sizes</a></li><li><a href="#deduplication" class="tocxref"><bdi class="secno">5.3.5 </bdi>Deduplication</a></li><li><a href="#invalid-test-cases" class="tocxref"><bdi class="secno">5.3.6 </bdi>Invalid Test Cases</a></li></ol></li><li><a href="#additional-testing-resources" class="tocxref"><bdi class="secno">5.4 </bdi>Additional Testing Resources</a></li></ol></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">6. </bdi>Appendix: Notes for Implementers</a><ol class="toc"><li><a href="#popular-implementations" class="tocxref"><bdi class="secno">6.1 </bdi>Popular Implementations</a></li><li><a href="#block-size-considerations" class="tocxref"><bdi class="secno">6.2 </bdi>Block Size Considerations</a></li><li><a href="#simple-raw-example" class="tocxref"><bdi class="secno">6.3 </bdi>Simple <code>raw</code> Example</a></li><li><a href="#offset-list" class="tocxref"><bdi class="secno">6.4 </bdi>Offset List</a></li></ol></li><li><a href="#appendix-historical-design-decisions" class="tocxref"><bdi class="secno">7. </bdi>Appendix: Historical Design Decisions</a><ol class="toc"><li><a href="#design-considerations-extra-metadata" class="tocxref"><bdi class="secno">7.1 </bdi>Design Considerations: Extra Metadata</a><ol class="toc"><li><a href="#pros-and-cons-metadata-in-a-separate-metadata-node" class="tocxref"><bdi class="secno">7.1.1 </bdi>Pros and Cons: Metadata in a Separate Metadata Node</a></li><li><a href="#pros-and-cons-metadata-in-the-directory" class="tocxref"><bdi class="secno">7.1.2 </bdi>Pros and Cons: Metadata in the Directory</a></li><li><a href="#pros-and-cons-metadata-in-the-file" class="tocxref"><bdi class="secno">7.1.3 </bdi>Pros and Cons: Metadata in the File</a></li><li><a href="#pros-and-cons-metadata-in-side-trees" class="tocxref"><bdi class="secno">7.1.4 </bdi>Pros and Cons: Metadata in Side Trees</a></li><li><a href="#pros-and-cons-metadata-in-side-database" class="tocxref"><bdi class="secno">7.1.5 </bdi>Pros and Cons: Metadata in Side Database</a></li></ol></li><li><a href="#design-decision-unixtime-protobuf-datatype" class="tocxref"><bdi class="secno">7.2 </bdi>Design Decision: UnixTime Protobuf Datatype</a><ol class="toc"><li><a href="#unixtime-seconds" class="tocxref"><bdi class="secno">7.2.1 </bdi>UnixTime Seconds</a></li><li><a href="#unixtime-fractionalnanoseconds" class="tocxref"><bdi class="secno">7.2.2 </bdi>UnixTime FractionalNanoseconds</a></li></ol></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="node-types"><h2><bdi class="secno">1. </bdi>Node Types</h2><a href="#node-types" class="self-link" aria-label="Section 1."></a>
+<p>A Node is the smallest unit present in a graph, and it comes from graph
+theory. In UnixFS, there is a 1-to-1 mapping between nodes and blocks. Therefore,
+they are used interchangeably in this document.</p>
+<p>A node is addressed by a <a href="https://github.com/multiformats/cid/">CID</a>. In order to be able to read a node, its <a href="https://github.com/multiformats/cid/">CID</a> is
+required. A <a href="https://github.com/multiformats/cid/">CID</a> includes two important pieces of information:</p>
+<ol>
+<li>A <a href="https://github.com/multiformats/multicodec">multicodec</a>, simply known as a codec.</li>
+<li>A <a href="https://github.com/multiformats/multihash">multihash</a> used to specify the hashing algorithm, the hash parameters and
+the hash digest.</li>
+</ol>
+<p>Thus, when a block is retrieved and its bytes are hashed using the
+hash function specified in the multihash, this gives the same multihash value contained in the CID.</p>
+<p>In UnixFS, a node can be encoded using two different multicodecs, listed below. More details are provided in the following sections:</p>
+<ul>
+<li><a href="#raw-node"><code>raw</code></a> (<code>0x55</code>), which are single block files without any metadata.</li>
+<li><a href="#dag-pb-node"><code>dag-pb</code></a> (<code>0x70</code>), which can be of any other type.</li>
+</ul>
+</section><section id="raw-node"><h2><bdi class="secno">2. </bdi><code>raw</code> Node</h2><a href="#raw-node" class="self-link" aria-label="Section 2."></a>
+<p>The simplest nodes use <code>raw</code> encoding and are implicitly a <a href="#dag-pb-file">File</a>. They can
+be recognized because their <a href="https://github.com/multiformats/cid">CIDs</a> are encoded using the <code>raw</code> (<code>0x55</code>) codec:</p>
+<ul>
+<li>The block is the file data. There is no protobuf envelope or metadata.</li>
+<li>They never have any children nodes, and thus are also known as single block files.</li>
+<li>Their size is the length of the block body (<code>Tsize</code> in parent is equal to <code>blocksize</code>).</li>
+</ul>
+<div class="warning"><p><strong>Important</strong>: Do not confuse <code>raw</code> codec blocks (<code>0x55</code>) with the deprecated <code>Raw</code> DataType (enum value <code>0</code>):</p><ul>
+<li><strong><code>raw</code> codec</strong> - Modern way to store data without protobuf wrapper (used for small files and leaves)</li>
+<li><strong><code>Raw</code> DataType</strong> - Legacy UnixFS type that wrapped raw data in dag-pb protobuf (implementations <em class="rfc2119">MUST NOT</em> produce, <em class="rfc2119">MAY</em> read for compatibility)</li>
+</ul></div>
+</section><section id="dag-pb-node"><h2><bdi class="secno">3. </bdi><code>dag-pb</code> Node</h2><a href="#dag-pb-node" class="self-link" aria-label="Section 3."></a>
+<p>More complex nodes use the <code>dag-pb</code> (<code>0x70</code>) encoding. These nodes require two steps of
+decoding. The first step is to decode the outer container of the block. This is encoded using the <a href="https://ipld.io/specs/codecs/dag-pb/spec/"><code>dag-pb</code></a> specification, which uses <a href="https://protobuf.dev/">Protocol Buffers</a> and can be
+summarized as follows:</p>
+<pre><code class="">message PBLink {
+  // Binary representation of CID (https://github.com/multiformats/cid) of the target object.
+  // This contains raw CID bytes (either CIDv0 or CIDv1) with no multibase prefix.
+  // CIDv1 is a binary format composed of unsigned varints, while CIDv0 is a raw multihash.
+  // In both cases, the bytes are stored directly without any additional prefix.
+  bytes Hash = 1;
+
+  // UTF-8 string name
+  string Name = 2;
+
+  // cumulative size of target object
+  uint64 Tsize = 3;
+}
+</code></pre>
+<p>The <code>PBNode</code> message holds two fields, <code>Data</code> (field number 1) and <code>Links</code>
+(field number 2). Two wire orderings of these fields exist, and both decode to
+the same logical node. A conforming writer emits the fields in the declaration
+order shown in the chosen variant below.</p>
+<div class="warning"><p>The two orderings produce different bytes, and therefore different CIDs, for
+the same logical node:</p><ul>
+<li><code>Links</code>-first is the canonical ordering for UnixFS data. The
+<a href="https://ipld.io/specs/codecs/dag-pb/spec/">DAG-PB</a> codec specification permits either order on encode
+and requires decoders to accept both; where the two documents diverge,
+this one governs UnixFS data.</li>
+<li><code>Data</code>-first is opt-in: no profile writes it. Implementations <em class="rfc2119">MAY</em> expose an
+explicit setting for writers that need it; enabling it changes the CID of
+every written node.</li>
+</ul><p>Readers <em class="rfc2119">SHOULD</em> accept both orderings. Writers <em class="rfc2119">SHOULD</em> support both orderings
+and <em class="rfc2119">SHOULD</em> write <code>Links</code>-first unless the user explicitly opted into
+<code>Data</code>-first. Specialized implementations <em class="rfc2119">MAY</em> support a single ordering, for
+example a streaming-oriented producer that only emits <code>Data</code>-first.
+Implementations that interoperate with content on the public IPFS Mainnet
+<em class="rfc2119">MUST</em> accept both orderings when reading.</p></div>
+<p><code>Data</code>-first ordering (opt-in):</p>
+<pre><code class="">message PBNode {
+  // opaque user data
+  bytes Data = 1;
+
+  // refs to other objects
+  repeated PBLink Links = 2;
+}
+</code></pre>
+<p><code>Links</code>-first ordering (canonical):</p>
+<pre><code class="">message PBNode {
+  // refs to other objects
+  repeated PBLink Links = 2;
+
+  // opaque user data
+  bytes Data = 1;
+}
+</code></pre>
+<p>The <code>Data</code>-first ordering lets a streaming reader process the UnixFS metadata
+in <code>Data</code> (for example, HAMTShard <code>hashType</code> and <code>fanout</code>) before the links,
+and stop reading links early once it finds the entry it is looking for. The
+canonical ordering keeps the CIDs of already-published content stable.</p>
+<p>After decoding the node, we obtain a <code>PBNode</code>. This <code>PBNode</code> contains a field
+<code>Data</code> that contains the bytes that require the second decoding. This will also be
+a protobuf message specified in the UnixFSV1 format:</p>
+<pre><code class="">message Data {
+  enum DataType {
+    Raw = 0; // deprecated, use raw codec blocks without dag-pb instead
+    Directory = 1;
+    File = 2;
+    Metadata = 3; // reserved for future use
+    Symlink = 4;
+    HAMTShard = 5;
+  }
+
+  DataType Type = 1;          // MUST be present - validate at application layer
+  bytes Data = 2;              // file content (File), symlink target (Symlink), bitmap (HAMTShard), unused (Directory)
+  uint64 filesize = 3;         // mandatory for Type=File and Type=Raw, defaults to 0 if omitted
+  repeated uint64 blocksizes = 4 [packed=false]; // required for multi-block files (Type=File) with Links
+  uint64 hashType = 5;         // required for Type=HAMTShard (currently always murmur3-x64-64)
+  uint64 fanout = 6;           // required for Type=HAMTShard (power of 2, max 1024)
+  uint32 mode = 7;             // opt-in, AKA UnixFS 1.5
+  UnixTime mtime = 8;          // opt-in, AKA UnixFS 1.5
+}
+
+message Metadata {
+  string MimeType = 1; // reserved for future use
+}
+
+message UnixTime {
+  int64 Seconds = 1;              // MUST be present when UnixTime is used
+  fixed32 FractionalNanoseconds = 2;
+}
+</code></pre>
+<p>Summarizing, a <code>dag-pb</code> UnixFS node is a <a href="https://ipld.io/specs/codecs/dag-pb/spec/"><code>dag-pb</code></a> protobuf,
+whose <code>Data</code> field is a UnixFSV1 Protobuf message. For clarity, the specification
+document may represent these nested Protobufs as one object. In this representation,
+it is implied that the <code>PBNode.Data</code> field is protobuf-encoded.</p>
+<p>Note that this protobuf definition pre-dates protobuf 3 and more recent editions,
+so the <code>blocksizes</code> field is encoded according to protobuf 2 defaults, e.g. it
+does not use <a href="https://protobuf.dev/editions/features/#repeated_field_encoding">packed</a>
+encoding. Modern implementations <em class="rfc2119">SHOULD</em> also use the older expanded encoding so
+generated CIDs are stable for the same data.</p>
+<p>The same applies to field presence: protobuf 2 writes a <code>filesize</code> of <code>0</code>, while
+protobuf 3 omits zero values unless the field is marked <code>optional</code>. Omitting it
+changes the CID of the empty file listed in
+<a href="#well-known-unixfs-cids">Well-Known UnixFS CIDs</a>.</p>
+<section id="dag-pb-types"><h3><bdi class="secno">3.1 </bdi><code>dag-pb</code> Types</h3><a href="#dag-pb-types" class="self-link" aria-label="Section 3.1"></a>
+<p>A <code>dag-pb</code> UnixFS node supports different types, which are defined in
+<code>decode(PBNode.Data).Type</code>. Every type is handled differently.</p>
+<section id="dag-pb-file"><h4><bdi class="secno">3.1.1 </bdi><code>dag-pb</code> <code>File</code></h4><a href="#dag-pb-file" class="self-link" aria-label="Section 3.1.1"></a>
+<p>A File is a container over an arbitrary sized amount of bytes. Files are either
+single block or multi-block. A multi-block file is a concatenation of multiple child files.</p>
+<div class="note"><p>Single-block files <em class="rfc2119">SHOULD</em> prefer the <code>raw</code> codec (0x55) over <code>dag-pb</code> for the canonical CID,
+as it's more efficient and avoids the protobuf overhead. The <code>raw</code> encoding is described
+in the <a href="#raw-node"><code>raw</code> Node</a> section.</p></div>
+<section id="the-sister-lists-pbnode-links-and-decode-pbnode-data-blocksizes"><h5><bdi class="secno">3.1.1.1 </bdi>The <em>sister-lists</em> <code>PBNode.Links</code> and <code>decode(PBNode.Data).blocksizes</code></h5><a href="#the-sister-lists-pbnode-links-and-decode-pbnode-data-blocksizes" class="self-link" aria-label="Section 3.1.1.1"></a>
+<p>The <em>sister-lists</em> are the key point of why <code>dag-pb</code> is important for files. They
+allow us to concatenate smaller files together.</p>
+<p>Linked files would be loaded recursively with the same process following a DFS
+(Depth-First-Search) order.</p>
+<p>Child nodes must be of type File; either a <code>dag-pb</code> <a href="#dag-pb-file">File</a>, or a
+<a href="#raw-blocks"><code>raw</code> block</a>.</p>
+<p>For example, consider this pseudo-json block:</p>
+<pre><code class="">{
+  "Links": [{"Hash":"Qmfoo"}, {"Hash":"Qmbar"}],
+  "Data": {
+    "Type": "File",
+    "blocksizes": [20, 30]
+  }
+}
+</code></pre>
+<p>This indicates that this file is the concatenation of the <code>Qmfoo</code> and <code>Qmbar</code> files.</p>
+<p>When reading a file represented with <code>dag-pb</code>, the <code>blocksizes</code> array gives us the
+size in bytes of the partial file content present in children DAGs. Each index in
+<code>PBNode.Links</code> <em class="rfc2119">MUST</em> have a corresponding chunk size stored at the same index
+in <code>decode(PBNode.Data).blocksizes</code>.</p>
+<p>The child blocks containing the partial file data can be either:</p>
+<ul>
+<li><code>raw</code> blocks (0x55): Direct file data without protobuf wrapper</li>
+<li><code>dag-pb</code> blocks (0x70): File data wrapped in protobuf, potentially with further children</li>
+</ul>
+<div class="warning"><p>Implementers need to be extra careful to ensure the values in <code>Data.blocksizes</code>
+are calculated by following the definition from <a href="#decodepbnodedatablocksize"><code>Blocksize</code></a>.</p></div>
+<p>This allows for fast indexing into the file. For example, if someone is trying
+to read bytes 25 to 35, we can compute an offset list by summing all previous
+indexes in <code>blocksizes</code>, then do a search to find which indexes contain the
+range we are interested in.</p>
+<p>In the example above, the offset list would be <code>[0, 20]</code>. Thus, we know we only need to download <code>Qmbar</code> to get the range we are interested in.</p>
+<p>A UnixFS parser <em class="rfc2119">MUST</em> reject the node and halt processing if the <code>blocksizes</code> array and
+<code>Links</code> array contain different numbers of elements. Implementations <em class="rfc2119">SHOULD</em> return a
+descriptive error indicating the array length mismatch rather than silently failing or
+attempting to process partial data.</p>
+</section><section id="decode-pbnode-data-data"><h5><bdi class="secno">3.1.1.2 </bdi><code>decode(PBNode.Data).Data</code></h5><a href="#decode-pbnode-data-data" class="self-link" aria-label="Section 3.1.1.2"></a>
+<p>An array of bytes that is the file content and is appended before
+the links. This must be taken into account when doing offset calculations; that is,
+the length of <code>decode(PBNode.Data).Data</code> defines the value of the zeroth element
+of the offset list when computing offsets.</p>
+</section><section id="pbnode-links-name"><h5><bdi class="secno">3.1.1.3 </bdi><code>PBNode.Links[].Name</code></h5><a href="#pbnode-links-name" class="self-link" aria-label="Section 3.1.1.3"></a>
+<p>The <code>Name</code> field is primarily used in directories to identify child entries.</p>
+<p><strong>For internal file chunks:</strong></p>
+<ul>
+<li>Implementations <em class="rfc2119">SHOULD NOT</em> produce <code>Name</code> fields (the field should be absent in the protobuf, not an empty string)</li>
+<li>For compatibility with historical data, implementations <em class="rfc2119">SHOULD</em> treat empty string values ("") the same as absent when parsing</li>
+<li>If a non-empty <code>Name</code> is present in an internal file chunk, the parser <em class="rfc2119">MUST</em> reject the file and halt processing as this indicates an invalid file structure</li>
+</ul>
+</section><section id="decode-pbnode-data-blocksize"><h5><bdi class="secno">3.1.1.4 </bdi><code>decode(PBNode.Data).Blocksize</code></h5><a href="#decode-pbnode-data-blocksize" class="self-link" aria-label="Section 3.1.1.4"></a>
+<p>This field is not directly present in the block, but rather a computable property
+of a <code>dag-pb</code>, which would be used in the parent node in <code>decode(PBNode.Data).blocksizes</code>.</p>
+<p><strong>Important:</strong> <code>blocksize</code> represents only the raw file data size, NOT including the protobuf envelope overhead.</p>
+<p>It is calculated as:</p>
+<ul>
+<li>For <code>dag-pb</code> blocks: the length of <code>decode(PBNode.Data).Data</code> field plus the sum of all child <code>blocksizes</code></li>
+<li>For <code>raw</code> blocks (small files, raw leaves): the length of the entire raw block</li>
+</ul>
+<div class="note"><p>Examples of where <code>blocksize</code> is useful:</p><ul>
+<li>Seeking and range requests (e.g., HTTP Range headers for video streaming). The <code>blocksizes</code> array allows calculating byte offsets (see <a href="#offset-list">Offset List</a>) to determine which blocks contain the requested range without downloading unnecessary blocks.</li>
+</ul></div>
+</section><section id="decode-pbnode-data-filesize"><h5><bdi class="secno">3.1.1.5 </bdi><code>decode(PBNode.Data).filesize</code></h5><a href="#decode-pbnode-data-filesize" class="self-link" aria-label="Section 3.1.1.5"></a>
+<p>For <code>Type=File</code> (2) and <code>Type=Raw</code> (0), this field is mandatory. While marked as "optional"
+in the protobuf schema (for compatibility with other types like Directory), implementations:</p>
+<ul>
+<li><em class="rfc2119">MUST</em> include this field when creating File or Raw nodes</li>
+<li>When reading, if this field is absent, <em class="rfc2119">MUST</em> interpret it as 0 (zero-length file)</li>
+<li>If present, this field <em class="rfc2119">MUST</em> be equal to the <code>Blocksize</code> computation above, otherwise the file is invalid</li>
+</ul>
+</section><section id="dag-pb-file-path-resolution"><h5><bdi class="secno">3.1.1.6 </bdi><code>dag-pb</code> <code>File</code> Path Resolution</h5><a href="#dag-pb-file-path-resolution" class="self-link" aria-label="Section 3.1.1.6"></a>
+<p>A file terminates a UnixFS content path. Any attempt to resolve a path past a
+file <em class="rfc2119">MUST</em> be rejected with an error indicating that UnixFS files cannot have children.</p>
+</section></section><section id="dag-pb-directory"><h4><bdi class="secno">3.1.2 </bdi><code>dag-pb</code> <code>Directory</code></h4><a href="#dag-pb-directory" class="self-link" aria-label="Section 3.1.2"></a>
+<p>A Directory, also known as folder, is a named collection of child <a href="#dag-pb-node">Nodes</a>:</p>
+<ul>
+<li>Every link in <code>PBNode.Links</code> is an entry (child) of the directory, and
+<code>PBNode.Links[].Name</code> gives you the name of that child.</li>
+<li>Duplicate names are not allowed. Therefore, two elements of <code>PBNode.Link</code> CANNOT
+have the same <code>Name</code>. Names are considered identical if they are byte-for-byte
+equal (not just semantically equivalent). If two identical names are present in
+a directory, the decoder <em class="rfc2119">MUST</em> fail.</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> detect when a directory becomes too big to fit in a single
+<code>Directory</code> block and use [<code>HAMTDirectory</code>] type instead.</li>
+</ul>
+<p>The <code>PBNode.Data</code> field <em class="rfc2119">MUST</em> contain valid UnixFS protobuf data for all UnixFS nodes.
+For directories (DataType==1), the minimum valid <code>PBNode.Data</code> field is as follows:</p>
+<pre><code class="">{
+  "Type": "Directory"
+}
+</code></pre>
+<p>For historical compatibility, implementations <em class="rfc2119">MAY</em> encounter dag-pb nodes with empty or
+missing Data fields from older IPFS versions, but <em class="rfc2119">MUST NOT</em> produce such nodes.</p>
+<section id="dag-pb-directory-link-ordering"><h5><bdi class="secno">3.1.2.1 </bdi><code>dag-pb</code> <code>Directory</code> Link Ordering</h5><a href="#dag-pb-directory-link-ordering" class="self-link" aria-label="Section 3.1.2.1"></a>
+<p>Directory links <em class="rfc2119">SHOULD</em> be sorted lexicographically by the <code>Name</code> field when creating
+new directories. This ensures consistent, deterministic directory structures across
+implementations.</p>
+<p>While decoders <em class="rfc2119">MUST</em> accept directories with any link ordering, encoders <em class="rfc2119">SHOULD</em> use
+lexicographic sorting for better interoperability and deterministic CIDs.</p>
+<p>A decoder <em class="rfc2119">SHOULD</em>, if it can, preserve the order of the original files. This "sort on write,
+not on read" approach maintains DAG stability - existing unsorted directories remain unchanged
+when accessed or traversed, preventing unintentional mutations of intermediate nodes that could
+alter their CIDs.</p>
+<p>Note: Lexicographic sorting was chosen as the standard because it provides a universal,
+locale-independent ordering that works consistently across all implementations and languages.
+Sorting on write (when the Links list is modified) helps with deduplication detection and enables more
+efficient directory traversal algorithms in some implementations.</p>
+</section><section id="dag-pb-directory-path-resolution"><h5><bdi class="secno">3.1.2.2 </bdi><code>dag-pb</code> <code>Directory</code> Path Resolution</h5><a href="#dag-pb-directory-path-resolution" class="self-link" aria-label="Section 3.1.2.2"></a>
+<p>Pop the left-most component of the path, and match it to the <code>Name</code> of
+a child under <code>PBNode.Links</code>.</p>
+<p>Duplicate names are not allowed in UnixFS directories. However, when reading
+third-party data that contains duplicates, implementations <em class="rfc2119">MUST</em> always return
+the first matching entry and ignore subsequent ones (following the
+<a href="https://specs.ipfs.tech/architecture/principles/#robustness">Robustness Principle</a>).
+Similarly, when writers mutate a UnixFS directory that has duplicate
+names, they <em class="rfc2119">MUST</em> drop the redundant entries and only keep the first occurrence
+of each name.</p>
+<p>Assuming no errors were raised, you can continue to the path resolution on the
+remaining components and on the CID you popped.</p>
+</section></section><section id="dag-pb-hamtdirectory"><h4><bdi class="secno">3.1.3 </bdi><code>dag-pb</code> <code>HAMTDirectory</code></h4><a href="#dag-pb-hamtdirectory" class="self-link" aria-label="Section 3.1.3"></a>
+<p>A HAMT Directory is a <a href="https://en.wikipedia.org/wiki/Hash_array_mapped_trie">Hashed-Array-Mapped-Trie</a>
+data structure representing a <a href="#dag-pb-directory">Directory</a>. It is generally used to represent
+directories that cannot fit inside a single block. These are also known as "sharded
+directories", since they allow you to split large directories into multiple blocks, known as "shards".</p>
+<section id="hamt-structure-and-parameters"><h5><bdi class="secno">3.1.3.1 </bdi>HAMT Structure and Parameters</h5><a href="#hamt-structure-and-parameters" class="self-link" aria-label="Section 3.1.3.1"></a>
+<p>The HAMT directory is configured through the UnixFS metadata in <code>PBNode.Data</code>:</p>
+<ul>
+<li>
+<p><code>decode(PBNode.Data).Type</code> <em class="rfc2119">MUST</em> be <code>HAMTShard</code> (value <code>5</code>)</p>
+</li>
+<li>
+<p><code>decode(PBNode.Data).hashType</code> indicates the <a href="https://github.com/multiformats/multihash">multihash</a> function to use to digest
+the path components for sharding. Currently, all HAMT implementations use <code>murmur3-x64-64</code> (<code>0x22</code>),
+and this value <em class="rfc2119">MUST</em> be consistent across all shards within the same HAMT structure</p>
+</li>
+<li>
+<p><code>decode(PBNode.Data).fanout</code> is <em class="rfc2119">REQUIRED</em> for HAMTShard nodes (though marked optional in the
+protobuf schema). The value <em class="rfc2119">MUST</em> be a power of two, a multiple of 8 (for byte-aligned
+bitfields), and at most 1024.</p>
+<p>This determines the number of possible bucket indices (permutations) at each level of the trie.
+For example, fanout=256 provides 256 possible buckets (0x00 to 0xFF), requiring 8 bits from the hash.
+The hex prefix length is <code>log2(fanout)/4</code> characters (since each hex character represents 4 bits).
+The same fanout value is used throughout all levels of a single HAMT structure</p>
+<div class="note"><p>Implementations that onboard user data to create new HAMTDirectory structures are free to choose a <code>fanout</code> value or allow users to configure it based on their use case:</p><ul>
+<li><strong>256</strong>: Balanced tree depth and node size, suitable for most use cases</li>
+<li><strong>1024</strong>: Creates wider, shallower DAGs with fewer levels
+<ul>
+<li>Advantages: Minimizes tree depth for faster lookups, reduces number of intermediate nodes to traverse</li>
+<li>Trade-offs: Larger blocks mean higher latency on cold cache reads and more data
+rewritten when modifying directories (each change affects a larger block)</li>
+</ul>
+</li>
+</ul></div>
+<div class="warning"><p>Implementations <em class="rfc2119">MUST</em> limit the <code>fanout</code> parameter to a maximum of 1024 to prevent
+denial-of-service attacks. Excessively large fanout values can cause memory exhaustion
+when allocating bucket arrays. See <a href="https://nvd.nist.gov/vuln/detail/CVE-2023-23625">CVE-2023-23625</a> and
+<a href="https://github.com/advisories/GHSA-q264-w97q-q778">GHSA-q264-w97q-q778</a> for details
+on this vulnerability.</p></div>
+</li>
+<li>
+<p><code>decode(PBNode.Data).Data</code> contains a bitfield indicating which buckets contain entries.
+Each bit corresponds to one bucket (0 to fanout-1), with bit value 1 indicating the bucket
+is occupied. The bitfield is stored in little-endian byte order. The bitfield size in bytes
+is <code>fanout/8</code>, which is why fanout <em class="rfc2119">MUST</em> be a multiple of 8.</p>
+<ul>
+<li>Implementations <em class="rfc2119">MUST</em> write this bitfield when creating HAMT nodes</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> use this bitfield for efficient traversal (checking which buckets
+exist without examining all links)</li>
+<li>Note: Some implementations derive bucket occupancy from link names instead of reading
+the bitfield, but this is less efficient</li>
+</ul>
+</li>
+</ul>
+<p>The field <code>Name</code> of an element of <code>PBNode.Links</code> for a HAMT uses a
+hex-encoded prefix corresponding to the bucket index, zero-padded to a width
+of <code>log2(fanout)/4</code> characters.</p>
+<p>To illustrate the HAMT structure with a concrete example:</p>
+<pre><code class="">// Root HAMT shard (bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i)
+// This shard contains 1000 files distributed across buckets
+message PBNode {
+  // UnixFS metadata in Data field
+  Data = {
+    Type = HAMTShard        // Type = 5
+    Data = 0xffffff...      // Bitmap: bits set for populated buckets
+    hashType = 0x22         // murmur3-x64-64
+    fanout = 256            // 256 buckets (8-bit width)
+  }
+
+  // Links to sub-shards or entries
+  Links = [
+    {
+      Hash = bafybeiaebmuestgbpqhkkbrwl2qtjtvs3whkmp2trkbkimuod4yv7oygni
+      Name = "00"           // Bucket 0x00
+      Tsize = 2693          // Cumulative size of this subtree
+    },
+    {
+      Hash = bafybeia322onepwqofne3l3ptwltzns52fgapeauhmyynvoojmcvchxptu
+      Name = "01"           // Bucket 0x01
+      Tsize = 7977
+    },
+    // ... more buckets as needed up to "FF"
+  ]
+}
+
+// Sub-shard for bucket "00" (multiple files hash to 00 at first level)
+message PBNode {
+  Data = {
+    Type = HAMTShard        // Still a HAMT at second level
+    Data = 0x800000...      // Bitmap for this sub-level
+    hashType = 0x22         // murmur3-x64-64
+    fanout = 256            // Same fanout throughout
+  }
+
+  Links = [
+    {
+      Hash = bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa
+      Name = "6E470.txt"    // Bucket 0x6E + filename
+      Tsize = 1271
+    },
+    {
+      Hash = bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa
+      Name = "FF742.txt"    // Bucket 0xFF + filename
+      Tsize = 1271
+    }
+  ]
+}
+</code></pre>
+</section><section id="dag-pb-hamtdirectory-path-resolution"><h5><bdi class="secno">3.1.3.2 </bdi><code>dag-pb</code> <code>HAMTDirectory</code> Path Resolution</h5><a href="#dag-pb-hamtdirectory-path-resolution" class="self-link" aria-label="Section 3.1.3.2"></a>
+<p>To resolve a path inside a HAMT:</p>
+<ol>
+<li>Hash the filename using the hash function specified in <code>decode(PBNode.Data).hashType</code></li>
+<li>Pop <code>log2(fanout)</code> bits from the hash digest (lowest/least significant bits first),
+then hex encode those bits using little endian to form the bucket prefix. The prefix <em class="rfc2119">MUST</em> use uppercase hex characters (00-FF, not 00-ff)</li>
+<li>Find the link whose <code>Name</code> starts with this hex prefix:
+<ul>
+<li>If <code>Name</code> equals the prefix exactly → this is a sub-shard, follow the link and repeat from step 2</li>
+<li>If <code>Name</code> equals prefix + filename → target found</li>
+<li>If no matching prefix → file not in directory</li>
+</ul>
+</li>
+<li>When following to a sub-shard, continue consuming bits from the same hash</li>
+</ol>
+<p>Note: Empty intermediate shards are typically collapsed during deletion operations to maintain consistency
+and avoid having HAMT structures that differ based on insertion/deletion history.</p>
+<div class="note"><p><strong>Example: Finding "470.txt" in a HAMT with fanout=256</strong> (see <a href="#hamt-sharded-directory">HAMT Sharded Directory test vector</a>)</p><p>Given a HAMT-sharded directory containing 1000 files:</p><ol>
+<li>Hash the filename "470.txt" using murmur3-x64-64 (multihash <code>0x22</code>)</li>
+<li>With fanout=256, we consume 8 bits at a time from the hash:
+<ul>
+<li>First 8 bits determine root bucket → <code>0x00</code> → link name "00"</li>
+<li>Follow link "00" to sub-shard (<code>bafybeiaebmuestgbpqhkkbrwl2qtjtvs3whkmp2trkbkimuod4yv7oygni</code>)</li>
+</ul>
+</li>
+<li>The sub-shard is also a HAMT (has Type=HAMTShard):
+<ul>
+<li>Next 8 bits from hash → <code>0x6E</code></li>
+<li>Find entry with name "6E470.txt" (prefix + original filename)</li>
+</ul>
+</li>
+<li>Link name format at leaf level: <code>[hex_prefix][original_filename]</code>
+<ul>
+<li>"6E470.txt" means: file "470.txt" that hashed to bucket 6E at this level</li>
+<li>"FF742.txt" means: file "742.txt" that hashed to bucket FF at this level</li>
+</ul>
+</li>
+</ol></div>
+</section><section id="when-to-use-hamt-sharding"><h5><bdi class="secno">3.1.3.3 </bdi>When to Use HAMT Sharding</h5><a href="#when-to-use-hamt-sharding" class="self-link" aria-label="Section 3.1.3.3"></a>
+<p>Implementations typically convert regular directories to HAMT when the serialized directory
+node exceeds a size threshold between 256 KiB and 1 MiB. This threshold:</p>
+<ul>
+<li>Prevents directories from exceeding block size limits</li>
+<li>Is implementation-specific and may be configurable</li>
+<li>Common values range from 256 KiB (conservative) to 1 MiB (modern)</li>
+</ul>
+<p>See <a href="#block-size-considerations">Block Size Considerations</a> for details on block size limits and conventions.</p>
+<div class="note"><p>For standardized threshold estimation methods that enable deterministic CID generation, see <a href="https://specs.ipfs.tech/ipips/ipip-0499/">IPIP-499: UnixFS CID Profiles</a>.</p></div>
+</section></section><section id="dag-pb-symlink"><h4><bdi class="secno">3.1.4 </bdi><code>dag-pb</code> <code>Symlink</code></h4><a href="#dag-pb-symlink" class="self-link" aria-label="Section 3.1.4"></a>
+<p>A Symlink represents a POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/symlink.html">symbolic link</a>.
+A symlink <em class="rfc2119">MUST NOT</em> have children in <code>PBNode.Links</code>.</p>
+<p>The <code>PBNode.Data.Data</code> field is a POSIX path that <em class="rfc2119">MAY</em> be inserted in front of the
+currently remaining path component stack.</p>
+<section id="dag-pb-symlink-path-resolution"><h5><bdi class="secno">3.1.4.1 </bdi><code>dag-pb</code> <code>Symlink</code> Path Resolution</h5><a href="#dag-pb-symlink-path-resolution" class="self-link" aria-label="Section 3.1.4.1"></a>
+<p>Symlink path resolution <em class="rfc2119">SHOULD</em> follow the POSIX specification, over the current UnixFS path context, as much as is applicable.</p>
+<div class="warning"><p>There is no current consensus on how pathing over symlinks should behave. Some
+implementations return symlink objects and fail if a consumer tries to follow them
+through.</p></div>
+</section></section><section id="dag-pb-tsize-cumulative-dag-size"><h4><bdi class="secno">3.1.5 </bdi><code>dag-pb</code> <code>TSize</code> (cumulative DAG size)</h4><a href="#dag-pb-tsize-cumulative-dag-size" class="self-link" aria-label="Section 3.1.5"></a>
+<p><code>Tsize</code> is an optional field in <code>PBNode.Links[]</code> which represents the cumulative size of the entire DAG rooted at that link, including all protobuf encoding overhead.</p>
+<p>While optional in the protobuf schema, implementations <em class="rfc2119">SHOULD</em> include <code>Tsize</code> for:</p>
+<ul>
+<li>All directory entries (enables fast directory size display)</li>
+<li>Multi-block files (enables parallel downloading and progress tracking)</li>
+<li>HAMT shard links (enables efficient traversal decisions)</li>
+</ul>
+<p><strong>Key distinction from blocksize:</strong></p>
+<ul>
+<li><strong><code>blocksize</code></strong>: Only the raw file data (no protobuf overhead)</li>
+<li><strong><code>Tsize</code></strong>: Total size of all serialized blocks in the DAG (includes protobuf overhead)</li>
+</ul>
+<p>To compute <code>Tsize</code>: sum the serialized size of the current dag-pb block and the Tsize values of all child links.</p>
+<div class="note"><p><strong>Example: Directory with multi-block file</strong></p><p>Consider the <a href="#simple-directory">Simple Directory fixture</a> (<code>bafybeihchr7vmgjaasntayyatmp5sv6xza57iy2h4xj7g46bpjij6yhrmy</code>):</p><p>The directory has a total <code>Tsize</code> of 1572 bytes:</p><ul>
+<li>Directory block itself: 227 bytes when serialized</li>
+<li>Child entries with Tsizes: 31 + 31 + 12 + 1271 = 1345 bytes</li>
+</ul><p>The <code>multiblock.txt</code> file within this directory demonstrates how <code>Tsize</code> accumulates:</p><ul>
+<li>Raw file content: 1026 bytes (blocksizes: [256, 256, 256, 256, 2])</li>
+<li>Root dag-pb block: 245 bytes when serialized</li>
+<li>Total <code>Tsize</code>: 245 + 1026 = 1271 bytes</li>
+</ul><p>This shows how <code>Tsize</code> includes both the protobuf overhead and all child data, while <code>blocksize</code> only counts the raw file data.</p></div>
+<div class="note"><p>Examples of where <code>Tsize</code> is useful:</p><ul>
+<li>User interfaces, where total size of a DAG needs to be displayed immediately, without having to do the full DAG walk.</li>
+<li>Smart download clients, downloading a file concurrently from two sources that have radically different speeds. It may be more efficient to parallelize and download bigger
+links from the fastest source, and smaller ones from the slower sources.</li>
+</ul></div>
+<div class="warning"><p>An implementation <em class="rfc2119">SHOULD NOT</em> assume the <code>TSize</code> values are correct. The value is only a hint that provides performance optimization for better UX.</p><p>Following the <a href="https://specs.ipfs.tech/architecture/principles/#robustness">Robustness Principle</a>, implementation <em class="rfc2119">SHOULD</em> be
+able to decode nodes where the <code>Tsize</code> field is wrong (not matching the sizes of  sub-DAGs), or
+partially or completely missing.</p></div>
+<div class="warning"><p>When total data size is needed for important purposes such as accounting, billing, and cost estimation, the <code>Tsize</code> <em class="rfc2119">SHOULD NOT</em> be used, and instead a full DAG walk <em class="rfc2119">SHOULD</em> to be performed.</p></div>
+</section><section id="dag-pb-optional-metadata"><h4><bdi class="secno">3.1.6 </bdi><code>dag-pb</code> Optional Metadata</h4><a href="#dag-pb-optional-metadata" class="self-link" aria-label="Section 3.1.6"></a>
+<p>UnixFS defines the following optional metadata fields.</p>
+<section id="mode-field"><h5><bdi class="secno">3.1.6.1 </bdi><code>mode</code> Field</h5><a href="#mode-field" class="self-link" aria-label="Section 3.1.6.1"></a>
+<p>The <code>mode</code> (introduced in UnixFS v1.5) is for persisting the file permissions in <a href="https://en.wikipedia.org/wiki/File_system_permissions#Numeric_notation">numeric notation</a>
+[<a href="https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html">spec</a>].</p>
+<ul>
+<li>If unspecified, implementations <em class="rfc2119">MAY</em> default to
+<ul>
+<li><code>0755</code> for directories/HAMT shards</li>
+<li><code>0644</code> for all other types where applicable</li>
+</ul>
+</li>
+<li>The nine least significant bits represent  <code>ugo-rwx</code></li>
+<li>The next three least significant bits represent <code>setuid</code>, <code>setgid</code> and the <code>sticky bit</code></li>
+<li>The remaining 20 bits are reserved for future use, and are subject to change. Spec implementations <strong><em class="rfc2119">MUST</em></strong> handle bits they do not expect as follows:
+<ul>
+<li>For future-proofing, the (de)serialization layer must preserve the entire uint32 value during clone/copy operations, modifying only bit values that have a well defined meaning: <code>clonedValue = ( modifiedBits &amp; 07777 ) | ( originalValue &amp; 0xFFFFF000 )</code></li>
+<li>Implementations of this spec must proactively mask off bits without a defined meaning in the implemented version of the spec: <code>interpretedValue = originalValue &amp; 07777</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>Implementation guidance:</strong></p>
+<ul>
+<li>When importing new data, implementations <em class="rfc2119">SHOULD NOT</em> include the mode field unless the user explicitly requests preserving permissions
+<ul>
+<li>Including mode changes the root CID, causing unnecessary deduplication failures when permission differences are irrelevant</li>
+</ul>
+</li>
+<li>Implementations <em class="rfc2119">MUST</em> be able to parse UnixFS nodes both with and without this field</li>
+<li>When present during operations like copying, implementations <em class="rfc2119">SHOULD</em> preserve this field</li>
+</ul>
+</section><section id="mtime-field"><h5><bdi class="secno">3.1.6.2 </bdi><code>mtime</code> Field</h5><a href="#mtime-field" class="self-link" aria-label="Section 3.1.6.2"></a>
+<p>The <code>mtime</code> (introduced in UnixFS v1.5) is a two-element structure ( <code>Seconds</code>, <code>FractionalNanoseconds</code> ) representing the
+modification time in seconds relative to the unix epoch <code>1970-01-01T00:00:00Z</code>.</p>
+<p>The two fields are:</p>
+<ol>
+<li><code>Seconds</code> ( always present, signed 64bit integer ): represents the amount of seconds after <strong>or before</strong> the epoch.</li>
+<li><code>FractionalNanoseconds</code> ( optional, 32bit unsigned integer ): when specified, represents the fractional part of the <code>mtime</code> as the amount of nanoseconds. The valid range for this value are the integers <code>[1, 999999999]</code>.</li>
+</ol>
+<p>Implementations encoding or decoding wire-representations <em class="rfc2119">MUST</em> observe the following:</p>
+<ul>
+<li>An <code>mtime</code> structure with <code>FractionalNanoseconds</code> outside of the on-wire range
+<code>[1, 999999999]</code> is <strong>not</strong> valid. This includes a fractional value of <code>0</code>.
+Implementations encountering such values should consider the entire enclosing
+metadata block malformed and abort the processing of the corresponding DAG.</li>
+<li>The <code>mtime</code> structure is optional. Its absence implies <code>unspecified</code> rather
+than <code>0</code>.</li>
+<li>For ergonomic reasons, a surface API of an encoder <em class="rfc2119">MUST</em> allow fractional <code>0</code> as
+input, while at the same time <em class="rfc2119">MUST</em> ensure it is stripped from the final structure
+before encoding, satisfying the above constraints.</li>
+</ul>
+<p>Implementations interpreting the <code>mtime</code> metadata in order to apply it within a
+non-IPFS target <em class="rfc2119">MUST</em> observe the following:</p>
+<ul>
+<li>If the target supports a distinction between <code>unspecified</code> and <code>0</code>/<code>1970-01-01T00:00:00Z</code>,
+the distinction must be preserved within the target. For example, if no <code>mtime</code> structure
+is available, a web gateway must <strong>not</strong> render a <code>Last-Modified:</code> header.</li>
+<li>If the target requires an <code>mtime</code> ( e.g. a FUSE interface ) and no <code>mtime</code> is
+supplied OR the supplied <code>mtime</code> falls outside of the targets accepted range:
+<ul>
+<li>When no <code>mtime</code> is specified or the resulting <code>UnixTime</code> is negative:
+implementations must assume <code>0</code>/<code>1970-01-01T00:00:00Z</code> (note that such values
+are not merely academic: e.g. the OpenVMS epoch is <code>1858-11-17T00:00:00Z</code>)</li>
+<li>When the resulting <code>UnixTime</code> is larger than the targets range ( e.g. 32bit
+vs 64bit mismatch), implementations must assume the highest possible value
+in the targets range. In most cases, this would be <code>2038-01-19T03:14:07Z</code>.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Implementation guidance:</strong></p>
+<ul>
+<li>When importing new data, implementations <em class="rfc2119">SHOULD NOT</em> include the mtime field unless the user explicitly requests preserving timestamps
+<ul>
+<li>Including mtime changes the root CID, causing unnecessary deduplication failures when timestamp differences are irrelevant</li>
+</ul>
+</li>
+<li>Implementations <em class="rfc2119">MUST</em> be able to parse UnixFS nodes both with and without this field</li>
+<li>When present during operations like copying, implementations <em class="rfc2119">SHOULD</em> preserve this field</li>
+</ul>
+</section></section></section><section id="unixfs-paths"><h3><bdi class="secno">3.2 </bdi>UnixFS Paths</h3><a href="#unixfs-paths" class="self-link" aria-label="Section 3.2"></a>
+<div class="note"><p>Path resolution describes how IPFS systems traverse UnixFS DAGs. While path resolution
+behavior is mostly IPFS semantics layered over UnixFS data structures, certain UnixFS
+types (notably HAMTDirectory) define specific resolution algorithms as part of their
+data structure specification. Each UnixFS type includes a "Path Resolution" subsection
+documenting its specific requirements.</p></div>
+<p>Paths begin with a <code>&lt;CID&gt;/</code> or <code>/ipfs/&lt;CID&gt;/</code>, where <code>&lt;CID&gt;</code> is a [multibase]
+encoded <a href="https://github.com/multiformats/cid/">CID</a>. The CID encoding <em class="rfc2119">MUST NOT</em> use a multibase alphabet that contains
+<code>/</code> (<code>0x2f</code>) unicode codepoints. However, CIDs may use a multibase encoding with
+a <code>/</code> in the alphabet if the encoded CID does not contain <code>/</code> once encoded.</p>
+<p>Everything following the CID is a collection of path components (some bytes)
+separated by <code>/</code> (<code>0x2F</code>). UnixFS paths read from left to right, and are
+inspired by POSIX paths.</p>
+<ul>
+<li>Components <em class="rfc2119">MUST NOT</em> contain <code>/</code> unicode codepoints because it would break
+the path into two components.</li>
+<li>Components <em class="rfc2119">SHOULD</em> be UTF8 unicode.</li>
+<li>Components are case-sensitive.</li>
+</ul>
+<section id="path-escaping"><h4><bdi class="secno">3.2.1 </bdi>Path Escaping</h4><a href="#path-escaping" class="self-link" aria-label="Section 3.2.1"></a>
+<div class="warning"><p>Behavior is only defined for HTTP interfaces.</p><p>HTTP Gateways percent-decode each request path component once before path
+resolution, so <code>%2F</code> becomes a component separator, and the
+<a href="https://specs.ipfs.tech/http-gateways/path-gateway/#ipfs-uri-response-header"><code>Ipfs-Uri</code> response header</a>
+defines the reverse: a canonical percent-encoded form of a content path.</p><p>Outside of that, the behavior is unspecified.
+The <code>\</code> may be used to trigger an escape sequence, but it is currently broken
+and inconsistent across implementations.</p></div>
+</section><section id="relative-path-components"><h4><bdi class="secno">3.2.2 </bdi>Relative Path Components</h4><a href="#relative-path-components" class="self-link" aria-label="Section 3.2.2"></a>
+<p>Relative path components <em class="rfc2119">MUST</em> be resolved before trying to work on the path:</p>
+<ul>
+<li><code>.</code> points to the current node and <em class="rfc2119">MUST</em> be removed.</li>
+<li><code>..</code> points to the parent node and <em class="rfc2119">MUST</em> be removed left to right. When removing
+a <code>..</code>, the path component on the left <em class="rfc2119">MUST</em> also be removed. If there is no path
+component on the left, implementations <em class="rfc2119">MUST</em> reject the path with an error to avoid
+out-of-bounds path resolution.</li>
+<li>Implementations <em class="rfc2119">MUST</em> reject paths that attempt to traverse beyond the root CID
+(example: <code>/ipfs/cid/../foo</code>) with an error indicating invalid path traversal.</li>
+</ul>
+</section><section id="restricted-names"><h4><bdi class="secno">3.2.3 </bdi>Restricted Names</h4><a href="#restricted-names" class="self-link" aria-label="Section 3.2.3"></a>
+<p>The following names <em class="rfc2119">SHOULD NOT</em> be used in UnixFS directories:</p>
+<ul>
+<li>The <code>.</code> string, as it represents the self node in POSIX pathing.</li>
+<li>The <code>..</code> string, as it represents the parent node in POSIX pathing.</li>
+<li>The empty string, as POSIX explicitly prohibits zero-length filenames</li>
+<li>Any string containing a <code>NULL</code> (<code>0x00</code>) byte, as this is often used to signify string
+terminations in some systems, such as C-compatible systems. Many unix
+file systems do not accept this character in path components.</li>
+<li>Any string containing a <code>/</code> (<code>0x2F</code>) codepoint, as path components cannot
+contain <code>/</code> (see <a href="#paths">Paths</a>): a directory entry with such a name cannot
+be addressed by any UnixFS path and is reachable only by its own CID.</li>
+</ul>
+</section></section></section><section id="profiles"><h2><bdi class="secno">4. </bdi>Profiles</h2><a href="#profiles" class="self-link" aria-label="Section 4."></a>
+<p>DAG construction parameters such as chunk size, DAG width, HAMT fanout and
+threshold, and <code>PBNode</code> field ordering all affect the resulting CID, so the
+same input can produce different CIDs across implementations. A Profile
+is a named, complete set of these parameters: two implementations importing
+the same input under the same profile produce the same CID.</p>
+<p>The following profiles are defined:</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Defined in</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unixfs-v0-2015</code></td>
+<td><a href="https://specs.ipfs.tech/ipips/ipip-0499/">IPIP-0499</a></td>
+<td>Legacy CIDv0 parameters matching Kubo defaults through v0.39. For reproducing historical CIDv0 references.</td>
+</tr>
+<tr>
+<td><code>unixfs-v1-2025</code></td>
+<td><a href="https://specs.ipfs.tech/ipips/ipip-0499/">IPIP-0499</a></td>
+<td>Deterministic CIDv1 parameters with modern settings.</td>
+</tr>
+</tbody>
+</table>
+<p>Implementations <em class="rfc2119">SHOULD</em> use these exact profile names when exposing profile
+selection in configuration, command-line flags, documentation, and test
+suites, so that a profile name means the same thing in every tool.</p>
+</section><section id="appendix-test-vectors"><h2><bdi class="secno">5. </bdi>Appendix: Test Vectors</h2><a href="#appendix-test-vectors" class="self-link" aria-label="Section 5."></a>
+<div class="warning"><p><strong>Implementations <em class="rfc2119">SHOULD</em> validate against these test vectors and reference implementations before production use.</strong></p></div>
+<p>This section provides test vectors organized by UnixFS structure type, progressing from simple to complex within each category.</p>
+<section id="file-test-vectors"><h3><bdi class="secno">5.1 </bdi>File Test Vectors</h3><a href="#file-test-vectors" class="self-link" aria-label="Section 5.1"></a>
+<p>Test vectors for UnixFS file structures, progressing from simple single-block files to complex multi-block files.</p>
+<section id="single-raw-block-file"><h4><bdi class="secno">5.1.1 </bdi>Single <code>raw</code> Block File</h4><a href="#single-raw-block-file" class="self-link" aria-label="Section 5.1.1"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/dir-with-files.car"><code>dir-with-files.car</code></a>
+<ul>
+<li>CID: <code>bafkreifjjcie6lypi6ny7amxnfftagclbuxndqonfipmb64f2km2devei4</code> (hello.txt)</li>
+<li>Type: <a href="#raw-node"><code>raw</code> Node</a></li>
+<li>Content: "hello world\n" (12 bytes)</li>
+<li>Block Analysis:
+<ul>
+<li>Block size (<code>ipfs block stat</code>): 12 bytes</li>
+<li>Data size (<code>ipfs cat</code>): 12 bytes</li>
+<li>DAG-PB envelope: N/A (raw blocks have no envelope overhead)</li>
+</ul>
+</li>
+<li>Purpose: Single block using <code>raw</code> codec, no protobuf wrapper</li>
+<li>Validation: Block content IS the file content, no UnixFS metadata</li>
+</ul>
+</li>
+</ul>
+</section><section id="single-dag-pb-block-file"><h4><bdi class="secno">5.1.2 </bdi>Single <code>dag-pb</code> Block File</h4><a href="#single-dag-pb-block-file" class="self-link" aria-label="Section 5.1.2"></a>
+<ul>
+<li>Fixture: Well-known test CID from IPFS Gateway Checker, shipped as
+<code>cars/unixfs_gateway-checker-file.car</code> inside
+<a href="https://github.com/user-attachments/files/31090406/ipfs-specs-fixtures.zip"><code>ipfs-specs-fixtures.zip</code></a></li>
+<li>CID: <code>bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m</code></li>
+<li>Type: <a href="#dag-pb-file"><code>dag-pb</code> File</a> with data in the same block</li>
+<li>Content: "Hello from IPFS Gateway Checker\n" (32 bytes)</li>
+<li>Block Analysis:
+<ul>
+<li>Block size (<code>ipfs block stat</code>): 40 bytes</li>
+<li>Data size (<code>ipfs cat</code>): 32 bytes</li>
+<li>DAG-PB envelope: 8 bytes (40 - 32)</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📄 small-file.txt      # bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m (dag-pb)
+    └── 📦 Data.Data   # "Hello from IPFS Gateway Checker\n" (32 bytes, stored inline in UnixFS protobuf)
+</code></pre>
+</li>
+<li>Purpose: Small file stored within dag-pb Data field</li>
+<li>Validation: File content extracted from UnixFS Data.Data field</li>
+</ul>
+</section><section id="multi-block-file"><h4><bdi class="secno">5.1.3 </bdi>Multi-block File</h4><a href="#multi-block-file" class="self-link" aria-label="Section 5.1.3"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/dir-with-files.car"><code>dir-with-files.car</code></a>
+<ul>
+<li>CID: <code>bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa</code> (multiblock.txt)</li>
+<li>Type: <a href="#dag-pb-file"><code>dag-pb</code> File</a> with multiple <a href="#raw-node"><code>raw</code> Node</a> leaves</li>
+<li>Content: Lorem ipsum text (1026 bytes total)</li>
+<li>Block Analysis:
+<ul>
+<li>Root block size (<code>ipfs block stat</code>): 245 bytes (dag-pb)</li>
+<li>Total data size (<code>ipfs cat</code>): 1026 bytes</li>
+<li>Child blocks:
+<ul>
+<li>Block 1: 256 bytes (raw)</li>
+<li>Block 2: 256 bytes (raw)</li>
+<li>Block 3: 256 bytes (raw)</li>
+<li>Block 4: 256 bytes (raw)</li>
+<li>Block 5: 2 bytes (raw)</li>
+</ul>
+</li>
+<li>DAG-PB envelope: 245 bytes (root block containing metadata + links)</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📄 multiblock.txt    # bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa (dag-pb root)
+├── 📦 [0-255]       # bafkreie5noke3mb7hqxukzcy73nl23k6lxszxi5w3dtmuwz62wnvkpsscm (raw, 256 bytes)
+├── 📦 [256-511]     # bafkreih4ephajybraj6wnxsbwjwa77fukurtpl7oj7t7pfq545duhot7cq (raw, 256 bytes)
+├── 📦 [512-767]     # bafkreigu7buvm3cfunb35766dn7tmqyh2um62zcio63en2btvxuybgcpue (raw, 256 bytes)
+├── 📦 [768-1023]    # bafkreicll3huefkc3qnrzeony7zcfo7cr3nbx64hnxrqzsixpceg332fhe (raw, 256 bytes)
+└── 📦 [1024-1025]   # bafkreifst3pqztuvj57lycamoi7z34b4emf7gawxs74nwrc2c7jncmpaqm (raw, 2 bytes)
+</code></pre>
+</li>
+<li>Purpose: File chunking and reassembly</li>
+<li>Validation:
+<ul>
+<li>Links have no Names (must be absent)</li>
+<li>Blocksizes array matches Links array length</li>
+<li>Reassembled content matches original</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section><section id="file-with-missing-blocks"><h4><bdi class="secno">5.1.4 </bdi>File with Missing Blocks</h4><a href="#file-with-missing-blocks" class="self-link" aria-label="Section 5.1.4"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_7unnamedlinks%2Bdata/bafybeibfhhww5bpsu34qs7nz25wp7ve36mcc5mxd5du26sr45bbnjhpkei.dag-pb"><code>bafybeibfhhww5bpsu34qs7nz25wp7ve36mcc5mxd5du26sr45bbnjhpkei.dag-pb</code></a>
+<ul>
+<li>CID: <code>bafybeibfhhww5bpsu34qs7nz25wp7ve36mcc5mxd5du26sr45bbnjhpkei</code></li>
+<li>Type: <a href="#dag-pb-file"><code>dag-pb</code> File</a> with 7 links to child blocks</li>
+<li>Size: 306MB total (from metadata)</li>
+<li>Structure:
+<pre><code>📄 large-file        # bafybeibfhhww5bpsu34qs7nz25wp7ve36mcc5mxd5du26sr45bbnjhpkei (dag-pb root)
+├── ⚠️ block[0]      # (missing child block)
+├── ⚠️ block[1]      # (missing child block)
+├── ⚠️ block[2]      # (missing child block)
+├── ⚠️ block[3]      # (missing child block)
+├── ⚠️ block[4]      # (missing child block)
+├── ⚠️ block[5]      # (missing child block)
+└── ⚠️ block[6]      # (missing child block)
+</code></pre>
+</li>
+<li>Note: Child blocks are NOT included - they may be unavailable locally or missing entirely</li>
+<li>Purpose:
+<ul>
+<li>Reading UnixFS file metadata should require only the root block</li>
+<li>File size and structure can be determined without fetching children</li>
+<li>Operations should not block waiting for child blocks unless content is actually requested</li>
+</ul>
+</li>
+<li>Validation: Can extract file size and chunking info from root block alone</li>
+</ul>
+</li>
+</ul>
+</section><section id="range-requests-with-missing-blocks"><h4><bdi class="secno">5.1.5 </bdi>Range Requests with Missing Blocks</h4><a href="#range-requests-with-missing-blocks" class="self-link" aria-label="Section 5.1.5"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/trustless_gateway_car/file-3k-and-3-blocks-missing-block.car"><code>file-3k-and-3-blocks-missing-block.car</code></a>
+<ul>
+<li>CID: <code>QmYhmPjhFjYFyaoiuNzYv8WGavpSRDwdHWe5B4M5du5Rtk</code></li>
+<li>Type: <a href="#dag-pb-file"><code>dag-pb</code> File</a> with 3 links but middle block intentionally missing</li>
+<li>Structure:
+<pre><code>📄 file-3k           # QmYhmPjhFjYFyaoiuNzYv8WGavpSRDwdHWe5B4M5du5Rtk (dag-pb root)
+├── 📦 [0-1023]      # QmPKt7ptM2ZYSGPUc8PmPT2VBkLDK3iqpG9TBJY7PCE9rF (raw, 1024 bytes)
+├── ⚠️ [1024-2047]   # (missing block - intentionally removed)
+└── 📦 [2048-3071]   # QmWXY482zQdwecnfBsj78poUUuPXvyw2JAFAEMw4tzTavV (raw, 1024 bytes)
+</code></pre>
+</li>
+<li>Critical requirement: Must support seeking without all blocks available</li>
+<li>Purpose:
+<ul>
+<li>Fetch only required blocks for byte range requests (e.g., bytes=0-1023 or bytes=2048-3071)</li>
+<li>Gateway conformance tests verify that first block (<code>QmPKt7ptM2ZYSGPUc8PmPT2VBkLDK3iqpG9TBJY7PCE9rF</code>) and third block (<code>QmWXY482zQdwecnfBsj78poUUuPXvyw2JAFAEMw4tzTavV</code>) can be fetched independently</li>
+<li>Requests for middle block or byte ranges requiring it should fail gracefully</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section></section><section id="directory-test-vectors"><h3><bdi class="secno">5.2 </bdi>Directory Test Vectors</h3><a href="#directory-test-vectors" class="self-link" aria-label="Section 5.2"></a>
+<p>Test vectors for UnixFS directory structures, progressing from simple flat directories to complex HAMT-sharded directories.</p>
+<section id="simple-directory"><h4><bdi class="secno">5.2.1 </bdi>Simple Directory</h4><a href="#simple-directory" class="self-link" aria-label="Section 5.2.1"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/dir-with-files.car"><code>dir-with-files.car</code></a>
+<ul>
+<li>CID: <code>bafybeihchr7vmgjaasntayyatmp5sv6xza57iy2h4xj7g46bpjij6yhrmy</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a></li>
+<li>Block Analysis:
+<ul>
+<li>Directory block size (<code>ipfs block stat</code>): 185 bytes</li>
+<li>Contains UnixFS Type=Directory metadata + 4 links</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeihchr7vmgjaasntayyatmp5sv6xza57iy2h4xj7g46bpjij6yhrmy
+├── 📄 ascii-copy.txt  # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (raw, 31 bytes) "hello application/vnd.ipld.car"
+├── 📄 ascii.txt       # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (raw, 31 bytes) "hello application/vnd.ipld.car"
+├── 📄 hello.txt       # bafkreifjjcie6lypi6ny7amxnfftagclbuxndqonfipmb64f2km2devei4 (raw, 12 bytes) "hello world\n"
+└── 📄 multiblock.txt  # bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa (dag-pb, 1026 bytes) Lorem ipsum text
+</code></pre>
+</li>
+<li>Purpose: Directory listing, link sorting, deduplication (ascii.txt and ascii-copy.txt share same CID)</li>
+<li>Validation: Links sorted lexicographically by Name, each has valid Tsize</li>
+</ul>
+</li>
+</ul>
+</section><section id="nested-directories"><h4><bdi class="secno">5.2.2 </bdi>Nested Directories</h4><a href="#nested-directories" class="self-link" aria-label="Section 5.2.2"></a>
+<ul>
+<li>
+<p>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/trustless_gateway_car/subdir-with-two-single-block-files.car"><code>subdir-with-two-single-block-files.car</code></a></p>
+<ul>
+<li>CID: <code>bafybeietjm63oynimmv5yyqay33nui4y4wx6u3peezwetxgiwvfmelutzu</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a> containing another Directory</li>
+<li>Block Analysis:
+<ul>
+<li>Root directory block size: 55 bytes</li>
+<li>Subdirectory block size: 110 bytes</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeietjm63oynimmv5yyqay33nui4y4wx6u3peezwetxgiwvfmelutzu
+└── 📁 subdir/         # bafybeiggghzz6dlue3m6nb2dttnbrygxh3lrjl5764f2m4gq7dgzdt55o4 (dag-pb Directory)
+    ├── 📄 ascii.txt   # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (raw, 31 bytes) "hello application/vnd.ipld.car"
+    └── 📄 hello.txt   # bafkreifjjcie6lypi6ny7amxnfftagclbuxndqonfipmb64f2km2devei4 (raw, 12 bytes) "hello world\n"
+</code></pre>
+</li>
+<li>Purpose: Path traversal through directory hierarchy</li>
+<li>Validation: Can traverse <code>/subdir/hello.txt</code> path correctly</li>
+</ul>
+</li>
+<li>
+<p>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_dag/dag-pb.car"><code>dag-pb.car</code></a></p>
+<ul>
+<li>CID: <code>bafybeiegxwlgmoh2cny7qlolykdf7aq7g6dlommarldrbm7c4hbckhfcke</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a></li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeiegxwlgmoh2cny7qlolykdf7aq7g6dlommarldrbm7c4hbckhfcke
+├── 📁 foo/            # bafybeidryarwh34ygbtyypbu7qjkl4euiwxby6cql6uvosonohkq2kwnkm (dag-pb Directory)
+│   └── 📄 bar.txt     # bafkreigzafgemjeejks3vqyuo46ww2e22rt7utq5djikdofjtvnjl5zp6u (raw, 14 bytes) "Hello, world!"
+└── 📄 foo.txt         # bafkreic3ondyhizrzeoufvoodehinugpj3ecruwokaygl7elezhn2khqfa (raw, 13 bytes) "Hello, IPFS!"
+</code></pre>
+</li>
+<li>Purpose: Another example of standard UnixFS directory with raw leaf blocks</li>
+</ul>
+</li>
+</ul>
+</section><section id="special-characters-in-filenames"><h4><bdi class="secno">5.2.3 </bdi>Special Characters in Filenames</h4><a href="#special-characters-in-filenames" class="self-link" aria-label="Section 5.2.3"></a>
+<ul>
+<li>
+<p>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_tar/fixtures.car"><code>path_gateway_tar/fixtures.car</code></a></p>
+<ul>
+<li>CID: <code>bafybeig6ka5mlwkl4subqhaiatalkcleo4jgnr3hqwvpmsqfca27cijp3i</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a> with nested subdirectories</li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeig6ka5mlwkl4subqhaiatalkcleo4jgnr3hqwvpmsqfca27cijp3i
+└── 📁 ą/              # (dag-pb Directory)
+    └── 📁 ę/          # (dag-pb Directory)
+        └── 📄 file-źł.txt  # (raw, 34 bytes) "I am a txt file on path with utf8"
+</code></pre>
+</li>
+<li>Path with Polish diacritics: <code>/ipfs/bafybeig6ka5mlwkl4subqhaiatalkcleo4jgnr3hqwvpmsqfca27cijp3i/ą/ę/file-źł.txt</code></li>
+<li>Purpose: UTF-8 characters in directory and file names (ą, ę, ź, ł)</li>
+<li>Validation: Directory traversal works with UTF-8 paths</li>
+</ul>
+</li>
+<li>
+<p>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/dir-with-percent-encoded-filename.car"><code>dir-with-percent-encoded-filename.car</code></a></p>
+<ul>
+<li>CID: <code>bafybeig675grnxcmshiuzdaz2xalm6ef4thxxds6o6ypakpghm5kghpc34</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a></li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeig675grnxcmshiuzdaz2xalm6ef4thxxds6o6ypakpghm5kghpc34
+└── 📄 Portugal%2C+España=Peninsula Ibérica.txt  # bafkreihfmctcb2kuvoljqeuphqr2fg2r45vz5cxgq5c2yrxnqg5erbitmq (raw, 38 bytes) "hello from a percent encoded filename"
+</code></pre>
+</li>
+<li>Purpose: Filenames with percent-encoding (<code>%2C</code>), plus signs, equals, and non-ASCII characters</li>
+<li>Validation:
+<ul>
+<li>Implementations <em class="rfc2119">MUST</em> preserve the original filename exactly as stored in UnixFS</li>
+<li>Must not be confused by filenames mixing Unicode characters with percent-encoding</li>
+<li>Gateway example: In gateway-conformance, accessing this file from a web browser requires double-encoding the <code>%2C</code> as <code>%252C</code> in the URL path (<code>/ipfs//Portugal%252C+España=Peninsula%20Ibérica.txt</code>)</li>
+<li>Browser implementations should preserve <code>%2C</code> in the filename to avoid conflicts with URL encoding</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section><section id="directory-with-missing-blocks"><h4><bdi class="secno">5.2.4 </bdi>Directory with Missing Blocks</h4><a href="#directory-with-missing-blocks" class="self-link" aria-label="Section 5.2.4"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_4namedlinks%2Bdata/bafybeigcsevw74ssldzfwhiijzmg7a35lssfmjkuoj2t5qs5u5aztj47tq.dag-pb"><code>bafybeigcsevw74ssldzfwhiijzmg7a35lssfmjkuoj2t5qs5u5aztj47tq.dag-pb</code></a>
+<ul>
+<li>CID: <code>bafybeigcsevw74ssldzfwhiijzmg7a35lssfmjkuoj2t5qs5u5aztj47tq</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a></li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeigcsevw74ssldzfwhiijzmg7a35lssfmjkuoj2t5qs5u5aztj47tq
+├── ⚠️  audio_only.m4a   # (link to missing block, ~24MB)
+├── ⚠️  chat.txt         # (link to missing block, ~1KB)
+├── ⚠️  playback.m3u     # (link to missing block, ~116 bytes)
+└── ⚠️  zoom_0.mp4       # (link to missing block)
+</code></pre>
+</li>
+<li>Note: Child blocks are NOT included - they may be unavailable locally or missing entirely</li>
+<li>Purpose:
+<ul>
+<li>Directory enumeration should require only the root block</li>
+<li>Can list all filenames and their CIDs without fetching child blocks</li>
+<li>Operations should not block waiting for child blocks unless content is actually requested</li>
+</ul>
+</li>
+<li>Validation: Can enumerate directory contents from root block alone</li>
+</ul>
+</li>
+</ul>
+</section><section id="hamt-sharded-directory"><h4><bdi class="secno">5.2.5 </bdi>HAMT Sharded Directory</h4><a href="#hamt-sharded-directory" class="self-link" aria-label="Section 5.2.5"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/trustless_gateway_car/single-layer-hamt-with-multi-block-files.car"><code>single-layer-hamt-with-multi-block-files.car</code></a>
+<ul>
+<li>CID: <code>bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i</code></li>
+<li>Type: <a href="#dag-pb-hamtdirectory"><code>dag-pb</code> HAMTDirectory</a></li>
+<li>Block Analysis:
+<ul>
+<li>Root HAMT block size (<code>ipfs block stat</code>): 12046 bytes</li>
+<li>Contains UnixFS Type=HAMTShard metadata with fanout=256</li>
+<li>Links use 2-character hex prefixes for hash buckets (00-FF)</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📂 /                    # bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i (HAMT root)
+├── 📄 1.txt           # (dag-pb file, multi-block)
+├── 📄 2.txt           # (dag-pb file, multi-block)
+├── ...
+└── 📄 1000.txt        # (dag-pb file, multi-block)
+</code></pre>
+</li>
+<li>Contents: 1000 numbered files (1.txt through 1000.txt), each containing Lorem ipsum text</li>
+<li>Purpose: HAMT sharding for large directories</li>
+<li>Validation:
+<ul>
+<li>Fanout field = 256</li>
+<li>Link Names in HAMT have 2-character hex prefix (hash buckets)</li>
+<li>Can retrieve any file by name through hash bucket calculation</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section><section id="pbnode-field-ordering"><h4><bdi class="secno">5.2.6 </bdi>PBNode Field Ordering</h4><a href="#pbnode-field-ordering" class="self-link" aria-label="Section 5.2.6"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.14.1/fixtures/path_gateway_unixfs/pbnode-field-orders.car"><code>pbnode-field-orders.car</code></a>
+<ul>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a> and
+<a href="#dag-pb-hamtdirectory"><code>dag-pb</code> HAMTDirectory</a> in both <code>PBNode</code> field
+orderings (see <a href="#dag-pb-node"><code>dag-pb</code> Node</a> and <a href="#profiles">Profiles</a>)</li>
+<li>CIDs:
+<ul>
+<li><code>bafybeigqvyloizmfcdy6scaxnyltftzptaruqa3hnnplfzsbf4sqteiwlm</code>: <code>Directory</code>, <code>Data</code>-first (opt-in)</li>
+<li><code>bafybeigdcg7pksx2zk5336vrfsktjodlr4rbfz37qr3koc5xboxe5ekv24</code>: <code>Directory</code>, <code>Links</code>-first (canonical)</li>
+<li><code>bafybeicwgy2rlqmqqu3yy2tqvm2wbgdvy3snu4sbbv4wqpvpnoplpzxz74</code>: <code>HAMTShard</code>, <code>Data</code>-first (hand-crafted)</li>
+<li><code>bafybeicjwkfslu7gwyywffvqgse5kiibojtktxcdqhgv7ldj5fjdacuceq</code>: <code>HAMTShard</code>, <code>Links</code>-first (hand-crafted)</li>
+</ul>
+</li>
+<li>Contents: each root holds a single <code>hello.txt</code> ("hello\n") stored as a
+<code>raw</code> leaf (<code>bafkreicysg23kiwv34eg2d7qweipxwosdo2py4ldv42nbauguluen5v6am</code>)</li>
+<li>Purpose: readers accept both <code>PBNode</code> field orderings</li>
+<li>Validation:
+<ul>
+<li><code>hello.txt</code> resolves through all four roots</li>
+<li>Byte-level vectors: fixtures table in
+<a href="https://specs.ipfs.tech/ipips/ipip-0550/">IPIP-0550</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section></section><section id="special-cases-and-advanced-features"><h3><bdi class="secno">5.3 </bdi>Special Cases and Advanced Features</h3><a href="#special-cases-and-advanced-features" class="self-link" aria-label="Section 5.3"></a>
+<p>Test vectors for special UnixFS features and edge cases.</p>
+<section id="well-known-unixfs-cids"><h4><bdi class="secno">5.3.1 </bdi>Well-Known UnixFS CIDs</h4><a href="#well-known-unixfs-cids" class="self-link" aria-label="Section 5.3.1"></a>
+<p>Common empty structures that implementations frequently encounter:</p>
+<ul>
+<li>
+<p><strong>Empty dag-pb directory</strong></p>
+<ul>
+<li><strong>CIDv0</strong>: <code>QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn</code></li>
+<li><strong>CIDv1</strong>: <code>bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354</code></li>
+<li><strong>Inlined</strong>: <code>bafyaabakaieac</code> (identity multihash)</li>
+</ul>
+</li>
+<li>
+<p><strong>Empty dag-pb file</strong></p>
+<ul>
+<li><strong>CIDv0</strong>: <code>QmbFMke1KXqnYyBBWxB74N4c5SBnJMVAiMNRcGu6x1AwQH</code></li>
+<li><strong>CIDv1</strong>: <code>bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Empty raw block</strong></p>
+<ul>
+<li><strong>CIDv1</strong>: <code>bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku</code></li>
+<li><strong>Inlined</strong>: <code>bafkqaaa</code> (identity multihash)</li>
+</ul>
+</li>
+</ul>
+<p>These CIDs appear frequently in UnixFS implementations and are often hardcoded for performance optimization.</p>
+</section><section id="identity-cid-size-limit"><h4><bdi class="secno">5.3.2 </bdi>Identity CID Size Limit</h4><a href="#identity-cid-size-limit" class="self-link" aria-label="Section 5.3.2"></a>
+<div class="warning"><p>Identity CIDs (using multihash code <code>0x00</code>) are experimental and subject to strict size limitations.</p></div>
+<p>Identity CIDs embed data directly in the CID rather than referencing external blocks. While useful for very small data that benefits from inline storage, in UnixFS contexts they are limited to prevent misuse:</p>
+<ul>
+<li><strong>Maximum digest size</strong>: 128 bytes</li>
+<li><strong>Purpose</strong>: Small inline data only, not general-purpose data containers</li>
+</ul>
+<p>Implementations:</p>
+<ul>
+<li><strong><em class="rfc2119">MUST</em></strong> never produce identity CIDs with digest sizes exceeding 128 bytes</li>
+<li><strong><em class="rfc2119">MUST</em></strong> reject identity CIDs with digest sizes exceeding 128 bytes when reading</li>
+<li><strong><em class="rfc2119">SHOULD</em></strong> automatically convert identity CIDs to regular blocks if data modifications would push the digest size over the 128-byte limit</li>
+</ul>
+<p>This limit ensures identity CIDs remain an optimization for tiny data rather than a way to embed arbitrary amounts of data directly in CIDs.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Valid (128 bytes): <code>bafkqbaabijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbee</code> - Implementations <em class="rfc2119">MUST</em> accept and convert to 128 'B' characters</li>
+<li>Invalid (129 bytes): <code>bafkqbaibifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqi</code> - Implementations <em class="rfc2119">MUST</em> reject</li>
+</ul>
+</section><section id="symbolic-links"><h4><bdi class="secno">5.3.3 </bdi>Symbolic Links</h4><a href="#symbolic-links" class="self-link" aria-label="Section 5.3.3"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/symlink.car"><code>symlink.car</code></a>
+<ul>
+<li>CID: <code>QmWvY6FaqFMS89YAQ9NAPjVP4WZKA1qbHbicc9HeSKQTgt</code></li>
+<li>Types: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a> containing <a href="#dag-pb-symlink"><code>dag-pb</code> Symlink</a></li>
+<li>Block Analysis:
+<ul>
+<li>Root directory block: Not measured (V0 CID)</li>
+<li>Symlink block (<code>QmTB8BaCJdCH5H3k7GrxJsxgDNmNYGGR71C58ERkivXoj5</code>): 9 bytes</li>
+<li>Target file block (<code>Qme2y5HA5kvo2jAx13UsnV5bQJVijiAJCPvaW3JGQWhvJZ</code>): 16 bytes</li>
+</ul>
+</li>
+<li>Structure:
+<pre><code>📁 /                    # QmWvY6FaqFMS89YAQ9NAPjVP4WZKA1qbHbicc9HeSKQTgt
+├── 📄 foo           # Qme2y5HA5kvo2jAx13UsnV5bQJVijiAJCPvaW3JGQWhvJZ - file containing "content"
+└── 🔗 bar           # QmTB8BaCJdCH5H3k7GrxJsxgDNmNYGGR71C58ERkivXoj5 - symlink pointing to "foo"
+</code></pre>
+</li>
+<li>Purpose: UnixFS symlink resolution</li>
+<li>Security note: Critical for preventing path traversal vulnerabilities</li>
+</ul>
+</li>
+</ul>
+</section><section id="mixed-block-sizes"><h4><bdi class="secno">5.3.4 </bdi>Mixed Block Sizes</h4><a href="#mixed-block-sizes" class="self-link" aria-label="Section 5.3.4"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/trustless_gateway_car/subdir-with-mixed-block-files.car"><code>subdir-with-mixed-block-files.car</code></a>
+<ul>
+<li>CID: <code>bafybeidh6k2vzukelqtrjsmd4p52cpmltd2ufqrdtdg6yigi73in672fwu</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a> with subdirectory</li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeidh6k2vzukelqtrjsmd4p52cpmltd2ufqrdtdg6yigi73in672fwu
+└── 📁 subdir/         # bafybeicnmple4ehlz3ostv2sbojz3zhh5q7tz5r2qkfdpqfilgggeen7xm
+    ├── 📄 ascii.txt   # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (raw, 31 bytes) "hello application/vnd.ipld.car"
+    ├── 📄 hello.txt   # bafkreifjjcie6lypi6ny7amxnfftagclbuxndqonfipmb64f2km2devei4 (raw, 12 bytes) "hello world\n"
+    └── 📄 multiblock.txt  # bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa (dag-pb, 1271 bytes total)
+</code></pre>
+</li>
+<li>Purpose: Directories containing both single-block raw files and multi-block dag-pb files</li>
+<li>Validation: Can handle mixed file types in same directory</li>
+</ul>
+</li>
+</ul>
+</section><section id="deduplication"><h4><bdi class="secno">5.3.5 </bdi>Deduplication</h4><a href="#deduplication" class="self-link" aria-label="Section 5.3.5"></a>
+<ul>
+<li>Fixture: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/trustless_gateway_car/dir-with-duplicate-files.car"><code>dir-with-duplicate-files.car</code></a>
+<ul>
+<li>CID: <code>bafybeihchr7vmgjaasntayyatmp5sv6xza57iy2h4xj7g46bpjij6yhrmy</code></li>
+<li>Type: <a href="#dag-pb-directory"><code>dag-pb</code> Directory</a></li>
+<li>Structure:
+<pre><code>📁 /                    # bafybeihchr7vmgjaasntayyatmp5sv6xza57iy2h4xj7g46bpjij6yhrmy
+├── 🔗 ascii-copy.txt  # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (same CID as ascii.txt)
+├── 📄 ascii.txt       # bafkreifkam6ns4aoolg3wedr4uzrs3kvq66p4pecirz6y2vlrngla62mxm (raw, 31 bytes) "hello application/vnd.ipld.car"
+├── 📄 hello.txt       # bafkreifjjcie6lypi6ny7amxnfftagclbuxndqonfipmb64f2km2devei4 (raw, 12 bytes) "hello world\n"
+└── 📄 multiblock.txt  # bafybeigcisqd7m5nf3qmuvjdbakl5bdnh4ocrmacaqkpuh77qjvggmt2sa (dag-pb, multi-block)
+</code></pre>
+</li>
+<li>Purpose: Multiple directory entries pointing to the same content CID (deduplication)</li>
+<li>Validation: Both ascii.txt and ascii-copy.txt resolve to the same content block</li>
+</ul>
+</li>
+</ul>
+</section><section id="invalid-test-cases"><h4><bdi class="secno">5.3.6 </bdi>Invalid Test Cases</h4><a href="#invalid-test-cases" class="self-link" aria-label="Section 5.3.6"></a>
+<p>These fixtures test raw dag-pb codec capabilities and serve as invalid test vectors for UnixFS implementations. Most lack UnixFS metadata - meaning their dag-pb Data field either doesn't exist, is empty, or contains bytes that aren't a valid UnixFS protobuf (which requires at minimum a <code>Type</code> field specifying File/Directory/Symlink etc).</p>
+<p>These validate that implementations properly reject malformed or non-UnixFS dag-pb nodes rather than crashing or behaving unpredictably:</p>
+<ul>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_empty/bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku.dag-pb"><code>bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku.dag-pb</code></a> - Empty dag-pb node, 0 bytes (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_1link/bafybeihyivpglm6o6wrafbe36fp5l67abmewk7i2eob5wacdbhz7as5obe.dag-pb"><code>bafybeihyivpglm6o6wrafbe36fp5l67abmewk7i2eob5wacdbhz7as5obe.dag-pb</code></a> - Single link without data, bytes: <code>12240a2212207521fe19c374a97759226dc5c0c8e674e73950e81b211f7dd3b6b30883a08a51</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_2link%2Bdata/bafybeibh647pmxyksmdm24uad6b5f7tx4dhvilzbg2fiqgzll4yek7g7y4.dag-pb"><code>bafybeibh647pmxyksmdm24uad6b5f7tx4dhvilzbg2fiqgzll4yek7g7y4.dag-pb</code></a> - Two links with data, bytes: <code>12340a2212208ab7a6c5e74737878ac73863cb76739d15d4666de44e5756bf55a2f9e9ab5f431209736f6d65206c696e6b1880c2d72f12370a2212208ab7a6c5e74737878ac73863cb76739d15d4666de44e5756bf55a2f9e9ab5f44120f736f6d65206f74686572206c696e6b18080a09736f6d652064617461</code> (invalid UnixFS protobuf)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_11unnamedlinks%2Bdata/bafybeie7xh3zqqmeedkotykfsnj2pi4sacvvsjq6zddvcff4pq7dvyenhu.dag-pb"><code>bafybeie7xh3zqqmeedkotykfsnj2pi4sacvvsjq6zddvcff4pq7dvyenhu.dag-pb</code></a> - Eleven unnamed links with data (invalid UnixFS protobuf)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Data_some/bafybeibazl2z4vqp2tmwcfag6wirmtpnomxknqcgrauj7m2yisrz3qjbom.dag-pb"><code>bafybeibazl2z4vqp2tmwcfag6wirmtpnomxknqcgrauj7m2yisrz3qjbom.dag-pb</code></a> - Node with data field populated, bytes: <code>0a050001020304</code> (invalid UnixFS protobuf)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Data_zero/bafybeiaqfni3s5s2k2r6rgpxz4hohdsskh44ka5tk6ztbjerqpvxwfkwaq.dag-pb"><code>bafybeiaqfni3s5s2k2r6rgpxz4hohdsskh44ka5tk6ztbjerqpvxwfkwaq.dag-pb</code></a> - Node with empty data field, bytes: <code>0a00</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Links_Hash_some/bafybeia53f5n75ituvc3yupuf7tdnxf6fqetrmo2alc6g6iljkmk7ys5mm.dag-pb"><code>bafybeia53f5n75ituvc3yupuf7tdnxf6fqetrmo2alc6g6iljkmk7ys5mm.dag-pb</code></a> - Links with hash only, bytes: <code>120b0a09015500050001020304</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Links_Hash_some_Name_some/bafybeifq4hcxma3kjljrpxtunnljtc6tvbkgsy3vldyfpfbx2lij76niyu.dag-pb"><code>bafybeifq4hcxma3kjljrpxtunnljtc6tvbkgsy3vldyfpfbx2lij76niyu.dag-pb</code></a> - Links with hash and name, bytes: <code>12160a090155000500010203041209736f6d65206e616d65</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Links_Hash_some_Name_zero/bafybeie7fstnkm4yshfwnmpp7d3mlh4f4okmk7a54d6c3ffr755q7qzk44.dag-pb"><code>bafybeie7fstnkm4yshfwnmpp7d3mlh4f4okmk7a54d6c3ffr755q7qzk44.dag-pb</code></a> - Links with hash but empty name, bytes: <code>120d0a090155000500010203041200</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Links_Hash_some_Tsize_some/bafybeiezymjvhwfuharanxmzxwuomzjjuzqjewjolr4phaiyp6l7qfwo64.dag-pb"><code>bafybeiezymjvhwfuharanxmzxwuomzjjuzqjewjolr4phaiyp6l7qfwo64.dag-pb</code></a> - Links with hash and Tsize, bytes: <code>12140a0901550005000102030418ffffffffffffff0f</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_Links_Hash_some_Tsize_zero/bafybeichjs5otecmbvwh5azdr4jc45mp2qcofh2fr54wjdxhz4znahod2i.dag-pb"><code>bafybeichjs5otecmbvwh5azdr4jc45mp2qcofh2fr54wjdxhz4znahod2i.dag-pb</code></a> - Links with hash but zero Tsize, bytes: <code>120d0a090155000500010203041800</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_simple_forms_1/bafybeia2qk4u55f2qj7zimmtpulejgz7urp7rzs44cvledcaj42gltkk3u.dag-pb"><code>bafybeia2qk4u55f2qj7zimmtpulejgz7urp7rzs44cvledcaj42gltkk3u.dag-pb</code></a> - Simple form variant 1, bytes: <code>0a03010203</code> (invalid UnixFS protobuf)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_simple_forms_2/bafybeiahfgovhod2uvww72vwdgatl5r6qkoeegg7at2bghiokupfphqcku.dag-pb"><code>bafybeiahfgovhod2uvww72vwdgatl5r6qkoeegg7at2bghiokupfphqcku.dag-pb</code></a> - Simple form variant 2, bytes: <code>120b0a0901550005000102030412100a09015500050001020304120362617212100a090155000500010203041203666f6f</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_simple_forms_3/bafybeidrg2f6slbv4yzydqtgmsi2vzojajnt7iufcreynfpxndca4z5twm.dag-pb"><code>bafybeidrg2f6slbv4yzydqtgmsi2vzojajnt7iufcreynfpxndca4z5twm.dag-pb</code></a> - Simple form variant 3, bytes: <code>120b0a09015500050001020304120e0a09015500050001020304120161120e0a09015500050001020304120161</code> (no UnixFS metadata)</li>
+<li>💢 <a href="https://github.com/ipld/codec-fixtures/raw/381e762b85862b2bbdb6ef2ba140b3c505e31a44/fixtures/dagpb_simple_forms_4/bafybeieube7zxmzoc5bgttub2aqofi6xdzimv5munkjseeqccn36a6v6j4.dag-pb"><code>bafybeieube7zxmzoc5bgttub2aqofi6xdzimv5munkjseeqccn36a6v6j4.dag-pb</code></a> - Simple form variant 4, bytes: <code>120e0a09015500050001020304120161120e0a09015500050001020304120161</code> (no UnixFS metadata)</li>
+<li>💢 <code>bafkqbaibifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqi</code> - Identity CID with 129-byte digest (exceeds <a href="#identity-cid-size-limit">128-byte limit</a> for identity CIDs). Content: 129 'A' characters. Implementations <em class="rfc2119">MUST</em> reject this CID as the digest exceeds the maximum allowed size for identity multihashes.</li>
+</ul>
+</section></section><section id="additional-testing-resources"><h3><bdi class="secno">5.4 </bdi>Additional Testing Resources</h3><a href="#additional-testing-resources" class="self-link" aria-label="Section 5.4"></a>
+<ul>
+<li>
+<p>Gateway Conformance Suite: <a href="https://github.com/ipfs/gateway-conformance">ipfs/gateway-conformance</a></p>
+<ul>
+<li>Real-world test suite with UnixFS fixtures</li>
+<li>Tests gateway behaviors with various UnixFS structures</li>
+<li>Includes edge cases and performance scenarios</li>
+</ul>
+</li>
+<li>
+<p>Test fixture generator: <a href="https://github.com/ipld/go-fixtureplate">go-fixtureplate</a></p>
+<ul>
+<li>Tool for generating custom test fixtures</li>
+<li>Includes UnixFS files and directories of arbitrary shapes</li>
+</ul>
+</li>
+</ul>
+<p>Report specification issues or submit corrections via <a href="https://github.com/ipfs/specs/issues">ipfs/specs</a>.</p>
+</section></section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">6. </bdi>Appendix: Notes for Implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 6."></a>
+<p>This section and included subsections are not authoritative.</p>
+<section id="popular-implementations"><h3><bdi class="secno">6.1 </bdi>Popular Implementations</h3><a href="#popular-implementations" class="self-link" aria-label="Section 6.1"></a>
+<ul>
+<li>JavaScript
+<ul>
+<li><a href="https://www.npmjs.com/package/@helia/unixfs"><code>@helia/unixfs</code></a> implementation of a filesystem compatible with <a href="https://github.com/ipfs/helia#readme">Helia SDK</a></li>
+<li>Data Formats - <a href="https://github.com/ipfs/js-ipfs-unixfs">unixfs</a>
+<ul>
+<li>Importer - <a href="https://github.com/ipfs/js-ipfs-unixfs/tree/main/packages/ipfs-unixfs-importer">unixfs-importer</a></li>
+<li>Exporter - <a href="https://github.com/ipfs/js-ipfs-unixfs/tree/main/packages/ipfs-unixfs-exporter">unixfs-exporter</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Go
+<ul>
+<li><a href="https://github.com/ipfs/boxo#readme">Boxo SDK</a> includes implementation of UnixFS filesystem
+<ul>
+<li>Protocol Buffer Definitions - <a href="https://github.com/ipfs/boxo/blob/v0.23.0/ipld/unixfs/pb/unixfs.proto"><code>ipfs/boxo/../unixfs.proto</code></a></li>
+<li><a href="https://github.com/ipfs/boxo/tree/main/files"><code>ipfs/boxo/files</code></a></li>
+<li><a href="https://github.com/ipfs/boxo/tree/main/ipld/unixfs/"><code>ipfs/boxo/ipld/unixfs</code></a></li>
+</ul>
+</li>
+<li>Alternative <code>go-ipld-prime</code> implementation: <a href="https://github.com/ipfs/go-unixfsnode"><code>ipfs/go-unixfsnode</code></a></li>
+</ul>
+</li>
+</ul>
+</section><section id="block-size-considerations"><h3><bdi class="secno">6.2 </bdi>Block Size Considerations</h3><a href="#block-size-considerations" class="self-link" aria-label="Section 6.2"></a>
+<p>While UnixFS itself does not mandate specific block size limits, implementations typically
+enforce practical constraints for operational efficiency:</p>
+<ul>
+<li><strong>Safe conventions for producing new blocks</strong>: Implementations <em class="rfc2119">SHOULD</em> use 256 KiB (popular
+legacy size) or 1 MiB (modern maximum recommended) for newly created blocks</li>
+<li><strong>Decoding requirement</strong>: Implementations <em class="rfc2119">MUST</em> be able to decode blocks up to 2 MiB
+as it is effectively the maximum message size in Bitswap, which acts as ecosystem-wide
+common denominator of what is the max block size at the time of writing this note (2025Q3)</li>
+</ul>
+<p>These limits affect several UnixFS behaviors:</p>
+<ul>
+<li>Small files that fit in a single chunk (most common: 256 KiB, 1 MiB) are typically
+stored as single <code>raw</code> blocks or within the <code>Data</code> field of a single <code>dag-pb</code> node</li>
+<li>Directories automatically convert to HAMT sharding when approaching the block size
+limit (commonly triggered around 256 KiB-1 MiB)</li>
+<li>File chunking algorithms target block sizes that stay within these limits while
+maximizing deduplication opportunities</li>
+</ul>
+<p>Note that specific block size policies are implementation-dependent and may be
+configurable. If you want to maximize the interoperability of your data, make sure
+to keep chunk sizes no bigger than 1 MiB. Consult your implementation's documentation
+for exact limits and configuration options.</p>
+</section><section id="simple-raw-example"><h3><bdi class="secno">6.3 </bdi>Simple <code>raw</code> Example</h3><a href="#simple-raw-example" class="self-link" aria-label="Section 6.3"></a>
+<p>In this example, we will build a single <code>raw</code> block with the string <code>test</code> as its content.</p>
+<p>First, hash the data:</p>
+<pre><code class="">$ echo -n "test" | sha256sum
+9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08  -
+</code></pre>
+<p>Add the CID prefix:</p>
+<pre><code>f01551220
+         9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+
+f this is the multibase prefix, we need it because we are working with a hex CID, this is omitted for binary CIDs
+ 01 the CID version, here one
+   55 the codec, here we MUST use Raw because this is a Raw file
+     12 the hashing function used, here sha256
+       20 the digest length 32 bytes
+         9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 is the the digest we computed earlier
+</code></pre>
+<p>Done. Assuming we stored this block in some implementation of our choice, which makes it accessible to our client, we can try to decode it.</p>
+<pre><code class="">$ ipfs cat f015512209f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+test
+</code></pre>
+</section><section id="offset-list"><h3><bdi class="secno">6.4 </bdi>Offset List</h3><a href="#offset-list" class="self-link" aria-label="Section 6.4"></a>
+<p>The offset list isn't the only way to use blocksizes and reach a correct implementation,
+it is a simple canonical one, python pseudo code to compute it looks like this:</p>
+<pre><code class="">def offsetlist(node):
+  unixfs = decodeDataField(node.Data)
+  if len(node.Links) != len(unixfs.Blocksizes):
+    raise "unmatched sister-lists" # error messages are implementation details
+
+  cursor = len(unixfs.Data) if unixfs.Data else 0
+  return [cursor] + [cursor := cursor + size for size in unixfs.Blocksizes[:-1]]
+</code></pre>
+<p>This will tell you which offset inside this node the children at the corresponding index starts to cover. (using <code>[x,y)</code> ranging)</p>
+</section></section><section id="appendix-historical-design-decisions"><h2><bdi class="secno">7. </bdi>Appendix: Historical Design Decisions</h2><a href="#appendix-historical-design-decisions" class="self-link" aria-label="Section 7."></a>
+<div class="warning"><p>Below section explains some of historical decisions. This is not part of specification,
+and is provided here only for extra context.</p></div>
+<section id="design-considerations-extra-metadata"><h3><bdi class="secno">7.1 </bdi>Design Considerations: Extra Metadata</h3><a href="#design-considerations-extra-metadata" class="self-link" aria-label="Section 7.1"></a>
+<p>Metadata support in UnixFSv1.5 has been expanded to increase the number of possible
+use cases. These include <code>rsync</code> and filesystem-based package managers.</p>
+<p>Several metadata systems were evaluated, as discussed in the following sections.</p>
+<div class="note"><p>UnixFS 1.5 stores optional <code>mode</code> and <code>mtime</code> metadata in the <code>Data</code> fields of
+the root <code>dag-pb</code> node, however below analysis may be useful when additional
+metadata is being discussed, or UnixFS 1.5 approach is revisited.</p></div>
+<section id="pros-and-cons-metadata-in-a-separate-metadata-node"><h4><bdi class="secno">7.1.1 </bdi>Pros and Cons: Metadata in a Separate Metadata Node</h4><a href="#pros-and-cons-metadata-in-a-separate-metadata-node" class="self-link" aria-label="Section 7.1.1"></a>
+<p>In this scheme, the existing <code>Metadata</code> message is expanded to include additional
+metadata types (<code>mtime</code>, <code>mode</code>, etc). It contains links to the actual file data,
+but never the file data itself.</p>
+<p>This was ultimately rejected for a number of reasons:</p>
+<ol>
+<li>You would always need to retrieve an additional node to access file data, which
+limits the kind of optimizations that are possible. For example, many files fit
+within a single block (see <a href="#block-size-considerations">Block Size Considerations</a>),
+so we tend to inline them into the describing UnixFS <code>File</code> node. This would not be
+possible with an intermediate <code>Metadata</code> node.</li>
+<li>The <code>File</code> node already contains some metadata (e.g. the file size), so metadata
+would be stored in multiple places. This complicates forwards compatibility with
+UnixFSv2, as mapping between metadata formats potentially requires multiple fetch
+operations.</li>
+</ol>
+</section><section id="pros-and-cons-metadata-in-the-directory"><h4><bdi class="secno">7.1.2 </bdi>Pros and Cons: Metadata in the Directory</h4><a href="#pros-and-cons-metadata-in-the-directory" class="self-link" aria-label="Section 7.1.2"></a>
+<p>Repeated <code>Metadata</code> messages are added to UnixFS <code>Directory</code> and <code>HAMTShard</code> nodes,
+the index of which indicates which entry they are to be applied to. Where entries are
+<code>HAMTShard</code>s, an empty message is added.</p>
+<p>One advantage of this method is that, if we expand stored metadata to include entry
+types and sizes, we can perform directory listings without needing to fetch further
+entry nodes (excepting <code>HAMTShard</code> nodes). However, without removing the storage of
+these datums elsewhere in the spec, we run the risk of having non-canonical data
+locations and perhaps conflicting data as we traverse through trees containing
+both UnixFS v1 and v1.5 nodes.</p>
+<p>This was rejected for the following reasons:</p>
+<ol>
+<li>When creating a UnixFS node, there's no way to record metadata without
+wrapping it in a directory.</li>
+<li>If you access any UnixFS node directly by its <a href="https://github.com/multiformats/cid/">CID</a>, there is no way of
+recreating the metadata which limits flexibility.</li>
+<li>In order to list the contents of a directory including entry types and
+sizes, you have to fetch the root node of each entry, so the performance
+benefit of including some metadata in the containing directory is negligible
+in this use case.</li>
+</ol>
+</section><section id="pros-and-cons-metadata-in-the-file"><h4><bdi class="secno">7.1.3 </bdi>Pros and Cons: Metadata in the File</h4><a href="#pros-and-cons-metadata-in-the-file" class="self-link" aria-label="Section 7.1.3"></a>
+<p>This adds new fields to the UnixFS <code>Data</code> message to represent the various metadata fields.</p>
+<p>It has the advantage of being simple to implement. Metadata is maintained whether
+the file is accessed directly via its <a href="https://github.com/multiformats/cid/">CID</a> or via an IPFS path that includes a
+containing directory. In addition, metadata is kept small enough that we can inline root
+UnixFS nodes into their CIDs so that we can end up fetching the same number of nodes if
+we decide to keep file data in a leaf node for deduplication reasons.</p>
+<p>Downsides to this approach are:</p>
+<ol>
+<li>Two users adding the same file to IPFS at different times will have
+different <a href="https://github.com/multiformats/cid/">CID</a>s due to the <code>mtime</code>s being different. If the content is
+stored in another node, its <a href="https://github.com/multiformats/cid/">CID</a> will be constant between the two users,
+but you can't navigate to it unless you have the parent node, which will be
+less available due to the proliferation of <a href="https://github.com/multiformats/cid/">CID</a>s.</li>
+<li>Metadata is also impossible to remove without changing the <a href="https://github.com/multiformats/cid/">CID</a>, so
+metadata becomes part of the content.</li>
+<li>Performance may be impacted as well as if we don't inline UnixFS root nodes
+into <a href="https://github.com/multiformats/cid/">CID</a>s, so additional fetches will be required to load a given UnixFS
+entry.</li>
+</ol>
+</section><section id="pros-and-cons-metadata-in-side-trees"><h4><bdi class="secno">7.1.4 </bdi>Pros and Cons: Metadata in Side Trees</h4><a href="#pros-and-cons-metadata-in-side-trees" class="self-link" aria-label="Section 7.1.4"></a>
+<p>With this approach, we would maintain a separate data structure outside of the
+UnixFS tree to hold metadata.</p>
+<p>This was rejected due to concerns about added complexity, recovery after system
+crashes while writing, and having to make extra requests to fetch metadata nodes
+when resolving <a href="https://github.com/multiformats/cid/">CID</a>s from peers.</p>
+</section><section id="pros-and-cons-metadata-in-side-database"><h4><bdi class="secno">7.1.5 </bdi>Pros and Cons: Metadata in Side Database</h4><a href="#pros-and-cons-metadata-in-side-database" class="self-link" aria-label="Section 7.1.5"></a>
+<p>This scheme would see metadata stored in an external database.</p>
+<p>The downsides to this are that metadata would not be transferred from one node
+to another when syncing, as <a href="https://specs.ipfs.tech/bitswap-protocol/">Bitswap</a> is not aware of the database and in-tree
+metadata.</p>
+</section></section><section id="design-decision-unixtime-protobuf-datatype"><h3><bdi class="secno">7.2 </bdi>Design Decision: UnixTime Protobuf Datatype</h3><a href="#design-decision-unixtime-protobuf-datatype" class="self-link" aria-label="Section 7.2"></a>
+<section id="unixtime-seconds"><h4><bdi class="secno">7.2.1 </bdi>UnixTime Seconds</h4><a href="#unixtime-seconds" class="self-link" aria-label="Section 7.2.1"></a>
+<p>The integer portion of UnixTime is represented on the wire using a <code>varint</code> encoding.
+While this is inefficient for negative values, it avoids introducing zig-zag encoding.
+Values before the year <code>1970</code> are exceedingly rare, and it would be handy having
+such cases stand out, while ensuring that the "usual" positive values are easily readable. The <code>varint</code> representing the time of writing this text is 5 bytes
+long. It will remain so until October 26, 3058 (34,359,738,367).</p>
+</section><section id="unixtime-fractionalnanoseconds"><h4><bdi class="secno">7.2.2 </bdi>UnixTime FractionalNanoseconds</h4><a href="#unixtime-fractionalnanoseconds" class="self-link" aria-label="Section 7.2.2"></a>
+<p>Fractional values are effectively a random number in the range 1 to 999,999,999.
+In most cases, such values will exceed 2^28 (268,435,456) nanoseconds. Therefore,
+the fractional part is represented as a 4-byte <code>fixed32</code>,
+<a href="https://developers.google.com/protocol-buffers/docs/proto#scalar">as per Google's recommendation</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Former Editor</dt><dd><span>Hugo Valtier</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/Jorropo"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>David Dias</span> <a href="https://github.com/daviddias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Łukasz Magiera</span> <a href="https://github.com/magik6k"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Jeromy Johnson</span> <a href="https://github.com/whyrusleeping"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Peter Rabbitson</span> <a href="https://github.com/ribasushi"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Steven Allen</span> <a href="https://github.com/Stebalien"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Hector Sanjuan</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/hsanjuan"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Henrique Dias</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marten Seemann</span> <a href="https://github.com/marten-seemann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Adin Schmahmann</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Will Scott</span> <a href="https://github.com/willscott"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>John Turpish</span> <a href="https://github.com/John-LittleBearLabs"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Alan Shaw</span> <a href="https://github.com/alanshaw"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Andrew Gillis</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/gammazero"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>bumblefudge</span> <a href="https://github.com/bumblefudge"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

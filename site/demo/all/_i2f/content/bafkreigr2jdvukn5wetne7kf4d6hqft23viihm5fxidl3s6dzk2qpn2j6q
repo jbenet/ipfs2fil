@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "libp2p+HTTP Transport Gateway Specification",
+    "url": "https://specs.ipfs.tech/http-gateways/libp2p-gateway/"
+  },
+  "dfns": []
+}

@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0410: Streaming NDJSON in Routing HTTP API</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0410/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0410: Streaming NDJSON in Routing HTTP API</h1><p id="last-modified"><time datetime="2023-05-12T00:00:00.000Z">12 May 2023</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/issues/344">ipfs/specs/issues/344</a></dd><dd><a href="https://github.com/ipfs/boxo/pull/18">ipfs/boxo/pull/18</a></dd><dd><a href="https://github.com/ipfs/kubo/pull/9868">ipfs/kubo/pull/9868</a></dd><dd><a href="https://github.com/ipfs/kubo/pull/9874">ipfs/kubo/pull/9874</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0410.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0410.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed Design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design Rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User Benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">4.4 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Introduce backwards-compatible streaming support to the Routing V1 HTTP API.
+For this, we use the <code>Accept</code> HTTP header ([<a class="bibref" href="#ref-rfc9110">rfc9110</a>]) for content type negotiation, as well
+as the Newline Delimited JSON (<a href="http://ndjson.org/">NDJSON</a>) format.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>The main motivation for this change is to allow servers to respond faster to the
+client with provider records, as soon as they are available. In the current state,
+the client requests a list of providers for a CID from the server. Then, the client
+has to wait for the server to collect their final list of providers. After that,
+the server can respond with the full list of providers.</p>
+<p>This is a big source of latency when <code>/routing/v1</code> is used for delegating DHT lookups,
+where the client is forced to wait for the server to finish DHT walk.</p>
+<p>With streaming support, the server is able to respond with provider records as soon
+as they are available. This reduces latency and allows for faster content discovery.</p>
+<p>In addition, streaming responses may produce an unlimited amount of results, which
+is not the case for non-streamed responses.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed Design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>In summary, streaming is supported by using the <code>Accept</code> HTTP header, which is used
+for content type negotiation as described in [<a class="bibref" href="#ref-rfc9110">rfc9110</a>]. The client sends an
+<code>Accept</code> HTTP header starting with <code>application/x-ndjson</code>, which is the content
+type for <a href="http://ndjson.org/">NDJSON</a>. The following happens:</p>
+<ul>
+<li>The client adds the <code>Accept</code> HTTP header in the request starting with <code>application/x-ndjson</code>.</li>
+<li>The server checks the <code>Accept</code> HTTP header from the request and, if it contains
+<code>application/x-ndjson</code>, they reply with NDJSON. If they don't support NDJSON, they
+can reply with JSON.</li>
+<li>The server response <em class="rfc2119">MUST</em> contain a <code>Content-Type</code> HTTP header indicating the
+response type, which may be either <code>application/json</code> for non-streaming responses,
+and <code>application/x-ndjson</code> for streamed responses.</li>
+</ul>
+<p>For more details regarding the design, check [<a class="bibref" href="#ref-http-routing-v1">http-routing-v1</a>].</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design Rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>This feature is designed such that it does not break compatibility with existing
+clients and servers. The <code>Accept</code> HTTP header is <em class="rfc2119">OPTIONAL</em>. By default, the server
+<em class="rfc2119">MUST</em> respond with <code>application/json</code> unless the client explicitly asked for
+<code>application/x-ndjson</code>. If the server does not support NDJSON, it is allowed
+to still respond with non-streamed JSON.</p>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User Benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>Users (clients) will benefit from this change as the servers will now be able
+to respond more promptly to provider record requests. Instead of waiting for the whole
+list to be constructed, servers can now return each provider record one by one,
+in a streaming fashion.</p>
+<p>The client will be able to close connection at any time, reducing load on both ends.</p>
+<p>The main use cases for this IPIP are light clients and services which want to
+delegate DHT lookups to external service. With streaming, clients will be able
+to receive results as soon the delegated service learns about new record, which
+directly impacts the content load speeds perceived by the end user.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>The introduced changes are backwards-compatible. The introduced header is completely
+optional, and a server that does not support streaming is able to respond with a non-streaming
+response to the client. Equally, non-streaming responses are the default. Therefore, a
+client that does not support streaming will not receive a streamed response.</p>
+</section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>Security considerations are equivalent as the ones in [<a class="bibref" href="#ref-ipip-0337">ipip-0337</a>].</p>
+</section><section id="copyright"><h3><bdi class="secno">4.4 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 4.4"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-http-routing-v1">[http-routing-v1]</dt><dd><a href="https://specs.ipfs.tech/routing/http-routing-v1/"><cite>Delegated Routing V1 HTTP API</cite></a>. Henrique Dias; Daniel Norman; Marcin Rataj. 2026-07-29. URL: <a href="https://specs.ipfs.tech/routing/http-routing-v1/">https://specs.ipfs.tech/routing/http-routing-v1/</a></dd><dt id="ref-ipip-0337">[ipip-0337]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0337/"><cite>IPIP-0337: Delegated Content Routing HTTP API</cite></a>. Gus Eggert; Marcin Rataj. 2022-10-18. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0337/">https://specs.ipfs.tech/ipips/ipip-0337/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc9110">[rfc9110]</dt><dd><a href="https://httpwg.org/specs/rfc9110.html"><cite>HTTP Semantics</cite></a>. R. Fielding, Ed.; M. Nottingham, Ed.; J. Reschke, Ed.. IETF. June 2022. Internet Standard. URL: <a href="https://httpwg.org/specs/rfc9110.html">https://httpwg.org/specs/rfc9110.html</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><dl class="bibliography"><dt>Editor</dt><dd><a href="https://hacdias.com/">Henrique Dias</a> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>
