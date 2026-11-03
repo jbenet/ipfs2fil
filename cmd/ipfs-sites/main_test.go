@@ -123,7 +123,7 @@ func TestConvert(t *testing.T) {
 		t.Error("convert replaced a list")
 	}
 	// Two lists in a folder: name one.
-	os.WriteFile(filepath.Join(dir, "other.ipfs-sites.toml"), []byte(`sites = ["x.org"]`), 0o644)
+	os.WriteFile(filepath.Join(dir, "other.ipfs-sites.toml"), []byte("[[site]]\nsource = \"x.org\"\n"), 0o644)
 	if _, _, _, err := runIn(t, dir, "show"); err == nil || !strings.Contains(err.Error(), "name one") {
 		t.Errorf("two lists: %v", err)
 	}

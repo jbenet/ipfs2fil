@@ -6,14 +6,17 @@
 // so a folder can hold many lists:
 //
 //	title = "My sites"
-//	sites = [
-//	  "benet.ai",                                # a domain with DNSLink
-//	  "https://fil.pub/",                        # a URL: its host's DNSLink, else the X-Ipfs-Path its server sends
-//	  "vitalik.eth",                             # an ENS name
-//	  { source = "docs.ipfs.tech", name = "ipfs-docs" },
-//	]
 //
-//	[[site]]                                     # the same, one table per site
+//	[[site]]
+//	source = "benet.ai"                          # a domain with DNSLink
+//
+//	[[site]]
+//	source = "https://fil.pub/"                  # a URL: its host's DNSLink, else the X-Ipfs-Path its server sends
+//
+//	[[site]]
+//	source = "vitalik.eth"                       # an ENS name
+//
+//	[[site]]
 //	source = "/ipns/k51qzi5uqu5d..."             # an IPNS name; its signed record is checked
 //	name = "blog"
 //	note = "my blog"

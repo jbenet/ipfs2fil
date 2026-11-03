@@ -16,11 +16,16 @@ import (
 func TestParseTOML(t *testing.T) {
 	c := testCID("x")
 	src := `title = "My sites"
-sites = [
-  "benet.ai",
-  "https://fil.pub/",
-  { source = "Docs.IPFS.tech.", name = "ipfs-docs" },
-]
+
+[[site]]
+source = "benet.ai"
+
+[[site]]
+source = "https://fil.pub/"
+
+[[site]]
+source = "Docs.IPFS.tech."
+name = "ipfs-docs"
 
 [[site]]
 source = "/ipfs/` + c.String() + `"
@@ -53,9 +58,9 @@ note = "the launch"
 		}
 	}
 	for _, bad := range []string{
-		``, `sites = []`, `sites = ["not-a-domain"]`, `sites = ["x.org", "x.org"]`, `colour = "red"`,
-		`sites = [{ source = "x.org", color = "red" }]`, `sites = [1]`, "[[site]]\nname = \"x\"", "[[site]]\nsource = \"x.org\"\nnam = \"y\"",
-		`sites = [{ source = "x.org", name = "../up" }]`, `gateways = ["ftp://x"]`,
+		``, `title = "x"`, "[[site]]\nsource = \"not-a-domain\"", "[[site]]\nsource = \"x.org\"\n[[site]]\nsource = \"x.org\"",
+		`colour = "red"`, `sites = ["x.org"]`, "[[site]]\nname = \"x\"", "[[site]]\nsource = \"x.org\"\nnam = \"y\"",
+		"[[site]]\nsource = \"x.org\"\nname = \"../up\"", `gateways = ["ftp://x"]`,
 	} {
 		if _, err := ParseTOML([]byte(bad)); err == nil {
 			t.Errorf("ParseTOML(%q) took it", bad)

@@ -5,7 +5,8 @@
 //
 // The list is TOML, named <name>.ipfs-sites.toml (or ipfs-sites.toml):
 //
-//	sites = ["benet.ai", "https://fil.pub/", "vitalik.eth"]
+//	[[site]]
+//	source = "benet.ai"
 //
 //	[[site]]
 //	source = "/ipns/k51qzi5uqu5d..."
