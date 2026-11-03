@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -53,12 +54,15 @@ func Account(s string) string {
 	return strings.ToLower(s)
 }
 
-// Endpoints the resolver uses. Tests point them at local servers.
+// Endpoints the resolver uses, each a comma-separated list tried in order.
+// Tests point them at local servers. $IPFS2FIL_PLC_DIRECTORY and
+// $IPFS2FIL_HANDLE_RESOLVER put those of a private network (a PLC directory
+// and PDS of your own) before the public ones.
 var (
-	PLCDirectory = "https://plc.directory"
+	PLCDirectory = envFirst("IPFS2FIL_PLC_DIRECTORY", "https://plc.directory")
 	// HandleResolver answers com.atproto.identity.resolveHandle when neither
 	// DNS nor the handle's own web server does.
-	HandleResolver = "https://public.api.bsky.app"
+	HandleResolver = envFirst("IPFS2FIL_HANDLE_RESOLVER", "https://public.api.bsky.app")
 	// LookupTXT is net.LookupTXT, swapped in tests.
 	LookupTXT = net.DefaultResolver.LookupTXT
 	// WellKnown builds the https URL of a host's /.well-known path; tests
@@ -67,6 +71,28 @@ var (
 )
 
 var ErrNotFound = errors.New("account not found")
+
+// envFirst is the URLs in $name (comma-separated), then def.
+func envFirst(name, def string) string {
+	var out []string
+	for _, v := range strings.Split(os.Getenv(name), ",") {
+		if v = strings.TrimRight(strings.TrimSpace(v), "/"); v != "" {
+			out = append(out, v)
+		}
+	}
+	return strings.Join(append(out, def), ",")
+}
+
+// endpoints splits a list of endpoints like PLCDirectory.
+func endpoints(list string) []string {
+	var out []string
+	for _, v := range strings.Split(list, ",") {
+		if v = strings.TrimRight(strings.TrimSpace(v), "/"); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
 
 // Resolve finds the account s names (see IsAccount) and its PDS.
 func Resolve(ctx context.Context, c *http.Client, s string) (*Identity, error) {
@@ -81,20 +107,30 @@ func Resolve(ctx context.Context, c *http.Client, s string) (*Identity, error) {
 		}
 		id.DID = did
 	}
-	var docURL string
+	var docURLs []string
 	switch {
 	case strings.HasPrefix(id.DID, "did:plc:"):
-		docURL = PLCDirectory + "/" + id.DID
+		for _, d := range endpoints(PLCDirectory) {
+			docURLs = append(docURLs, d+"/"+id.DID)
+		}
 	case strings.HasPrefix(id.DID, "did:web:"):
 		host, err := url.PathUnescape(strings.TrimPrefix(id.DID, "did:web:"))
 		if err != nil || strings.Contains(host, ":") {
 			return nil, fmt.Errorf("%s: only did:web hosts without paths are supported", id.DID)
 		}
-		docURL = WellKnown(host, "did.json")
+		docURLs = []string{WellKnown(host, "did.json")}
 	default:
 		return nil, fmt.Errorf("%s: not a did:plc or did:web", id.DID)
 	}
-	doc, err := getBytes(ctx, c, docURL, 1<<20)
+	var doc []byte
+	var err error
+	plc := ""
+	for _, u := range docURLs {
+		if doc, err = getBytes(ctx, c, u, 1<<20); err == nil {
+			plc = strings.TrimSuffix(u, "/"+id.DID)
+			break
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("fetching the DID document of %s: %w", id.DID, err)
 	}
@@ -137,7 +173,7 @@ func Resolve(ctx context.Context, c *http.Client, s string) (*Identity, error) {
 		}
 	}
 	if strings.HasPrefix(id.DID, "did:plc:") {
-		if id.AuditLog, err = getBytes(ctx, c, PLCDirectory+"/"+id.DID+"/log/audit", 16<<20); err != nil {
+		if id.AuditLog, err = getBytes(ctx, c, plc+"/"+id.DID+"/log/audit", 16<<20); err != nil {
 			return nil, fmt.Errorf("fetching the PLC log of %s: %w", id.DID, err)
 		}
 	}
@@ -159,15 +195,18 @@ func resolveHandle(ctx context.Context, c *http.Client, handle string) (string, 
 			return did, nil
 		}
 	}
-	var v struct{ DID string }
-	err := getJSON(ctx, c, HandleResolver+"/xrpc/com.atproto.identity.resolveHandle?handle="+url.QueryEscape(handle), &v)
-	if err != nil {
-		return "", err
+	err := ErrNotFound
+	for _, r := range endpoints(HandleResolver) {
+		var v struct{ DID string }
+		if err = getJSON(ctx, c, r+"/xrpc/com.atproto.identity.resolveHandle?handle="+url.QueryEscape(handle), &v); err != nil {
+			continue
+		}
+		if strings.HasPrefix(v.DID, "did:") {
+			return v.DID, nil
+		}
+		err = ErrNotFound
 	}
-	if !strings.HasPrefix(v.DID, "did:") {
-		return "", ErrNotFound
-	}
-	return v.DID, nil
+	return "", err
 }
 
 // xrpcError is the body of a failed XRPC call.

@@ -1,0 +1,62 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Meta | IPFS Standards</title>
+  <meta name="description" content="Meta contains all the non-technical documents that conspire to make the standards project work: what the core values are, what the governance model is, how to produce documents, etc.">
+  <link rel="canonical" href="https://specs.ipfs.tech/meta/">
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/ipseity.min.css">
+  <link rel="icon" href="/img/ipfs-standards.svg">
+</head>
+<body>
+
+
+<nav>
+  <div>
+    <img src="/img/ipfs-standards.svg" alt="InterPlanetary Standards Logo" width="25" height="25" class="logo">
+    <a href="/">IPFS Standards</a>
+  </div>
+</nav>
+
+<header>
+  <div>
+    <h1>Meta</h1>
+    <p>Meta contains all the non-technical documents that conspire to make the standards
+project work: what the core values are, what the governance model is, how to produce documents,
+etc.
+</p>
+  </div>
+</header>
+
+
+<main>
+  <dl>
+  <dt><a href="/meta/code-of-conduct/">Code of Conduct</a></dt>
+    <dd>The code of conduct that all community participants are held to.</dd><dt><a href="/meta/spec-for-specs/">Spec for Specs</a></dt>
+    <dd>Specifies the format and system used to create and maintain specifications for the interplanetary stack.
+</dd></dl>
+</main>
+
+</body>
+<footer>
+  <div>
+    <p>
+      <a href="https://ipfs.tech/"><img src="/img/ipfs.svg" width="20" height="20" alt="IPFS logo"> IPFS</a>
+      •
+      <a href="https://ipld.io/"><img src="/img/ipld.svg" width="20" height="20" alt="IPLD logo"> IPLD</a>
+      •
+      <a href="https://libp2p.io/"><img src="/img/libp2p.png" width="20" height="20" alt="libp2p logo"> libp2p</a>
+      •
+      <a href="https://multiformats.io/"><img src="/img/multiformats.svg" width="20" height="20" alt="Multiformats logo"> Multiformats</a>
+    </p>
+    <p>
+      <a href="https://github.com/ipfs/specs/blob/main/SECURITY.md">Reporting security issues</a>
+    </p>
+  </div>
+</footer>
+</body>
+</html>
+

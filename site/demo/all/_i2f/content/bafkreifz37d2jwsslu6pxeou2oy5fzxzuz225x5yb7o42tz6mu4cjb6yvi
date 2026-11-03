@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0428: Allowing V2-Only Records in IPNS",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0428/"
+  },
+  "dfns": []
+}

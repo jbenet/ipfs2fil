@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0412: Signaling Block Order in CARs on HTTP Gateways",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0412/"
+  },
+  "dfns": []
+}

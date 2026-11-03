@@ -1,0 +1,128 @@
+{
+  "spec": {
+    "title": "Trustless Gateway Specification",
+    "url": "https://specs.ipfs.tech/http-gateways/trustless-gateway/"
+  },
+  "dfns": [
+    {
+      "id": "dfn-format",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-format",
+      "linkingText": [
+        "format"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-format",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-format",
+      "linkingText": [
+        "formats"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-dag-scope",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-dag-scope",
+      "linkingText": [
+        "dag-scope"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-dag-scope",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-dag-scope",
+      "linkingText": [
+        "dag-scopes"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-entity-bytes",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-entity-bytes",
+      "linkingText": [
+        "entity-bytes"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-entity-bytes",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-entity-bytes",
+      "linkingText": [
+        "entity-byte"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-version",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-version",
+      "linkingText": [
+        "car-version"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-version",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-version",
+      "linkingText": [
+        "car-versions"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-order",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-order",
+      "linkingText": [
+        "car-order"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-order",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-order",
+      "linkingText": [
+        "car-orders"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-dups",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-dups",
+      "linkingText": [
+        "car-dups"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    },
+    {
+      "id": "dfn-car-dups",
+      "href": "https://specs.ipfs.tech/http-gateways/trustless-gateway/#dfn-car-dups",
+      "linkingText": [
+        "car-dup"
+      ],
+      "type": "dfn",
+      "access": "public",
+      "definedIn": "prose"
+    }
+  ]
+}

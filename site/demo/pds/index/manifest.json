@@ -1,0 +1,205 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeicwzmz6zqziasf65vccyl2pk3desu7ters2xlg4sk6snhxxpdq7ia",
+  "dataRoot": "bafybeidncpullqpuasebxraxigcvuy36qqtrxmb4en55lmjkxjti3cg3wy",
+  "source": {
+    "kind": "atproto-pds",
+    "repoVersion": 0,
+    "blocks": 51,
+    "bytes": 1047063
+  },
+  "roots": [
+    {
+      "cid": "bafyreidtixwodwxy5gle5ypmdvu25p65boufsfvrn4phsycvahigxbhbca",
+      "kind": "pin-recursive",
+      "name": "@ada.test",
+      "path": "pins/recursive/bafyreidtixwodwxy5gle5ypmdvu25p65boufsfvrn4phsycvahigxbhbca",
+      "bytes": 537863,
+      "blocks": 14,
+      "own": 537863,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafyreifcqyjpnfkcvn2b4l4ric5ka2tzuae6sxlnzevkvhe4xyszvg5qy4",
+      "kind": "pin-recursive",
+      "name": "@cidlab.test",
+      "path": "pins/recursive/bafyreifcqyjpnfkcvn2b4l4ric5ka2tzuae6sxlnzevkvhe4xyszvg5qy4",
+      "bytes": 361027,
+      "blocks": 16,
+      "own": 361027,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafyreiglzlbnsthqlbciowyh5xaosydgzowwajt4objiygff2jm5heyuci",
+      "kind": "pin-recursive",
+      "name": "@gardenlog.test",
+      "path": "pins/recursive/bafyreiglzlbnsthqlbciowyh5xaosydgzowwajt4objiygff2jm5heyuci",
+      "bytes": 143399,
+      "blocks": 11,
+      "own": 143399,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreiaufivvevsoqphohxpqaoi7yuopp2dp3ceoahifpgrldthixs35ga",
+      "kind": "pin-direct",
+      "name": "@cidlab.test blobs.json",
+      "path": "pins/direct/bafkreiaufivvevsoqphohxpqaoi7yuopp2dp3ceoahifpgrldthixs35ga",
+      "bytes": 160,
+      "blocks": 1,
+      "own": 160,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreibwigxwjss6qkmorl5py2yhg346mweiahn3nwqzcxpgf2fbbaahyq",
+      "kind": "pin-direct",
+      "name": "@cidlab.test plc-audit-log.json",
+      "path": "pins/direct/bafkreibwigxwjss6qkmorl5py2yhg346mweiahn3nwqzcxpgf2fbbaahyq",
+      "bytes": 618,
+      "blocks": 1,
+      "own": 618,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreiby3j7klohtg5z623xrpyryttactupkjltnmhjtp7lj3sope2kqva",
+      "kind": "pin-direct",
+      "name": "@gardenlog.test plc-audit-log.json",
+      "path": "pins/direct/bafkreiby3j7klohtg5z623xrpyryttactupkjltnmhjtp7lj3sope2kqva",
+      "bytes": 621,
+      "blocks": 1,
+      "own": 621,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreic2ajkndext7fwoh6hw22yt4divqzc7yu2bfzyl2iuraupkcq7sai",
+      "kind": "pin-direct",
+      "name": "@gardenlog.test did.json",
+      "path": "pins/direct/bafkreic2ajkndext7fwoh6hw22yt4divqzc7yu2bfzyl2iuraupkcq7sai",
+      "bytes": 532,
+      "blocks": 1,
+      "own": 532,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreidyup5sizddpfq4c37ok3jdptlbkx75w46cllbgaljz5ekgb3gx3u",
+      "kind": "pin-direct",
+      "name": "@ada.test blobs.json",
+      "path": "pins/direct/bafkreidyup5sizddpfq4c37ok3jdptlbkx75w46cllbgaljz5ekgb3gx3u",
+      "bytes": 294,
+      "blocks": 1,
+      "own": 294,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreie56e3pw5oqfajsujo4e7rfrrtwccxjx3nslpdkpfqbzuhhmk7e2m",
+      "kind": "pin-direct",
+      "name": "@ada.test did.json",
+      "path": "pins/direct/bafkreie56e3pw5oqfajsujo4e7rfrrtwccxjx3nslpdkpfqbzuhhmk7e2m",
+      "bytes": 526,
+      "blocks": 1,
+      "own": 526,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreifepneyy4xbxunjm46psyomydmbdo2erd6s3wltdpczm3mvu6xxve",
+      "kind": "pin-direct",
+      "name": "@gardenlog.test blobs.json",
+      "path": "pins/direct/bafkreifepneyy4xbxunjm46psyomydmbdo2erd6s3wltdpczm3mvu6xxve",
+      "bytes": 160,
+      "blocks": 1,
+      "own": 160,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreigoaqjlxwxnywd66v2m6p37v3zgw6pitiiv45lh353p36ivjgz7ie",
+      "kind": "pin-direct",
+      "name": "pds.json",
+      "path": "pins/direct/bafkreigoaqjlxwxnywd66v2m6p37v3zgw6pitiiv45lh353p36ivjgz7ie",
+      "bytes": 719,
+      "blocks": 1,
+      "own": 719,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreigtrmlvfbnxih32itidvpsdezhzyd2rbodrzjjf77zl23gmuauine",
+      "kind": "pin-direct",
+      "name": "@ada.test plc-audit-log.json",
+      "path": "pins/direct/bafkreigtrmlvfbnxih32itidvpsdezhzyd2rbodrzjjf77zl23gmuauine",
+      "bytes": 615,
+      "blocks": 1,
+      "own": 615,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreihalijbs22gykaqknl23ihyfzvsdhd3mrrwjugsbmwwmizxdf2bvi",
+      "kind": "pin-direct",
+      "name": "@cidlab.test did.json",
+      "path": "pins/direct/bafkreihalijbs22gykaqknl23ihyfzvsdhd3mrrwjugsbmwwmizxdf2bvi",
+      "bytes": 529,
+      "blocks": 1,
+      "own": 529,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
+      "carBytes": 523317785,
+      "blocks": 19016,
+      "blockList": "pieces/0000",
+      "part": "bundle",
+      "dataBytes": 1049005,
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "5310",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "5311",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-11-03T10:30:02Z",
+      "root": "bafybeicwzmz6zqziasf65vccyl2pk3desu7ters2xlg4sk6snhxxpdq7ia",
+      "newPieces": [
+        0
+      ]
+    }
+  ],
+  "collection": "repos:default"
+}

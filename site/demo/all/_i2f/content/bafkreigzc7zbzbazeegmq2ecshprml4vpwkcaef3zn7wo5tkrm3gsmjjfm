@@ -1,0 +1,260 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPFS Principles</title>
+    <meta name="description" content="IPFS is a suite of specifications and tools that are defined by two key characteristics: content-addressing and transport-agnosticity. This document provides context and details about these characteristics. In doing so it defines what is or is not an IPFS implementation.">
+    <link rel="canonical" href="https://specs.ipfs.tech/architecture/principles/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPFS Principles</h1><p id="last-modified"><time datetime="2023-03-28T00:00:00.000Z">28 March 2023</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/architecture/principles.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/architecture/principles.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The IPFS stack is a suite of specifications and tools that share two key characteristics:</p>
+<ol>
+<li>Data is addressed by its contents using an extensible verifiability mechanism, and</li>
+<li>Data is moved in ways that are tolerant of arbitrary transport methods.</li>
+</ol>
+<p>This document provides context and details about these characteristics. In doing so it defines
+what is or is not an IPFS implementation. This is a <strong>living document</strong>; it is expected to
+change over time as we define more of the principles that guide the architecture of IPFS or
+find clearer ways of describing those we have already defined.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#addressing" class="tocxref"><bdi class="secno">1. </bdi>Addressing</a></li><li><a href="#robustness" class="tocxref"><bdi class="secno">2. </bdi>Robustness</a></li><li><a href="#ipfs-implementation-requirements" class="tocxref"><bdi class="secno">3. </bdi>IPFS Implementation Requirements</a></li><li><a href="#boundary-examples" class="tocxref"><bdi class="secno">4. </bdi>Boundary Examples</a><ol class="toc"><li><a href="#other-content-addressing-systems" class="tocxref"><bdi class="secno">4.1 </bdi>Other Content-Addressing Systems</a></li><li><a href="#verification-matters" class="tocxref"><bdi class="secno">4.2 </bdi>Verification Matters</a></li></ol></li><li><a href="#self-certifying-addressability" class="tocxref"><bdi class="secno">5. </bdi>Self-Certifying Addressability</a></li><li><a href="#appendix-historical-notes" class="tocxref"><bdi class="secno">6. </bdi>Appendix: Historical Notes</a></li><li><a href="#acknowledgements" class="tocxref"><bdi class="secno">7. </bdi>Acknowledgements</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="addressing"><h2><bdi class="secno">1. </bdi>Addressing</h2><a href="#addressing" class="self-link" aria-label="Section 1."></a>
+<p>The web's early designers conceived it as a universal space in which identifiers map to
+information resources. As the web grew, they enshrined in
+<a href="https://www.w3.org/TR/webarch/#identification">web architecture</a> that all resources
+should have an identifier and
+defined "addressability" as meaning that
+"<a href="https://www.w3.org/2001/tag/doc/whenToUseGet.html#uris"><em>a URI alone is sufficient for an agent to carry out a particular type of interaction.</em></a>" ([<a class="bibref" href="#ref-webarch">webarch</a>])</p>
+<p>This design is tremendously successful. For all its flaws, the web brings together a
+huge diversity of software, services, and resources under universal addressability.</p>
+<p>Unfortunately, HTTP addressability is based on a hierarchy of authorities that places
+resources under the control of a host and places hosts under the control of the DNS system
+(further issues with this model are discussed further in the Appendix). As indicated
+in [<a class="bibref" href="#ref-rfc3986">RFC3986</a>]:</p>
+<blockquote>
+<p>Many URI schemes include a hierarchical element for a naming
+authority so that governance of the name space defined by the
+remainder of the URI is delegated to that authority (which may, in
+turn, delegate it further).</p>
+</blockquote>
+<p><a href="https://github.com/multiformats/cid">CIDs</a> in IPFS offer an improvement over HTTP URLs by
+maintaining universal addressability while eliminating the attack vectors inherent in
+hierarchical authority. Content addressability derives identifiers from the content of
+an information resource, such that any party can both mint the identifier and verify
+that it maps to the right resource. This eliminates the need for any authority outside
+of the resource itself to certify its content. It makes CIDs the universal
+self-certifying addressability component of the web.</p>
+<p>Addressing data using <a href="https://github.com/multiformats/cid">CIDs</a> is the first defining
+characteristic of IPFS. And the second characteristic, transport-agnosticity, can be
+supported thanks to the verifiability that CIDs offer. Across a vast diversity of implementations,
+architectures, and services, <em>IPFS is the space of resources that can be interacted with
+over arbitrary transports using a CID</em>. As Juan Benet once put it,
+"<a href="https://github.com/multiformats/cid/commit/ece08b40a6b1e9eeafc224e2757d8d1ef3317163#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5R43"><em>That's it!</em></a>"</p>
+<p>Conversely, any system that exposes interactions with resources based on CIDs is
+an IPFS implementation. There are
+<a href="https://docs.ipfs.tech/how-to/address-ipfs-on-web/">many contexts in which CIDs can be used for addressing</a>
+and content routing delegation ([<a class="bibref" href="#ref-http-routing-v1">http-routing-v1</a>])
+can support a wealth of interaction options by resolving CIDs.</p>
+</section><section id="robustness"><h2><bdi class="secno">2. </bdi>Robustness</h2><a href="#robustness" class="self-link" aria-label="Section 2."></a>
+<p>Common wisdom about network protocol design is captured by <em>Postel's Law</em> or the
+<em>Robustness Principle</em>. Over the years it has developed multiple formulations, but the
+canonical one from [<a class="bibref" href="#ref-rfc1958">RFC1958</a>] ("<em>Architectural Principles of the Internet</em>") is:</p>
+<blockquote>
+<p>Be strict when sending and tolerant when receiving.</p>
+</blockquote>
+<p>This principle is elegant, and expresses an intuitively pleasing behavior of protocol
+implementations. However, over the years, the experience of internet and web protocol
+designers has been that this principle can have detrimental effects on interoperability.
+As discussed in the Internet Architecture Board's recent work on
+<a href="https://datatracker.ietf.org/doc/html/draft-iab-protocol-maintenance"><em>Maintaining Robust Protocols</em></a>,
+implementations that silently accept faulty input can lead to interoperability defects
+accumulating over time, leading the overall protocol ecosystem to decay.</p>
+<p>There are two equilibrium points for protocol ecosystems: when deployed implementations
+are strict, new implementations, out of necessity, are required to be strict as well, leading to a
+strict ecosystem; conversely, when deployed implementations are tolerant, new
+implementations will have a strong incentive to tolerate non-compliance so as to
+interoperate. Tolerance is highly desirable for extensibility and adaptability to new
+environments, but strictness is highly desirable to prevent a protocol ecosystem from
+decaying into a complex collection of corner cases with poor or difficult
+interoperability (what the IETF refers to as
+"<a href="https://datatracker.ietf.org/doc/html/draft-iab-protocol-maintenance#name-virtuous-intolerance">virtuous intolerance</a>").</p>
+<p>IPFS approaches this problem space with a new iteration on the robustness principle:</p>
+<blockquote>
+<p>Be strict about the outcomes, be tolerant about the methods.</p>
+</blockquote>
+<p>CIDs enforce strict outcomes because the mapping from address to content is verified;
+there is no room for outcomes that deviate from the intent expressed in an address.
+This strictness is complemented by a design that proactively expects change thanks to
+a self-describing format (CIDs are a <a href="https://multiformats.io/">multiformat</a> implementation and support
+an open-ended list of hashes, codecs, etc.). The endpoints being enforceably strict means
+that everything else, notably transport, can be tolerant. Being tolerant about methods
+enables adaptability in how the protocol works, notably in how it can adapt to specific
+environments, and in how intelligence can be applied at the endpoints in novel ways, while
+being strict with outcomes guarantees that the result will be correct and interoperable.</p>
+<p>Note that this approach to robustness also covers the
+<a href="https://en.wikipedia.org/wiki/End-to-end_principle">End-to-end Principle</a>. The end-to-end
+principle states that the reliability properties of a protocol have to be
+supported at its endpoints and not in intermediary nodes. For instance, you can best guarantee
+the confidentiality or authenticity of a message by encrypting or signing at one endpoint and
+decrypting or verifying at the other rather than asking relaying nodes to implement local
+protections. IPFS's approach to robustness, via CIDs, is well aligned with that principle.</p>
+</section><section id="ipfs-implementation-requirements"><h2><bdi class="secno">3. </bdi>IPFS Implementation Requirements</h2><a href="#ipfs-implementation-requirements" class="self-link" aria-label="Section 3."></a>
+<p>An IPFS Implementation:</p>
+<ul>
+<li><em class="rfc2119">MUST</em> support addressability using CIDs.</li>
+<li><em class="rfc2119">MUST</em> expose operations (eg. retrieval, provision, indexing) on resources using CIDs. The operations
+that an implementation may support is an open-ended set, but this requirement should cover any interaction
+which the implementation exposes to other IPFS implementations.</li>
+<li><em class="rfc2119">MUST</em> verify that the CIDs it resolves match the resources they address, at least when it
+has access to the resources' bytes. Implementations <em class="rfc2119">MAY</em> relax this requirement in
+controlled environments in which it is possible to ascertain that verification has happened
+elsewhere in a trusted part of the system.</li>
+<li><em class="rfc2119">SHOULD</em> name all the important resources it exposes using CIDs. Determining which resources are
+important is a matter of judgment, but anything that another agent might legitimately wish to
+access is in scope, and it is best to err on the side of inclusion.</li>
+<li><em class="rfc2119">SHOULD</em> expose the logical units of data that structure a resource (eg. a CBOR document, a file or
+directory, a branch of a B-tree search index) using CIDs.</li>
+<li><em class="rfc2119">SHOULD</em> support incremental verifiability, notably so that it may process content of arbitrary sizes.</li>
+<li><em class="rfc2119">MAY</em> rely on any transport layer. The transport layer cannot dictate or constrain the way in which
+CIDs map to content.</li>
+</ul>
+</section><section id="boundary-examples"><h2><bdi class="secno">4. </bdi>Boundary Examples</h2><a href="#boundary-examples" class="self-link" aria-label="Section 4."></a>
+<p>These IPFS principles are broad. This is by design because, like HTTP, IPFS supports an open-ended set of
+use cases and is adaptable to a broad array of operating conditions. Considering cases
+at the boundary may help develop an intuition for the limits that these principles draw.</p>
+<section id="other-content-addressing-systems"><h3><bdi class="secno">4.1 </bdi>Other Content-Addressing Systems</h3><a href="#other-content-addressing-systems" class="self-link" aria-label="Section 4.1"></a>
+<p>CIDs are readily made compatible with other content-addressable systems, but this does not
+entail that all content-addressable systems are part of IPFS. Git's SHA1 hashes aren't CIDs
+but can be converted into CIDs by prefixing them with <code>f01781114</code>. Likewise, BitTorrent v2
+uses multihashes in the <code>btmh:</code> scheme. BitTorrent addresses aren't CIDs, but can be
+converted to CIDs by replacing <code>btmh:</code> with <code>f017b</code>.</p>
+<p>The simplicity with which one can expose these existing system over IPFS by simply prefixing
+existing addresses to mint CIDs enables radical interoperability with other content-addressable
+systems.</p>
+</section><section id="verification-matters"><h3><bdi class="secno">4.2 </bdi>Verification Matters</h3><a href="#verification-matters" class="self-link" aria-label="Section 4.2"></a>
+<p>The requirements above state that an implementation may forgo verification when "<em>it is
+possible to ascertain that verification has happened elsewhere in a trusted part of the system.</em>"
+This is intended as a strict requirement in which implementors take trustlessness seriously, an indication
+that it's okay to not constantly spend cycles verifying hashes in an internal setup which you
+have reasons to believe is trustworthy. This is <em>not</em> a licence to trust an arbitrary data
+source just because you like them.</p>
+<p>For instance:</p>
+<ul>
+<li>A JS code snippet that fetches data from an IPFS HTTP gateway without verifying it is not an
+IPFS implementation.</li>
+<li>An IPFS HTTP gateway that verifies the data that it is pulling from other IPFS implementations
+before serving it over HTTP is an IPFS implementation.</li>
+<li>That JS piece of code in the first bullet can be turned into an IPFS implementation if it
+fetches from a [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] and verifies what it gets.</li>
+</ul>
+</section></section><section id="self-certifying-addressability"><h2><bdi class="secno">5. </bdi>Self-Certifying Addressability</h2><a href="#self-certifying-addressability" class="self-link" aria-label="Section 5."></a>
+<p>Authority is control over a given domain of competence. Naming authority is
+control over what resources are called.</p>
+<p>Addressability is the property of a naming system such that its names are sufficient
+for an agent to interact with the resources being named.</p>
+<p>Verifiability is the property of a naming system such that an agent can certify that
+the mapping between a name it uses and a resource it is interacting with is correct without
+recourse to an authority other than itself and the resource.</p>
+<p>Self-certifying addressability is the property of a naming system such that it is both
+addressable and verifiable: any name is sufficient to interact with a resource, and its mapping
+to that resource can be certified without recourse to additional authority. Self-certifying
+addressability is a key component of a
+<a href="https://jaygraber.medium.com/web3-is-self-certifying-9dad77fd8d81">self-certifying web</a>
+and it supports capture-resistance which can help mitigate against centralization.</p>
+<p>CIDs support <a href="#dfn-Self-certifying addressability" data-dfn-type="dfn">self-certifying addressability</a>. With CIDs, the authority to name a resource
+resides only with that resource and derives directly from that resource's intrinsic
+property: its content. This frees interactions with CID-named resources from the power
+relation implicit in a client-server architecture. CIDs are the trust model of IPFS.</p>
+<p>An implementation may retrieve a CID without verifying that the resource matches it, but that
+loses the resource's naming authority. Such an implementation would be comparable to an HTTP
+client looking DNS records up from a random person's resolver: it cannot guarantee that the
+addressing is authoritative. Implementers may make informed decisions as to where in their
+systems they support verification, but they should ensure that the mapping between CID and resource
+is verified whenever they have access to both the resource and the CID that maps to it.</p>
+</section><section id="appendix-historical-notes"><h2><bdi class="secno">6. </bdi>Appendix: Historical Notes</h2><a href="#appendix-historical-notes" class="self-link" aria-label="Section 6."></a>
+<p>We tend not to think about addressability because it is so foundational that we
+struggle to apprehend a system without it, but that is precisely why it is important
+that we get it right. You can find extensive historical evidence that TimBL and others saw
+URLs as arguably the most fundamental invention of the Web, and the early groups that
+worked on Web architecture discussed and debated the properties of URLs at length. The
+problems of centralization we face today trace their lineage back to those decisions.</p>
+<p>The hierarchical nature of the HTTP addresses was intentional, as TimBL wrote clearly in
+<a href="https://www.w3.org/DesignIssues/Architecture.html">Web Architecture from 50,000 feet</a>:</p>
+<blockquote>
+<p>The HTTP space consists of two parts, one hierarchically delegated, for which the
+Domain Name System is used, and the second an opaque string whose significance is
+locally defined by the authority owning the domain name.</p>
+</blockquote>
+<p>The model that the Web's earlier designers had in mind was a federated model
+in which authority is delegated and addresses are <em>owned</em> based on that
+authority delegation. This is notably clear in the <em>URI Ownership</em> passage of the
+<a href="https://www.w3.org/TR/webarch/#def-uri-ownership"><em>Architecture of the World Wide Web, Volume One</em></a>:</p>
+<blockquote>
+<p>URI ownership is a relation between a URI and a social entity, such as a person,
+organization, or specification. URI ownership gives the relevant social entity certain
+rights, including:</p>
+<ul>
+<li>to pass on ownership of some or all owned URIs to another owner—delegation; and</li>
+<li>to associate a resource with an owned URI—URI allocation.</li>
+</ul>
+<p>By social convention, URI ownership is delegated from the IANA URI scheme registry,
+itself a social entity, to IANA-registered URI scheme specifications.(…)</p>
+<p>The approach taken for the "http" URI scheme, for example, follows the pattern whereby
+the Internet community delegates authority, via the IANA URI scheme registry and the
+DNS, over a set of URIs with a common prefix to one particular owner. One consequence
+of this approach is the Web's heavy reliance on the central DNS registry.(…)</p>
+<p>URI owners are responsible for avoiding the assignment of equivalent URIs to multiple
+resources. Thus, if a URI scheme specification does provide for the delegation of
+individual or organized sets of URIs, it should take pains to ensure that ownership
+ultimately resides in the hands of a single social entity. Allowing multiple owners
+increases the likelihood of URI collisions.</p>
+<p>URI owners may organize or deploy infrastructure [sic] to ensure that representations of
+associated resources are available and, where appropriate, interaction with the resource
+is possible through the exchange of representations. There are social expectations for
+responsible representation management (§3.5) by URI owners. Additional social
+implications of URI ownership are not discussed here.</p>
+</blockquote>
+<p>This notion of address or name ownership is
+<a href="https://www.w3.org/DesignIssues/">pervasive across architectural documents</a>. This passage
+from an interview of TimBL
+(<a href="https://www.w3.org/DesignIssues/PhilosophicalEngineering.html">Philosophical Engineering and Ownerhip of URIs</a>) is explicit:</p>
+<blockquote>
+<p><strong>Alexandre Monnin</strong>: Regarding names and URIs, a URI is not precisely a philosophical
+concept, it's an artifiact [sic]. So you can own a URI while you cannot own a philosophical
+name. The difference is entirely in this respect.<br>
+<strong>Tim Berners-Lee</strong>: For your definition of a philosophical name, you cannot own it.
+Maybe in your world, in your philosophy, you don't deal with names that are owned, but
+in the world we're talking about, names are owned.</p>
+</blockquote>
+<p>This expectation of delegated naming authority was so strong among early Web architects
+that the development of naming conventions in HTTP space (eg. <code>robots.txt</code>, <code>favicon.ico</code>,
+all the <code>.well-known</code> paths) is described as "<em>expropriation</em>" in the
+<a href="https://www.w3.org/TR/webarch/">Web Architecture</a> and the W3C's Technical Architecture
+Group (TAG) issue on the topic stated that it "breaks the web".</p>
+<p>Federated models only have weak capture-resistance because the federated entities can always
+concede power (precisely because they have ownership) but lack established means to
+support collective organization. As a result, any power imbalance will likely become hard
+to dislodge. A good example is search: as a publisher (the owner of delegated authority
+over your domain) you can cede the rights to index your content but you can't have a voice
+in what is done with the indexed content (individual opt out is not an option). This was
+fine when you could barter content for links, but once search power consolidated, the
+terms of trade deteriorated with no immediate recourse.</p>
+</section><section id="acknowledgements"><h2><bdi class="secno">7. </bdi>Acknowledgements</h2><a href="#acknowledgements" class="self-link" aria-label="Section 7."></a>
+<p>Many thanks to the following people, listed alphabetically, whose feedback was instrumental
+in producing this document:
+Adin Schmahmann,
+biglep,
+Dietrich Ayala,
+Juan Benet,
+lidel,
+Molly Mackinlay, and
+mosh.</p>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-http-routing-v1">[http-routing-v1]</dt><dd><a href="https://specs.ipfs.tech/routing/http-routing-v1/"><cite>Delegated Routing V1 HTTP API</cite></a>. Henrique Dias; Daniel Norman; Marcin Rataj. 2026-07-29. URL: <a href="https://specs.ipfs.tech/routing/http-routing-v1/">https://specs.ipfs.tech/routing/http-routing-v1/</a></dd><dt id="ref-rfc1958">[rfc1958]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc1958"><cite>Architectural Principles of the Internet</cite></a>. B. Carpenter, Ed.. IETF. June 1996. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc1958">https://www.rfc-editor.org/rfc/rfc1958</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc3986">[rfc3986]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc3986"><cite>Uniform Resource Identifier (URI): Generic Syntax</cite></a>. T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc3986">https://www.rfc-editor.org/rfc/rfc3986</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd><dt id="ref-webarch">[webarch]</dt><dd><a href="https://www.w3.org/TR/webarch/"><cite>Architecture of the World Wide Web, Volume One</cite></a>. Ian Jacobs; Norman Walsh. W3C. 15 December 2004. REC. URL: <a href="https://www.w3.org/TR/webarch/">https://www.w3.org/TR/webarch/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><dl class="bibliography"><dt>Editor</dt><dd><a href="https://berjon.com/">Robin Berjon</a> (<a href="https://ipfsfoundation.org/">IPFS Foundation</a>) <a href="mailto:robin@berjon.com"><img src="/img/email.svg" width="16" height="16" alt="Email: robin@berjon.com"></a> <a href="https://github.com/darobin"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a> <a href="https://bsky.app/profile/robin.berjon.com"><img src="/img/bluesky.png" width="16" height="16" alt="Bluesky"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

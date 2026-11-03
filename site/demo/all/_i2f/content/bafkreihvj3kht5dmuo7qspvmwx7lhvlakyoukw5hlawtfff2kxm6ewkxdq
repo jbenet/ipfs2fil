@@ -1,0 +1,135 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0328: JSON and CBOR Response Formats on HTTP Gateways</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0328/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0328: JSON and CBOR Response Formats on HTTP Gateways</h1><p id="last-modified"><time datetime="2022-10-07T00:00:00.000Z">7 October 2022</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/in-web-browsers/issues/182">ipfs/in-web-browsers/issues/182</a></dd><dd><a href="https://github.com/ipfs/specs/pull/328">ipfs/specs/pull/328</a></dd><dd><a href="https://github.com/ipfs/kubo/issues/8823">ipfs/kubo/issues/8823</a></dd><dd><a href="https://github.com/ipfs/kubo/pull/9335">ipfs/kubo/pull/9335</a></dd><dd><a href="https://github.com/ipfs/kubo/issues/7552">ipfs/kubo/issues/7552</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0328.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0328.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">4. </bdi>Test fixtures</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">5. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">5.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">5.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">5.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">5.4 </bdi>Alternatives</a><ol class="toc"><li><a href="#why-four-content-types" class="tocxref"><bdi class="secno">5.4.1 </bdi>Why four content types?</a></li><li><a href="#why-json-cbor-pathing-is-limited-to-full-blocks" class="tocxref"><bdi class="secno">5.4.2 </bdi>Why JSON/CBOR pathing is limited to full blocks?</a></li></ol></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Add support for the <a href="https://ipld.io/docs/codecs/known/dag-json/">DAG-JSON</a>, <a href="https://ipld.io/docs/codecs/known/dag-cbor/">DAG-CBOR</a>, JSON and CBOR response formats in
+the [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Currently, the gateway supports requesting data in the <a href="https://ipld.io/docs/codecs/known/dag-pb/">DAG-PB</a>, RAW, <a href="https://ipld.io/specs/transport/car/">CAR</a> and
+TAR formats. In addition, it allows for traversing of links encoded through CBOR
+Tag 42, as long as they are intermediate links, and not the final document.
+It works on both DAG-CBOR, and its JSON representation, DAG-JSON. However, it
+should be possible to download deserialized versions of the final JSON/CBOR document
+in raw format (not wrapped in UnixFS).</p>
+<p>The main functional gap in the IPFS ecosystem is the lack of support for
+non-UnixFS DAGs on HTTP gateways. Users are able to create custom DAGs based on
+traversable DAG-CBOR thanks to <a href="https://github.com/core-wg/yang-cbor/issues/13#issuecomment-524378859">CBOR tag 42 being reserved for CIDs</a>
+and DAG-JSON documents, but they are unable to load deserialized documents from
+a local gateway, which is severely decreasing the utility of non-UnixFS DAGs.</p>
+<p>Adding JSON and CBOR response types will also benefit UnixFS. DAG-PB has a
+<a href="https://ipld.io/specs/codecs/dag-pb/spec/#logical-format">logical format</a> which makes it possible to represent a DAG-PB
+directory as a <a href="https://ipld.io/docs/codecs/known/dag-json/">DAG-JSON</a> document. This means that, if we support DAG-JSON in
+the gateway, then we would support
+<a href="https://github.com/ipfs/go-ipfs/issues/7552">JSON responses for directory listings</a>, which has been
+requested by our users in the past.</p>
+<p>In addition, this functionality is already present on the current Kubo CLI. By
+bringing it to the gateways, we provide users with more power when it comes
+to storing and fetching CBOR and JSON in IPFS.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>The solution is to allow the Gateway to support serializing data as <a href="https://ipld.io/docs/codecs/known/dag-json/">DAG-JSON</a>,
+<a href="https://ipld.io/docs/codecs/known/dag-cbor/">DAG-CBOR</a>, JSON and CBOR by requesting them using either the <code>Accept</code> HTTP header
+or the <code>format</code> URL query. In addition, if the resolved CID is of one of the
+aforementioned types, the gateway should be able to resolve them instead of
+failing with <code>node type unknown</code>.</p>
+</section><section id="test-fixtures"><h2><bdi class="secno">4. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 4."></a>
+<ul>
+<li><a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/path_gateway_dag/dag-pb.car"><code>bafybeiegxwlgmoh2cny7qlolykdf7aq7g6dlommarldrbm7c4hbckhfcke</code></a> is a
+DAG-PB directory.</li>
+<li><a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/path_gateway_dag/dag-pb.json"><code>bafkreidmwhhm6myajxlpu7kofe3aqwf4ezxxn46cp5fko7mb6x74g4k5nm</code></a>
+is the aforementioned DAG-PB directory's <a href="https://ipld.io/specs/codecs/dag-pb/spec/#logical-format">Logical DAG-JSON representation</a> that
+is expected to be returned when using <code>?format=dag-json</code>.</li>
+</ul>
+</section><section id="design-rationale"><h2><bdi class="secno">5. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 5."></a>
+<p>The current gateway already supports different response formats via the
+<code>Accept</code> HTTP header and the <code>format</code> URL query. This IPIP proposes adding
+JSON and CBOR formats to that list.</p>
+<p>In addition, the current gateway already supports traversing through DAG-CBOR
+and DAG-JSON links if they are intermediary documents. With this IPIP, we aim
+to be able to download the DAG-CBOR, DAG-JSON, JSON and CBOR documents
+themselves, with correct <code>Content-Type</code> headers.</p>
+<section id="user-benefit"><h3><bdi class="secno">5.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 5.1"></a>
+<p>The user benefits from this change as they will now be able to retrieve
+content encoded in the traversable DAG-JSON and DAG-CBOR formats. This is
+something that has been <a href="https://github.com/ipfs/go-ipfs/issues/7552">requested before</a>.</p>
+<p>In addition, both UX and DX are significantly improved, since every UnixFS directory can
+now be inspected in a regular web browser via <code>?format=json</code>. This can remove the
+need for parsing HTML with directory listing.</p>
+</section><section id="compatibility"><h3><bdi class="secno">5.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 5.2"></a>
+<p>This IPIP adds new response types and does not modify existing ones,
+making it a backwards-compatible change.</p>
+</section><section id="security"><h3><bdi class="secno">5.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 5.3"></a>
+<p>Serializers and deserializers for the JSON and CBOR must follow the security
+considerations of the original specifications, found in:</p>
+<ul>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc8259#section-12">RFC 8259 (JSON), Section 12</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc8949#section-10">RFC 8949 (CBOR), Section 10</a></li>
+</ul>
+<p>DAG-JSON and DAG-CBOR follow the same security considerations as JSON and CBOR.
+Note that DAG-JSON and DAG-CBOR are stricter subsets of JSON and CBOR, respectively.
+Therefore they must follow their specification and error if the payload is not
+strict enough:</p>
+<ul>
+<li><a href="https://ipld.io/specs/codecs/dag-json/spec/">DAG-JSON Spec</a></li>
+<li><a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR Spec</a></li>
+</ul>
+</section><section id="alternatives"><h3><bdi class="secno">5.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 5.4"></a>
+<section id="why-four-content-types"><h4><bdi class="secno">5.4.1 </bdi>Why four content types?</h4><a href="#why-four-content-types" class="self-link" aria-label="Section 5.4.1"></a>
+<p>If we do not introduce  DAG-JSON, DAG-CBOR, JSON and CBOR  response formats in
+the gateway, the usage of IPFS is constricted to files and directories represented
+by UnixFS (DAG-PB) codec. Therefore, if a user wants to store JSON and/or CBOR
+in IPFS, they have to wrap it as a UnixFS file in order to be able to fetch it
+through the gateway. That adds size and processing overhead.</p>
+<p>In addition, we could introduce only DAG-JSON and DAG-CBOR. However, not
+supporting the generic variants, JSON and CBOR, would lead to poor UX. The
+ability to retrieve DAG-JSON as <code>application/json</code> is an important step
+for the interoperability of the HTTP Gateway with web browsers and other tools
+that expect specific Content Types. Namely, <code>Content-Type: application/json</code> with
+<code>Content-Disposition: inline</code> allows for JSON preview to be rendered in a web browser
+and webdev tools.</p>
+</section><section id="why-json-cbor-pathing-is-limited-to-full-blocks"><h4><bdi class="secno">5.4.2 </bdi>Why JSON/CBOR pathing is limited to full blocks?</h4><a href="#why-json-cbor-pathing-is-limited-to-full-blocks" class="self-link" aria-label="Section 5.4.2"></a>
+<p>Finally, we considered supporting pathing within both DAG and non-DAG variants
+of the JSON and CBOR codecs. Pathing within these documents could lead to responses
+with extracts from the document. For example, if we have the document:</p>
+<pre><code class="">{
+  "link" {
+    "to": {
+      "some": {
+        "cid2": &lt;cbor tag 42 pointing at different CID&gt;
+       }
+    }
+  }
+}
+</code></pre>
+<p>With CID <code>bafy</code>, and we navigate to <code>/ipfs/bafy/link/to</code>, we would be able to
+retrieve an extract from the document.</p>
+<pre><code class="">{
+  "some": {
+    "cid2": &lt;cbor tag 42 pointing at different CID&gt;
+    }
+}
+</code></pre>
+<p>However, supporting this raises questions whose answers are not clearly defined
+or agreed upon yet. Right now, pathing is only supported over CID-based Links,
+such as Tag 42 in CBOR. In addition, some HTTP headers regarding caching are based
+on the CID, and adding extraction pathings would not be clear. Giving users the
+possibility to retrieve JSON, CBOR, DAG-JSON AND DAG-CBOR documents through the
+gateway is, in itself, a progress and will open the doors for new tools and explorations.</p>
+</section></section><section id="copyright"><h3><bdi class="secno">5.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://hacdias.com/">Henrique Dias</a> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Gus Eggert</span> <a href="https://github.com/guseggert"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

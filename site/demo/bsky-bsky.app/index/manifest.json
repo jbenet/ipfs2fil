@@ -1,23 +1,23 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeie7qmyl4dtqwepbljr2vntzei52qfpxftxkxjhsjzitvlsupgdeby",
-  "dataRoot": "bafybeigyhtgpxyeyokjercwm7aj2tnpivxk47rmf4zk5uedtpabsfvorma",
+  "root": "bafybeiagklmsgi3mdozppzcg4xnojbby3zou2ccuhblpw3vcd6x7iiazra",
+  "dataRoot": "bafybeiajsztabsqo3ofumkgjgsnapt3p5a5r3eyev2xuoujteopcnyghuy",
   "source": {
     "kind": "atproto",
     "repoVersion": 0,
-    "blocks": 15236,
-    "bytes": 153758415
+    "blocks": 16119,
+    "bytes": 153967785
   },
   "roots": [
     {
-      "cid": "bafyreibhfwopaayjzd747z26sb5utelrrcwgrtju3prcj52zpyai2sqege",
+      "cid": "bafyreieflhsrxafyio2d6sv6ar5efwesustqhmhvq2rrhznzeyx7h7slsq",
       "kind": "pin-recursive",
       "name": "@bsky.app",
-      "path": "pins/recursive/bafyreibhfwopaayjzd747z26sb5utelrrcwgrtju3prcj52zpyai2sqege",
-      "bytes": 153754962,
-      "blocks": 15234,
-      "own": 153754962,
+      "path": "pins/recursive/bafyreieflhsrxafyio2d6sv6ar5efwesustqhmhvq2rrhznzeyx7h7slsq",
+      "bytes": 153964332,
+      "blocks": 16117,
+      "own": 153964332,
       "firstPiece": 0,
       "lastPiece": 0
     },
@@ -47,28 +47,12 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibfqos6wnixrdbzihdht7otrcewpjedarz2fvolocr3j5z72lhtf6cawrr7i43q",
-      "carBytes": 153431421,
-      "blocks": 15231,
+      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
+      "carBytes": 523317785,
+      "blocks": 19016,
       "blockList": "pieces/0000",
-      "snapshot": 0
-    },
-    {
-      "index": 1,
-      "pieceCid": "bafkzcibestjfmelmh2auwpv7e3jzovox7fnsq255udyfibi7kiy72ensetnmloz5b4",
-      "carBytes": 2741996,
-      "blocks": 34,
-      "blockList": "",
-      "part": "index",
-      "snapshot": 0
-    },
-    {
-      "index": 2,
-      "pieceCid": "bafkzcibd2mgaq6uqni7dhvufsin3dmmlbp452rpqmv6jm5jv6mmy5eyxkhe7txjb",
-      "carBytes": 6509,
-      "blocks": 8,
-      "blockList": "",
-      "part": "head",
+      "part": "bundle",
+      "dataBytes": 154580389,
       "snapshot": 0
     }
   ],
@@ -77,9 +61,7 @@
       "provider": "2",
       "dataSetId": "5310",
       "pieceIds": {
-        "0": "8",
-        "1": "7",
-        "2": "6"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -87,9 +69,7 @@
       "provider": "9",
       "dataSetId": "5311",
       "pieceIds": {
-        "0": "8",
-        "1": "6",
-        "2": "7"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -97,34 +77,19 @@
       "provider": "16",
       "dataSetId": "5312",
       "pieceIds": {
-        "0": "7",
-        "1": "8",
-        "2": "6"
+        "0": "0"
       },
       "service": "unknown"
     }
   ],
   "snapshots": [
     {
-      "time": "2026-11-01T08:54:08Z",
-      "root": "bafybeie7qmyl4dtqwepbljr2vntzei52qfpxftxkxjhsjzitvlsupgdeby",
+      "time": "2026-11-03T10:29:58Z",
+      "root": "bafybeiagklmsgi3mdozppzcg4xnojbby3zou2ccuhblpw3vcd6x7iiazra",
       "newPieces": [
-        0,
-        1,
-        2
+        0
       ]
     }
   ],
-  "shared": {
-    "blocks": 5,
-    "bytes": 905918,
-    "pieces": [
-      {
-        "pieceCid": "bafkzcibfqhqpayyymtnbqsauzeeijh557nklupltkvxigzpxrojvhghag5p4kbvfjuma",
-        "archive": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
-        "blocks": 5
-      }
-    ]
-  },
   "collection": "repos:default"
 }

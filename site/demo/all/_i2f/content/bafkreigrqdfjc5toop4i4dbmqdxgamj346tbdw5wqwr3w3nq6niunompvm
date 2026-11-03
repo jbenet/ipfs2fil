@@ -1,0 +1,90 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP: Improvement Process for IPFS Specifications</title>
+    <meta name="description" content="The specification documenting the process through which a new IPIP should be proposed.">
+    <link rel="canonical" href="https://specs.ipfs.tech/meta/ipip-process/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP: Improvement Process for IPFS Specifications</h1><p id="last-modified"><time datetime="2023-02-23T00:00:00.000Z">23 February 2023</time></p><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/meta/ipip-process.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/meta/ipip-process.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a></li><li><a href="#process-design" class="tocxref"><bdi class="secno">2. </bdi>Process design</a><ol class="toc"><li><a href="#what-is-an-ipip" class="tocxref"><bdi class="secno">2.1 </bdi>What is an IPIP?</a></li><li><a href="#what-changes-need-the-ipip-process" class="tocxref"><bdi class="secno">2.2 </bdi>What changes need the IPIP process?</a></li></ol></li><li><a href="#improvement-lifecycle" class="tocxref"><bdi class="secno">3. </bdi>Improvement lifecycle</a><ol class="toc"><li><a href="#opening-an-improvement-proposal-ipip" class="tocxref"><bdi class="secno">3.1 </bdi>Opening an improvement proposal (IPIP)</a></li><li><a href="#reviewing-ipips" class="tocxref"><bdi class="secno">3.2 </bdi>Reviewing IPIPs</a></li><li><a href="#things-not-covered-by-this-document" class="tocxref"><bdi class="secno">3.3 </bdi>Things not covered by this document</a></li></ol></li><li><a href="#copyright" class="tocxref"><bdi class="secno">4. </bdi>Copyright</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">A. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>IPIP aims to focus protocol design discussions into an orderly process that:</p>
+<ol>
+<li>Provides good visibility into to the full set of proposals</li>
+<li>Keeps the full discussion for a proposal in one place, providing historical context</li>
+<li>Ensures stakeholders in the project can be aware of proposed changes and participate
+in the decision making process</li>
+<li>Provides a mechanism to ensure proposals are given consideration and decisions get made</li>
+</ol>
+</section><section id="process-design"><h2><bdi class="secno">2. </bdi>Process design</h2><a href="#process-design" class="self-link" aria-label="Section 2."></a>
+<p>We adopted a formal change management process for the <a href="https://github.com/ipfs/specs/">ipfs/specs</a> repository, providing a
+minimal structure for opening, reviewing, and merging specification changes.</p>
+<section id="what-is-an-ipip"><h3><bdi class="secno">2.1 </bdi>What is an IPIP?</h3><a href="#what-is-an-ipip" class="self-link" aria-label="Section 2.1"></a>
+<p>IPIP Provides an orderly mechanism for considering proposed changes to IPFS specifications.
+<strong>An IPIP proposal is not to be the spec itself; the approval of an IPIP leads to an update to
+a specification.</strong></p>
+<p>To illustrate:</p>
+<ul>
+<li>In order to understand how (hypothetical) WebDAV Gateway works, one would
+read contents of specs in <code>ipfs/specs/src/webdav-gateway.md</code>.</li>
+<li>IPIP in <code>ipfs/specs/src/ipips/ipip-000N.md</code> would only include
+<strong>Motivation</strong> and explainer why certain design decisions were made at a
+certain point in time. Initial <code>ipip-000N.md</code> would explain
+why we added WebDAV spec in the first place.</li>
+</ul>
+</section><section id="what-changes-need-the-ipip-process"><h3><bdi class="secno">2.2 </bdi>What changes need the IPIP process?</h3><a href="#what-changes-need-the-ipip-process" class="self-link" aria-label="Section 2.2"></a>
+<ul>
+<li><strong>Does Not Need IPIP</strong>: The spec has a bug - something that is plainly a mistake</li>
+<li><strong>Does Not need IPIP</strong>: Adding more details, test vectors, and editorials/cosmetic changes</li>
+<li><strong>Needs IPIP</strong>: An addition to the protocol</li>
+<li><strong>Needs IPIP</strong><div></div> that could cause an interop issues require a PR with fix and IPIP in
+<code>ipfs/specs/src/ipips/ipip-000M.md</code> explaining why we make the
+breaking spec change, compatibility/migration considerations etc.</li>
+</ul>
+</section></section><section id="improvement-lifecycle"><h2><bdi class="secno">3. </bdi>Improvement lifecycle</h2><a href="#improvement-lifecycle" class="self-link" aria-label="Section 3."></a>
+<section id="opening-an-improvement-proposal-ipip"><h3><bdi class="secno">3.1 </bdi>Opening an improvement proposal (IPIP)</h3><a href="#opening-an-improvement-proposal-ipip" class="self-link" aria-label="Section 3.1"></a>
+<p>Changes to IPFS specifications can be proposed by opening a Git pull-request
+(PR) against the <code>ipfs/specs</code> repository.</p>
+<p>In addition to specification changes, such PR must include a short <strong>IPIP
+document</strong> based on the template in <a href="https://github.com/ipfs/specs/blob/main/ipip-template.md"><code>ipfs/specs/ipip-template.md</code></a>.</p>
+<p>When a new specification file is added to the repo, it should be based on
+the template at <a href="https://github.com/ipfs/specs/blob/main/template.md"><code>ipfs/specs/template.md</code></a>.</p>
+<p>When naming a new proposal, don't try to introduce an IPIP number; we will do that only for
+IPIPs that are approved before accepting into <code>main</code> branch.</p>
+<p>Proposals are officially submitted when a pull request into <code>main</code> is opened</p>
+<p>Proposals that were reviewed as useful, but rejected for now, will be moved into <code>IPIP/deferred</code> folder and then merged into <code>main</code></p>
+</section><section id="reviewing-ipips"><h3><bdi class="secno">3.2 </bdi>Reviewing IPIPs</h3><a href="#reviewing-ipips" class="self-link" aria-label="Section 3.2"></a>
+<ol>
+<li><a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> will do an initial triage of newly opened PRs roughly monthly. They'll try to filter out
+noise, so that community consideration is given only to reasonable proposals; others they'll reject.</li>
+<li>Specs Stewards will post to the forums linking to the proposal; directing feedback/discussion to
+take place in GitHub on the PR</li>
+<li>After a month of discussion, Specs Stewards will review again. If there are no substantive disagreements
+with the proposal, including within Spec Stewards, the proposal will be approved.</li>
+<li>If discussion or modification is still underway and appears to be leading to a resolution, it can be held
+open for another month</li>
+<li>Proposals that are generating ongoing discussion and seem contentious or stuck will be brought in for
+consideration at a monthly sync, to be announced at least a week ahead of time on the forum.</li>
+<li>After discussion, Spec Stewards will make call on whether to approve or reject the proposal.</li>
+<li>At this point approved proposals get assigned a number (encoded in the filename),
+and merged into the IPIP folder on <code>main</code> branch. Potentially useful (but rejected for now)
+proposals should be also merged to <code>main</code>, but in a subfolder called <code>/IPIP/deferred</code>. Proposals rejected in initial
+triage will simply have the PR declined.</li>
+<li>IPIP author and two approving <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> are added to <code>CODEOWNERS</code> file to be
+automatically asked to review any future changes to files added or modified by the IPIP.</li>
+</ol>
+</section><section id="things-not-covered-by-this-document"><h3><bdi class="secno">3.3 </bdi>Things not covered by this document</h3><a href="#things-not-covered-by-this-document" class="self-link" aria-label="Section 3.3"></a>
+<p><a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> will adjust the process based on usage patterns.</p>
+</section></section><section id="copyright"><h2><bdi class="secno">4. </bdi>Copyright</h2><a href="#copyright" class="self-link" aria-label="Section 4."></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">A. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix A."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Guillaume Michel</span> <a href="https://github.com/guillaumemichel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://hacdias.com/">Henrique Dias</a> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0524: Remove cross-codec conversion from HTTP Gateways</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0524/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0524: Remove cross-codec conversion from HTTP Gateways</h1><p id="last-modified"><time datetime="2026-03-05T00:00:00.000Z">5 March 2026</time></p><dl><dt>Related Issue</dt><dd><a href="https://github.com/ipfs/gateway-conformance/issues/200">ipfs/gateway-conformance/issues/200</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0524.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0524.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a><ol class="toc"><li><a href="#real-world-format-usage-on-ipfs-io-and-dweb-link" class="tocxref"><bdi class="secno">4.2.1 </bdi>Real-world <code>?format=</code> usage on <code>ipfs.io</code> and <code>dweb.link</code></a></li><li><a href="#json-and-dag-json-independence" class="tocxref"><bdi class="secno">4.2.2 </bdi><code>json</code> and <code>dag-json</code> independence</a></li><li><a href="#unixfs-interop-exception-for-accept-application-json" class="tocxref"><bdi class="secno">4.2.3 </bdi>UnixFS interop exception for <code>Accept: application/json</code></a></li><li><a href="#opt-in-backward-compatibility" class="tocxref"><bdi class="secno">4.2.4 </bdi>Opt-in backward compatibility</a></li><li><a href="#implementation-defined-behavior" class="tocxref"><bdi class="secno">4.2.5 </bdi>Implementation-defined behavior</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#copyright" class="tocxref"><bdi class="secno">5.1 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Make IPFS HTTP Gateway responses easier to reason about by not requiring IPLD
+Data Model translations</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>When sending an <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept">Accept</a>
+header or <a href="https://specs.ipfs.tech/http-gateways/path-gateway/#format-request-query-parameter">format</a>
+query parameter to specify the response format of a request, the IPFS HTTP
+Gateway specs <a href="https://specs.ipfs.tech/http-gateways/path-gateway/#accept-request-header">allow translation</a>
+of the requested content into the <a href="https://ipld.io/docs/data-model/">IPLD Data Model</a>.</p>
+<p>This adds significant complexity to HTTP Gateway implementations, since they
+need to be able to translate between arbitrary data types and handle all the
+various failure states.</p>
+<p>The conversions are also lossy due to differences in supported data types across
+different formats so lack general-purpose utility and are ultimately something
+that could be done on an interested client if required.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>When the block's CID codec matches the requested response format,
+implementations <em class="rfc2119">MAY</em> return the block as-is without parsing or validating it.
+This is effectively equivalent to requesting <code>?format=raw</code> but with a
+codec-specific <code>Content-Type</code> header.</p>
+<p>When the CID codec does not match the requested format, the gateway <em class="rfc2119">SHOULD</em>
+return a <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/406">406 Not Acceptable</a>
+unless the server provides cross-codec conversion as an extra feature outside
+of this specification.</p>
+<p>For example, requesting a DAG-JSON block with the <code>application/cbor</code> format
+would result in a 406 response.</p>
+<p>Where a human-readable rendering of the data is desired, the <code>text/html</code> format
+can be requested. This would allow browsing DAG-PB data, for example.</p>
+<p>A <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/400">400</a>
+may be returned if the request was invalid (for example an unsupported format
+was requested).</p>
+<p>A <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/500">500</a>
+may be returned in other circumstances.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>Simplifying the HTTP Gateway spec to remove these format translations and the
+additional logic required makes it more straightforward to create new
+implementations, and makes the returned data more transparent and so easier to
+understand since the data is not modified to fit the output format.</p>
+<p>Clients that wish to translate between different data formats may request raw
+blocks and do the translation themselves.</p>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>For gateway operators and implementers, removing the requirement to perform
+codec conversions server-side significantly reduces implementation complexity.</p>
+<p>For end users and application developers, the change makes gateway behavior
+easier to reason about: a request either returns data deserialized according
+to the rules of the CID's original codec, or fails with 406. This moves
+conversion to userland, encouraging users to fetch raw blocks with
+<code>?format=raw</code> and convert client-side, putting the application in full control
+and producing deterministic results regardless of which gateway is used.</p>
+<p>This matters in practice because codec libraries do not behave identically.
+<a href="https://hyphacoop.github.io/dasl-testing/?group=tests-by-file&amp;tag=dag-cbor">Cross-library dag-cbor tests (2026)</a>
+show each implementation differs on edge cases like float handling, map key
+ordering, and encoding strictness. Relying on server-side conversion means
+the output depends on whichever library the gateway happens to use, which is
+not a foundation for robust software.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>Formally this is a breaking change: server-side IPLD Data Model translations
+between codecs are removed.</p>
+<p>In practice, nobody could build reliable software
+on top of conversion logic that behaved non-deterministically across gateways
+written in different languages. Clients that needed data in a different
+format often chose to fetch <code>?format=raw</code> and convert client-side already.</p>
+<p>This IPIP standardizes that robust real-world pattern and removes an
+unreliable niche feature that has seen limited use.</p>
+<section id="real-world-format-usage-on-ipfs-io-and-dweb-link"><h4><bdi class="secno">4.2.1 </bdi>Real-world <code>?format=</code> usage on <code>ipfs.io</code> and <code>dweb.link</code></h4><a href="#real-world-format-usage-on-ipfs-io-and-dweb-link" class="self-link" aria-label="Section 4.2.1"></a>
+<p>A 24-hour sample of traffic on the <code>ipfs.io</code> and <code>dweb.link</code> public gateways
+(Feb 2026) shows that only 4.5% of all requests use the <code>?format=</code> query
+parameter, and the vast majority ask for <code>json</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>?format=</code> value</th>
+<th>% of requests with <code>format=</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>json</code></td>
+<td>99.11%</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>0.86%</td>
+</tr>
+<tr>
+<td><code>dag-json</code></td>
+<td>0.02%</td>
+</tr>
+<tr>
+<td><code>car</code></td>
+<td>0.01%</td>
+</tr>
+<tr>
+<td>other</td>
+<td>&lt;0.01%</td>
+</tr>
+</tbody>
+</table>
+<p>Note: <code>ipfs.io</code> and <code>dweb.link</code> serve deserialized responses. Trustless
+verifiable requests (<code>?format=raw</code>, <code>?format=car</code>) are redirected to
+<code>trustless-gateway.link</code>, which is why those formats appear so rarely here.</p>
+<p>Looking at what those <code>?format=json</code> requests actually point at tells the
+real story. The CID codec of the requested blocks breaks down as follows:</p>
+<table>
+<thead>
+<tr>
+<th>CID codec of requested block</th>
+<th>% of <code>?format=json</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dag-pb</code> (CIDv0 <code>Qm...</code>)</td>
+<td>60.0%</td>
+</tr>
+<tr>
+<td><code>dag-pb</code> (CIDv1 <code>bafy...</code>)</td>
+<td>21.4%</td>
+</tr>
+<tr>
+<td><code>raw</code> (<code>bafk...</code>)</td>
+<td>18.6%</td>
+</tr>
+</tbody>
+</table>
+<p>100% of <code>?format=json</code> requests are for blocks with <code>dag-pb</code> or <code>raw</code> codec.
+None target the <code>json</code> codec (0x0200). In other words, these clients are
+reading regular JSON files stored as UnixFS, not asking the gateway to convert
+between IPLD codecs. The gateway serves them as plain HTTP file responses,
+which is covered by the UnixFS interop exception described later in this IPIP.</p>
+<p>The remaining formats (<code>dag-json</code> and <code>car</code>) together account for less than
+0.04% of <code>?format=</code> requests and do not depend on cross-codec conversion
+either, since they request data in the block's native codec.</p>
+</section><section id="json-and-dag-json-independence"><h4><bdi class="secno">4.2.2 </bdi><code>json</code> and <code>dag-json</code> independence</h4><a href="#json-and-dag-json-independence" class="self-link" aria-label="Section 4.2.2"></a>
+<p><code>application/json</code> and <code>application/vnd.ipld.dag-json</code> are now treated as
+independent formats, each matching only their respective CID codec (<code>json</code>
+0x0200 and <code>dag-json</code> 0x0129). The old behavior where <code>application/json</code> was
+an alias for <code>application/vnd.ipld.dag-json</code> (falling back to dag-json
+conversion) no longer applies.</p>
+</section><section id="unixfs-interop-exception-for-accept-application-json"><h4><bdi class="secno">4.2.3 </bdi>UnixFS interop exception for <code>Accept: application/json</code></h4><a href="#unixfs-interop-exception-for-accept-application-json" class="self-link" aria-label="Section 4.2.3"></a>
+<p>Note: the codec match requirement and 406 behavior described above do not
+apply to deserialized UnixFS file responses. Users commonly store valid JSON
+as UnixFS files (with <code>dag-pb</code> or <code>raw</code> codec), and serving those files with
+<code>Accept: application/json</code> is regular HTTP content serving, not codec
+conversion. See the <code>application/json</code> entry in the
+<a href="https://specs.ipfs.tech/http-gateways/path-gateway/#accept-request-header">Accept request header</a>
+section of the Path Gateway spec for normative requirements.</p>
+</section><section id="opt-in-backward-compatibility"><h4><bdi class="secno">4.2.4 </bdi>Opt-in backward compatibility</h4><a href="#opt-in-backward-compatibility" class="self-link" aria-label="Section 4.2.4"></a>
+<p>Implementations <em class="rfc2119">MAY</em> offer an opt-in configuration flag to restore the old
+codec conversion behavior for backward compatibility.</p>
+</section><section id="implementation-defined-behavior"><h4><bdi class="secno">4.2.5 </bdi>Implementation-defined behavior</h4><a href="#implementation-defined-behavior" class="self-link" aria-label="Section 4.2.5"></a>
+<ul>
+<li>The content of the 406 error response body (e.g. actionable hints).</li>
+<li>Handling of <code>?format=json</code> / <code>Accept: application/json</code> on non-json-codec
+content (like <code>dag-pb</code> UnixFS files).</li>
+<li>Whether to offer an opt-in flag for restoring codec conversion.</li>
+<li>Validation of block data when the CID codec matches the requested format.</li>
+</ul>
+</section></section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>No security implications. This change restricts gateway behavior (returning
+406 instead of converting), which reduces attack surface.</p>
+</section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>Implementers can run the <a href="https://github.com/ipfs/gateway-conformance/">gateway-conformance</a>
+test suite v0.10 or later. The following behaviors are verified by the test suite:</p>
+<ul>
+<li>Requesting a block in a format that differs from its CID codec (e.g.
+<code>dag-pb</code> block with <code>?format=dag-json</code>) returns HTTP 406.</li>
+<li>Requesting a block in its native codec returns HTTP 200.</li>
+<li><code>?format=raw</code> works for any codec.</li>
+<li>HTML rendering (<code>Accept: text/html</code>) of DAG-JSON/DAG-CBOR blocks is not
+codec conversion and remains part of the spec.</li>
+</ul>
+<section id="copyright"><h3><bdi class="secno">5.1 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.1"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://achingbrain.net">Alex Potsides</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org">Marcin Rataj</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

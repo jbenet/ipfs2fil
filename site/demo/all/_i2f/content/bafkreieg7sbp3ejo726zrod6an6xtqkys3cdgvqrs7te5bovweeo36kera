@@ -1,0 +1,462 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Trustless Gateway Specification</title>
+    <meta name="description" content="The minimal subset of HTTP Gateway response types facilitates data retrieval via CID and ensures integrity verification, all while eliminating the need to trust the gateway itself.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Trustless Gateway Specification</h1><p id="last-modified"><time datetime="2026-03-05T00:00:00.000Z">5 March 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/trustless-gateway.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/trustless-gateway.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>Trustless Gateway is a <em>subset</em> of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>]
+that allows light IPFS clients to retrieve data behind a CID and verify its
+integrity without delegating any trust to the gateway itself.</p>
+<p>The minimal implementation means:</p>
+<ul>
+<li>response type is always fully verifiable: client can decide between a raw block or a CAR stream</li>
+<li>no UnixFS/IPLD deserialization</li>
+<li>for raw blocks:
+<ul>
+<li>data is requested by CID, only supported path is <code>/ipfs/{cid}</code></li>
+<li>no path traversal or recursive resolution</li>
+</ul>
+</li>
+<li>for CARs:
+<ul>
+<li>the pathing behavior is identical to [<a class="bibref" href="#ref-path-gateway">path-gateway</a>]</li>
+</ul>
+</li>
+</ul>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#http-api" class="tocxref"><bdi class="secno">1. </bdi>HTTP API</a><ol class="toc"><li><a href="#get-ipfs-cid-path-params" class="tocxref"><bdi class="secno">1.1 </bdi><code>GET /ipfs/{cid}[/{path}][?{params}]</code></a></li><li><a href="#head-ipfs-cid-path-params" class="tocxref"><bdi class="secno">1.2 </bdi><code>HEAD /ipfs/{cid}[/{path}][?{params}]</code></a></li><li><a href="#get-ipns-key-params" class="tocxref"><bdi class="secno">1.3 </bdi><code>GET /ipns/{key}[?{params}]</code></a></li><li><a href="#head-ipns-key-params" class="tocxref"><bdi class="secno">1.4 </bdi><code>HEAD /ipns/{key}[?{params}]</code></a></li></ol></li><li><a href="#http-request" class="tocxref"><bdi class="secno">2. </bdi>HTTP Request</a><ol class="toc"><li><a href="#request-headers" class="tocxref"><bdi class="secno">2.1 </bdi>Request Headers</a><ol class="toc"><li><a href="#accept-request-header" class="tocxref"><bdi class="secno">2.1.1 </bdi><code>Accept</code> (request header)</a></li><li><a href="#cache-control-only-if-cached-request-header" class="tocxref"><bdi class="secno">2.1.2 </bdi><code>Cache-Control: only-if-cached</code> (request header)</a></li></ol></li><li><a href="#request-query-parameters" class="tocxref"><bdi class="secno">2.2 </bdi>Request Query Parameters</a><ol class="toc"><li><a href="#format-request-query-parameter" class="tocxref"><bdi class="secno">2.2.1 </bdi><code>format</code> (request query parameter)</a></li><li><a href="#dag-scope-request-query-parameter" class="tocxref"><bdi class="secno">2.2.2 </bdi><code>dag-scope</code> (request query parameter)</a></li><li><a href="#entity-bytes-request-query-parameter" class="tocxref"><bdi class="secno">2.2.3 </bdi><code>entity-bytes</code> (request query parameter)</a></li><li><a href="#car-version-request-query-parameter" class="tocxref"><bdi class="secno">2.2.4 </bdi><code>car-version</code> (request query parameter)</a></li><li><a href="#car-order-request-query-parameter" class="tocxref"><bdi class="secno">2.2.5 </bdi><code>car-order</code> (request query parameter)</a></li><li><a href="#car-dups-request-query-parameter" class="tocxref"><bdi class="secno">2.2.6 </bdi><code>car-dups</code> (request query parameter)</a></li></ol></li></ol></li><li><a href="#http-response" class="tocxref"><bdi class="secno">3. </bdi>HTTP Response</a><ol class="toc"><li><a href="#response-status-codes" class="tocxref"><bdi class="secno">3.1 </bdi>Response Status Codes</a><ol class="toc"><li><a href="#404-not-found" class="tocxref"><bdi class="secno">3.1.1 </bdi><code>404 Not Found</code></a></li><li><a href="#streaming-and-missing-child-blocks" class="tocxref"><bdi class="secno">3.1.2 </bdi>Streaming and Missing Child Blocks</a></li><li><a href="#500-internal-server-error" class="tocxref"><bdi class="secno">3.1.3 </bdi><code>500 Internal Server Error</code></a></li></ol></li><li><a href="#response-headers" class="tocxref"><bdi class="secno">3.2 </bdi>Response Headers</a><ol class="toc"><li><a href="#content-type-response-header" class="tocxref"><bdi class="secno">3.2.1 </bdi><code>Content-Type</code> (response header)</a></li><li><a href="#content-disposition-response-header" class="tocxref"><bdi class="secno">3.2.2 </bdi><code>Content-Disposition</code> (response header)</a></li><li><a href="#content-location-response-header" class="tocxref"><bdi class="secno">3.2.3 </bdi><code>Content-Location</code> (response header)</a></li><li><a href="#etag-response-header" class="tocxref"><bdi class="secno">3.2.4 </bdi><code>Etag</code> (response header)</a></li></ol></li></ol></li><li><a href="#block-responses-application-vnd-ipld-raw" class="tocxref"><bdi class="secno">4. </bdi>Block Responses (application/vnd.ipld.raw)</a></li><li><a href="#car-responses-application-vnd-ipld-car" class="tocxref"><bdi class="secno">5. </bdi>CAR Responses (application/vnd.ipld.car)</a><ol class="toc"><li><a href="#car-version-content-type-parameter" class="tocxref"><bdi class="secno">5.1 </bdi>CAR <code>version</code> (content type parameter)</a></li><li><a href="#car-roots" class="tocxref"><bdi class="secno">5.2 </bdi>CAR roots</a></li><li><a href="#car-order-content-type-parameter" class="tocxref"><bdi class="secno">5.3 </bdi>CAR <code>order</code> (content type parameter)</a></li><li><a href="#car-dups-content-type-parameter" class="tocxref"><bdi class="secno">5.4 </bdi>CAR <code>dups</code> (content type parameter)</a></li><li><a href="#car-format-parameters-and-determinism" class="tocxref"><bdi class="secno">5.5 </bdi>CAR format parameters and determinism</a><ol class="toc"><li><a href="#car-format-signaling-in-request" class="tocxref"><bdi class="secno">5.5.1 </bdi>CAR format signaling in Request</a></li><li><a href="#car-format-signaling-in-response" class="tocxref"><bdi class="secno">5.5.2 </bdi>CAR format signaling in Response</a></li></ol></li></ol></li><li><a href="#ipns-record-responses-application-vnd-ipfs-ipns-record" class="tocxref"><bdi class="secno">6. </bdi>IPNS Record Responses (application/vnd.ipfs.ipns-record)</a></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">7. </bdi>Appendix: Notes for implementers</a><ol class="toc"><li><a href="#dedicated-probe-paths" class="tocxref"><bdi class="secno">7.1 </bdi>Dedicated Probe Paths</a><ol class="toc"><li><a href="#get-ipfs-bafkqaaa" class="tocxref"><bdi class="secno">7.1.1 </bdi><code>GET /ipfs/bafkqaaa</code></a></li><li><a href="#head-ipfs-bafkqaaa" class="tocxref"><bdi class="secno">7.1.2 </bdi><code>HEAD /ipfs/bafkqaaa</code></a></li></ol></li><li><a href="#p2p-usage" class="tocxref"><bdi class="secno">7.2 </bdi>Usage Within Peer-to-Peer (P2P) Networks</a><ol class="toc"><li><a href="#p2p-block-limits" class="tocxref"><bdi class="secno">7.2.1 </bdi>Block Limits</a></li><li><a href="#p2p-transport" class="tocxref"><bdi class="secno">7.2.2 </bdi>HTTPS and HTTP/2</a></li><li><a href="#p2p-recursion" class="tocxref"><bdi class="secno">7.2.3 </bdi>Recursion</a></li><li><a href="#p2p-security" class="tocxref"><bdi class="secno">7.2.4 </bdi>Security Considerations</a><ol class="toc"><li><a href="#http-servers" class="tocxref"><bdi class="secno">7.2.4.1 </bdi>HTTP Servers</a></li><li><a href="#http-clients" class="tocxref"><bdi class="secno">7.2.4.2 </bdi>HTTP Clients</a></li></ol></li></ol></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="http-api"><h2><bdi class="secno">1. </bdi>HTTP API</h2><a href="#http-api" class="self-link" aria-label="Section 1."></a>
+<p>A subset of "HTTP API" of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<section id="get-ipfs-cid-path-params"><h3><bdi class="secno">1.1 </bdi><code>GET /ipfs/{cid}[/{path}][?{params}]</code></h3><a href="#get-ipfs-cid-path-params" class="self-link" aria-label="Section 1.1"></a>
+<p>Downloads verifiable, content-addressed data for the specified <strong>immutable</strong> content path.</p>
+<p>Optional <code>path</code> is permitted for requests that specify CAR format (<code>?format=car</code> or <code>Accept: application/vnd.ipld.car</code>).</p>
+<p>For block requests (<code>?format=raw</code> or <code>Accept: application/vnd.ipld.raw</code>), only <code>GET /ipfs/{cid}[?{params}]</code> is supported.</p>
+<p>Client and Server implementations <em class="rfc2119">SHOULD</em> include support for the <a href="#dedicated-probe-paths"><code>GET</code> probe path</a>.</p>
+</section><section id="head-ipfs-cid-path-params"><h3><bdi class="secno">1.2 </bdi><code>HEAD /ipfs/{cid}[/{path}][?{params}]</code></h3><a href="#head-ipfs-cid-path-params" class="self-link" aria-label="Section 1.2"></a>
+<p>Same as GET, but does not return any payload.</p>
+<p>Client and Server implementations <em class="rfc2119">SHOULD</em> include support for the <a href="#dedicated-probe-paths"><code>HEAD</code> probe path</a>.</p>
+</section><section id="get-ipns-key-params"><h3><bdi class="secno">1.3 </bdi><code>GET /ipns/{key}[?{params}]</code></h3><a href="#get-ipns-key-params" class="self-link" aria-label="Section 1.3"></a>
+<p>Downloads data at specified IPNS Key. Verifiable [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] can be requested via <code>?format=ipns-record</code> or <code>Accept: application/vnd.ipfs.ipns-record</code>.</p>
+</section><section id="head-ipns-key-params"><h3><bdi class="secno">1.4 </bdi><code>HEAD /ipns/{key}[?{params}]</code></h3><a href="#head-ipns-key-params" class="self-link" aria-label="Section 1.4"></a>
+<p>Same as GET, but does not return any payload.</p>
+</section></section><section id="http-request"><h2><bdi class="secno">2. </bdi>HTTP Request</h2><a href="#http-request" class="self-link" aria-label="Section 2."></a>
+<p>Same as in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>], but with limited number of supported response types.</p>
+<section id="request-headers"><h3><bdi class="secno">2.1 </bdi>Request Headers</h3><a href="#request-headers" class="self-link" aria-label="Section 2.1"></a>
+<section id="accept-request-header"><h4><bdi class="secno">2.1.1 </bdi><code>Accept</code> (request header)</h4><a href="#accept-request-header" class="self-link" aria-label="Section 2.1.1"></a>
+<p>A Client <em class="rfc2119">SHOULD</em> send this HTTP header to leverage content type negotiation
+based on section 12.5.1 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>].</p>
+<p>Below response types <em class="rfc2119">MUST</em> be supported:</p>
+<ul>
+<li><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.raw">application/vnd.ipld.raw</a>
+<ul>
+<li>A single, verifiable raw block to be returned.</li>
+</ul>
+</li>
+</ul>
+<p>Below response types <em class="rfc2119">SHOULD</em> be supported:</p>
+<ul>
+<li>
+<p><a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.car">application/vnd.ipld.car</a></p>
+<ul>
+<li>Disables IPLD/IPFS deserialization, requests a verifiable CAR stream to be
+returned, implementations <em class="rfc2119">MAY</em> support optional CAR content type parameters
+([<a class="bibref" href="#ref-ipip-0412">ipip-0412</a>]) and the explicit <a href="#car-format-signaling-in-request">CAR format signaling in HTTP Request</a>.</li>
+</ul>
+</li>
+<li>
+<p><a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record">application/vnd.ipfs.ipns-record</a></p>
+<ul>
+<li>A verifiable [<a class="bibref" href="#ref-ipns-record">ipns-record</a>] (multicodec <code>0x0300</code>).</li>
+</ul>
+</li>
+</ul>
+<p>A Gateway <em class="rfc2119">SHOULD</em> return HTTP 400 Bad Request when running in strict trustless
+mode (no deserialized responses) and <code>Accept</code> header is missing.</p>
+<div class="note"><p>A Client <em class="rfc2119">SHOULD</em> include the <a href="#format-request-query-parameter"><code>format</code> query parameter</a>
+in the request URL, in addition to the <code>Accept</code> header. This provides the best
+interoperability and ensures consistent HTTP cache behavior across various
+gateway implementations.</p></div>
+</section><section id="cache-control-only-if-cached-request-header"><h4><bdi class="secno">2.1.2 </bdi><code>Cache-Control: only-if-cached</code> (request header)</h4><a href="#cache-control-only-if-cached-request-header" class="self-link" aria-label="Section 2.1.2"></a>
+<p>Trustless gateways, particularly non-recursive ones serving from a local block
+store, are well-suited for [<a class="bibref" href="#ref-path-gateway">path-gateway</a>]'s <code>Cache-Control: only-if-cached</code>
+request header. When received, gateway <em class="rfc2119">SHOULD</em> return HTTP 412 if the root block
+is not immediately available.</p>
+</section></section><section id="request-query-parameters"><h3><bdi class="secno">2.2 </bdi>Request Query Parameters</h3><a href="#request-query-parameters" class="self-link" aria-label="Section 2.2"></a>
+<section id="format-request-query-parameter"><h4><bdi class="secno">2.2.1 </bdi><code>format</code> (request query parameter)</h4><a href="#format-request-query-parameter" class="self-link" aria-label="Section 2.2.1"></a>
+<p>Same as <a href="https://specs.ipfs.tech/http-gateways/path-gateway/#format-request-query-parameter"><code>format</code></a> in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>], but with limited number of supported response types:</p>
+<ul>
+<li><code>format=raw</code> → <code>application/vnd.ipld.raw</code></li>
+<li><code>format=car</code> → <code>application/vnd.ipld.car</code></li>
+<li><code>format=ipns-record</code> → <code>application/vnd.ipfs.ipns-record</code></li>
+</ul>
+<p>When both <code>Accept</code> HTTP header and <code>format</code> query parameter are present,
+<code>format</code> <em class="rfc2119">SHOULD</em> take precedence.</p>
+<div class="note"><p>A Client <em class="rfc2119">SHOULD</em> include the <code>format</code> query parameter in the request URL, in
+addition to the <code>Accept</code> header. This provides the best interoperability and
+ensures consistent HTTP cache behavior across various gateway implementations.</p></div>
+</section><section id="dag-scope-request-query-parameter"><h4><bdi class="secno">2.2.2 </bdi><code>dag-scope</code> (request query parameter)</h4><a href="#dag-scope-request-query-parameter" class="self-link" aria-label="Section 2.2.2"></a>
+<p>Optional, <code>dag-scope=(block|entity|all)</code> with default value <code>all</code>, only available for CAR requests.</p>
+<p>Describes the shape of the DAG fetched the terminus of the specified path whose blocks
+are included in the returned CAR stream after the blocks required to traverse path segments.</p>
+<ul>
+<li>
+<p><code>block</code> - Only the root block at the end of the path is returned after blocks
+required to verify the specified path segments.</p>
+</li>
+<li>
+<p><code>entity</code> - For queries that traverse UnixFS data, <code>entity</code> roughly means return
+blocks needed to verify the terminating element of the requested content path.
+For UnixFS, all the blocks needed to read an entire UnixFS file, or enumerate a UnixFS directory.
+For all queries that reference non-UnixFS data, <code>entity</code> is equivalent to <code>block</code></p>
+</li>
+<li>
+<p><code>all</code> - Transmit the entire contiguous DAG that begins at the end of the path
+query, after blocks required to verify path segments</p>
+</li>
+</ul>
+<p>When present, returned <code>Etag</code> must include unique prefix based on the passed scope type.</p>
+</section><section id="entity-bytes-request-query-parameter"><h4><bdi class="secno">2.2.3 </bdi><code>entity-bytes</code> (request query parameter)</h4><a href="#entity-bytes-request-query-parameter" class="self-link" aria-label="Section 2.2.3"></a>
+<p>The optional <code>entity-bytes=from:to</code> parameter is available only for CAR
+requests.</p>
+<p>It implies <code>dag-scope=entity</code> and serves as a trustless equivalent of an HTTP
+Range Request.</p>
+<p>When the terminating entity at the end of the specified content path:</p>
+<ul>
+<li>
+<p>can be interpreted as a continuous array of bytes (such as a UnixFS file), a
+Gateway <em class="rfc2119">MUST</em> return only the minimal set of blocks necessary to verify the
+specified byte range of that entity.</p>
+<ul>
+<li>When dealing with a sharded UnixFS file (<code>dag-pb</code>, <code>0x70</code>) and a non-zero
+<code>from</code> value, the UnixFS data and <code>blocksizes</code> determine the
+corresponding starting block for a given <code>from</code> offset.</li>
+</ul>
+</li>
+<li>
+<p>cannot be interpreted as a continuous array of bytes (such as a DAG-CBOR/JSON
+map or UnixFS directory), the parameter <em class="rfc2119">MUST</em> be ignored, and the request is
+equivalent to <code>dag-scope=entity</code>.</p>
+</li>
+</ul>
+<p>Allowed values for <code>from</code> and <code>to</code> follow a subset of section 14.1.2 from
+[<a class="bibref" href="#ref-rfc9110">rfc9110</a>], where they are defined as offset integers that limit the
+returned blocks to only those necessary to satisfy the range <code>[from,to]</code>:</p>
+<ul>
+<li><code>from</code> value gives the byte-offset of the first byte in a range.</li>
+<li><code>to</code> value gives the byte-offset of the last byte in the range;
+that is, the byte positions specified are inclusive.</li>
+</ul>
+<p>The following additional values are supported:</p>
+<ul>
+<li><code>*</code> can be substituted for end-of-file
+<ul>
+<li><code>entity-bytes=0:*</code> is the entire file (a verifiable version of HTTP request for <code>Range: 0-</code>)</li>
+</ul>
+</li>
+<li>Negative numbers can be used for referring to bytes from the end of a file
+<ul>
+<li><code>entity-bytes=-1024:*</code> is the last 1024 bytes of a file
+(verifiable version of HTTP request for <code>Range: -1024</code>)</li>
+<li>It is also permissible (unlike with HTTP Range Requests) to ask for the
+range of 500 bytes from the beginning of the file to 1000 bytes from the
+end: <code>entity-bytes=499:-1000</code></li>
+</ul>
+</li>
+</ul>
+<p>A Gateway <em class="rfc2119">MUST</em> augment the returned <code>Etag</code> based on the passed <code>entity-bytes</code>.</p>
+<p>A Gateway <em class="rfc2119">SHOULD</em> return an HTTP 400 Bad Request error when the requested range
+is entirely outside of the entity's byte range and the Gateway is able to determine this
+upfront.</p>
+<p>In more nuanced error scenarios, a Gateway <em class="rfc2119">MUST</em> return a valid CAR response
+that includes enough blocks for the client to understand why the requested
+<code>entity-bytes</code> was incorrect or why only a part of the requested byte range was
+returned:</p>
+<ul>
+<li>
+<p>If the requested <code>entity-bytes</code> resolves to a range that partially falls
+outside the entity's byte range (before or after),
+the response <em class="rfc2119">MUST</em> include the subset of blocks within the entity's bytes.</p>
+<ul>
+<li>This allows clients to request valid ranges of the entity without needing
+to know its total size beforehand, and it does not require the Gateway to
+buffer the entire entity before returning the response.</li>
+</ul>
+</li>
+<li>
+<p>If the requested <code>entity-bytes</code> resolves to a zero-length range or falls
+fully outside the entity's bytes, the response is equivalent to
+<code>dag-scope=block</code>.</p>
+<ul>
+<li>This allows client to produce a meaningful error (e.g, in case of UnixFS,
+leverage <code>Data.blocksizes</code> information present in the root <code>dag-pb</code> block).</li>
+</ul>
+</li>
+<li>
+<p>In streaming scenarios, if a Gateway is capable of returning the root block
+but lacks prior knowledge of the final component of the requested content
+path being invalid or absent in the DAG, a Gateway <em class="rfc2119">SHOULD</em> respond with HTTP 200.</p>
+<ul>
+<li>This behavior is a consequence of HTTP streaming limitations: blocks are
+not buffered, by the time a related parent block is being parsed and
+returned to the client, the HTTP status code has already been sent to the
+client.</li>
+</ul>
+</li>
+</ul>
+</section><section id="car-version-request-query-parameter"><h4><bdi class="secno">2.2.4 </bdi><code>car-version</code> (request query parameter)</h4><a href="#car-version-request-query-parameter" class="self-link" aria-label="Section 2.2.4"></a>
+<p>Optional, only used on CAR requests.</p>
+<p>Serves same purpose as <a href="#car-version-content-type-parameter">CAR <code>version</code> content type parameter</a>.</p>
+<p>In case both are present in the request, the URL query parameter <em class="rfc2119">SHOULD</em> take precedence and a matching <a href="#content-location-response-header"><code>Content-Location</code></a> <em class="rfc2119">SHOULD</em> be returned with the response.</p>
+</section><section id="car-order-request-query-parameter"><h4><bdi class="secno">2.2.5 </bdi><code>car-order</code> (request query parameter)</h4><a href="#car-order-request-query-parameter" class="self-link" aria-label="Section 2.2.5"></a>
+<p>Optional, only used on CAR requests.</p>
+<p>Serves same purpose as <a href="#car-order-content-type-parameter">CAR <code>order</code> content type parameter</a>.</p>
+<p>In case both are present in the request, the URL query parameter <em class="rfc2119">SHOULD</em> take precedence and a matching <a href="#content-location-response-header"><code>Content-Location</code></a> <em class="rfc2119">SHOULD</em> be returned with the response.</p>
+</section><section id="car-dups-request-query-parameter"><h4><bdi class="secno">2.2.6 </bdi><code>car-dups</code> (request query parameter)</h4><a href="#car-dups-request-query-parameter" class="self-link" aria-label="Section 2.2.6"></a>
+<p>Optional, only used on CAR requests.</p>
+<p>Serves same purpose as <a href="#car-dups-content-type-parameter">CAR <code>dups</code> content type parameter</a>.</p>
+<p>In case both are present in the request, the URL query parameter <em class="rfc2119">SHOULD</em> take precedence and a matching <a href="#content-location-response-header"><code>Content-Location</code></a> <em class="rfc2119">SHOULD</em> be returned with the response.</p>
+</section></section></section><section id="http-response"><h2><bdi class="secno">3. </bdi>HTTP Response</h2><a href="#http-response" class="self-link" aria-label="Section 3."></a>
+<p>Below <em class="rfc2119">MUST</em> be implemented <strong>in addition</strong> to "HTTP Response" of
+[<a class="bibref" href="#ref-path-gateway">path-gateway</a>], with special attention to the "Response Status Codes" and
+the "Recursive vs non-recursive gateways" sections.</p>
+<section id="response-status-codes"><h3><bdi class="secno">3.1 </bdi>Response Status Codes</h3><a href="#response-status-codes" class="self-link" aria-label="Section 3.1"></a>
+<p>Trustless Gateways <em class="rfc2119">MUST</em> follow the response status codes defined in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>], including:</p>
+<section id="404-not-found"><h4><bdi class="secno">3.1.1 </bdi><code>404 Not Found</code></h4><a href="#404-not-found" class="self-link" aria-label="Section 3.1.1"></a>
+<p>A Trustless Gateway <em class="rfc2119">MUST</em> return <code>404 Not Found</code> when the <strong>root block</strong> (the CID in the request path) is not available in the gateway's storage.</p>
+<p>This applies to:</p>
+<ul>
+<li>HEAD requests for any CID</li>
+<li>GET requests for raw blocks (<code>application/vnd.ipld.raw</code>)</li>
+<li>GET requests for CAR streams (<code>application/vnd.ipld.car</code>) when the root block is missing</li>
+</ul>
+<p>For non-recursive Trustless Gateways (such as those serving from a local block store), this definitively signals that the requested content is not part of the gateway's dataset.</p>
+</section><section id="streaming-and-missing-child-blocks"><h4><bdi class="secno">3.1.2 </bdi>Streaming and Missing Child Blocks</h4><a href="#streaming-and-missing-child-blocks" class="self-link" aria-label="Section 3.1.2"></a>
+<p>For CAR responses, once a gateway begins streaming (after successfully loading the root block), it has committed to HTTP <code>200 OK</code>. If a child block is encountered as missing during DAG traversal:</p>
+<ul>
+<li>The gateway <em class="rfc2119">SHOULD</em> terminate the stream (potentially with an incomplete CAR)</li>
+<li>Clients <em class="rfc2119">MUST</em> verify CAR completeness and handle incomplete streams as retrieval failures</li>
+</ul>
+<p>This follows the streaming principle stated in the <a href="#entity-bytes-request-query-parameter"><code>entity-bytes</code></a> section above.</p>
+</section><section id="500-internal-server-error"><h4><bdi class="secno">3.1.3 </bdi><code>500 Internal Server Error</code></h4><a href="#500-internal-server-error" class="self-link" aria-label="Section 3.1.3"></a>
+<p>A Trustless Gateway <em class="rfc2119">SHOULD</em> return <code>500 Internal Server Error</code> only for genuine server errors, not for content unavailability. Examples include storage backend failures, resource exhaustion, or unexpected internal errors.</p>
+</section></section><section id="response-headers"><h3><bdi class="secno">3.2 </bdi>Response Headers</h3><a href="#response-headers" class="self-link" aria-label="Section 3.2"></a>
+<section id="content-type-response-header"><h4><bdi class="secno">3.2.1 </bdi><code>Content-Type</code> (response header)</h4><a href="#content-type-response-header" class="self-link" aria-label="Section 3.2.1"></a>
+<p><em class="rfc2119">MUST</em> be returned and include additional format-specific parameters when possible.</p>
+<p>If a CAR stream was requested:</p>
+<ul>
+<li>the response <em class="rfc2119">MUST</em> include the parameter specifying CAR version. For example:
+<code>Content-Type: application/vnd.ipld.car; version=1</code></li>
+<li>the response <em class="rfc2119">SHOULD</em> include additional content type parameters, as noted in
+<a href="#car-format-signaling-in-response">CAR format signaling in Response</a>.</li>
+</ul>
+</section><section id="content-disposition-response-header"><h4><bdi class="secno">3.2.2 </bdi><code>Content-Disposition</code> (response header)</h4><a href="#content-disposition-response-header" class="self-link" aria-label="Section 3.2.2"></a>
+<p><em class="rfc2119">MUST</em> be returned and set to <code>attachment</code> to ensure requested bytes are not rendered by a web browser.</p>
+<p>When no custom <code>filename</code> is provided:</p>
+<ul>
+<li>CAR responses should use <code>filename="&lt;cid&gt;.car"</code></li>
+<li>Raw block responses should use <code>filename="&lt;cid&gt;.bin"</code></li>
+</ul>
+</section><section id="content-location-response-header"><h4><bdi class="secno">3.2.3 </bdi><code>Content-Location</code> (response header)</h4><a href="#content-location-response-header" class="self-link" aria-label="Section 3.2.3"></a>
+<p>Same as in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>], <em class="rfc2119">SHOULD</em> be returned when Trustless Gateway
+supports more than a single response format and the <code>format</code> query parameter is
+missing or does not match well-known format from <code>Accept</code> header.</p>
+</section><section id="etag-response-header"><h4><bdi class="secno">3.2.4 </bdi><code>Etag</code> (response header)</h4><a href="#etag-response-header" class="self-link" aria-label="Section 3.2.4"></a>
+<p><em class="rfc2119">MUST</em> be returned and follow the recommendations in [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<div class="note"><p><strong>Implementation Variance</strong>: Etag generation for CAR responses is
+implementation-specific. Different gateways may generate different Etags for
+identical requests due to variations in what parameters are included (e.g.,
+<code>order</code>, <code>dups</code>) and how they are encoded in the Etag calculation.</p><p>As a result, <code>If-None-Match</code> conditional requests may not work across different
+gateway implementations. Clients <em class="rfc2119">SHOULD NOT</em> assume Etags are portable between
+gateways.</p></div>
+</section></section></section><section id="block-responses-application-vnd-ipld-raw"><h2><bdi class="secno">4. </bdi>Block Responses (application/vnd.ipld.raw)</h2><a href="#block-responses-application-vnd-ipld-raw" class="self-link" aria-label="Section 4."></a>
+<p>An opaque bytes matching the requested block CID
+(<a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.raw">application/vnd.ipld.raw</a>).</p>
+<p>The Body hash <em class="rfc2119">MUST</em> match the Multihash from the requested CID.</p>
+</section><section id="car-responses-application-vnd-ipld-car"><h2><bdi class="secno">5. </bdi>CAR Responses (application/vnd.ipld.car)</h2><a href="#car-responses-application-vnd-ipld-car" class="self-link" aria-label="Section 5."></a>
+<p>A CAR stream for the requested
+<a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.car">application/vnd.ipld.car</a>
+content type (with optional <code>order</code> and <code>dups</code> params), path and optional
+<code>dag-scope</code> and <code>entity-bytes</code> URL parameters.</p>
+<section id="car-version-content-type-parameter"><h3><bdi class="secno">5.1 </bdi>CAR <code>version</code> (content type parameter)</h3><a href="#car-version-content-type-parameter" class="self-link" aria-label="Section 5.1"></a>
+<p>Value returned in
+<a href="https://ipld.io/specs/transport/car/carv1/#header"><code>CarV1Header.version</code></a>
+field <em class="rfc2119">MUST</em> match the <code>version</code> parameter returned in <code>Content-Type</code> header.</p>
+</section><section id="car-roots"><h3><bdi class="secno">5.2 </bdi>CAR roots</h3><a href="#car-roots" class="self-link" aria-label="Section 5.2"></a>
+<p>The behavior associated with the
+<a href="https://ipld.io/specs/transport/car/carv1/#header"><code>CarV1Header.roots</code></a> field
+is not currently specified.</p>
+<p>The lack of standard here means a client <em class="rfc2119">MUST</em> assume different Gateways could return a different value.</p>
+<p>A Client <em class="rfc2119">SHOULD</em> ignore this field.</p>
+<div class="issue"><p>As of 2023-06-20, the behavior of the <code>roots</code>  CAR field remains an <a href="https://web.archive.org/web/20230328013837/https://ipld.io/specs/transport/car/carv1/#unresolved-items">unresolved item within the CARv1 specification</a>.</p></div>
+</section><section id="car-order-content-type-parameter"><h3><bdi class="secno">5.3 </bdi>CAR <code>order</code> (content type parameter)</h3><a href="#car-order-content-type-parameter" class="self-link" aria-label="Section 5.3"></a>
+<p>The <code>order</code> parameter allows clients to specify the desired block order in the
+response. It supports the following values:</p>
+<ul>
+<li><code>dfs</code>: <a href="https://en.wikipedia.org/wiki/Depth-first_search">Depth-First Search</a>
+order, enables streaming responses with minimal memory usage.</li>
+<li><code>unk</code> (or missing): Unknown order, which serves as the implicit default when the <code>order</code>
+parameter is unspecified. In this case, the client cannot make any assumptions
+about the block order: blocks may arrive in a random order or be a result of
+a custom DAG traversal algorithm.</li>
+</ul>
+<p>A Gateway <em class="rfc2119">SHOULD</em> always return explicit <code>order</code> in CAR's <code>Content-Type</code> response header.</p>
+<p>A Gateway <em class="rfc2119">MAY</em> skip <code>order</code> in CAR response if no order was explicitly requested
+by the client and the default order is unknown.</p>
+<p>A Client <em class="rfc2119">MUST</em> assume implicit <code>order=unk</code> when <code>order</code> is missing, unknown, or empty.</p>
+</section><section id="car-dups-content-type-parameter"><h3><bdi class="secno">5.4 </bdi>CAR <code>dups</code> (content type parameter)</h3><a href="#car-dups-content-type-parameter" class="self-link" aria-label="Section 5.4"></a>
+<p>The <code>dups</code> parameter specifies whether duplicate blocks (the same block
+occurring multiple times in the requested DAG) will be present in the CAR
+response. Useful when a deterministic block order is used.</p>
+<p>It accepts two values:</p>
+<ul>
+<li><code>y</code>: Duplicate blocks <em class="rfc2119">MUST</em> be sent every time they occur during the DAG walk.</li>
+<li><code>n</code>: Duplicate blocks <em class="rfc2119">MUST</em> be sent only once.</li>
+</ul>
+<p>When set to <code>y</code>, light clients are able to  discard blocks after
+reading them, removing the need for caching in-memory or on-disk.</p>
+<p>Setting to <code>n</code> allows for more efficient data transfer of certain types of
+data, but introduces additional resource cost on the receiving end, as each
+block needs to be kept around in case its CID appears again.</p>
+<p>If the <code>dups</code> parameter is absent from the <code>Accept</code> request header, the
+behavior is unspecified. In such cases, a Gateway should respond with <code>dups=n</code>
+if it has control over the duplicate status, or without <code>dups</code> parameter if it
+does not.
+Defaulting to the inclusion of duplicate blocks (<code>dups=y</code>) <em class="rfc2119">SHOULD</em> only be
+implemented by Gateway systems that exclusively support <code>dups=y</code> and do not
+support any other behavior.</p>
+<p>A Client <em class="rfc2119">MUST</em> not assume any implicit behavior when <code>dups</code> is missing.</p>
+<p>If the <code>dups</code> parameter is absent from the <code>Content-Type</code> response header, the
+behavior is unspecified, and the CAR response includes an arbitrary list of
+blocks. In this unknown state, the client <em class="rfc2119">MUST</em> assume duplicates are not sent,
+but also <em class="rfc2119">MUST</em> ignore duplicates and other unexpected blocks if they are present.</p>
+<p>A Gateway <em class="rfc2119">MUST</em> always return <code>dups</code> in <code>Content-Type</code> response header
+when the duplicate status is known at the time of processing the request.
+A Gateway <em class="rfc2119">SHOULD</em> not return <code>dups</code> if determining the duplicate status is not
+possible at the time of processing the request.</p>
+<p>A Gateway <em class="rfc2119">MUST NOT</em> include virtual blocks identified by identity CIDs
+(multihash with <code>0x00</code> code) in CAR responses. This exclusion applies regardless
+of their presence in the DAG or the value assigned to the "dups" parameter, as
+the raw data is already present in the parent block that links to the identity
+CID.</p>
+</section><section id="car-format-parameters-and-determinism"><h3><bdi class="secno">5.5 </bdi>CAR format parameters and determinism</h3><a href="#car-format-parameters-and-determinism" class="self-link" aria-label="Section 5.5"></a>
+<p>The default header and block order in a CAR format is not specified by IPLD specifications.</p>
+<p>Clients <em class="rfc2119">MUST NOT</em> assume that CAR responses are deterministic (byte-for-byte identical) across different gateways.</p>
+<p>Clients <em class="rfc2119">MUST NOT</em> assume that CAR includes CIDs and their blocks in the same order across different gateways.</p>
+<p>Clients <em class="rfc2119">MUST</em> assume block order and duplicate status only if <code>Content-Type</code> returned with CAR responses includes optional <code>order</code> or <code>dups</code> parameters, as specified by [<a class="bibref" href="#ref-ipip-0412">ipip-0412</a>].</p>
+<p>A Gateway <em class="rfc2119">SHOULD</em> support some aspects of determinism by implementing content type negotiation and signaling via <code>Accept</code> and <code>Content-Type</code> headers.</p>
+<div class="issue"><p>In controlled environments, clients <em class="rfc2119">MAY</em> choose to rely on implicit and
+undocumented CAR determinism, subject to the agreement of the following
+conditions between the client and the gateway:</p><ul>
+<li>CAR version</li>
+<li>content of <a href="https://ipld.io/specs/transport/car/carv1/#header"><code>CarV1Header.roots</code></a> field</li>
+<li>order of blocks (<code>order</code> from [<a class="bibref" href="#ref-ipip-0412">ipip-0412</a>])</li>
+<li>status of duplicate blocks (<code>dups</code> from [<a class="bibref" href="#ref-ipip-0412">ipip-0412</a>])</li>
+</ul><p>Mind this is undocumented behavior, and <em class="rfc2119">MUST NOT</em> be used on public networks.</p></div>
+<section id="car-format-signaling-in-request"><h4><bdi class="secno">5.5.1 </bdi>CAR format signaling in Request</h4><a href="#car-format-signaling-in-request" class="self-link" aria-label="Section 5.5.1"></a>
+<p>Content type negotiation is based on section 12.5.1 of [<a class="bibref" href="#ref-rfc9110">rfc9110</a>].</p>
+<p>Clients <em class="rfc2119">MAY</em> indicate their preferred block order by sending an <code>Accept</code> header in
+the HTTP request. The <code>Accept</code> header format is as follows:</p>
+<pre><code>Accept: application/vnd.ipld.car; version=1; order=dfs; dups=y
+</code></pre>
+<p>In the future, when more orders or parameters exist, clients will be able to
+specify a list of preferences, for example:</p>
+<pre><code>Accept: application/vnd.ipld.car;order=foo, application/vnd.ipld.car;order=dfs;dups=y;q=0.5
+</code></pre>
+<p>The above example is a list of preferences, the client would really like to use
+the hypothetical <code>order=foo</code> however if this isn't available it would accept
+<code>order=dfs</code> with <code>dups=y</code> instead (lower priority indicated via <code>q</code> parameter,
+as noted in [<a class="bibref" href="#ref-rfc9110">rfc9110</a>]).</p>
+</section><section id="car-format-signaling-in-response"><h4><bdi class="secno">5.5.2 </bdi>CAR format signaling in Response</h4><a href="#car-format-signaling-in-response" class="self-link" aria-label="Section 5.5.2"></a>
+<p>The Trustless Gateway <em class="rfc2119">MUST</em> always respond with a <code>Content-Type</code> header that includes
+information about all supported and known parameters, even if the client did not
+specify them in the request.</p>
+<p>The <code>Content-Type</code> header format is as follows:</p>
+<pre><code>Content-Type: application/vnd.ipld.car;version=1;order=dfs;dups=n
+</code></pre>
+<p>Gateway implementations <em class="rfc2119">SHOULD</em> decide on the implicit default ordering or
+other parameters, and use it in responses when client did not explicitly
+specify any matching preference.</p>
+<p>A Gateway <em class="rfc2119">MAY</em> choose to implement only some parameters and return HTTP
+400 Bad Request or 406 Not Acceptable when a client requested a response with
+unsupported content type variant.</p>
+<p>A Client <em class="rfc2119">MUST</em> verify <code>Content-Type</code> returned with CAR response before
+processing the payload, as the legacy gateway may not support optional content
+type parameters like <code>order</code> an <code>dups</code> and return plain
+<code>application/vnd.ipld.car</code>.</p>
+</section></section></section><section id="ipns-record-responses-application-vnd-ipfs-ipns-record"><h2><bdi class="secno">6. </bdi>IPNS Record Responses (application/vnd.ipfs.ipns-record)</h2><a href="#ipns-record-responses-application-vnd-ipfs-ipns-record" class="self-link" aria-label="Section 6."></a>
+<p>An opaque bytes matching the <a href="https://specs.ipfs.tech/ipns/ipns-record/#ipns-record">Signed IPNS Record</a>
+for the requested <a href="https://specs.ipfs.tech/ipns/ipns-record/#ipns-name">IPNS Name</a>
+returned as <a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record">application/vnd.ipfs.ipns-record</a>.</p>
+<p>A Client <em class="rfc2119">MUST</em> confirm the record signature match <code>libp2p-key</code> from the requested IPNS Name.</p>
+<p>A Client <em class="rfc2119">MUST</em> <a href="https://specs.ipfs.tech/ipns/ipns-record/#record-verification">perform additional record verification according to the IPNS specification</a>.</p>
+</section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">7. </bdi>Appendix: Notes for implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 7."></a>
+<section id="dedicated-probe-paths"><h3><bdi class="secno">7.1 </bdi>Dedicated Probe Paths</h3><a href="#dedicated-probe-paths" class="self-link" aria-label="Section 7.1"></a>
+<p>Trustless gateways <em class="rfc2119">SHOULD</em> provide probing endpoints as described below.</p>
+<section id="get-ipfs-bafkqaaa"><h4><bdi class="secno">7.1.1 </bdi><code>GET /ipfs/bafkqaaa</code></h4><a href="#get-ipfs-bafkqaaa" class="self-link" aria-label="Section 7.1.1"></a>
+<p><code>bafkqaaa</code> is the identity empty CID. This endpoint can be used to probe that
+that the endpoint corresponds to a trustless gateway.</p>
+<p>For block requests (signaled by <code>?format=raw</code> and <code>Accept: application/vnd.ipld.raw</code>), when supported, it <em class="rfc2119">MUST</em> return <code>200 OK</code>
+and an empty body.</p>
+<p>For CAR requests (signaled by <code>?format=car</code> and <code>Accept: application/vnd.ipld.car</code>), when supported, it <em class="rfc2119">MUST</em> return <code>200 OK</code> and a valid CAR with CAR Header <code>roots</code> set to <code>bafkqaaa</code>. Identity block <em class="rfc2119">MAY</em> be skipped in the CAR Data section.</p>
+<p>This specific identity CID is special for probing. Other random
+identity CIDs <em class="rfc2119">MAY</em> not be handled.</p>
+</section><section id="head-ipfs-bafkqaaa"><h4><bdi class="secno">7.1.2 </bdi><code>HEAD /ipfs/bafkqaaa</code></h4><a href="#head-ipfs-bafkqaaa" class="self-link" aria-label="Section 7.1.2"></a>
+<p><code>bafkqaaa</code> is the identity empty CID. If this endpoint is enabled, the gateway
+<em class="rfc2119">MUST</em> support <a href="#head-ipfs-cid-path-params"><code>HEAD</code> requests</a>.</p>
+<p>The response is the same as <a href="#get-ipfs-bafkqaaa"><code>GET</code></a> but without body and all headers are optional.</p>
+</section></section><section id="usage-within-peer-to-peer-p2p-networks"><h3 id="p2p-usage"><bdi class="secno">7.2 </bdi>Usage Within Peer-to-Peer (P2P) Networks</h3><a href="#p2p-usage" class="self-link" aria-label="Section 7.2"></a>
+<p>Trustless Gateways serve two primary deployment models:</p>
+<ol>
+<li><strong>Verifiable bridges</strong>: Gateways that provide trustless access from HTTP clients into IPFS networks, where the gateway operator is distinct from content providers</li>
+<li><strong>P2P retrieval endpoints</strong> (or <strong>HTTP providers</strong>): Peers within P2P networks that expose block stores via this HTTP API, acting as network participants rather than bridges</li>
+</ol>
+<p>When deploying gateways as P2P retrieval endpoints, implementers should be aware of additional constraints below:</p>
+<section id="block-limits"><h4 id="p2p-block-limits"><bdi class="secno">7.2.1 </bdi>Block Limits</h4><a href="#p2p-block-limits" class="self-link" aria-label="Section 7.2.1"></a>
+<p>Clients <em class="rfc2119">SHOULD NOT</em> download unbounded amounts of data before being able to validate that data.</p>
+<p>Clients <em class="rfc2119">SHOULD</em> limit the maximum block size to 2MiB.</p>
+<div class="note"><p>This value aligns with the maximum block size used in Bitswap, and throughout much of the ecosystem. Blocks larger than 2MiB are not ecosystem-safe: tooling built to handle larger blocks will encounter compatibility issues with storage providers, pinning services, and other infrastructure that enforce this limit.</p><p>Beyond compatibility, larger blocks increase memory pressure on resource-constrained clients and widen the window for incomplete transfers. Since blocks must be validated as a unit, smaller blocks allow for more granular verification and easier retries on failure.</p><p>See <a href="https://discuss.ipfs.tech/t/supporting-large-ipld-blocks/15093/">Supporting Large Blocks</a> for ongoing discussion.</p></div>
+</section><section id="https-and-http-2"><h4 id="p2p-transport"><bdi class="secno">7.2.2 </bdi>HTTPS and HTTP/2</h4><a href="#p2p-transport" class="self-link" aria-label="Section 7.2.2"></a>
+<p>Gateways serving data to non-LAN peers <em class="rfc2119">SHOULD</em> support HTTPS and HTTP/2 ([<a class="bibref" href="#ref-rfc9113">rfc9113</a>]) or greater.</p>
+<p>Clients <em class="rfc2119">SHOULD</em> restrict communications with non-LAN peers to HTTPS and HTTP/2 ([<a class="bibref" href="#ref-rfc9113">rfc9113</a>]) or greater.</p>
+<div class="note"><p><strong>HTTP/2</strong></p><p>HTTP/2 provides request multiplexing, which is critical for performance in P2P environments. HTTP/1.1 fundamentally lacks multiplexing: only one request-response pair can be active on a connection at a time. This creates head-of-line blocking, where a slow or large response blocks all subsequent responses on that connection, even if they are ready to send. HTTP/1.1's optional pipelining feature does not solve this because responses must still be returned in order.</p><p>To work around this limitation, clients must open multiple parallel TCP connections to achieve concurrent requests. However, each additional connection incurs significant overhead: TCP handshake latency, memory buffers, bandwidth competition, and increased implementation complexity. Browsers limit concurrent connections per origin (typically 6-8) to manage these costs, but this limitation affects all HTTP/1.1 clients, not just browsers, as the overhead of maintaining many connections becomes prohibitive.</p><p>When fetching content that requires many concurrent requests (block fetches, CAR queries, optimistic HEAD/GET probes), HTTP/1.1's lack of multiplexing creates a critical bottleneck. Clients face a difficult trade-off: either serialize requests (severely limiting throughput) or maintain many parallel connections (incurring substantial overhead). Users may experience acceptable performance with small test cases, but real-world IPFS content with deep DAG structures will encounter significant slowdowns. HTTP/2's stream multiplexing ([<a class="bibref" href="#ref-rfc9113">rfc9113</a>]) eliminates this bottleneck by allowing many concurrent requests over a single connection without head-of-line blocking at the application layer.</p><p><strong>TLS</strong></p><p>HTTPS provides transport security, preventing block data from being observed or tampered with in transit when communicating with peers over the public internet. While IPFS multihashes inherently allow clients to detect tampering (the digest verification provides cryptographic integrity), TLS prevents observation of transferred data and is also a prerequisite for HTTP/2 in web browsers, which do not support unencrypted HTTP/2 connections.</p><p><strong>LAN Environments</strong></p><p>For the purposes of this section, "LAN" refers to local area networks where peers communicate over trusted, high-bandwidth connections (e.g., within the same private network). "Non-LAN" refers to peers communicating over the public internet.</p><p>In LAN environments, getting a TLS certificate setup with which to use HTTPS may be difficult, h2c (HTTP/2 over cleartext TCP, without TLS) may not be easily accessible across platforms/languages, and performance criteria are more controllable, which makes supporting HTTP/1.1 more manageable.</p></div>
+</section><section id="recursion"><h4 id="p2p-recursion"><bdi class="secno">7.2.3 </bdi>Recursion</h4><a href="#p2p-recursion" class="self-link" aria-label="Section 7.2.3"></a>
+<p>Trustless Gateways operating in P2P contexts <em class="rfc2119">SHOULD NOT</em> recursively search for content.</p>
+<p>Gateways that do not have content locally <em class="rfc2119">SHOULD</em> return <code>404 Not Found</code> rather than attempting to fetch from other gateways or peers.</p>
+<div class="note"><p>In P2P networks, gateways serve as block stores for specific peers or content, rather than attempting to locate content across the entire network. Content discovery is handled by the P2P layer (e.g., Amino DHT, delegated routing), not by individual HTTP gateways. Clients are responsible for content routing and choosing which gateways to query.</p><p>Returning <code>404 Not Found</code> for missing content allows clients to efficiently query multiple gateways in parallel and discover which ones have the content cached. See also the <a href="#cache-control-only-if-cached-request-header"><code>Cache-Control: only-if-cached</code></a> header for client-side control of this behavior.</p></div>
+</section><section id="security-considerations"><h4 id="p2p-security"><bdi class="secno">7.2.4 </bdi>Security Considerations</h4><a href="#p2p-security" class="self-link" aria-label="Section 7.2.4"></a>
+<section id="http-servers"><h5><bdi class="secno">7.2.4.1 </bdi>HTTP Servers</h5><a href="#http-servers" class="self-link" aria-label="Section 7.2.4.1"></a>
+<p>When serving content to peers over the public internet, HTTP servers:</p>
+<ul>
+<li><strong>Transport Security</strong>: <em class="rfc2119">SHOULD</em> support HTTPS with valid TLS certificates to prevent observation of block data in transit (integrity is already provided by CID verification)</li>
+<li><strong>Rate Limiting</strong>: <em class="rfc2119">SHOULD</em> implement request rate limiting and concurrent connection limits to prevent resource exhaustion. When limits are exceeded, <em class="rfc2119">SHOULD</em> return HTTP <code>429 Too Many Requests</code> with a <code>Retry-After</code> header indicating when the client may retry</li>
+<li><strong>Timeout Limits</strong>: <em class="rfc2119">SHOULD</em> enforce connection and request timeout limits to prevent resource exhaustion from slow or stalled connections</li>
+<li><strong>Input Validation</strong>: <em class="rfc2119">SHOULD</em> validate CID format and encoding before processing requests to prevent malformed input attacks</li>
+<li><strong>Path Validation</strong>: For CAR requests with paths, <em class="rfc2119">SHOULD</em> validate path components to prevent unexpected DAG traversal behavior or resource exhaustion from deeply nested paths</li>
+<li><strong>Block Size Limits</strong>: <em class="rfc2119">SHOULD</em> enforce maximum block size limits (see <a href="#p2p-block-limits">Block Limits</a>) to prevent memory exhaustion</li>
+</ul>
+</section><section id="http-clients"><h5><bdi class="secno">7.2.4.2 </bdi>HTTP Clients</h5><a href="#http-clients" class="self-link" aria-label="Section 7.2.4.2"></a>
+<p>When making requests to HTTP providers over the public internet, HTTP clients:</p>
+<ul>
+<li><strong>Block Validation</strong>: <em class="rfc2119">MUST</em> validate all received blocks by verifying that the digest in the CID's Multihash matches the digest of the block payload before processing or storing</li>
+<li><strong>Block Size Limits</strong>: <em class="rfc2119">SHOULD</em> limit the maximum accepted block size (see <a href="#p2p-block-limits">Block Limits</a>) to prevent memory exhaustion from malicious servers</li>
+<li><strong>Connection Management</strong>:
+<ul>
+<li><em class="rfc2119">SHOULD</em> implement connection pooling with appropriate limits to avoid overwhelming local resources</li>
+<li><em class="rfc2119">SHOULD</em> respect the server's HTTP/2 <code>SETTINGS_MAX_CONCURRENT_STREAMS</code> value (Section 6.5.2 of [<a class="bibref" href="#ref-rfc9113">rfc9113</a>]) to avoid overwhelming the server</li>
+<li><em class="rfc2119">SHOULD</em> use HTTP/2 connection coalescing when multiple origins resolve to the same server (shared IP and TLS certificate) to reduce connection overhead</li>
+</ul>
+</li>
+<li><strong>Timeout Limits</strong>: <em class="rfc2119">SHOULD</em> set appropriate connection and request timeout limits to prevent hanging on unresponsive servers. A safe default is to timeout after 30 seconds of not receiving any new bytes</li>
+</ul>
+
+    <div class="watermark"></div>
+  
+
+</section></section></section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipip-0412">[ipip-0412]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0412/"><cite>IPIP-0412: Signaling Block Order in CARs on HTTP Gateways</cite></a>. Marcin Rataj; Jorropo. 2023-05-15. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0412/">https://specs.ipfs.tech/ipips/ipip-0412/</a></dd><dt id="ref-ipns-record">[ipns-record]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-record/"><cite>IPNS Record and Protocol</cite></a>. Vasco Santos; Steve Allen; Marcin Rataj; Henrique Dias; Gus Eggert. 2025-02-28. URL: <a href="https://specs.ipfs.tech/ipns/ipns-record/">https://specs.ipfs.tech/ipns/ipns-record/</a></dd><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc9110">[rfc9110]</dt><dd><a href="https://httpwg.org/specs/rfc9110.html"><cite>HTTP Semantics</cite></a>. R. Fielding, Ed.; M. Nottingham, Ed.; J. Reschke, Ed.. IETF. June 2022. Internet Standard. URL: <a href="https://httpwg.org/specs/rfc9110.html">https://httpwg.org/specs/rfc9110.html</a></dd><dt id="ref-rfc9113">[rfc9113]</dt><dd><a href="https://httpwg.org/specs/rfc9113.html"><cite>HTTP/2</cite></a>. M. Thomson, Ed.; C. Benfield, Ed.. IETF. June 2022. Proposed Standard. URL: <a href="https://httpwg.org/specs/rfc9113.html">https://httpwg.org/specs/rfc9113.html</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Héctor Sanjuán</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/hsanjuan"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Adin Schmahmann</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Former Editor</dt><dd><span>Henrique Dias</span> <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Rod Vagg</span> <a href="https://github.com/rvagg"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

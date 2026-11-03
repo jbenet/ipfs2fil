@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2026-10-20T15:00:00.000Z","embed":{"$type":"app.bsky.embed.images","images":[{"alt":"julia-01.jpg","image":{"$type":"blob","mimeType":"image/jpeg","ref":{"$link":"bafkreihilywmejutwc74y727ax72qwsuspktdkyss6fka44iq3sji2bbdu"},"size":92770}}]},"text":"A Julia set I rendered this morning."}

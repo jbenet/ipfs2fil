@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPNS URI (ipns://)</title>
+    <meta name="description" content="The ipns:// URI scheme for addressing mutable pointers, cryptographic IPNS names and DNSLink names, defined for interoperability with web browsers.">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipns-uri/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPNS URI (ipns://)</h1><p id="last-modified"><time datetime="2026-08-03T00:00:00.000Z">3 August 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipns-uri.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipns-uri.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The <code>ipns://</code> URI scheme names <strong>mutable</strong> pointers. It is the mutable sibling of the
+<a href="https://specs.ipfs.tech/ipfs-uri/"><code>ipfs://</code></a> scheme, and shares its structure, syntax, origin
+model, and its deferral of path, query, and fragment handling to the WHATWG URL parser. This
+document defines only what is specific to <code>ipns://</code>: what its content root may contain, and how
+that root is resolved.</p>
+<p>Read <a href="https://specs.ipfs.tech/ipfs-uri/"><code>ipfs://</code></a> first: it defines everything the two
+schemes share, including the authority form and why <code>//</code> is required, the origin model, path,
+query, and fragment behavior, the ban on endpoint information, and the shape of the IANA
+registration. This document does not repeat it.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#what-is-it" class="tocxref"><bdi class="secno">1. </bdi>What is it?</a></li><li><a href="#the-content-root" class="tocxref"><bdi class="secno">2. </bdi>The content root</a><ol class="toc"><li><a href="#cryptographic-key-form" class="tocxref"><bdi class="secno">2.1 </bdi>Cryptographic key form</a></li><li><a href="#dnslink-name-form" class="tocxref"><bdi class="secno">2.2 </bdi>DNSLink name form</a></li><li><a href="#parsing-the-authority" class="tocxref"><bdi class="secno">2.3 </bdi>Parsing the authority</a></li></ol></li><li><a href="#resolution" class="tocxref"><bdi class="secno">3. </bdi>Resolution</a></li><li><a href="#notes-for-implementers" class="tocxref"><bdi class="secno">4. </bdi>Notes for implementers</a><ol class="toc"><li><a href="#why-base36-for-ed25519" class="tocxref"><bdi class="secno">4.1 </bdi>Why base36 for Ed25519</a></li><li><a href="#room-for-new-key-types" class="tocxref"><bdi class="secno">4.2 </bdi>Room for new key types</a></li><li><a href="#keep-the-whole-resolution-chain" class="tocxref"><bdi class="secno">4.3 </bdi>Keep the whole resolution chain</a></li><li><a href="#keys-too-big-to-inline" class="tocxref"><bdi class="secno">4.4 </bdi>Keys too big to inline</a></li></ol></li><li><a href="#iana-considerations" class="tocxref"><bdi class="secno">5. </bdi>IANA considerations</a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="what-is-it"><h2><bdi class="secno">1. </bdi>What is it?</h2><a href="#what-is-it" class="self-link" aria-label="Section 1."></a>
+<p>An <code>ipns://</code> URI places a mutable content root in the authority and an optional path after it:</p>
+<pre><code class="">ipns://{ipns-name}/{path}?{query}#{fragment}
+</code></pre>
+<p>For example:</p>
+<pre><code class="">ipns://k51qzi5uqu5dlvj2baxnqndepeb86cbk3ng7n3i46uzyxzyqj2xjonzllnv0v8/
+ipns://dnslink.example.net/wiki/
+</code></pre>
+<p><code>ipns://{ipns-name}/{path}</code> maps to the content path <code>/ipns/{ipns-name}/{path}</code>.</p>
+<p>Because the target of an IPNS name can be republished to point at different content over time,
+an <code>ipns://</code> URI is a <strong>mutable</strong> pointer. <code>ipns://</code> <em class="rfc2119">MUST NOT</em> be used as a namespace for a bare
+CID that directly names immutable bytes: such a CID belongs under
+<a href="https://specs.ipfs.tech/ipfs-uri/"><code>ipfs://</code></a>. The only CIDs valid under <code>ipns://</code> are those that
+name a public key, <code>libp2p-key</code> CIDv1s today: a key is a mutable pointer to content, where a bare
+content CID is not (see <a href="#the-content-root">The content root</a>).</p>
+</section><section id="the-content-root"><h2><bdi class="secno">2. </bdi>The content root</h2><a href="#the-content-root" class="self-link" aria-label="Section 2."></a>
+<p><code>ipns://</code> supports two kinds of content root, and every implementation <em class="rfc2119">MUST</em> accept both:</p>
+<ul>
+<li>an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a>, a cryptographic key defined in [<a class="bibref" href="#ref-ipns-record">ipns-record</a>], and</li>
+<li>a DNS name resolved via DNSLink.</li>
+</ul>
+<p>They are told apart by trying the first and falling back to the second: an implementation attempts
+to parse the authority as a CIDv1, and only if that fails does it treat the authority as a DNSLink
+domain. <a href="#parsing-the-authority">Parsing the authority</a> gives the exact steps.</p>
+<pre><code class="">ipns-URI       = "ipns://" ipns-authority path-abempty
+                 [ "?" query ] [ "#" fragment ]
+
+ipns-authority = ipns-key / dnslink-name
+
+; (a) IPNS Name: a CIDv1 naming a public key, multibase base36
+;     (libp2p-key, 0x72, is the codec in use today)
+ipns-key       = "k" 1*base36char   ; canonical form; see "Cryptographic key form"
+                                    ; for other case-insensitive encodings
+                                    ; a single DNS label, no "."
+                                    ; SHOULD NOT exceed 63 characters total
+base36char     = %x30-39 / %x61-7A  ; "0"-"9" / "a"-"z"
+
+; (b) DNSLink name: an ICANN-compatible DNS name, at least one "." on the public internet
+dnslink-name   = label 1*( "." label )
+label          = let-dig [ *61( let-dig / "-" ) let-dig ]  ; RFC 1123: max 63 characters,
+                                                           ; no leading or trailing "-"
+let-dig        = %x61-7A / %x30-39                         ; lowercase; DNS comparison
+                                                           ; is case-insensitive
+</code></pre>
+<p>As in <a href="https://specs.ipfs.tech/ipfs-uri/#syntax"><code>ipfs://</code></a>, the ABNF describes the <strong>canonical</strong>
+form only: a <code>base36</code> key. A key in another case-insensitive multibase does not match <code>ipns-key</code>
+but can still appear as input;
+<a href="#cryptographic-key-form">Cryptographic key form</a> says how to handle it.</p>
+<p><code>path-abempty</code>, <code>query</code>, and <code>fragment</code> are as in <a href="https://specs.ipfs.tech/ipfs-uri/#syntax"><code>ipfs://</code></a>.
+The same WHATWG-URL-governs tie-breaker applies.</p>
+<section id="cryptographic-key-form"><h3><bdi class="secno">2.1 </bdi>Cryptographic key form</h3><a href="#cryptographic-key-form" class="self-link" aria-label="Section 2.1"></a>
+<ul>
+<li>When the content root is a cryptographic key, it <em class="rfc2119">MUST</em> be an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a>: a CIDv1
+([<a class="bibref" href="#ref-cid">cid</a>]) that names a public key, as defined by [<a class="bibref" href="#ref-ipns-record">ipns-record</a>].</li>
+<li>The key <em class="rfc2119">MUST</em> be encoded in a case-insensitive multibase and <em class="rfc2119">SHOULD</em> use <strong>base36</strong> (multibase
+prefix <code>k</code>). base36 is to <code>ipns://</code> what <code>base32</code> is to
+<a href="https://specs.ipfs.tech/ipfs-uri/#origin"><code>ipfs://</code></a>: the canonical
+<a href="https://specs.ipfs.tech/ipfs-uri/#origin">origin</a> string, so producers <em class="rfc2119">SHOULD</em> normalize to it
+and keep one key in one sandbox for storage and permissions. Wherever the authority also has to
+work as a DNS label, an Ed25519 key <em class="rfc2119">MUST</em> use base36: its <code>base32</code> encoding exceeds the
+63-character limit below (see <a href="#why-base36-for-ed25519">Why base36 for Ed25519</a>).</li>
+<li>The authority <em class="rfc2119">SHOULD NOT</em> exceed <strong>63 characters</strong>: the DNS label limit that lets an IPNS name
+serve as a Subdomain Gateway ([<a class="bibref" href="#ref-subdomain-gateway">subdomain-gateway</a>]) label and its origin. As with
+<a href="https://specs.ipfs.tech/ipfs-uri/#what-the-authority-may-contain"><code>ipfs://</code></a>, a local resolver
+or native implementation <em class="rfc2119">MAY</em> support a longer name for internal use, for example via a
+localhost subdomain; an implementation that cannot <em class="rfc2119">SHOULD</em> reject it.</li>
+<li>A case-sensitive <code>base58btc</code> identifier, whether a CIDv0 (<code>Qm...</code>) or a legacy peer-id string
+(<code>12D3Koo...</code>), <em class="rfc2119">MUST NOT</em> appear in the authority, for the same reason it is unsafe in an
+<a href="https://specs.ipfs.tech/ipfs-uri/#why-the-authority-must-be-case-insensitive"><code>ipfs://</code></a>
+authority: it is lowercased and destroyed when parsed into the authority.</li>
+<li>The CID's multicodec says how the public key is wrapped. This specification does not fix the set
+of acceptable codecs: an implementation decides which key types and which key container codecs,
+<code>libp2p-key</code> (<code>0x72</code>) among them, it accepts, so a new key type can be deployed without revising
+this document (see <a href="#room-for-new-key-types">Room for new key types</a>). An implementation <em class="rfc2119">SHOULD</em>
+document the set it supports, and <em class="rfc2119">SHOULD</em> support <code>libp2p-key</code>, the only codec in wide use today.</li>
+<li>An implementation given a codec it does not support <em class="rfc2119">MUST NOT</em> resolve the name as though the codec
+were one it does. It either rejects the authority, per
+<a href="#parsing-the-authority">Parsing the authority</a>, or normalizes it to a codec it does support and
+redirects to the corrected URI. Falling back to <code>libp2p-key</code> over the same multihash is a
+reasonable last resort when nothing else matches.</li>
+</ul>
+</section><section id="dnslink-name-form"><h3><bdi class="secno">2.2 </bdi>DNSLink name form</h3><a href="#dnslink-name-form" class="self-link" aria-label="Section 2.2"></a>
+<ul>
+<li>When the content root is a DNS name, it <em class="rfc2119">MUST</em> be resolved via DNSLink
+([<a class="bibref" href="#ref-dnslink-gateway">dnslink-gateway</a>]), and for the public internet it <em class="rfc2119">MUST</em> be an ICANN-compatible DNS name:
+lowercase LDH labels (ASCII letters, digits, hyphens, with no leading or trailing hyphen) joined
+by at least one dot (<code>.</code>). The dot both reflects public DNS structure and keeps the DNS name
+distinct from a single-label cryptographic key.</li>
+<li>An internationalized name <em class="rfc2119">MUST</em> be converted to its ASCII form (<code>xn--...</code> punycode labels) via
+<a href="https://url.spec.whatwg.org/#concept-domain-to-ascii">domain to ASCII</a> before it is placed in
+the authority; the authority itself carries only LDH labels.</li>
+<li>DNSLink resolution <em class="rfc2119">MUST</em> enforce a hard recursion limit (for example 32) and fail when it is
+exceeded, as required by [<a class="bibref" href="#ref-dnslink-gateway">dnslink-gateway</a>].</li>
+</ul>
+</section><section id="parsing-the-authority"><h3><bdi class="secno">2.3 </bdi>Parsing the authority</h3><a href="#parsing-the-authority" class="self-link" aria-label="Section 2.3"></a>
+<p>The key form is tried first and the DNSLink form is the fallback. The order is what makes the two
+unambiguous in the one place they could collide, a dot-less authority: a canonical <code>ipns-key</code> is a
+single label with no dot, and a public DNSLink name always has at least one. A resolver <em class="rfc2119">MUST</em> apply
+these steps in order.</p>
+<ol>
+<li><strong>Try the key form.</strong> Parse the authority as a CIDv1. If it decodes to a CID that satisfies
+<a href="#cryptographic-key-form">Cryptographic key form</a>, it is an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a>: resolve it as a key
+and stop. If it decodes to a CID whose codec the implementation does not support, reject or
+redirect per that section, and stop.</li>
+<li><strong>Fall back to DNSLink.</strong> If the CIDv1 parse failed and the authority contains a <code>.</code>, treat it
+as a DNSLink name and resolve it per <a href="#dnslink-name-form">DNSLink name form</a>, then stop.</li>
+<li><strong>Try the inlined label.</strong> Otherwise the authority is a single label that is not a key. A
+resolver <em class="rfc2119">SHOULD</em> decode it with the Subdomain Gateway's DNSLink label encoding and retry step 2
+with the result, which is what lets an inlined label round-trip back into a dotted name (see
+<a href="#resolution">Resolution</a>).</li>
+<li><strong>Otherwise reject</strong> the authority as unresolvable, as in
+<a href="https://specs.ipfs.tech/ipfs-uri/#what-the-authority-may-contain"><code>ipfs://</code></a>. Implementations
+<em class="rfc2119">SHOULD</em> present an error explaining why, rather than forwarding the name to a resolver that can
+only fail.</li>
+</ol>
+<p>A DNSLink name is never mistaken for a key, because a dotted name cannot decode as a CIDv1 and a
+key never contains a dot. Trying the key form first also means a name that would decode as a CID is
+always read as a key, which is what keeps one identifier from resolving two different ways in two
+different implementations.</p>
+<p>Step 3 is also where a local-resolver extension for dot-less names would sit. Such names are out of
+scope for public-internet <code>ipns://</code> URIs, because they are network-relative: the same origin string
+can name different content on different networks. Origin-scoped state (storage, permissions)
+sandboxed under such a name can therefore leak between unrelated sites, so an implementation
+offering the extension <em class="rfc2119">SHOULD</em> account for the instability, for example by not persisting that
+state.</p>
+</section></section><section id="resolution"><h2><bdi class="secno">3. </bdi>Resolution</h2><a href="#resolution" class="self-link" aria-label="Section 3."></a>
+<p>Resolution has one step that <code>ipfs://</code> does not. The content root is mutable, so it <em class="rfc2119">MUST</em> first be
+resolved to an immutable CID: an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> through its signed record, a DNSLink name through
+DNS, which may itself point at another DNSLink name or at an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> before it bottoms out.
+Everything after that is identical to <code>ipfs://</code>. The CID that comes out is the content root for the
+rest of the operation, and its multicodec is what says how to decode the root block and how to walk
+<code>{path}</code> out of it, exactly as in
+<a href="https://specs.ipfs.tech/ipfs-uri/#how-the-content-root-drives-traversal"><code>ipfs://</code></a>. Only the step
+that produces the CID differs; the traversal does not.</p>
+<p>Otherwise resolution follows <a href="https://specs.ipfs.tech/ipfs-uri/#resolution"><code>ipfs://</code></a>, with the
+IPNS namespace in place of the IPFS one: <code>ipns://{ipns-name}/{path}</code> is retrieved as the content
+path <code>/ipns/{ipns-name}/{path}</code>, for example through a Subdomain Gateway request to
+<code>https://{ipns-name}.ipns.example.net/{path}</code> when an isolated origin is required.</p>
+<p>A DNSLink name cannot appear in a subdomain as-is: its dots would create extra DNS levels and
+break wildcard TLS, so the Subdomain Gateway inlines the name into a single label, turning
+<code>ipns://dnslink.example.net</code> into <code>https://dnslink-example-net.ipns.example.net</code>. Each <code>.</code> becomes
+a <code>-</code>, and any <code>-</code> already in the name is doubled, so <code>ipns://my-site.example.net</code> inlines to
+<code>my--site-example-net</code>.
+Step 3 of <a href="#parsing-the-authority">Parsing the authority</a> is what lets that inlined label come back
+the other way. The canonical <code>ipns://</code> URI always uses the original dotted name, never the inlined
+label, so an implementation <em class="rfc2119">SHOULD</em> normalize an inlined label back to its dotted form before
+rendering the URI or deriving its origin.</p>
+<p>When the content root is a cryptographic key, a resolver <em class="rfc2119">MUST</em> validate the IPNS record's
+signature as defined by [<a class="bibref" href="#ref-ipns-record">ipns-record</a>]. When it is a DNS name, DNSLink resolution applies,
+including its recursion bound (see <a href="#dnslink-name-form">DNSLink name form</a>).</p>
+</section><section id="notes-for-implementers"><h2><bdi class="secno">4. </bdi>Notes for implementers</h2><a href="#notes-for-implementers" class="self-link" aria-label="Section 4."></a>
+<p>This section is non-normative.</p>
+<section id="why-base36-for-ed25519"><h3><bdi class="secno">4.1 </bdi>Why base36 for Ed25519</h3><a href="#why-base36-for-ed25519" class="self-link" aria-label="Section 4.1"></a>
+<p>A single DNS label is capped at 63 characters, and an authority that should double as a
+subdomain-gateway label inherits that cap. Because an Ed25519 key is inlined rather than hashed
+(see <a href="#keys-too-big-to-inline">Keys too big to inline</a>), its <code>libp2p-key</code> CIDv1 is 40 bytes, the
+largest an IPNS name gets in practice. That is 65 characters in <code>base32</code>, two over the limit, and
+63 in <code>base36</code> (<code>k51...</code>), which just fits. base32 remains fine for the shorter, hashed names, but
+base36 is what keeps an Ed25519 IPNS name usable as an authority and as a Subdomain Gateway label.</p>
+</section><section id="room-for-new-key-types"><h3><bdi class="secno">4.2 </bdi>Room for new key types</h3><a href="#room-for-new-key-types" class="self-link" aria-label="Section 4.2"></a>
+<p>In practice an IPNS name today is a <code>libp2p-key</code> (<code>0x72</code>), which wraps the public key in a libp2p
+protobuf. Post-quantum signature schemes are expected to change that, either as new key types
+carried inside that same wrapper, which leaves the authority untouched, or under self-describing
+key container codecs that drop the libp2p wrapper altogether. Both directions are tracked in
+<a href="https://github.com/ipfs/kubo/issues/11281">ipfs/kubo#11281</a>.</p>
+<p>The codec rule in <a href="#cryptographic-key-form">Cryptographic key form</a> is written to survive that: it
+names no fixed set and leaves each implementation to say which codecs it accepts. What does not
+change is the shape of the authority, a case-insensitive CIDv1 that fits a DNS label. Post-quantum
+public keys are far too large to inline, so their names will be digests rather than keys, with the
+consequences described in <a href="#keys-too-big-to-inline">Keys too big to inline</a>.</p>
+</section><section id="keep-the-whole-resolution-chain"><h3><bdi class="secno">4.3 </bdi>Keep the whole resolution chain</h3><a href="#keep-the-whole-resolution-chain" class="self-link" aria-label="Section 4.3"></a>
+<p>An <code>ipns://</code> address resolves through layers: a DNSLink name points at an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> or
+directly at a CID, and an <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> resolves to a CID. An application that saves an
+address, as a bookmark or before pinning, benefits from recording every layer it resolved
+through: the DNS name, the <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> behind it, and the CID at save time. Each layer
+answers a different question later: the DNS name is the human-readable origin, the
+<a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> fetches the latest content from the same publisher even if the domain lapses,
+and the CID retrieves the exact saved version for as long as anyone keeps it available.</p>
+</section><section id="keys-too-big-to-inline"><h3><bdi class="secno">4.4 </bdi>Keys too big to inline</h3><a href="#keys-too-big-to-inline" class="self-link" aria-label="Section 4.4"></a>
+<p>An <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> is a multihash of the serialized public key, so how big that key is decides
+what the name actually carries.</p>
+<ul>
+<li>A small key is hashed with <code>identity</code>, which stores the key verbatim inside the multihash. The
+name <em>is</em> the key, and a resolver can recover it by decoding the authority. Ed25519 is the case
+that matters: its serialized form is 36 bytes, inside the 42-byte inlining threshold.</li>
+<li>A larger key, RSA or ECDSA today, is hashed with <code>sha2-256</code> instead. The name commits to the key
+without carrying it, so the authority is a 32-byte digest no matter how big the key was.</li>
+</ul>
+<p>The second case produces the <em>shorter</em> name, not the longer one: about 57 characters in base36
+against 63 for an inlined Ed25519 key. The 63-character DNS label limit is a constraint on inlined
+keys, and it does not bite here.</p>
+<p>What does bite is that the key cannot be recovered from the name, so a resolver has to obtain it
+some other way before it can check a signature. Records for such keys carry a serialized copy of
+the public key alongside the signature, and a resolver <em class="rfc2119">MUST</em> confirm that the copy hashes back to
+the authority before trusting it ([<a class="bibref" href="#ref-ipns-record">ipns-record</a>]). Because the authority is exactly the hash of
+those key bytes, the key is itself content-addressed: it can be stored and fetched as immutable
+data under the same multihash rather than travelling in every record.</p>
+</section></section><section id="iana-considerations"><h2><bdi class="secno">5. </bdi>IANA considerations</h2><a href="#iana-considerations" class="self-link" aria-label="Section 5."></a>
+<p><code>ipns</code> is registered as a provisional URI scheme under the procedure of [<a class="bibref" href="#ref-rfc7595">rfc7595</a>]:
+<a href="https://www.iana.org/assignments/uri-schemes/prov/ipns">IANA provisional registration for <code>ipns</code></a>.
+That registration is the authoritative record of the scheme name, status, applications, and
+change controller; this document does not repeat them. The considerations are as for
+<a href="https://specs.ipfs.tech/ipfs-uri/#iana-considerations"><code>ipfs://</code></a>, with these additions:</p>
+<ul>
+<li><strong>Scheme syntax:</strong> the authority forms in <a href="#the-content-root">The content root</a>.</li>
+<li><strong>Security considerations:</strong> resolving an <code>ipns://</code> URI dereferences a mutable pointer, so the
+content it names can change between retrievals. Record signature validation and the DNSLink
+recursion bound are defined in <a href="#resolution">Resolution</a> and
+<a href="#dnslink-name-form">DNSLink name form</a>.</li>
+</ul>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-cid">[cid]</dt><dd><a href="https://specs.ipfs.tech/cid/"><cite>CID (Content IDentifier)</cite></a>. Juan Benet; Marcin Rataj; Robin Berjon. 2026-06-26. URL: <a href="https://specs.ipfs.tech/cid/">https://specs.ipfs.tech/cid/</a></dd><dt id="ref-dnslink-gateway">[dnslink-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/dnslink-gateway/"><cite>DNSLink Gateway Specification</cite></a>. Marcin Rataj; Thibault Meunier. 2022-11-09. URL: <a href="https://specs.ipfs.tech/http-gateways/dnslink-gateway/">https://specs.ipfs.tech/http-gateways/dnslink-gateway/</a></dd><dt id="ref-ipns-record">[ipns-record]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-record/"><cite>IPNS Record and Protocol</cite></a>. Vasco Santos; Steve Allen; Marcin Rataj; Henrique Dias; Gus Eggert. 2025-02-28. URL: <a href="https://specs.ipfs.tech/ipns/ipns-record/">https://specs.ipfs.tech/ipns/ipns-record/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc7595">[rfc7595]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc7595"><cite>Guidelines and Registration Procedures for URI Schemes</cite></a>. D. Thaler, Ed.; T. Hansen; T. Hardie. IETF. June 2015. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc7595">https://www.rfc-editor.org/rfc/rfc7595</a></dd><dt id="ref-subdomain-gateway">[subdomain-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/"><cite>Subdomain Gateway Specification</cite></a>. Marcin Rataj; Adrian Lanzafame; Vasco Santos; Oli Evans; Thibault Meunier; Steve Loeppky. 2025-04-03. URL: <a href="https://specs.ipfs.tech/http-gateways/subdomain-gateway/">https://specs.ipfs.tech/http-gateways/subdomain-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Frédéric Wang</span> (<a href="https://igalia.com/">Igalia</a>) <a href="https://github.com/fred-wang"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Jonny Crunch</span> <a href="https://github.com/jonnycrunch"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Dietrich Ayala</span> <a href="https://github.com/autonome"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>bumblefudge</span> <a href="https://github.com/bumblefudge"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

@@ -1,0 +1,642 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPFS Kademlia DHT</title>
+    <meta name="description" content="The IPFS Distributed Hash Table (DHT) specification defines a structured overlay network used for peer and content routing in the InterPlanetary File System (IPFS). It extends the libp2p Kademlia DHT specification, adapting and adding features to support IPFS-specific requirements.">
+    <link rel="canonical" href="https://specs.ipfs.tech/routing/kad-dht/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPFS Kademlia DHT</h1><p id="last-modified"><time datetime="2025-11-20T00:00:00.000Z">20 November 2025</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/routing/kad-dht.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/routing/kad-dht.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The IPFS Distributed Hash Table (DHT) specification defines a structured
+overlay network used for peer and content routing in the InterPlanetary File
+System (IPFS). It extends the libp2p Kademlia DHT specification, adapting and
+adding features to support IPFS-specific requirements.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a><ol class="toc"><li><a href="#relation-to-libp2p-kad-dht" class="tocxref"><bdi class="secno">1.1 </bdi>Relation to libp2p kad-dht</a></li><li><a href="#relation-to-the-amino-dht" class="tocxref"><bdi class="secno">1.2 </bdi>Relation to the Amino DHT</a></li></ol></li><li><a href="#dht-swarms" class="tocxref"><bdi class="secno">2. </bdi>DHT Swarms</a><ol class="toc"><li><a href="#identifiers-existing-swarms" class="tocxref"><bdi class="secno">2.1 </bdi>Identifiers &amp; Existing Swarms</a><ol class="toc"><li><a href="#amino-dht" class="tocxref"><bdi class="secno">2.1.1 </bdi>Amino DHT</a></li><li><a href="#ipfs-lan-dhts" class="tocxref"><bdi class="secno">2.1.2 </bdi>IPFS LAN DHTs</a></li><li><a href="#creating-a-custom-dht-swarm" class="tocxref"><bdi class="secno">2.1.3 </bdi>Creating a Custom DHT Swarm</a></li></ol></li><li><a href="#client-and-server-mode" class="tocxref"><bdi class="secno">2.2 </bdi>Client and Server Mode</a></li><li><a href="#networking" class="tocxref"><bdi class="secno">2.3 </bdi>Networking</a></li></ol></li><li><a href="#kademlia-keyspace" class="tocxref"><bdi class="secno">3. </bdi>Kademlia Keyspace</a></li><li><a href="#routing-table" class="tocxref"><bdi class="secno">4. </bdi>Routing Table</a><ol class="toc"><li><a href="#bucket-size" class="tocxref"><bdi class="secno">4.1 </bdi>Bucket Size</a></li><li><a href="#replacement-policy" class="tocxref"><bdi class="secno">4.2 </bdi>Replacement Policy</a><ol class="toc"><li><a href="#ip-diversity-filter" class="tocxref"><bdi class="secno">4.2.1 </bdi>IP Diversity Filter</a></li></ol></li><li><a href="#routing-table-refresh" class="tocxref"><bdi class="secno">4.3 </bdi>Routing Table Refresh</a></li></ol></li><li><a href="#lookup-process" class="tocxref"><bdi class="secno">5. </bdi>Lookup Process</a><ol class="toc"><li><a href="#iterative-vs-recursive-lookup" class="tocxref"><bdi class="secno">5.1 </bdi>Iterative vs Recursive Lookup</a></li><li><a href="#server-behavior" class="tocxref"><bdi class="secno">5.2 </bdi>Server behavior</a></li><li><a href="#client-behavior" class="tocxref"><bdi class="secno">5.3 </bdi>Client behavior</a><ol class="toc"><li><a href="#termination" class="tocxref"><bdi class="secno">5.3.1 </bdi>Termination</a></li><li><a href="#concurrency" class="tocxref"><bdi class="secno">5.3.2 </bdi>Concurrency</a></li></ol></li></ol></li><li><a href="#peer-routing" class="tocxref"><bdi class="secno">6. </bdi>Peer Routing</a><ol class="toc"><li><a href="#findpeer" class="tocxref"><bdi class="secno">6.1 </bdi><code>FindPeer</code></a><ol class="toc"><li><a href="#discovering-non-dht-servers" class="tocxref"><bdi class="secno">6.1.1 </bdi>Discovering non-DHT Servers</a></li></ol></li><li><a href="#getclosestpeers" class="tocxref"><bdi class="secno">6.2 </bdi><code>GetClosestPeers</code></a></li></ol></li><li><a href="#provider-record-routing" class="tocxref"><bdi class="secno">7. </bdi>Provider Record Routing</a><ol class="toc"><li><a href="#provider-records" class="tocxref"><bdi class="secno">7.1 </bdi>Provider Records</a></li><li><a href="#content-kademlia-identifier" class="tocxref"><bdi class="secno">7.2 </bdi>Content Kademlia Identifier</a></li><li><a href="#content-provider-advertisement" class="tocxref"><bdi class="secno">7.3 </bdi>Content Provider Advertisement</a><ol class="toc"><li><a href="#provide-validity" class="tocxref"><bdi class="secno">7.3.1 </bdi>Provide Validity</a></li><li><a href="#provider-record-republish-interval" class="tocxref"><bdi class="secno">7.3.2 </bdi>Provider Record Republish Interval</a></li><li><a href="#provider-addresses-ttl" class="tocxref"><bdi class="secno">7.3.3 </bdi>Provider Addresses TTL</a></li></ol></li><li><a href="#content-provider-lookup" class="tocxref"><bdi class="secno">7.4 </bdi>Content Provider Lookup</a></li></ol></li><li><a href="#value-storage-and-retrieval" class="tocxref"><bdi class="secno">8. </bdi>Value Storage and Retrieval</a><ol class="toc"><li><a href="#record-routing" class="tocxref"><bdi class="secno">8.1 </bdi>Record Routing</a></li><li><a href="#public-keys" class="tocxref"><bdi class="secno">8.2 </bdi>Public Keys</a><ol class="toc"><li><a href="#validation" class="tocxref"><bdi class="secno">8.2.1 </bdi>Validation</a></li></ol></li><li><a href="#ipns" class="tocxref"><bdi class="secno">8.3 </bdi>IPNS</a><ol class="toc"><li><a href="#quorum" class="tocxref"><bdi class="secno">8.3.1 </bdi>Quorum</a></li><li><a href="#entry-correction" class="tocxref"><bdi class="secno">8.3.2 </bdi>Entry Correction</a></li></ol></li></ol></li><li><a href="#rpc-messages" class="tocxref"><bdi class="secno">9. </bdi>RPC Messages</a></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">10. </bdi>Appendix: Notes for Implementers</a><ol class="toc"><li><a href="#client-optimizations" class="tocxref"><bdi class="secno">10.1 </bdi>Client Optimizations</a><ol class="toc"><li><a href="#dual-dhts" class="tocxref"><bdi class="secno">10.1.1 </bdi>Dual DHTs</a></li><li><a href="#verifying-dht-server" class="tocxref"><bdi class="secno">10.1.2 </bdi>Verifying DHT Server</a></li></ol></li><li><a href="#libp2p-kademlia-dht-implementations" class="tocxref"><bdi class="secno">10.2 </bdi>libp2p Kademlia DHT Implementations</a></li></ol></li><li><a href="#bibliography" class="tocxref"><bdi class="secno">11. </bdi>Bibliography </a></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>The Kademlia Distributed Hash Table (DHT) is a decentralized key-value store
+designed to enable efficient and scalable peer-to-peer routing. It provides a
+structured overlay network that allows nodes to locate peers and content in a
+distributed system without relying on centralized servers.</p>
+<p>The primary goal of the Kademlia routing algorithm is to progressively discover
+and interact with nodes that are closest to a given key based on the network's
+distance metric. Once a node has identified the closest peers, it can either:</p>
+<ul>
+<li><strong>Locate a specific peer</strong> in the network</li>
+<li><strong>Find content providers</strong> serving content associated with a CID</li>
+<li><strong>Store and retrieve values</strong> directly within the DHT, such as IPNS names</li>
+</ul>
+<section id="relation-to-libp2p-kad-dht"><h3><bdi class="secno">1.1 </bdi>Relation to libp2p kad-dht</h3><a href="#relation-to-libp2p-kad-dht" class="self-link" aria-label="Section 1.1"></a>
+<p>The IPFS Kademlia DHT specification extends the <a href="https://github.com/libp2p/specs/tree/master/kad-dht">libp2p Kademlia
+DHT</a>, with practical
+details related to CID, IPNS, and content providing.</p>
+<p>It is possible to use an alternative DHT specification alongside an IPFS
+implementation, rather than the one detailed here. This document specifically
+outlines all protocol customizations and adaptations required for participation
+in the <a href="#relation-to-the-amino-dht">Amino DHT</a>. If you're designing a new
+Kademlia-based DHT for use with IPFS, some details in this specification may
+appear overly specific or prescriptive.</p>
+</section><section id="relation-to-the-amino-dht"><h3><bdi class="secno">1.2 </bdi>Relation to the Amino DHT</h3><a href="#relation-to-the-amino-dht" class="self-link" aria-label="Section 1.2"></a>
+<p>Nodes participating in the public <a href="#amino-dht">Amino DHT Swarm</a> <em class="rfc2119">MUST</em> implement the
+IPFS Kademlia DHT specification. The IPFS Kademlia DHT specification <em class="rfc2119">MAY</em> be
+used in other DHT swarms as well.</p>
+</section></section><section id="dht-swarms"><h2><bdi class="secno">2. </bdi>DHT Swarms</h2><a href="#dht-swarms" class="self-link" aria-label="Section 2."></a>
+<p>A DHT swarm is a group of interconnected nodes running the IPFS Kademlia DHT
+protocol, collectively identified by a unique libp2p protocol identifier. IPFS
+nodes <em class="rfc2119">MAY</em> participate in multiple DHT swarms simultaneously. DHT swarms can be
+either public or private.</p>
+<section id="identifiers-existing-swarms"><h3><bdi class="secno">2.1 </bdi>Identifiers &amp; Existing Swarms</h3><a href="#identifiers-existing-swarms" class="self-link" aria-label="Section 2.1"></a>
+<p>Every DHT swarm is associated with a specific libp2p protocol identifier, and
+all nodes within that swarm must use it. Public DHT swarms <em class="rfc2119">MUST</em> use a unique
+libp2p protocol identifier, whereas private swarms <em class="rfc2119">SHOULD</em> use a distinct
+identifier. Although private swarms may reuse an identifier if their networks
+remain isolated, they will merge upon interaction. Therefore, unique
+identifiers <em class="rfc2119">SHOULD</em> be used.</p>
+<section id="amino-dht"><h4><bdi class="secno">2.1.1 </bdi>Amino DHT</h4><a href="#amino-dht" class="self-link" aria-label="Section 2.1.1"></a>
+<p><a href="https://blog.ipfs.tech/2023-09-amino-refactoring/#why-amino"><em>Amino DHT</em></a> is
+a public instance of the <em>IPFS Kademlia DHT</em> spec mounted under
+<code>/ipfs/kad/1.0.0</code> libp2p protocol, it is also referred to as the <em>Public IPFS
+DHT</em>.</p>
+<div class="note"><p>The Amino DHT is utilized by multiple IPFS implementations, including
+<a href="https://github.com/ipfs/kubo"><code>kubo</code></a> and
+<a href="https://github.com/ipfs/helia"><code>helia</code></a>
+and can be joined by using the <a href="https://docs.ipfs.tech/concepts/public-utilities/#amino-dht-bootstrappers">public good Amino DHT Bootstrappers</a>.</p></div>
+</section><section id="ipfs-lan-dhts"><h4><bdi class="secno">2.1.2 </bdi>IPFS LAN DHTs</h4><a href="#ipfs-lan-dhts" class="self-link" aria-label="Section 2.1.2"></a>
+<p><em>IPFS LAN DHTs</em> are DHT swarms operating exclusively within a local network.
+They are accessible only to nodes within the same network and are identified by
+the libp2p protocol <code>/ipfs/lan/kad/1.0.0</code>.</p>
+<p>In a LAN DHT:</p>
+<ul>
+<li>Only hosts on the local network <em class="rfc2119">MAY</em> be added to the routing table.</li>
+<li>By default, all hosts operate in <a href="#client-and-server-mode">server mode</a>.</li>
+</ul>
+<p>Although many IPFS LAN DHTs use the same protocol identifier, each swarm is
+distinct because its scope is limited to its own local network.</p>
+<p>Nodes <em class="rfc2119">MAY</em> participate in LAN DHTs, enabling fast peer and content discovery in
+their local network.</p>
+</section><section id="creating-a-custom-dht-swarm"><h4><bdi class="secno">2.1.3 </bdi>Creating a Custom DHT Swarm</h4><a href="#creating-a-custom-dht-swarm" class="self-link" aria-label="Section 2.1.3"></a>
+<p>Custom DHT swarms can be created to serve specific use cases by meeting these
+requirements:</p>
+<ul>
+<li><strong>Unique libp2p Protocol Identifier</strong>: All nodes in a DHT swarm <em class="rfc2119">MUST</em> use the
+same libp2p protocol identifier. A suggested format is
+<code>/&lt;swarm-prefix&gt;/kad/&lt;version&gt;</code>. Note that if two public swarms share the same
+protocol identifier and encounter each other, they will merge.</li>
+<li><strong>Consistent Protocol Implementation</strong>: All nodes participating in the swarm
+<em class="rfc2119">MUST</em> implement the same DHT protocol, including support for all defined RPC
+messages and behaviors.</li>
+<li><strong>Bootstrapper Nodes</strong>: To join a swarm, a new node <em class="rfc2119">MUST</em> know the
+multiaddresses of at least one existing node participating in the swarm.
+Dedicated bootstrapper nodes <em class="rfc2119">MAY</em> be used to facilitate this process. They
+<em class="rfc2119">SHOULD</em> be publicly reachable, maintain high availability and possess sufficient
+resources to support the network.</li>
+</ul>
+</section></section><section id="client-and-server-mode"><h3><bdi class="secno">2.2 </bdi>Client and Server Mode</h3><a href="#client-and-server-mode" class="self-link" aria-label="Section 2.2"></a>
+<p>A node operating in Server Mode (or DHT Server) is responsible for responding
+to lookup queries from other nodes and storing records. It stores a share of
+the global DHT state, and needs to ensure that this state is up-to-date.</p>
+<p>A node operating in Client Mode (or DHT Client) is simply a client able to make
+requests to DHT Servers. DHT Clients don't answer to queries and don't store
+records.</p>
+<p>Having a large number of reliable DHT Servers benefits the network by
+distributing the load of handling queries and storing records. Nodes <em class="rfc2119">SHOULD</em>
+operate in Server Mode if they are publicly reachable and have sufficient
+resources. Conversely, nodes behind NATs or firewalls, or with intermittent
+availability, low bandwidth, or limited CPU, RAM, or storage resources, <em class="rfc2119">SHOULD</em>
+operate in Client Mode. Operating a DHT server without the capacity to respond
+quickly to queries negatively impacts network performance and <em class="rfc2119">SHOULD</em> be avoided.</p>
+<p>DHT Servers <em class="rfc2119">MUST</em> advertise the libp2p Kademlia protocol identifier via the <a href="https://github.com/libp2p/specs/blob/master/identify/README.md">libp2p
+identify
+protocol</a>. In
+addition DHT Servers <em class="rfc2119">MUST</em> accept incoming streams using the libp2p Kademlia protocol
+identifier.</p>
+<p>DHT Clients <em class="rfc2119">MUST NOT</em> advertise support for the libp2p Kademlia protocol
+identifier nor offer the libp2p Kademlia protocol identifier for incoming
+streams.</p>
+<p>DHT Clients <em class="rfc2119">MAY</em> Provide <a href="#provider-record-routing">Content</a> and
+<a href="#value-storage-and-retrieval">Records</a> to the network, content providing is
+not exclusive to DHT Servers.</p>
+</section><section id="networking"><h3><bdi class="secno">2.3 </bdi>Networking</h3><a href="#networking" class="self-link" aria-label="Section 2.3"></a>
+<p>All nodes <em class="rfc2119">MUST</em> run the libp2p network stack.</p>
+<p>DHT Servers <em class="rfc2119">MUST</em> support the <a href="https://github.com/libp2p/specs/blob/master/ping/ping.md">libp2p ping
+protocol</a> to allow
+probing by other DHT nodes.</p>
+<p>DHT Servers <em class="rfc2119">MUST</em> support <code>TCP</code> with <a href="https://github.com/libp2p/specs/blob/master/yamux/README.md"><code>Yamux</code></a> multiplexing
+and <em class="rfc2119">SHOULD</em> support <a href="https://github.com/libp2p/specs/blob/master/quic/README.md"><code>QUIC</code></a> over UDP as a modern alternative to TCP.
+For secure communication, DHT Servers <em class="rfc2119">MUST</em> support both
+<a href="https://github.com/libp2p/specs/blob/master/tls/tls.md"><code>TLS</code></a> and
+<a href="https://github.com/libp2p/specs/blob/master/noise/README.md"><code>Noise</code></a>.
+It is essential that all DHT Servers are able to open a connection to each
+other. Additionally, DHT Servers <em class="rfc2119">SHOULD</em> support <a href="https://github.com/libp2p/specs/blob/master/webrtc/webrtc-direct.md"><code>WebRTC direct</code></a>,
+<a href="https://github.com/libp2p/specs/blob/master/websockets/README.md">Secure
+<code>WebSockets</code></a>
+and
+<a href="https://github.com/libp2p/specs/blob/master/webtransport/README.md"><code>WebTransport</code></a>.
+DHT Servers adoption of browser-based transports is encouraged to allow for
+browser-based DHT Clients to interact with the DHT.</p>
+<p>DHT Clients <em class="rfc2119">SHOULD</em> support <code>TCP</code> with <a href="https://github.com/libp2p/specs/blob/master/yamux/README.md"><code>Yamux</code></a> multiplexing
+and <a href="https://github.com/libp2p/specs/blob/master/quic/README.md"><code>QUIC</code></a> over UDP whenever possible. For secure communication, clients <em class="rfc2119">SHOULD</em> support both
+<a href="https://github.com/libp2p/specs/blob/master/tls/tls.md"><code>TLS</code></a> and
+<a href="https://github.com/libp2p/specs/blob/master/noise/README.md"><code>Noise</code></a>.
+They <em class="rfc2119">MAY</em> also support additional libp2p transports. However,
+to guarantee discovery of existing records in the DHT, a client <em class="rfc2119">MUST</em> implement
+at least one transport (<code>QUIC</code> or <code>TCP</code>+<code>Yamux</code>) with at least one security
+protocol (<code>TLS</code> or <code>Noise</code>).</p>
+<p>Clients that cannot support the required transports and security protocols (e.g.,
+browser-based nodes) <em class="rfc2119">MAY</em> still act as DHT Clients, but their ability to find
+records in the DHT will be limited.</p>
+</section></section><section id="kademlia-keyspace"><h2><bdi class="secno">3. </bdi>Kademlia Keyspace</h2><a href="#kademlia-keyspace" class="self-link" aria-label="Section 3."></a>
+<p>Kademlia <a href="#bibliography"><code>[0]</code></a> operates on a binary keyspace defined as $\lbrace 0,1 \rbrace^m$. In
+particular, the IPFS Kademlia DHT uses a keyspace of length $m=256$, containing
+all bitstrings of 256 bits. The distance between any pair of keys is defined as
+the bitwise XOR of the two keys, resulting in a new key representing the
+distance between the two keys. This keyspace is used for indexing both nodes
+and content.</p>
+<p>The Kademlia node identifier is derived from the libp2p node's <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md">Peer
+ID</a>. The
+Kademlia node identifier is computed as the digest of the SHA2-256 hash
+function of the binary representation of the Peer ID. The Kademlia identifier
+is a 256-bit number, which is used as the node's identifier in the Kademlia
+keyspace.</p>
+<p>Example:</p>
+<pre><code class="">PeerID b58 representation:  12D3KooWLU2znyJMtDiHArqAGbZn8CgUGp92kxDBtefftEEaHSZS
+PeerID CID b32:             bafzaajaiaejcbhr3im6l2mocxctoxpoktgf5b5gccqojzgxviixjoycrwhtdv4kn
+PeerID CID b36:             k51qzi5uqu5dk4kbd5bpmklj30q0q8n3091bncahugkx18e84p1od2rk25olsd
+PeerID binary (hex):        0024080112209e3b433cbd31c2b8a6ebbdca998bd0f4c2141c9c9af5422e976051b1e63af14d
+Kademlia identifier (hex):  e43d28f0996557c0d5571d75c62a57a59d7ac1d30a51ecedcdb9d5e4afa56100
+</code></pre>
+</section><section id="routing-table"><h2><bdi class="secno">4. </bdi>Routing Table</h2><a href="#routing-table" class="self-link" aria-label="Section 4."></a>
+<p>The Kademlia Routing Table maintains contact information about other DHT
+Servers in the network. It has knowledge about all nearby nodes and
+progressively fewer nodes as the XOR distance increases. This structure allows
+efficient and rapid navigation of the network during lookups.</p>
+<section id="bucket-size"><h3><bdi class="secno">4.1 </bdi>Bucket Size</h3><a href="#bucket-size" class="self-link" aria-label="Section 4.1"></a>
+<p>The Routing Table <em class="rfc2119">MUST</em> contain information about at least <code>k</code> DHT Servers whose
+Kademlia Identifier shares a common prefix of length <code>l</code> with the local node,
+for every <code>l</code> in <code>[0, 255]</code>, provided such nodes exist. The set of <code>k</code> peers
+sharing a common prefix of length <code>l</code> with the local node is called the
+<em>bucket</em> <code>l</code>.</p>
+<p>In practice, buckets with smaller indices will typically be full, as many nodes
+in the network share shorter prefix lengths with the local node. Conversely,
+buckets beyond a certain index usually remain empty, since it's statistically
+unlikely that any node will have an identifier sharing a very long common
+prefix with the local node. For more information see <a href="https://github.com/probe-lab/network-measurements/blob/master/results/rfm19-dht-routing-table-health.md#peers-distribution-in-the-k-buckets">bucket population
+measurements</a>.</p>
+<p>The IPFS Kademlia DHT uses a bucket size of <code>k = 20</code>. This corresponds to the
+<code>k</code> value as defined in the original Kademlia paper <a href="#bibliography"><code>[0]</code></a>. The <code>k</code> value is also
+used as a replication factor and defines how many peers are returned to a
+lookup request.</p>
+<p>Note that DHT Clients are never included in a Routing Table.</p>
+<p>Each DHT Server <em class="rfc2119">MUST</em> store the public
+<a href="https://github.com/libp2p/specs/blob/master/addressing/README.md">multiaddresses</a>
+for every node in its Routing Table. DHT Servers <em class="rfc2119">MUST</em> discard nodes with only
+private and/or relay multiaddresses. Additionally, DHT Servers <em class="rfc2119">MUST</em> verify that
+these nodes are reachable and replace any nodes that are no longer accessible.</p>
+</section><section id="replacement-policy"><h3><bdi class="secno">4.2 </bdi>Replacement Policy</h3><a href="#replacement-policy" class="self-link" aria-label="Section 4.2"></a>
+<p>Nodes <em class="rfc2119">MUST NOT</em> be removed from the Routing Table as long as they remain online.
+Therefore, the bucket replacement policy is based on seniority, ensuring that
+the most stable peers are eventually retained in the Routing Table.</p>
+<section id="ip-diversity-filter"><h4><bdi class="secno">4.2.1 </bdi>IP Diversity Filter</h4><a href="#ip-diversity-filter" class="self-link" aria-label="Section 4.2.1"></a>
+<p>DHT servers <em class="rfc2119">SHOULD</em> implement an IP Diversity Filter to ensure that nodes in
+their routing table originate from a diverse set of Autonomous System Numbers
+(ASNs). This measure helps mitigate Sybil attacks and enhances the network’s
+resilience.</p>
+<p>Implementations <em class="rfc2119">SHOULD</em> impose the following limits:</p>
+<ul>
+<li><strong>Globally</strong>, a maximum of <code>3</code> nodes sharing the same IP grouping should be
+allowed in the routing table.</li>
+<li><strong>Per routing table bucket</strong>, a maximum of <code>2</code> nodes from the same IP
+grouping should be permitted.</li>
+</ul>
+<p>For IP grouping:</p>
+<ul>
+<li><strong>IPv6 addresses</strong> are grouped by ASN.</li>
+<li><strong>IPv4 addresses</strong> are grouped by <code>/16</code> prefixes, except for <a href="https://en.wikipedia.org/wiki/List_of_assigned_/8_IPv4_address_blocks">legacy Class A
+blocks</a>,
+which are grouped by <code>/8</code> prefixes.</li>
+</ul>
+<p>Since a single node can advertise multiple addresses, a peer <em class="rfc2119">MUST NOT</em> be added
+to the routing table if any of its addresses already exceed the allowed
+representation within the table.</p>
+</section></section><section id="routing-table-refresh"><h3><bdi class="secno">4.3 </bdi>Routing Table Refresh</h3><a href="#routing-table-refresh" class="self-link" aria-label="Section 4.3"></a>
+<p>There are several strategies a DHT Server can use to verify that nodes in its
+Routing Table remain reachable. Implementations may choose their own methods,
+provided they avoid serving unresponsive nodes. The recommended strategy is to
+periodically refresh the Routing Table.</p>
+<p>When using periodic refresh, DHT Servers <em class="rfc2119">SHOULD</em> perform a Routing Table Refresh
+every <code>10</code> minutes. During this process, the server sends a ping request to all
+nodes it hasn't heard from recently (e.g., in the last 5 minutes). Any peer that
+fails to respond <em class="rfc2119">MUST</em> be removed from the Routing Table.</p>
+<p>After removing unresponsive peers, any buckets that are not full <em class="rfc2119">MUST</em> be
+replenished with fresh, online peers. This can be accomplished by either adding
+recently connected peers or by executing a <code>FIND_NODE</code> <a href="#rpc-messages">RPC
+message</a> with a randomly generated Peer ID matching the bucket.
+<code>FIND_NODE</code> requests should only be run for buckets up to the last non-empty
+bucket.</p>
+<p>Finally, the refresh process concludes by executing a <code>FIND_NODE</code> request for
+the local node's Peer ID, ensuring the DHT Server maintains up-to-date
+information on its closest peers.</p>
+</section></section><section id="lookup-process"><h2><bdi class="secno">5. </bdi>Lookup Process</h2><a href="#lookup-process" class="self-link" aria-label="Section 5."></a>
+<p>When performing a lookup for a Kademlia Identifier in the DHT, a node begins by
+sending requests to known DHT servers whose identifiers are close to the
+target. Each response provides information on peers that are even closer to the
+target identifier, and the process continues iteratively until the absolute
+closest peers are discovered.</p>
+<section id="iterative-vs-recursive-lookup"><h3><bdi class="secno">5.1 </bdi>Iterative vs Recursive Lookup</h3><a href="#iterative-vs-recursive-lookup" class="self-link" aria-label="Section 5.1"></a>
+<p>In an iterative lookup, the querying node sends requests to several known DHT
+servers. Each server returns a list of peers that are closer to the target
+Kademlia Identifier, but does not continue the lookup process. The querying
+node then directly contacts these closer peers, repeating the process until the
+closest nodes are found.</p>
+<p>In a recursive lookup, the querying node delegates the task to a peer that is
+closer to the target. That peer then queries its own closer peers on behalf of
+the original node, and this delegation continues recursively until the target
+is reached.</p>
+<p>The IPFS Kademlia DHT uses an iterative lookup approach because recursive
+lookups can enable <a href="https://en.wikipedia.org/wiki/Denial-of-service_attack#Amplification">amplification
+attacks</a>
+and make error handling more complex.</p>
+</section><section id="server-behavior"><h3><bdi class="secno">5.2 </bdi>Server behavior</h3><a href="#server-behavior" class="self-link" aria-label="Section 5.2"></a>
+<p>Upon receiving a lookup request for a Kademlia Identifier <code>kid</code>, a DHT Server
+<em class="rfc2119">MUST</em> return the Peer ID and multiaddresses of the <code>k</code> closest DHT Servers to
+<code>kid</code> that are stored in its Routing Table. It <em class="rfc2119">SHOULD NOT</em> include itself, nor
+the requester in the response. If itself or the requester's Peer ID are among
+the <code>k</code> closest DHT Servers, it <em class="rfc2119">SHOULD</em> return the next closest nodes instead,
+to return a total of <code>k</code> DHT Servers. DHT Servers <em class="rfc2119">SHOULD NOT</em> return any
+information about unresponsive nodes.</p>
+<p>In public DHT swarms, DHT Servers <em class="rfc2119">MUST</em> filter out private and loopback
+multiaddresses, and <em class="rfc2119">MUST NOT</em> include DHT Servers whose only addresses are
+private or loopback.</p>
+<p>A DHT Server <em class="rfc2119">SHOULD</em> always return information about the <code>k</code> closest DHT Servers
+to <code>kid</code> (excluding self and the requester), provided its routing table
+contains enough DHT Servers, even if these DHT Servers are not closer to <code>kid</code>
+than self or the requester.</p>
+</section><section id="client-behavior"><h3><bdi class="secno">5.3 </bdi>Client behavior</h3><a href="#client-behavior" class="self-link" aria-label="Section 5.3"></a>
+<p>When a client initiates a lookup for a Kademlia Identifier <code>kid</code> (DHT Servers
+can initiate lookups as clients), it starts by selecting the closest nodes to
+<code>kid</code> in XOR distance, and put them in a list/set. Then it sends requests for
+<code>kid</code> to the closest nodes (see <a href="#concurrency">concurrency</a>) to <code>kid</code> from the
+list.</p>
+<p>Upon receiving a response, the client adds freshly received peers to the list
+of closest peers. It sends a request to the closest peer to <code>kid</code> that hasn't
+been queried yet. The client ignores timeouts and invalid responses.</p>
+<section id="termination"><h4><bdi class="secno">5.3.1 </bdi>Termination</h4><a href="#termination" class="self-link" aria-label="Section 5.3.1"></a>
+<p>The resilience parameter (<code>β</code>) defines the number of closest reachable peers
+that must be successfully queried before a lookup is considered complete.
+Implementations <em class="rfc2119">SHOULD</em> set <code>β</code> to <code>3</code>, ensuring that multiple nodes confirm the
+lookup result for increased reliability.</p>
+<p>The lookup process continues until the <code>β</code> closest reachable peers to <code>kid</code>
+have been queried. However, the process <em class="rfc2119">MAY</em> terminate earlier if the
+request-specific success criteria are met. Additionally, if all candidate peers
+have been queried without discovering any new ones, the lookup <em class="rfc2119">MUST</em> terminate.</p>
+</section><section id="concurrency"><h4><bdi class="secno">5.3.2 </bdi>Concurrency</h4><a href="#concurrency" class="self-link" aria-label="Section 5.3.2"></a>
+<p>A client <em class="rfc2119">MAY</em> have multiple concurrent in-flight queries to distinct nodes for
+the same lookup. This behavior is specific to the client and does not affect
+how DHT servers operate.</p>
+<p>The maximum number of in-flight requests (denoted by <code>α</code>) <em class="rfc2119">SHOULD</em> be set to <code>10</code>.</p>
+</section></section></section><section id="peer-routing"><h2><bdi class="secno">6. </bdi>Peer Routing</h2><a href="#peer-routing" class="self-link" aria-label="Section 6."></a>
+<p>Implementations typically provide two interfaces for peer routing using the
+<code>FIND_NODE</code> RPC:</p>
+<ul>
+<li><a href="#findpeer"><code>FindPeer</code></a>, which locates a specific Peer ID, and</li>
+<li><a href="#getclosestpeers"><code>GetClosestPeers</code></a>, which finds the <code>k</code> closest peers to a given key.</li>
+</ul>
+<section id="findpeer"><h3><bdi class="secno">6.1 </bdi><code>FindPeer</code></h3><a href="#findpeer" class="self-link" aria-label="Section 6.1"></a>
+<p><code>FindPeer</code> is the process of discovering the multiaddresses of a given Peer ID.
+The requester uses the <code>FIND_NODE</code> RPC, including the bytes representation of
+the target Peer ID in the <code>key</code> field. The lookup eventually converges on the
+target Peer ID. The lookup process terminates early if the requester has
+established a connection to the target Peer ID.</p>
+<section id="discovering-non-dht-servers"><h4><bdi class="secno">6.1.1 </bdi>Discovering non-DHT Servers</h4><a href="#discovering-non-dht-servers" class="self-link" aria-label="Section 6.1.1"></a>
+<p>DHT clients that want to remain routable <em class="rfc2119">MUST</em> ensure their multiaddresses are
+stored in the peerstore of the DHT Servers closest to them in XOR distance.
+Since peerstore entries expire over time, DHT Clients <em class="rfc2119">SHOULD</em> periodically
+reconnect to their closest DHT servers to prevent their information from being
+removed. Implementations <em class="rfc2119">SHOULD</em> perform this reconnection every 10 minutes.</p>
+<p>When receiving a <code>FIND_NODE</code> request for a given Peer ID, DHT Servers <em class="rfc2119">MUST</em>
+always respond with the information of that Peer ID, if it is included in their
+peerstore, even if the target node isn't a DHT Server or only advertises
+private addresses. Moreover, if the target Peer ID is self, or the requester's
+Peer ID, the corresponding peer information should be included in addition to
+the <code>k</code> closest DHT Servers.</p>
+</section></section><section id="getclosestpeers"><h3><bdi class="secno">6.2 </bdi><code>GetClosestPeers</code></h3><a href="#getclosestpeers" class="self-link" aria-label="Section 6.2"></a>
+<p><code>GetClosestPeers</code> also makes use of the <code>FIND_NODE</code> RPC, but allows the sender
+to look for the <code>k</code> closest peers to any key. The <code>key</code> provided to <code>FIND_NODE</code>
+corresponds to the preimage of the Kademlia Identifier, as described
+<a href="#content-kademlia-identifier">below</a>.</p>
+<p><code>GetClosestPeers</code> is used for the purpose of Content Routing
+(<a href="#provider-record-routing">Provider Record Routing</a>).</p>
+</section></section><section id="provider-record-routing"><h2><bdi class="secno">7. </bdi>Provider Record Routing</h2><a href="#provider-record-routing" class="self-link" aria-label="Section 7."></a>
+<p>Provider Record Routing is IPFS-specific process of locating peers that provide a
+specific piece of content, identified by its CID. This is achieved by storing
+and retrieving Provider Records in the DHT.</p>
+<section id="provider-records"><h3><bdi class="secno">7.1 </bdi>Provider Records</h3><a href="#provider-records" class="self-link" aria-label="Section 7.1"></a>
+<p>A Provider Record is an entry stored in the DHT associating a CID with one or
+more Peer IDs providing the corresponding content. Instead of storing the
+content itself, the DHT stores provider records pointing to the peers hosting
+the content.</p>
+<p>A Provider Record is identified by the <a href="https://github.com/multiformats/multihash">multihash</a> contained by the <a href="https://github.com/multiformats/cid/">CID</a>. It
+functions as an append-only list, where multiple providers can add themselves
+as content hosts. Since strict consistency across the network is not required,
+different DHT servers <em class="rfc2119">MAY</em> store slightly different sets of providers, but the
+lookup mechanism ensures that clients can still discover multiple sources
+efficiently.</p>
+</section><section id="content-kademlia-identifier"><h3><bdi class="secno">7.2 </bdi>Content Kademlia Identifier</h3><a href="#content-kademlia-identifier" class="self-link" aria-label="Section 7.2"></a>
+<p>The Kademlia Identifier associated with a CID is derived from the multihash
+contained by the CID, by hashing it with the SHA2-256 hash function. The
+resulting 256-bit digest is used as the Kademlia Identifier for the content.</p>
+<p>Example:</p>
+<pre><code class="">CIDv1 (base32)           : bafybeihfg3d7rdltd43u3tfvncx7n5loqofbsobojcadtmokrljfthuc7y
+Multihash from CID (hex) : 1220e536c7f88d731f374dccb568aff6f56e838a19382e488039b1ca8ad2599e82fe
+Kademlia Identifier (hex): d623250f3f660ab4c3a53d3c97b3f6a0194c548053488d093520206248253bcb
+</code></pre>
+</section><section id="content-provider-advertisement"><h3><bdi class="secno">7.3 </bdi>Content Provider Advertisement</h3><a href="#content-provider-advertisement" class="self-link" aria-label="Section 7.3"></a>
+<p>When a node wants to indicate that it provides the content associated with a
+given CID, it first finds the <code>k</code> closest DHT Servers to the Kademlia
+Identifier associated with the CID using <a href="#getclosestpeers"><code>GetClosestPeers</code></a>.
+The <code>key</code> in the <code>FIND_NODE</code> payload is set to the multihash contained in the
+CID.</p>
+<p>Once the <code>k</code> closest DHT Servers are found, the node sends each of them an
+<code>ADD_PROVIDER</code> RPC, using the same <code>key</code> and setting its own Peer ID as
+<code>providerPeers</code>. Providers <em class="rfc2119">MUST</em> indicate their listen multiaddresses to be
+cached and served with the provider record.</p>
+<p>The DHT Servers <em class="rfc2119">MUST</em> make 2 checks before adding the provided <code>record</code> to their
+datastore:</p>
+<ol>
+<li>Verify that <code>key</code> is set, and doesn't exceed <code>80</code> bytes in size</li>
+<li>Discard <code>providerPeers</code> whose Peer ID is not matching the sender's Peer ID</li>
+</ol>
+<p>Upon successful verification, the DHT Server stores the Provider Record in its
+datastore, and caches the provided public multiaddresses. It responds by
+echoing the request to confirm success. If verification fails, the server <em class="rfc2119">MUST</em>
+close the stream without sending a response.</p>
+<section id="provide-validity"><h4><bdi class="secno">7.3.1 </bdi>Provide Validity</h4><a href="#provide-validity" class="self-link" aria-label="Section 7.3.1"></a>
+<p>Provide Validity defines the time-to-live (TTL) of a Provider Record on a DHT
+Server. DHT Servers <em class="rfc2119">MUST</em> implement a Provide Validity of <code>48h</code>, and discard the
+record after expiration.</p>
+</section><section id="provider-record-republish-interval"><h4><bdi class="secno">7.3.2 </bdi>Provider Record Republish Interval</h4><a href="#provider-record-republish-interval" class="self-link" aria-label="Section 7.3.2"></a>
+<p>Because of the churn in the network, Provider Records need to be republished
+more often than their validity period. DHT Clients <em class="rfc2119">SHOULD</em> republish Provider
+Records every <code>22h</code>
+(<a href="https://github.com/probe-lab/network-measurements/blob/master/results/rfm17-provider-record-liveness.md#42-alternative-k-values-and-their-performance-comparison">rationale</a>).</p>
+</section><section id="provider-addresses-ttl"><h4><bdi class="secno">7.3.3 </bdi>Provider Addresses TTL</h4><a href="#provider-addresses-ttl" class="self-link" aria-label="Section 7.3.3"></a>
+<p>DHT Servers <em class="rfc2119">SHOULD</em> persist the multiaddresses of providers for <code>24h</code> after the
+<code>PROVIDE</code> operation. This allows DHT Servers to serve the multiaddresses of the
+content provider alongside the provide record, avoiding an additional DHT walk
+for the Client
+(<a href="https://github.com/probe-lab/network-measurements/blob/master/results/rfm17.1-sharing-prs-with-multiaddresses.md">rationale</a>).</p>
+</section></section><section id="content-provider-lookup"><h3><bdi class="secno">7.4 </bdi>Content Provider Lookup</h3><a href="#content-provider-lookup" class="self-link" aria-label="Section 7.4"></a>
+<p>To find providers for a given CID, a node initiates a lookup using the
+<code>GET_PROVIDERS</code> RPC. This process follows the same approach as a <code>FIND_NODE</code>
+lookup, but with one key difference: if a DHT server holds a matching provider
+record, it <em class="rfc2119">MUST</em> include it in the response.</p>
+<p>Clients <em class="rfc2119">MAY</em> terminate the lookup early if they are satisfied with the returned
+providers. If a node does not find any provider records and is unable to
+discover closer DHT servers after querying the <code>β</code> closest reachable servers,
+the request is considered a failure.</p>
+</section></section><section id="value-storage-and-retrieval"><h2><bdi class="secno">8. </bdi>Value Storage and Retrieval</h2><a href="#value-storage-and-retrieval" class="self-link" aria-label="Section 8."></a>
+<p>The IPFS Kademlia DHT allows users to store and retrieve records directly
+within the DHT. These records serve as key-value mappings, where the key and
+value are defined as arrays of bytes. Each record belongs to a specific
+keyspace, which defines its type and structure.</p>
+<p>The IPFS Kademlia DHT supports two types of records, each stored in its own
+keyspace:</p>
+<ol>
+<li><strong>Public Key Records</strong> (<code>/pk/</code>) – Used to store public keys that cannot be
+derived from Peer IDs.</li>
+<li><strong>IPNS Records</strong> (<code>/ipns/</code>) – Used for decentralized naming and content
+resolution. See
+<a href="https://specs.ipfs.tech/ipns/ipns-record/#routing-record">IPNS Routing Record</a>
+and <a href="https://specs.ipfs.tech/ipns/ipns-record/#record-verification">IPNS Record Verification</a>.</li>
+</ol>
+<p>Records with the above prefixes <em class="rfc2119">MUST</em> meet validity criteria specific to their
+record type before being stored or updated. DHT Servers <em class="rfc2119">MUST</em> verify the
+validity of each record before accepting it. Records with other prefixes are
+not supported by the IPFS Kademlia DHT and <em class="rfc2119">MUST</em> be rejected.</p>
+<section id="record-routing"><h3><bdi class="secno">8.1 </bdi>Record Routing</h3><a href="#record-routing" class="self-link" aria-label="Section 8.1"></a>
+<p>The Kademlia Identifier of a record is derived by applying the SHA2-256 hash
+function to the record’s key and using the resulting digest in binary format.</p>
+<p>To store a value in the DHT, a client first finds the <code>k</code> closest peers to the
+record’s Kademlia Identifier using <code>GetClosestPeers</code>. The client then sends a
+<code>PUT_VALUE</code> RPC to each of these peers, including the <code>key</code> and the <code>record</code>.
+DHT servers <em class="rfc2119">MUST</em> validate the record based on its type before accepting it.</p>
+<p>Retrieving values from the DHT follows a process similar to provider record
+lookups. Clients send a <code>GET_VALUE</code> RPC, which directs the search toward the
+<code>k</code> closest nodes to the target <code>key</code>. If a DHT Server holds a matching
+<code>record</code>, it <em class="rfc2119">MUST</em> include it in its response. The conditions for terminating
+the lookup depend on the specific record type.</p>
+</section><section id="public-keys"><h3><bdi class="secno">8.2 </bdi>Public Keys</h3><a href="#public-keys" class="self-link" aria-label="Section 8.2"></a>
+<p>Some public keys are too large to be embedded within libp2p Peer IDs (<a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids">keys
+larger than 42
+bytes</a>).
+In such cases, the Peer ID is derived from the hash of the public key, but the
+full key still needs to be accessible. To facilitate retrieval, public keys <em class="rfc2119">MAY</em>
+be stored directly in the DHT under the <code>/pk/</code> keyspace.</p>
+<ol>
+<li>Key: <code>/pk/&lt;PeerID&gt;</code> (binary Peer ID format).</li>
+<li>Value: The full public key (in binary format).</li>
+</ol>
+<section id="validation"><h4><bdi class="secno">8.2.1 </bdi>Validation</h4><a href="#validation" class="self-link" aria-label="Section 8.2.1"></a>
+<p>DHT servers <em class="rfc2119">MUST</em> verify that the Peer ID derived from the full public key
+matches the Peer ID encoded in the key. If the derived Peer ID does not match,
+the record <em class="rfc2119">MUST</em> be rejected.</p>
+</section></section><section id="ipns"><h3><bdi class="secno">8.3 </bdi>IPNS</h3><a href="#ipns" class="self-link" aria-label="Section 8.3"></a>
+<p>IPNS (InterPlanetary Naming System) allows peers to publish mutable records
+that point to content in IPFS. These records <em class="rfc2119">MAY</em> be stored in the DHT under the
+<code>/ipns/</code> namespace.</p>
+<p>Record format and validation is documented in the <a href="https://specs.ipfs.tech/ipns/ipns-record/">IPNS
+specification</a>.</p>
+<p>IPNS implementations <em class="rfc2119">MUST</em> follow <a href="https://specs.ipfs.tech/ipns/ipns-record/#routing-record">IPNS Routing Record</a>,
+<a href="https://specs.ipfs.tech/ipns/ipns-record/#record-verification">IPNS Record Verification</a>,
+and <a href="https://specs.ipfs.tech/ipns/ipns-record/#record-size-limit">IPNS Record Size Limit</a>.</p>
+<section id="quorum"><h4><bdi class="secno">8.3.1 </bdi>Quorum</h4><a href="#quorum" class="self-link" aria-label="Section 8.3.1"></a>
+<p>A quorum is the minimum number of distinct responses a client must collect from
+DHT Servers to determine a valid result. Since different DHT Servers may store
+different versions of an <a href="https://specs.ipfs.tech/ipns/ipns-record/">IPNS record</a>, a client fetches the record from multiple
+DHT Servers to increase the likelihood of retrieving the most recent version.</p>
+<p>For IPNS lookups, implementations <em class="rfc2119">SHOULD</em> use a quorum value of <code>16</code>, meaning the client attempts
+to collect responses from at least <code>16</code> DHT Servers out of <code>20</code> before
+determining the best available record.</p>
+</section><section id="entry-correction"><h4><bdi class="secno">8.3.2 </bdi>Entry Correction</h4><a href="#entry-correction" class="self-link" aria-label="Section 8.3.2"></a>
+<p>Because some DHT servers may store outdated versions of a record, clients need
+to ensure that the latest valid version is propagated. After obtaining a
+quorum, the client <em class="rfc2119">MUST</em> send the most recent valid record to any of the <code>k</code>
+closest DHT Servers to the record’s Kademlia Identifier that did not return the
+latest version.</p>
+</section></section></section><section id="rpc-messages"><h2><bdi class="secno">9. </bdi>RPC Messages</h2><a href="#rpc-messages" class="self-link" aria-label="Section 9."></a>
+<p>Remote procedure calls are performed by:</p>
+<ol>
+<li>Opening a new stream.</li>
+<li>Sending the RPC request message.</li>
+<li>Listening for the RPC response message.</li>
+<li>Closing the stream.</li>
+</ol>
+<p>On any error, the stream is reset.</p>
+<p>Implementations <em class="rfc2119">MAY</em> re-use streams by sending one or more RPC request messages
+on a single outgoing stream before closing it. Implementations <em class="rfc2119">MUST</em> handle
+additional RPC request messages on an incoming stream.</p>
+<p>All RPC messages sent over a stream are prefixed with the message length in
+bytes, encoded as an unsigned variable length integer as defined by the
+<a href="https://github.com/multiformats/unsigned-varint">multiformats unsigned-varint
+spec</a>.</p>
+<p>All RPC messages conform to the following protobuf:</p>
+<pre><code class="">syntax = "proto3";
+
+// Record represents a dht record that contains a value
+// for a key value pair
+message Record {
+    // The key that references this record
+    bytes key = 1;
+
+    // The actual value this record is storing
+    bytes value = 2;
+
+    // Note: These fields were removed from the Record message
+    //
+    // Hash of the authors public key
+    // optional string author = 3;
+    // A PKI signature for the key+value+author
+    // optional bytes signature = 4;
+
+    // Time the record was received, set by receiver
+    // Formatted according to https://datatracker.ietf.org/doc/html/rfc3339
+    string timeReceived = 5;
+};
+
+message Message {
+    enum MessageType {
+        PUT_VALUE = 0;
+        GET_VALUE = 1;
+        ADD_PROVIDER = 2;
+        GET_PROVIDERS = 3;
+        FIND_NODE = 4;
+        PING = 5; // DEPRECATED
+    }
+
+    enum ConnectionType {
+        // sender does not have a connection to peer, and no extra information (default)
+        NOT_CONNECTED = 0;
+
+        // sender has a live connection to peer
+        CONNECTED = 1;
+
+        // sender recently connected to peer
+        CAN_CONNECT = 2;
+
+        // sender recently tried to connect to peer repeatedly but failed to connect
+        // ("try" here is loose, but this should signal "made strong effort, failed")
+        CANNOT_CONNECT = 3;
+    }
+
+    message Peer {
+        // ID of a given peer.
+        bytes id = 1;
+
+        // multiaddrs for a given peer
+        repeated bytes addrs = 2;
+
+        // used to signal the sender's connection capabilities to the peer
+        ConnectionType connection = 3;
+    }
+
+    // defines what type of message it is.
+    MessageType type = 1;
+
+    // defines what coral cluster level this query/response belongs to.
+    // in case we want to implement coral's cluster rings in the future.
+    int32 clusterLevelRaw = 10; // NOT USED
+
+    // Used to specify the key associated with this message.
+    // PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
+    bytes key = 2;
+
+    // Used to return a value
+    // PUT_VALUE, GET_VALUE
+    Record record = 3;
+
+    // Used to return peers closer to a key in a query
+    // GET_VALUE, GET_PROVIDERS, FIND_NODE
+    repeated Peer closerPeers = 8;
+
+    // Used to return Providers
+    // GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
+    repeated Peer providerPeers = 9;
+}
+</code></pre>
+<p>These are the requirements for each <code>MessageType</code>:</p>
+<ul>
+<li>
+<p><code>FIND_NODE</code>: In the request <code>key</code> must be set to the binary <code>PeerId</code> of the
+node to be found. In the response <code>closerPeers</code> is set to the DHT Server's <code>k</code>
+closest <code>Peer</code>s.</p>
+</li>
+<li>
+<p><code>GET_VALUE</code>: In the request <code>key</code> is an unstructured array of bytes.
+<code>closerPeers</code> is set to the <code>k</code> closest peers. If <code>key</code> is found in the
+datastore <code>record</code> is set to the value for the given key.</p>
+</li>
+<li>
+<p><code>PUT_VALUE</code>: In the request <code>record</code> is set to the record to be stored and
+<code>key</code> on <code>Message</code> is set to equal <code>key</code> of the <code>Record</code>. The target node
+validates <code>record</code>, and if it is valid, it stores it in the datastore and as a
+response echoes the request.</p>
+</li>
+<li>
+<p><code>GET_PROVIDERS</code>: In the request <code>key</code> is set to the multihash contained in
+the target CID. The target node returns the known <code>providerPeers</code> (if any) and
+the <code>k</code> closest known <code>closerPeers</code>.</p>
+</li>
+<li>
+<p><code>ADD_PROVIDER</code>: In the request <code>key</code> is set to the multihash contained in the
+target CID. The target node verifies <code>key</code> is a valid multihash, all
+<code>providerPeers</code> matching the RPC sender's PeerID are recorded as providers.</p>
+</li>
+<li>
+<p><code>PING</code>: Deprecated message type replaced by the dedicated <a href="https://github.com/libp2p/specs/blob/master/ping/ping.md">ping
+protocol</a>.</p>
+</li>
+</ul>
+<p>If a DHT server receives an invalid request, it simply closes the libp2p stream
+without responding.</p>
+</section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">10. </bdi>Appendix: Notes for Implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 10."></a>
+<section id="client-optimizations"><h3><bdi class="secno">10.1 </bdi>Client Optimizations</h3><a href="#client-optimizations" class="self-link" aria-label="Section 10.1"></a>
+<section id="dual-dhts"><h4><bdi class="secno">10.1.1 </bdi>Dual DHTs</h4><a href="#dual-dhts" class="self-link" aria-label="Section 10.1.1"></a>
+<p>Implementations <em class="rfc2119">MAY</em> join multiple DHT swarms simultaneously—for example, both a
+local and a public swarm. Typically, write operations are executed on both
+swarms, while read operations are performed in parallel, returning the result
+from whichever responds first.</p>
+<p>Using a local DHT alongside a global one enables faster discovery of peers and
+content within the same network.</p>
+</section><section id="verifying-dht-server"><h4><bdi class="secno">10.1.2 </bdi>Verifying DHT Server</h4><a href="#verifying-dht-server" class="self-link" aria-label="Section 10.1.2"></a>
+<p>Implementations <em class="rfc2119">MAY</em> perform additional checks to ensure that DHT servers behave
+correctly before adding them to the routing table. In the past, misconfigured
+nodes have been added to routing tables, leading to <a href="https://blog.ipfs.tech/2023-ipfs-unresponsive-nodes/">network
+slowdowns</a>.</p>
+<p>For example, kubo verifies a DHT server by sending a FIND_NODE request for its
+own Peer ID before adding it to the routing table
+(<a href="https://github.com/libp2p/go-libp2p-kad-dht/blob/master/optimizations.md#checking-before-adding">reference</a>).
+The server is only added if its response contains at least one peer. This check
+is skipped during the initial routing table setup.</p>
+</section></section><section id="libp2p-kademlia-dht-implementations"><h3><bdi class="secno">10.2 </bdi>libp2p Kademlia DHT Implementations</h3><a href="#libp2p-kademlia-dht-implementations" class="self-link" aria-label="Section 10.2"></a>
+<ul>
+<li>Go: <a href="https://github.com/libp2p/go-libp2p-kad-dht"><code>libp2p/go-libp2p-kad-dht</code></a></li>
+<li>JS:
+<a href="https://github.com/libp2p/js-libp2p/tree/main/packages/kad-dht">libp2p/kad-dht</a></li>
+<li>Rust:
+<a href="https://github.com/libp2p/rust-libp2p/tree/master/protocols/kad">libp2p-kad</a></li>
+</ul>
+</section></section><section id="bibliography"><h2><bdi class="secno">11. </bdi>Bibliography </h2><a href="#bibliography" class="self-link" aria-label="Section 11."></a>
+<p>[0]: Maymounkov, P., &amp; Mazières, D. (2002). Kademlia: A Peer-to-Peer
+Information System Based on the XOR Metric. In P. Druschel, F. Kaashoek, &amp; A.
+Rowstron (Eds.), Peer-to-Peer Systems (pp. 53–65). Berlin, Heidelberg: Springer
+Berlin Heidelberg. <a href="https://doi.org/10.1007/3-540-45748-8_5">DOI</a>
+<a href="https://www.scs.stanford.edu/~dm/home/papers/kpos.pdf">PDF</a></p>
+
+    <div class="watermark"></div>
+  
+
+</section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><a href="https://guillaume.michel.id">Guillaume Michel</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/guillaumemichel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Adin Schmahmann</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Jeromy Johnson</span> <a href="https://github.com/whyrusleeping"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Petar Maymounkov</span> <a href="https://github.com/petar"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

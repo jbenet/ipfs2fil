@@ -1,0 +1,459 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPNS Record and Protocol</title>
+    <meta name="description" content="Specifies the IPNS protocol in a language-agnostic manner, allowing everyone to create a compatible IPNS Record Publisher or Resolver.">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipns/ipns-record/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPNS Record and Protocol</h1><p id="last-modified"><time datetime="2025-02-28T00:00:00.000Z">28 February 2025</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipns/ipns-record.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipns/ipns-record.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The InterPlanetary File System (IPFS) is powered by content-addressed data, which by nature is immutable: changing an object would change its hash, and consequently its address, making it a different object altogether. However, there are several use cases where we benefit from having mutable data. This is where the InterPlanetary Naming System (IPNS) gets into the equation. IPNS records provide cryptographically verifiable, mutable pointers to objects.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#introduction" class="tocxref"><bdi class="secno">1. </bdi>Introduction</a></li><li><a href="#ipns-keys" class="tocxref"><bdi class="secno">2. </bdi>IPNS Keys</a><ol class="toc"><li><a href="#key-types" class="tocxref"><bdi class="secno">2.1 </bdi>Key Types</a></li><li><a href="#key-serialization-format" class="tocxref"><bdi class="secno">2.2 </bdi>Key Serialization Format</a></li></ol></li><li><a href="#ipns-name" class="tocxref"><bdi class="secno">3. </bdi>IPNS Name</a><ol class="toc"><li><a href="#string-representation" class="tocxref"><bdi class="secno">3.1 </bdi>String Representation</a></li></ol></li><li><a href="#ipns-record" class="tocxref"><bdi class="secno">4. </bdi>IPNS Record</a><ol class="toc"><li><a href="#record-fields" class="tocxref"><bdi class="secno">4.1 </bdi>Record Fields</a><ol class="toc"><li><a href="#value-bytes" class="tocxref"><bdi class="secno">4.1.1 </bdi>Value (bytes)</a></li><li><a href="#validity-type-uint64" class="tocxref"><bdi class="secno">4.1.2 </bdi>Validity Type (uint64)</a></li><li><a href="#validity-bytes" class="tocxref"><bdi class="secno">4.1.3 </bdi>Validity (bytes)</a></li><li><a href="#sequence-uint64" class="tocxref"><bdi class="secno">4.1.4 </bdi>Sequence (uint64)</a></li><li><a href="#ttl-uint64" class="tocxref"><bdi class="secno">4.1.5 </bdi>TTL (uint64)</a></li><li><a href="#public-key-bytes" class="tocxref"><bdi class="secno">4.1.6 </bdi>Public Key (bytes)</a></li><li><a href="#signature-bytes" class="tocxref"><bdi class="secno">4.1.7 </bdi>Signature (bytes)</a></li><li><a href="#extensible-data-dag-cbor" class="tocxref"><bdi class="secno">4.1.8 </bdi>Extensible Data (DAG-CBOR)</a></li></ol></li><li><a href="#record-serialization-format" class="tocxref"><bdi class="secno">4.2 </bdi>Record Serialization Format</a><ol class="toc"><li><a href="#record-size-limit" class="tocxref"><bdi class="secno">4.2.1 </bdi>Record Size Limit</a></li></ol></li><li><a href="#backward-compatibility" class="tocxref"><bdi class="secno">4.3 </bdi>Backward Compatibility</a></li></ol></li><li><a href="#protocol" class="tocxref"><bdi class="secno">5. </bdi>Protocol</a><ol class="toc"><li><a href="#overview" class="tocxref"><bdi class="secno">5.1 </bdi>Overview</a></li><li><a href="#record-creation" class="tocxref"><bdi class="secno">5.2 </bdi>Record Creation</a><ol class="toc"><li><a href="#record-creation-with-legacy-signaturev1" class="tocxref"><bdi class="secno">5.2.1 </bdi>Record Creation with Legacy SignatureV1</a></li></ol></li><li><a href="#record-verification" class="tocxref"><bdi class="secno">5.3 </bdi>Record Verification</a></li></ol></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">6. </bdi>Appendix: Notes for Implementers</a><ol class="toc"><li><a href="#test-vectors" class="tocxref"><bdi class="secno">6.1 </bdi>Test Vectors</a></li><li><a href="#integration-with-ipfs" class="tocxref"><bdi class="secno">6.2 </bdi>Integration with IPFS</a><ol class="toc"><li><a href="#local-record" class="tocxref"><bdi class="secno">6.2.1 </bdi>Local Record</a></li><li><a href="#routing-record" class="tocxref"><bdi class="secno">6.2.2 </bdi>Routing Record</a></li><li><a href="#reference-implementations" class="tocxref"><bdi class="secno">6.2.3 </bdi>Reference Implementations</a></li></ol></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="introduction"><h2><bdi class="secno">1. </bdi>Introduction</h2><a href="#introduction" class="self-link" aria-label="Section 1."></a>
+<p>Each time a file is modified, its content address changes. As a consequence, the address previously used for getting that file needs to be updated by who is using it. As this is not practical, IPNS was created to solve the problem.</p>
+<p>InterPlanetary Naming System (IPNS) is based on <a href="http://en.wikipedia.org/wiki/Self-certifying_File_System">Self-certifying File System (SFS)</a>. It consists of a PKI namespace, where a name is simply the hash of a public key. As a result, whoever controls the private key has full control over the name. Accordingly, records are signed by the private key and then distributed across the network (in IPFS, via the routing system). This is an egalitarian way to assign mutable names on the Internet at large, without any centralization whatsoever, or certificate authorities.</p>
+</section><section id="ipns-keys"><h2><bdi class="secno">2. </bdi>IPNS Keys</h2><a href="#ipns-keys" class="self-link" aria-label="Section 2."></a>
+<section id="key-types"><h3><bdi class="secno">2.1 </bdi>Key Types</h3><a href="#key-types" class="self-link" aria-label="Section 2.1"></a>
+<p>Implementations <em class="rfc2119">MUST</em> support Ed25519 with signatures defined in [<a class="bibref" href="#ref-rfc8032">rfc8032</a>].
+Ed25519 is the current default key type.</p>
+<p>Implementations <em class="rfc2119">SHOULD</em> support RSA if they wish to interoperate with legacy
+IPNS names (RSA was used before Ed25519).</p>
+<p>Implementations <em class="rfc2119">MAY</em> support Secp256k1 and ECDSA for private use, but peers
+from the public IPFS swarm and DHT may not be able to resolve IPNS records
+signed by these optional key types.</p>
+<p>When implementing support for key types, follow signature implementation notes
+from <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#key-types">PeerID specs</a>.</p>
+<p>In all cases, the IPNS implementation <em class="rfc2119">MAY</em> allow the user to enable/disable specific key types via configuration. Note that disabling support for compulsory key type will hinder IPNS interop.</p>
+</section><section id="key-serialization-format"><h3><bdi class="secno">2.2 </bdi>Key Serialization Format</h3><a href="#key-serialization-format" class="self-link" aria-label="Section 2.2"></a>
+<p>IPNS encodes keys in <a href="https://github.com/google/protobuf">protobuf</a>
+containing a <code>KeyType</code> and the encoded key in a <code>Data</code> field:</p>
+<pre><code class="">syntax = "proto2";
+
+enum KeyType {
+ RSA = 0;
+ Ed25519 = 1;
+ Secp256k1 = 2;
+ ECDSA = 3;
+}
+
+// PublicKey
+message PublicKey {
+ required KeyType Type = 1;
+ required bytes Data = 2;
+}
+
+// PrivateKey
+message PrivateKey {
+ required KeyType Type = 1;
+ required bytes Data = 2;
+}
+</code></pre>
+<p>Note:</p>
+<ul>
+<li>
+<p><code>Data</code> encoding depends on <code>KeyType</code> (see <a href="#key-types">Key Types</a>)</p>
+</li>
+<li>
+<p>Although private keys are not transmitted over the wire, the <code>PrivateKey</code>
+serialization format used to store keys on disk is also included as a
+reference for IPNS implementers who would like to import existing IPNS key
+pairs.</p>
+</li>
+<li>
+<p><code>PublicKey</code> and <code>PrivateKey</code> structures were originally defined in
+<a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#keys">PeerID specification</a>,
+and are currently the same in both libp2p and IPNS. If the PeerID
+specification ever changes in the future, definition from this file takes the
+precedence.</p>
+</li>
+</ul>
+</section></section><section id="ipns-name"><h2><bdi class="secno">3. </bdi>IPNS Name</h2><a href="#ipns-name" class="self-link" aria-label="Section 3."></a>
+<p>IPNS Name is a <a href="https://docs.ipfs.io/concepts/glossary/#multihash">Multihash</a>
+of a serialized <code>PublicKey</code>.</p>
+<p>If a <code>PublicKey</code> is small, it can be inlined inside of a multihash using the <code>identity</code> function.
+This is the default behavior for Ed25519 keys.</p>
+<section id="string-representation"><h3><bdi class="secno">3.1 </bdi>String Representation</h3><a href="#string-representation" class="self-link" aria-label="Section 3.1"></a>
+<p>IPNS Name should be represented as a
+<a href="https://docs.ipfs.tech/concepts/glossary/#cid">CIDv1</a> with <code>libp2p-key</code>
+<a href="https://docs.ipfs.tech/concepts/glossary/#multicodec">multicodec</a> (code <code>0x72</code>),
+and encoded using case-insensitive
+<a href="https://docs.ipfs.io/concepts/glossary/#multibase">Multibase</a> such as Base36.</p>
+<p>A good practice is to prefix IPNS Name with <code>/ipns/</code> namespace,
+and refer to IPNS addresses as <code>/ipns/{ipns-name}</code> (or <code>/ipns/{libp2p-key}</code>).</p>
+</section></section><section id="ipns-record"><h2><bdi class="secno">4. </bdi>IPNS Record</h2><a href="#ipns-record" class="self-link" aria-label="Section 4."></a>
+<section id="record-fields"><h3><bdi class="secno">4.1 </bdi>Record Fields</h3><a href="#record-fields" class="self-link" aria-label="Section 4.1"></a>
+<p>A logical IPNS Record is a data structure containing the following fields:</p>
+<section id="value-bytes"><h4><bdi class="secno">4.1.1 </bdi>Value (bytes)</h4><a href="#value-bytes" class="self-link" aria-label="Section 4.1.1"></a>
+<ul>
+<li>It can be any content path, such as a <code>/ipns/{ipns-key}</code> path to another IPNS record, a <a href="https://dnslink.dev/">DNSLink</a> path (<code>/ipns/example.com</code>) or an immutable IPFS path (<code>/ipfs/baf...</code>).</li>
+<li>Implementations <em class="rfc2119">MUST</em> include this value inside the DAG-CBOR document in <code>IpnsEntry.data[Value]</code>.</li>
+</ul>
+</section><section id="validity-type-uint64"><h4><bdi class="secno">4.1.2 </bdi>Validity Type (uint64)</h4><a href="#validity-type-uint64" class="self-link" aria-label="Section 4.1.2"></a>
+<ul>
+<li>Defines the conditions under which the record is valid.</li>
+<li>The only supported value is <code>0</code>, which indicates the <code>validity</code> field contains the expiration date after which the IPNS record becomes invalid.</li>
+<li>Implementations <em class="rfc2119">MUST</em> support <code>ValidityType = 0</code> and include this value inside the DAG-CBOR document at <code>IpnsEntry.data[ValidityType]</code>.</li>
+</ul>
+</section><section id="validity-bytes"><h4><bdi class="secno">4.1.3 </bdi>Validity (bytes)</h4><a href="#validity-bytes" class="self-link" aria-label="Section 4.1.3"></a>
+<ul>
+<li>When <code>ValidityType = 0</code>
+<ul>
+<li>Expiration date of the record with nanoseconds precision.  Expiration time should match the publishing medium's window.
+<ul>
+<li>For example, IPNS records published on the DHT should have an expiration time set to within 48 hours after publication. Setting the expiration time to longer than 48 hours will not have any effect, as DHT peers only keep records for up to 48 hours.</li>
+</ul>
+</li>
+<li>Represented as an ASCII string that follows notation from [<a class="bibref" href="#ref-rfc3339">rfc3339</a>] (<code>1970-01-01T00:00:00.000000001Z</code>).</li>
+</ul>
+</li>
+<li>Implementations <em class="rfc2119">MUST</em> include this value inside the DAG-CBOR document at <code>IpnsEntry.data[Validity]</code>.</li>
+</ul>
+</section><section id="sequence-uint64"><h4><bdi class="secno">4.1.4 </bdi>Sequence (uint64)</h4><a href="#sequence-uint64" class="self-link" aria-label="Section 4.1.4"></a>
+<ul>
+<li>Represents the current version of the record (starts at 0).</li>
+<li>Implementations <em class="rfc2119">MUST</em> include this value in inside the DAG-CBOR document at <code>IpnsEntry.data[Sequence]</code>.</li>
+</ul>
+</section><section id="ttl-uint64"><h4><bdi class="secno">4.1.5 </bdi>TTL (uint64)</h4><a href="#ttl-uint64" class="self-link" aria-label="Section 4.1.5"></a>
+<ul>
+<li>A hint for how long (in nanoseconds) the record should be cached before going back to, for instance the DHT, in order to check if it has been updated. The function and trade-offs of this value are analogous to the TTL of DNS record.</li>
+<li>Implementations <em class="rfc2119">MUST</em> include this value inside the DAG-CBOR document at <code>IpnsEntry.data[TTL]</code>.</li>
+<li>Suggested default: 5 minutes (300 000 000 000 nanoseconds).</li>
+</ul>
+</section><section id="public-key-bytes"><h4><bdi class="secno">4.1.6 </bdi>Public Key (bytes)</h4><a href="#public-key-bytes" class="self-link" aria-label="Section 4.1.6"></a>
+<ul>
+<li>Public key used to sign this record.
+<ul>
+<li>If public key is small enough to fit in IPNS name (e.g., Ed25519 keys inlined using <code>identity</code> multihash), <code>IpnsEntry.pubKey</code> field is redundant and <em class="rfc2119">MAY</em> be skipped to save space.</li>
+<li>The public key <em class="rfc2119">MUST</em> be included if it cannot be extracted from the IPNS name (e.g., legacy RSA keys). Implementers <em class="rfc2119">MUST</em> follow key serialization defined in <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#key-types">PeerID specs</a>.</li>
+<li>List of supported key types listed in <a href="#ipns-keys">IPNS Keys</a> section.</li>
+</ul>
+</li>
+</ul>
+</section><section id="signature-bytes"><h4><bdi class="secno">4.1.7 </bdi>Signature (bytes)</h4><a href="#signature-bytes" class="self-link" aria-label="Section 4.1.7"></a>
+<ul>
+<li>Provides the cryptographic proof that the IPNS record was created by the owner of the private key.</li>
+<li>Implementations <em class="rfc2119">MUST</em> include this value in <code>IpnsEntry.signatureV2</code> and follow signature creation and verification as described in <a href="#record-creation">Record Creation</a> and <a href="#record-verification">Record Verification</a>.</li>
+</ul>
+</section><section id="extensible-data-dag-cbor"><h4><bdi class="secno">4.1.8 </bdi>Extensible Data (DAG-CBOR)</h4><a href="#extensible-data-dag-cbor" class="self-link" aria-label="Section 4.1.8"></a>
+<ul>
+<li>Extensible record data in <a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR</a> format.</li>
+<li>The default set of fields can be augmented with additional information.
+<ul>
+<li>Implementations <em class="rfc2119">MAY</em> leverage this, but otherwise <em class="rfc2119">MUST</em> ignore unexpected fields.</li>
+<li>A good practice is to:
+<ul>
+<li>prefix custom field names with <code>_</code> to avoid collisions with any new
+mandatory fields that may be added in a future version of this
+specification.</li>
+<li>and/or create own namespace by setting value to DAG-CBOR:
+<code>IpnsEntry.data[_namespace][customfield]</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>IPNS records are stored locally, as well as spread across the network, in order to be accessible to everyone.</p>
+</section></section><section id="record-serialization-format"><h3><bdi class="secno">4.2 </bdi>Record Serialization Format</h3><a href="#record-serialization-format" class="self-link" aria-label="Section 4.2"></a>
+<p>For storing this structured data at rest and on the wire, we use <code>IpnsEntry</code> encoded as <a href="https://github.com/google/protobuf">protobuf</a>, which is a language-neutral, platform neutral extensible mechanism for serializing structured data.
+The extensible part of IPNS Record is placed in <code>IpnsEntry.data</code> field, which itself is encoded using a strict and deterministic subset of CBOR named <a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR</a>.</p>
+<p>This canonical serialization format uses the <a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record"><code>application/vnd.ipfs.ipns-record</code></a> content type.</p>
+<pre><code class="">message IpnsEntry {
+ enum ValidityType {
+  // setting an EOL says "this record is valid until..."
+  EOL = 0;
+ }
+
+ // legacy V1 copy of data[Value]
+ optional bytes value = 1;
+
+ // legacy V1 field, verify 'signatureV2' instead
+ optional bytes signatureV1 = 2;
+
+ // legacy V1 copies of data[ValidityType] and data[Validity]
+ optional ValidityType validityType = 3;
+ optional bytes validity = 4;
+
+ // legacy V1 copy of data[Sequence]
+ optional uint64 sequence = 5;
+
+ // legacy V1 copy copy of data[TTL]
+ optional uint64 ttl = 6;
+
+ // Optional Public Key to be used for signature verification.
+ // Used for big keys such as old RSA keys. Including the public key as part of
+ // the record itself makes it verifiable in offline mode, without any additional lookup.
+ // For newer Ed25519 keys, the public key is small enough that it can be embedded in the
+ // IPNS Name itself, making this field unnecessary.
+ optional bytes pubKey = 7;
+
+ // (mandatory V2) signature of the IPNS record
+ optional bytes signatureV2 = 8;
+
+ // (mandatory V2) extensible record data in DAG-CBOR format
+ optional bytes data = 9;
+}
+</code></pre>
+<div class="warning"><p>The <code>optional</code> keyword in Protocol Buffers (protobufs) indicates a field isn't
+required for message exchange. However, even if a field is marked <code>optional</code> in
+protobuf <code>message</code> syntax, an application such as IPNS may require it, making
+it mandatory at the application level.</p><p>Thus, despite protobuf rules, developers must heed application-level
+requirements present in <a href="#record-creation">Record Creation</a> section.</p></div>
+<section id="record-size-limit"><h4><bdi class="secno">4.2.1 </bdi>Record Size Limit</h4><a href="#record-size-limit" class="self-link" aria-label="Section 4.2.1"></a>
+<p>IPNS implementations <em class="rfc2119">MUST</em> support sending and receiving a serialized
+<code>IpnsEntry</code> less than or equal to <strong>10 KiB</strong> in size.</p>
+<p>Records over the limit <em class="rfc2119">MAY</em> be ignored. Handling records larger than the
+limit is not recommended to keep compatibility with implementations and
+transports that follow this specification.</p>
+</section></section><section id="backward-compatibility"><h3><bdi class="secno">4.3 </bdi>Backward Compatibility</h3><a href="#backward-compatibility" class="self-link" aria-label="Section 4.3"></a>
+<p>Implementations that want to interop with the public IPFS swarm <em class="rfc2119">MUST</em> maintain
+backward compatibility for legacy consumers of IPNS records:</p>
+<ul>
+<li>A legacy publisher <em class="rfc2119">MUST</em> always be able to update to the latest implementation
+of this specification without breaking record resolution for legacy consumers.</li>
+<li>A legacy consumer <em class="rfc2119">MUST</em> always be able to resolve IPNS name, even when publisher
+updated to the latest implementation of this specification.</li>
+</ul>
+<p>This means, for example, that changes made to the <code>IpnsEntry</code> protobuf, or
+validation logic should always be additive.</p>
+<p>Future changes to this spec should include design decisions that allow legacy
+nodes to gracefully ignore new fields and verify compatible records using
+legacy logic.</p>
+</section></section><section id="protocol"><h2><bdi class="secno">5. </bdi>Protocol</h2><a href="#protocol" class="self-link" aria-label="Section 5."></a>
+<section id="overview"><h3><bdi class="secno">5.1 </bdi>Overview</h3><a href="#overview" class="self-link" aria-label="Section 5.1"></a>
+<p><img src="/img/ipns-overview.png" alt="IPNS overview"></p>
+<p>Taking into consideration a p2p network, each peer should be able to publish <a href="#ipns-record">IPNS records</a> to the network, as well as to resolve the IPNS records published by other peers.</p>
+<p>When a node intends to publish a record to the network, an IPNS record needs to be <a href="#record-creation">created</a> first. The node needs to have a previously generated asymmetric key pair to create the record according to the data structure previously specified. It is important pointing out that the record needs to be uniquely identified in the network. As a result, the record identifier should be a hash of the public key used to sign the record.</p>
+<p>As an IPNS record may be updated during its lifetime, a versioning related logic is needed during the publish process. As a consequence, the record must be stored locally, in order to enable the publisher to understand which is the most recent record published. Accordingly, before creating the record, the node must verify if a previous version of the record exists, and update the sequence value for the new record being created.</p>
+<p>Once the record is created, it is ready to be spread through the network. This way, a peer can use whatever routing system it supports to make the record accessible to the remaining peers of the network.</p>
+<p>The means of distribution are left unspecified. Implementations <em class="rfc2119">MAY</em> choose to
+publish signed record using multiple routing systems, such as
+[<a class="bibref" href="#ref-kad-dht">kad-dht</a>] or [<a class="bibref" href="#ref-ipns-pubsub-router">ipns-pubsub-router</a>] (see <a href="#routing-record">Routing record</a>).</p>
+<p>On the other side, each peer must be able to get a record published by another node. It only needs to have the unique identifier used to publish the record to the network. Taking into account the routing system being used, we may obtain a set of occurrences of the record from the network. In this case, records can be compared using the sequence number, in order to obtain the most recent one.</p>
+<p>As soon as the node has the most recent record, the signature and the validity must be <a href="#record-verification">verified</a>, in order to conclude that the record is still valid and not compromised.</p>
+<p>Finally, the network nodes may also republish their records, so that the records in the network continue to be valid to the other nodes.</p>
+</section><section id="record-creation"><h3><bdi class="secno">5.2 </bdi>Record Creation</h3><a href="#record-creation" class="self-link" aria-label="Section 5.2"></a>
+<p>IPNS record <em class="rfc2119">MUST</em> be serialized as <code>IpnsEntry</code> protobuf, and <code>IpnsEntry.data</code>
+<em class="rfc2119">MUST</em> be signed (<code>IpnsEntry.signatureV2</code>) using the private key.</p>
+<p>Creating a new IPNS record <em class="rfc2119">MUST</em> follow the below steps:</p>
+<ol>
+<li>
+<p>Create <code>IpnsEntry</code> protobuf</p>
+</li>
+<li>
+<p>Create a DAG-CBOR document with values for <code>Value</code>, <code>Validity</code>,
+<code>ValidityType</code>, <code>Sequence</code>, and <code>TTL</code></p>
+<ul>
+<li>
+<p>Following <a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR specification</a> is paramount.
+The CBOR bytes will be used for signing and the serialized form must be
+deterministic.</p>
+</li>
+<li>
+<p>If you are updating an existing record, remember to increase values in
+<code>sequence</code> and <code>validity</code></p>
+</li>
+</ul>
+</li>
+<li>
+<p>Store DAG-CBOR in <code>IpnsEntry.data</code>.</p>
+<ul>
+<li>
+<p>If you want to store additional metadata in the record, add it under
+unique keys at <code>IpnsEntry.data</code>.</p>
+</li>
+<li>
+<p>The order of fields impacts signature verification. If you are using an
+alternative CBOR implementation, make sure the CBOR field order follows
+[<a class="bibref" href="#ref-rfc7049">rfc7049</a>] sorting rules: length and then bytewise. The order of
+fields impacts signature verification.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>If your public key can't be inlined inside the IPNS Name, include a
+serialized copy in <code>IpnsEntry.pubKey</code></p>
+<ul>
+<li>This step <em class="rfc2119">SHOULD</em> be skipped for Ed25519, and any other key types that are
+small enough (32 bytes) to be inlined inside <a href="#ipns-name">IPNS Name</a> itself.</li>
+</ul>
+</li>
+<li>
+<p>Create <code>IpnsEntry.signatureV2</code></p>
+<ul>
+<li>
+<p>Create bytes for signing by concatenating <code>ipns-signature:</code> prefix (bytes
+in hex: <code>69706e732d7369676e61747572653a</code>) with raw CBOR bytes from
+<code>IpnsEntry.data</code></p>
+</li>
+<li>
+<p>Sign concatenated bytes from the previous step using the private key, and
+store the signature in <code>IpnsEntry.signatureV2</code></p>
+</li>
+</ul>
+</li>
+<li>
+<p>Confirm that the serialized <code>IpnsEntry</code> bytes sum to less than or equal to
+<a href="#record-size-limit">the size limit</a>.</p>
+</li>
+</ol>
+<p>Created <code>IpnsEntry</code> protobuf includes signed <code>data</code> CBOR and optional public key:</p>
+<pre><code class="">message IpnsEntry {
+ optional bytes pubKey = 7;
+ optional bytes signatureV2 = 8;
+ optional bytes data = 9;
+}
+</code></pre>
+<p>The <code>IpnsEntry.data</code> CBOR document includes key-value pairs for <code>Value</code>,
+<code>Validity</code>, <code>ValidityType</code>, <code>Sequence</code> and <code>TTL</code>.
+Keys are sorted and serialized in order that follows
+the <a href="https://ipld.io/specs/codecs/dag-cbor/spec/">DAG-CBOR specification</a>:</p>
+<pre><code class="">// IpnsEntry.data
+{
+  Sequence: …
+  TTL: …
+  Validity: …
+  ValidityType: …
+  Value: …
+}
+</code></pre>
+<section id="record-creation-with-legacy-signaturev1"><h4><bdi class="secno">5.2.1 </bdi>Record Creation with Legacy SignatureV1</h4><a href="#record-creation-with-legacy-signaturev1" class="self-link" aria-label="Section 5.2.1"></a>
+<div class="warning"><p>Fields related to <code>signatureV1</code> has been deprecated since 2021.
+V1 signatures are no longer used during record validation.</p><p>However, it may be necessary to create a V2+V1 record that allows legacy
+software to use IPNS to upgrade itself to the latest version which supports V2
+signatures. In such case, follow the steps below.</p></div>
+<ol>
+<li>Create <code>IpnsEntry</code> and set <code>value</code>, <code>validity</code>, <code>validityType</code>, <code>sequence</code>, and <code>ttl</code>
+<ul>
+<li>If you are updating an existing record, remember to increase values in <code>sequence</code> and <code>validity</code></li>
+</ul>
+</li>
+<li>Create a DAG-CBOR document with the same values for <code>Value</code>, <code>Validity</code>, <code>ValidityType</code>, <code>Sequence</code>, and <code>TTL</code>
+<ul>
+<li>This is paramount: this CBOR will be used for signing.</li>
+</ul>
+</li>
+<li>Store DAG-CBOR in <code>IpnsEntry.data</code>.
+<ul>
+<li>If you want to store additional metadata in the record, add it under unique keys at <code>IpnsEntry.data</code>.</li>
+<li>The order of fields impacts signature verification. If you are using an alternative CBOR implementation, make sure the CBOR field order follows [<a class="bibref" href="#ref-rfc7049">rfc7049</a>] sorting rules: length and then bytewise. The order of fields impacts signature verification.</li>
+</ul>
+</li>
+<li>If your public key can't be inlined inside the IPNS Name, include a serialized copy in <code>IpnsEntry.pubKey</code>
+<ul>
+<li>This step <em class="rfc2119">SHOULD</em> be skipped for Ed25519, and any other key types that are inlined inside <a href="#ipns-name">IPNS Name</a> itself.</li>
+</ul>
+</li>
+<li>Create <code>IpnsEntry.signatureV2</code>
+<ul>
+<li>Create bytes for signing by concatenating <code>ipns-signature:</code> prefix (bytes in hex: <code>69706e732d7369676e61747572653a</code>) with raw CBOR bytes from <code>IpnsEntry.data</code></li>
+<li>Sign concatenated bytes from the previous step using the private key, and store the signature in <code>IpnsEntry.signatureV2</code></li>
+</ul>
+</li>
+<li>Create <code>IpnsEntry.signatureV1</code> (backward compatibility, for legacy software)
+<ul>
+<li>Create bytes for signing by concatenating <code>IpnsEntry.value</code> + <code>IpnsEntry.validity</code> + <code>string(IpnsEntry.validityType)</code></li>
+<li>Sign concatenated bytes from the previous step using the private key, and store the legacy signature in <code>IpnsEntry.signatureV1</code></li>
+</ul>
+</li>
+<li>Confirm that the serialized <code>IpnsEntry</code> bytes sum to less than or equal to <a href="#record-size-limit">the size limit</a>.</li>
+</ol>
+</section></section><section id="record-verification"><h3><bdi class="secno">5.3 </bdi>Record Verification</h3><a href="#record-verification" class="self-link" aria-label="Section 5.3"></a>
+<p>Implementations <em class="rfc2119">MUST</em> resolve IPNS Names only using verified records.
+Record's data and signature verification <em class="rfc2119">MUST</em> be implemented as outlined below, and fail on the first error.</p>
+<ol>
+<li>Before parsing the protobuf, confirm that the serialized <code>IpnsEntry</code> bytes sum to less than or equal to <a href="#record-size-limit">the size limit</a>.</li>
+<li>Confirm <code>IpnsEntry.signatureV2</code> and <code>IpnsEntry.data</code> are present and are not empty</li>
+<li>Extract public key
+<ul>
+<li>Use <code>IpnsEntry.pubKey</code> or a cached entry in the local key store, if present.</li>
+<li>If public key is missing
+<ul>
+<li>Assume the public key is inlined in the IPNS Name itself (e.g., Ed25519 inlined using <code>identity</code> multihash)</li>
+<li>Confirm Multihash type is <code>identity</code></li>
+<li>Unmarshall public key from Multihash digest</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Deserialize <code>IpnsEntry.data</code> as a DAG-CBOR document</li>
+<li>Create bytes for signature verification by concatenating <code>ipns-signature:</code> prefix (bytes in hex: <code>69706e732d7369676e61747572653a</code>) with raw CBOR bytes from <code>IpnsEntry.data</code></li>
+<li>Verify the signature in <code>IpnsEntry.signatureV2</code> against the concatenated result from the previous step.</li>
+<li>If <code>IpnsEntry.signatureV1</code> or <code>IpnsEntry.value</code> is present, confirm the values in <code>IpnsEntry</code> protobuf match deserialized ones from <code>IpnsEntry.data</code>:
+<ul>
+<li><code>IpnsEntry.value</code> must match <code>IpnsEntry.data[Value]</code></li>
+<li><code>IpnsEntry.validity</code> must match <code>IpnsEntry.data[Validity]</code></li>
+<li><code>IpnsEntry.validityType</code> must match <code>IpnsEntry.data[ValidityType]</code></li>
+<li><code>IpnsEntry.sequence</code> must match <code>IpnsEntry.data[Sequence]</code></li>
+<li><code>IpnsEntry.ttl</code> must match <code>IpnsEntry.data[TTL]</code></li>
+</ul>
+</li>
+<li>Check <code>Validity</code>
+<ul>
+<li>If <code>ValidityType</code> is <code>0</code> (EOL) parse the <code>Validity</code> as an ASCII string
+that follows notation from [<a class="bibref" href="#ref-rfc3339">rfc3339</a>]
+(<code>1970-01-01T00:00:00.000000001Z</code>) and confirm it is bigger than the
+current time.</li>
+</ul>
+</li>
+</ol>
+<p>Value from <code>IpnsEntry.signatureV1</code> <em class="rfc2119">MUST</em> never be used for signature verification.
+Implementations <em class="rfc2119">MUST</em> ensure <code>IpnsEntry.signatureV2</code> is used instead.</p>
+<p>Value from <code>IpnsEntry.value</code> <em class="rfc2119">MUST</em> never be used unless it is the same as signed <code>IpnsEntry.data[Value]</code>.</p>
+</section></section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">6. </bdi>Appendix: Notes for Implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 6."></a>
+<section id="test-vectors"><h3><bdi class="secno">6.1 </bdi>Test Vectors</h3><a href="#test-vectors" class="self-link" aria-label="Section 6.1"></a>
+<p>Below are test vectors in <a href="#record-serialization-format">Record Serialization Format</a>,
+along with the expected verification results. The records are valid for 100
+years, making them safe for use in CI tests.</p>
+<ol>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dm4tm0wt8srkg9h9suud4wuiwjimndrkydqm81cqtlb5ak6p7ku_v1.ipns-record">V1-only</a> → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dlkw8pxuw9qmqayfdeh4kfebhmreauqdc6a7c3y7d5i9fi8mk9w_v1-v2.ipns-record">V1+V2</a> (both signatures valid) → record valid, value points at <code>/ipfs/bafkqaddwgevxmmraojswg33smq</code></li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dlmit2tuwdvnx4sbnyqgmvbxftl0eo3f33wwtb9gr7yozae9kpw_v1-v2-broken-v1-value.ipns-record">V1+V2</a> (both signatures valid, but 'value' is different in V1 pb vs V2 CBOR) → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5diamp7qnnvs1p1gzmku3eijkeijs3418j23j077zrkok63xdm8c_v1-v2-broken-signature-v2.ipns-record">V1+V2</a> (only signatureV1 valid) → record invalid</li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dilgf7gorsh9vcqqq4myo6jd4zmqkuy9pxyxi5fua3uf7axph4y_v1-v2-broken-signature-v1.ipns-record">V1+V2</a> (only signatureV2 valid) → record valid, value points at <code>/ipfs/bafkqahtwgevxmmrao5uxi2bamjzg623fnyqhg2lhnzqxi5lsmuqhmmi</code></li>
+<li><a href="https://dweb.link/ipfs/bafybeifkipmlz2fehxda6y7x752uolfed7bdd46jzdammpfga5zrnkq33u/k51qzi5uqu5dit2ku9mutlfgwyz8u730on38kd10m97m36bjt66my99hb6103f_v2.ipns-record">V2-only</a> (no V1 fields) → record valid</li>
+</ol>
+<p>The records are checked into gateway-conformance under
+<a href="https://github.com/ipfs/gateway-conformance/tree/refs/tags/v0.13.2/fixtures/ipns_records"><code>fixtures/ipns_records/</code></a>,
+and the directory above ships as <code>cars/ipip-0428_ipns-records.car</code> inside
+<a href="https://github.com/user-attachments/files/31090406/ipfs-specs-fixtures.zip"><code>ipfs-specs-fixtures.zip</code></a>.</p>
+<div class="note"><p>Implementers can either write own tests against the above test vectors, or run
+<a href="https://github.com/ipfs/gateway-conformance/">gateway-conformance</a> test suite,
+which includes tests for these vectors since
+<a href="https://github.com/ipfs/gateway-conformance/pull/157">gateway-conformance/pull/157</a>.</p></div>
+</section><section id="integration-with-ipfs"><h3><bdi class="secno">6.2 </bdi>Integration with IPFS</h3><a href="#integration-with-ipfs" class="self-link" aria-label="Section 6.2"></a>
+<p>Below are additional notes for implementers, documenting how IPNS is integrated within IPFS ecosystem.</p>
+<section id="local-record"><h4><bdi class="secno">6.2.1 </bdi>Local Record</h4><a href="#local-record" class="self-link" aria-label="Section 6.2.1"></a>
+<p>This record is stored in the peer's repo datastore and contains the <strong>latest</strong> version of the IPNS record published by the provided key. This record is useful for republishing, as well as tracking the sequence number.
+A legacy convention that implementers <em class="rfc2119">MAY</em> want to follow is to store serialized <code>IpnsEntry</code> under:</p>
+<p><strong>Key format:</strong> <code>/ipns/base32(&lt;HASH&gt;)</code></p>
+<p>Note: Base32 according to the [<a class="bibref" href="#ref-rfc4648">rfc4648</a>].</p>
+</section><section id="routing-record"><h4><bdi class="secno">6.2.2 </bdi>Routing Record</h4><a href="#routing-record" class="self-link" aria-label="Section 6.2.2"></a>
+<p>The routing record is spread across the network according to the available routing systems.
+The two routing systems currently available in IPFS are the [<a class="bibref" href="#ref-kad-dht">kad-dht</a>] and [<a class="bibref" href="#ref-ipns-pubsub-router">ipns-pubsub-router</a>].</p>
+<p>When using [<a class="bibref" href="#ref-kad-dht">kad-dht</a>] for routing, implementations <em class="rfc2119">SHOULD</em> follow the retrieval strategies
+documented in the IPFS Kademlia DHT specification, including the recommended quorum value
+for IPNS record lookups.</p>
+<p><strong>Key format:</strong> <code>/ipns/BINARY_ID</code></p>
+<ul>
+<li><code>/ipns/</code> is the ASCII prefix (bytes in hex: <code>2f69706e732f</code>)</li>
+<li><code>BINARY_ID</code> is the binary representation of <a href="#ipns-name">IPNS Name</a></li>
+</ul>
+<p>As the <code>pubsub</code> topics must be <code>utf-8</code> for interoperability among different implementations, IPNS over PubSub topics use additional wrapping <code>/record/base64url-unpadded(key)</code></p>
+</section><section id="reference-implementations"><h4><bdi class="secno">6.2.3 </bdi>Reference Implementations</h4><a href="#reference-implementations" class="self-link" aria-label="Section 6.2.3"></a>
+<p>When language-specific nuances are not covered by this specification, consider
+below reference  implementations as the baseline for making decisions around
+interoperability.</p>
+<ul>
+<li><a href="https://github.com/ipfs/boxo/tree/main/ipns">https://github.com/ipfs/boxo/tree/main/ipns</a></li>
+<li><a href="https://github.com/ipfs/js-ipns">https://github.com/ipfs/js-ipns</a></li>
+</ul>
+
+    <div class="watermark"></div>
+  
+
+</section></section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipns-pubsub-router">[ipns-pubsub-router]</dt><dd><a href="https://specs.ipfs.tech/ipns/ipns-pubsub-router/"><cite>IPNS PubSub Router</cite></a>. Adin Schmahmann; Marcin Rataj. 2022-11-09. URL: <a href="https://specs.ipfs.tech/ipns/ipns-pubsub-router/">https://specs.ipfs.tech/ipns/ipns-pubsub-router/</a></dd><dt id="ref-kad-dht">[kad-dht]</dt><dd><a href="https://specs.ipfs.tech/routing/kad-dht/"><cite>IPFS Kademlia DHT</cite></a>. Guillaume Michel. 2025-11-20. URL: <a href="https://specs.ipfs.tech/routing/kad-dht/">https://specs.ipfs.tech/routing/kad-dht/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-rfc3339">[rfc3339]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc3339"><cite>Date and Time on the Internet: Timestamps</cite></a>. G. Klyne; C. Newman. IETF. July 2002. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc3339">https://www.rfc-editor.org/rfc/rfc3339</a></dd><dt id="ref-rfc4648">[rfc4648]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc4648"><cite>The Base16, Base32, and Base64 Data Encodings</cite></a>. S. Josefsson. IETF. October 2006. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc4648">https://www.rfc-editor.org/rfc/rfc4648</a></dd><dt id="ref-rfc7049">[rfc7049]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc7049"><cite>Concise Binary Object Representation (CBOR)</cite></a>. C. Bormann; P. Hoffman. IETF. October 2013. Proposed Standard. URL: <a href="https://www.rfc-editor.org/rfc/rfc7049">https://www.rfc-editor.org/rfc/rfc7049</a></dd><dt id="ref-rfc8032">[rfc8032]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc8032"><cite>Edwards-Curve Digital Signature Algorithm (EdDSA)</cite></a>. S. Josefsson; I. Liusvaara. IETF. January 2017. Informational. URL: <a href="https://www.rfc-editor.org/rfc/rfc8032">https://www.rfc-editor.org/rfc/rfc8032</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Vasco Santos</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/vasco-santos"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Steve Allen</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/Stebalien"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://hacdias.com/">Henrique Dias</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Gus Eggert</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/guseggert"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

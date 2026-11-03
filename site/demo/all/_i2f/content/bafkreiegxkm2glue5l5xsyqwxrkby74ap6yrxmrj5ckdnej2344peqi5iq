@@ -1,0 +1,451 @@
+
+/* chunks of this stolen and repurposed from
+   _|   _ \   __|    __|
+  |    __/   _|   \__ \        _|  (_-<  (_-<
+___|  _|    _|    ____/  _)  \__|  ___/  ___/
+
+See: https://github.com/ipfs-shipyard/ipfs-css
+
+General guidelines from the IPFS Brand Sheet:
+https://www.figma.com/proto/mH0OlgikgKzLmbMNO3noBs/IPFS-Brand-sheet-public?node-id=22%3A2
+*/
+
+@import 'normalize.css';
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 100;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Thin.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 100;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-ThinItalic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 200;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-ExtraLight.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 200;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-ExtraLightItalic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 300;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Light.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 300;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-LightItalic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 400;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Regular.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 400;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Italic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 500;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Medium.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 500;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-MediumItalic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 600;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-SemiBold.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 600;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-SemiBoldItalic.ttf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Plex';
+  font-style:  normal;
+  font-weight: 700;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-Bold.ttf') format('opentype');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style:  italic;
+  font-weight: 700;
+  src: local('IBM Plex Sans'),
+    local('IBM-Plex-Sans'),
+    url('/fonts/IBMPlexSans-BoldItalic.ttf') format('opentype');
+}
+
+:root {
+  --ipfs-sans-serif: 'Plex', system-ui, sans-serif;
+  --ipfs-monospace: Consolas, monaco, monospace;
+
+  --ipfs-dark-blue: #0d1644;
+  --ipfs-steel-grey: #2d3662;
+  --ipfs-ash-grey: #616785;
+  --ipfs-stone-grey: #c4c7d6;
+  --ipfs-pearl-grey: #f5f7fd;
+  --ipfs-off-white: #f0f6f9;
+  --ipfs-navy: #073a53;
+  --ipfs-teal: #6bc4ce;
+  --ipfs-turquoise: #47afb4;
+  --ipfs-jade: #3b8c90;
+  --ipfs-yellow: #f39106;
+  --ipfs-carmine: #e9502f;
+  --ipfs-bright: #06f391;
+
+  --ipfs-brand-gradient: linear-gradient(to top right, var(--ipfs-navy), #43979b);
+  --ipfs-brand-gradient-back: linear-gradient(to bottom left, var(--ipfs-navy), #43979b);
+  --ipfs-gradient-0-background-image: linear-gradient(to top, #041727 0%,#043b55 100%);
+
+  --ipfs-text: #0b2c41;
+  --thin: 100;
+  --weight-extra-light: 200;
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semi-bold: 600;
+  --weight-bold: 700;
+  --size-h1: 3.125rem;
+  --size-h2: 2.25rem;
+  --size-h3: 1.875rem;
+  --size-h4: 1.75rem;
+  --size-h5: 1.25rem;
+  --size-p: 1rem;
+  --size-mono: 0.9rem;
+
+  --bg: var(--ipfs-off-white);
+  --fg: var(--ipfs-text);
+  --stark-bg: #fff;
+  --stark-fg: #000;
+  --max-readable-width: 50rem;
+  --max-page-width: 82rem;
+  --heading-family: var(--ipfs-sans-serif);
+  --body-family: var(--ipfs-sans-serif);
+  --highlight-colour: var(--ipfs-jade);
+  --highlight-colour-faded: var(--ipfs-turquoise);
+  --secondary-highlight: var(--ipfs-bright);
+  --link-colour: var(--highlight-colour);
+  --issue-colour: var(--ipfs-carmine);
+  --warning-colour: var(--ipfs-yellow);
+  --example-colour: var(--ipfs-ash-grey);
+  --note-colour: var(--secondary-highlight);
+  --standard-gradient: linear-gradient(to right, var(--ipfs-navy), var(--highlight-colour));
+  --contrast-bg: transparent;
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+}
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--body-family);
+}
+h1 {
+  font-family: var(--heading-family);
+  font-size: var(--size-h1);
+}
+h2 { font-size: var(--size-h2); }
+h3 { font-size: var(--size-h3); }
+h4 { font-size: var(--size-h4); }
+h5 { font-size: var(--size-h5); }
+h6 { font-size: var(--size-p); }
+
+a {
+  color: var(--link-colour);
+}
+a.bibref {
+  text-decoration: none;
+}
+
+em.rfc2119 {
+  font-variant: small-caps;
+  text-transform: lowercase;
+}
+
+.toc, .toc ol, .toc ul, .toc li {
+  line-height: 1.1em;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.toc li {
+  clear: both;
+}
+.toc > li {
+  margin: 1.5rem 0;
+  font-weight: bold;
+}
+.toc.no-depth > li {
+  margin: 1rem 0;
+}
+.toc > li li {
+  margin: 0.3rem 0;
+  font-weight: normal;
+}
+.toc a {
+  padding: 0.1rem 1px 0;
+  display: block;
+  text-decoration: none;
+  color: var(--fg);
+}
+.toc a:hover, .toc a:focus {
+  color: var(--link-colour);
+}
+#toc .toc .secno {
+  margin-left: -4rem;
+}
+/* Progressive width for section numbers at each level */
+.toc .secno {
+  float: left;
+  width: 4rem;
+  white-space: nowrap;
+  color: var(--ipfs-ash-grey);
+}
+.toc li li .secno {
+  width: 5.5rem;
+}
+.toc li li li .secno {
+  width: 7rem;
+}
+.toc li li li li .secno {
+  width: 8.5rem;
+}
+.toc li li li li li .secno {
+  width: 10rem;
+}
+body:not(.toc-inline) :not(li) > .toc {
+  margin-left: 4rem;
+}
+
+section {
+  position: relative;
+}
+section > .self-link {
+  position: absolute;
+  top: 0;
+  right: -1rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.self-link::after {
+  content: "#";
+}
+dfn {
+  font-weight: bolder;
+}
+
+pre {
+  background: white;
+  overflow: auto;
+  border-left: 0.4rem solid;
+  border-color: #358ccb;
+  padding: 0.2rem 0.6rem;
+  box-shadow: -1px 0 0 0 #358ccb, 0 0 0 1px #dfdfdf;
+}
+code, kbd, samp, pre > code {
+  font-family: var(--ipfs-monospace);
+  font-size: var(--size-mono);
+}
+
+div.issue, div.warning, div.note, div.example {
+  border-left: 0.4rem solid;
+  padding: 0.2rem 0.6rem;
+  position: relative;
+  background: var(--stark-bg);
+  color: var(--stark-fg);
+}
+div.issue { border-color: var(--issue-colour); }
+div.warning { border-color: var(--warning-colour); }
+div.note { border-color: var(--note-colour); }
+div.example { border-color: var(--example-colour); }
+div.issue::before, div.warning::before, div.note::before {
+  display: block;
+  position: absolute;
+  left: -2rem;
+}
+div.issue::before { content: "🚧"; }
+div.warning::before { content: "⚠️"; }
+div.note::before { content: "📔"; }
+/* div.example::before { content: "eg. 🐈"; } */
+
+.bibliography dt {
+  font-weight: bold;
+}
+
+table.ipseity-data-table {
+  background: var(--stark-bg);
+  color: var(--stark-fg);
+  border-collapse: collapse;
+}
+.ipseity-data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--stark-fg);
+  color: var(--stark-bg);
+  cursor: pointer;
+}
+.ipseity-data-table tbody tr:nth-child(even) {
+  background: var(--bg);
+}
+.ipseity-data-table :is(th, td) {
+  padding-left: 0.2rem;
+  text-align: left;
+  vertical-align: top;
+}
+.ipseity-data-table :is(th, td):first-of-type {
+  padding-left: 0.4rem;
+}
+.ipseity-data-table :is(th, td):last-of-type {
+  padding-right: 0.4rem;
+}
+
+/* Markdown tables (GFM) */
+table:not(.ipseity-data-table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  background: var(--stark-bg);
+  border: 1px solid var(--ipfs-ash-grey);
+}
+table:not(.ipseity-data-table) thead {
+  border-bottom: 2px solid var(--ipfs-steel-grey);
+}
+table:not(.ipseity-data-table) th {
+  background: color-mix(in srgb, var(--bg) 90%, var(--fg));
+  color: var(--fg);
+  font-weight: var(--weight-semi-bold);
+  text-align: left;
+}
+table:not(.ipseity-data-table) tbody tr:nth-child(even) {
+  background: var(--bg);
+}
+table:not(.ipseity-data-table) th,
+table:not(.ipseity-data-table) td {
+  border: 1px solid var(--ipfs-ash-grey);
+  padding: 0.5em 0.75em;
+  vertical-align: top;
+}
+
+#ipseity-reports {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  font-size: 0.9rem;
+}
+#ipseity-reports details[open] {
+  background: var(--bg);
+  border-bottom: 1px solid #666;
+}
+#ipseity-reports summary {
+  font-weight: bold;
+  color: #fff;
+  border-radius: 0.2rem;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+#ipseity-reports details:not([open]) summary::marker {
+  content: "";
+}
+#ipseity-reports .ipseity-errors summary {
+  background-color: red;
+}
+#ipseity-reports .ipseity-warnings summary {
+  background-color: orange;
+}
+
+@media only screen and (max-width: 816px) {
+  h1 {
+    font-size: 2rem;
+  }
+  section > .self-link {
+    top: -1rem;
+    right: 0;
+  }
+  div.issue, div.warning, div.note, div.example {
+    margin-top: 2rem;
+  }
+  div.issue::before, div.warning::before, div.note::before {
+    left: unset;
+    top: -0.1rem;
+  }
+}
+
+@media print {
+  .self-link {
+    display: none;
+  }
+  h2, h3, h4, h5, h6 {
+    margin-top: 1rem;
+    margin-bottom: 0;
+  }
+  :is(h2, h3, h4, h5, h6):not(#toc > h2) {
+    left: 0;
+  }
+  pre[class*="language-"] > code {
+    background-image: none;
+  }
+  #back-to-top, #ipseity-reports {
+    display: none;
+  }
+}

@@ -1,0 +1,371 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0402: Partial CAR Support on Trustless Gateways</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0402/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0402: Partial CAR Support on Trustless Gateways</h1><p id="last-modified"><time datetime="2023-04-17T00:00:00.000Z">17 April 2023</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/issues/348">ipfs/specs/issues/348</a></dd><dd><a href="https://github.com/ipfs/kubo/issues/8769">ipfs/kubo/issues/8769</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0402.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0402.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a><ol class="toc"><li><a href="#car-responses-with-blocks-for-parent-path-segments" class="tocxref"><bdi class="secno">4.2.1 </bdi>CAR responses with blocks for parent path segments</a></li><li><a href="#car-format-with-entity-bytes-and-dag-scope-parameters" class="tocxref"><bdi class="secno">4.2.2 </bdi>CAR format with <code>entity-bytes</code> and <code>dag-scope</code> parameters</a></li><li><a href="#car-roots-and-determinism" class="tocxref"><bdi class="secno">4.2.3 </bdi>CAR roots and determinism</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a><ol class="toc"><li><a href="#arbitrary-ipld-selectors" class="tocxref"><bdi class="secno">4.4.1 </bdi>Arbitrary IPLD Selectors</a></li><li><a href="#additional-web-scope" class="tocxref"><bdi class="secno">4.4.2 </bdi>Additional "Web" Scope</a></li><li><a href="#requesting-specific-dag-depth" class="tocxref"><bdi class="secno">4.4.3 </bdi>Requesting specific DAG depth</a></li></ol></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#testing-pathing" class="tocxref"><bdi class="secno">5.1 </bdi>Testing pathing</a></li><li><a href="#testing-dag-scope-block" class="tocxref"><bdi class="secno">5.2 </bdi>Testing <code>dag-scope=block</code></a></li><li><a href="#testing-dag-scope-entity" class="tocxref"><bdi class="secno">5.3 </bdi>Testing <code>dag-scope=entity</code></a></li><li><a href="#testing-dag-scope-all" class="tocxref"><bdi class="secno">5.4 </bdi>Testing <code>dag-scope=all</code></a></li><li><a href="#testing-entity-bytes-from-to" class="tocxref"><bdi class="secno">5.5 </bdi>Testing <code>entity-bytes=from:to</code></a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.6 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Add path and partial CAR response support to the [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>[<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] solves the verifiability problem in HTTP contexts,
+and allows for inexpensive retrieval and caching in a way that is not tied to
+a specific service, library or IPFS implementation.</p>
+<p>This IPIP improves the performance related to trustless HTTP gateways by adding
+additional capabilities to requests for CAR files.</p>
+<p>The goal is to enable a client capable of translating/decoding CAR files to
+make a single request to a trustless gateway that in most case allows them to
+render the same output generated via a request to a trusted gateway (or, if not
+in a single request, as few requests as possible).</p>
+<p>Save round-trips, allow more efficient resume and parallel downloads.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>The solution is to allow the [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] to support partial
+responses by:</p>
+<ul>
+<li>
+<p>allowing for requesting sub-paths within a DAG, and getting blocks necessary
+for traversing all path segments for end-to-end verification</p>
+</li>
+<li>
+<p>opt-in <code>dag-scope</code> parameter that allows for narrowing down returned blocks
+to a <code>block</code>, <code>entity</code> (a logical IPLD entity, such as a file, directory,
+CBOR document), or <code>all</code> (default)</p>
+</li>
+<li>
+<p>opt-in <code>entity-bytes</code> parameter that allows for returning only a subset of blocks
+within a logical IPLD entity</p>
+</li>
+</ul>
+<p>Details are in [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>].</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>The approach here is pragmatic: we add a minimum set of predefined CAR export
+scopes based on real world needs, as a product of the rough consensus across
+key stakeholders: gateway operators, Project Saturn, Project Rhea (<code>ipfs.io</code>
+and <code>dweb.link</code>), light clients such as Capyloon and IPFS in Chromium, and
+gateway implementation in <code>boxo/gateway</code> library (Go).</p>
+<p>Terse rationale for each feature:</p>
+<ul>
+<li>
+<p>Including blocks necessary for traversing parents when a  sub-path is present
+makes a better default, as it produces verifiable archive that does not
+require any follow-up requests. The response is always enough to verify
+end-to-end and reject any unexpected / invalid blocks.</p>
+</li>
+<li>
+<p>The ability to narrow down CAR response based on logical scope or specific byte
+range within an entity comes directly from the types of requests existing
+path gateways need to handle.</p>
+<ul>
+<li><code>dag-scope=block</code> allows for resolving content paths to the final CID, and
+learn its type (unixfs file/directory, or a custom codec)</li>
+<li><code>dag-scope=entity</code> covers the majority of website hosting needs (returning a
+file, enumerating directory contents, or any other IPLD entity)</li>
+<li><code>dag-scope=all</code> returns all blocks in a DAG: was the existing behavior and
+remains the implicit default</li>
+<li><code>entity-bytes=from:to</code> enables efficient, verifiable analog to HTTP Range Requests
+(resuming downloads or seeking within bigger files, such as videos)
+<ul>
+<li><code>from</code> and <code>to</code> match the behavior of HTTP Range Requests.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<ul>
+<li>
+<p>Trustless HTTP Clients will be able to fetch a CAR with a file, byte range,
+or a directory enumeration using a way lower number of HTTP requests, which
+will translate to improved resource utilization, longer battery time on
+mobile, and lower latency due to lower number of round trips.</p>
+</li>
+<li>
+<p>CAR files downloaded from HTTP Gateways will always be end-to-end verifiable.
+In the past, user had to manually ensure they have blocks for all path
+segments. With this IPIP, the CAR will always include parent blocks when a
+file located on a sub-path is requested.</p>
+</li>
+<li>
+<p>Creating a standard way of fetching partial CAR over HTTP enables a diverse set of clients and gateway services to interoperate, and reuse libraries:</p>
+<ul>
+<li><a href="https://github.com/ipfs-shipyard/helia-service-worker-gateway">Service Worker Gateway based on Helia</a></li>
+<li><a href="https://github.com/ipfs/ipfs-blog/pull/560/files">IPFS in Chromium</a></li>
+<li><a href="https://github.com/ipfs/boxo/tree/main/gateway">boxo/gateway</a> provides HTTP Gateway implementation for
+<ul>
+<li><a href="https://github.com/ipfs/kubo">Kubo</a></li>
+<li><a href="https://boost.filecoin.io/http-retrieval">HTTP retrieval in Boost</a></li>
+<li><a href="https://github.com/ipfs/bifrost-gateway">bifrost-gateway</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Trustless Gateway is solidified as the ecosystem wide standard.</p>
+<ul>
+<li>
+<p>IPIP tests added to
+<a href="https://github.com/ipfs/gateway-conformance">gateway-conformance</a> test
+suite and fixtures listed at the end of this IPIP make it easier to
+implement or operate a conformant gateway, and reduce maintenance costs.</p>
+</li>
+<li>
+<p>End users are empowered with primitives and tools that reduce retrieval
+cost, encourage self-hosting, or make validation of conformance claims of
+free or commercial gateways possible.</p>
+</li>
+</ul>
+</li>
+</ul>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<section id="car-responses-with-blocks-for-parent-path-segments"><h4><bdi class="secno">4.2.1 </bdi>CAR responses with blocks for parent path segments</h4><a href="#car-responses-with-blocks-for-parent-path-segments" class="self-link" aria-label="Section 4.2.1"></a>
+<p>In order to serve CAR requests for content paths other than just a CID root in
+a trustless manner, we are requiring the gateway to return intermediate blocks
+from the CID root to the path terminus as part of the returned CAR file.</p>
+<p>HTTP Gateway implementations are currently only returning blocks starting at
+the end of the content path, which means an implementation of this IPIP will
+introduce additional blocks required for verifying.</p>
+<p>As long the client was written in a trustless manner, and follows ring and was discarding
+unexpected blocks, this will be a backward-compatible change.</p>
+</section><section id="car-format-with-entity-bytes-and-dag-scope-parameters"><h4><bdi class="secno">4.2.2 </bdi>CAR format with <code>entity-bytes</code> and <code>dag-scope</code> parameters</h4><a href="#car-format-with-entity-bytes-and-dag-scope-parameters" class="self-link" aria-label="Section 4.2.2"></a>
+<p>These parameters are opt-in, which means no breaking changes.</p>
+<p>Gateways ignore unknown URL parameters. A client sending them to a
+gateway that does not implement this IPIP will get all blocks for the requested
+DAG.</p>
+</section><section id="car-roots-and-determinism"><h4><bdi class="secno">4.2.3 </bdi>CAR roots and determinism</h4><a href="#car-roots-and-determinism" class="self-link" aria-label="Section 4.2.3"></a>
+<p>As of 2023-06-20, the behavior of the <code>roots</code>  CAR field remains an <a href="https://web.archive.org/web/20230328013837/https://ipld.io/specs/transport/car/carv1/#unresolved-items">unresolved item within the CARv1 specification</a>:</p>
+<blockquote>
+<p>Regarding the roots property of the Header block:</p>
+<ul>
+<li>The current Go implementation assumes at least one CID when creating a CAR</li>
+<li>The current Go implementation requires at least one CID when reading a CAR</li>
+<li>The current JavaScript implementation allows for zero or more roots</li>
+<li>Current usage of the CAR format in Filecoin requires exactly one CID</li>
+</ul>
+<p>[..]</p>
+<p>It is unresolved how the roots array should be constrained. It is recommended
+that only a single root CID be used in this version of the CAR format.</p>
+<p>A work-around for use-cases where the inclusion of a root CID is difficult
+but needing to be safely within the "at least one" recommendation is to use
+an empty CID: <code>\x01\x55\x00\x00</code> (zero-length "identity" multihash with "raw"
+codec). Since current implementations for this version of the CAR
+specification don't check for the existence of root CIDs
+(see <a href="https://web.archive.org/web/20230328013837/https://ipld.io/specs/transport/car/carv1/#root-cid-block-existence">Root CID block existence</a>),
+this will be safe as far as CAR implementations are concerned. However, there
+is no guarantee that applications that use CAR files will correctly consume
+(ignore) this empty root CID.</p>
+</blockquote>
+<p>Due to the inconsistent and non-deterministic nature of CAR implementations,
+the gateway specification faces limitations in providing specific
+recommendations. Nevertheless, it is crucial for implementations to refrain
+from making implicit assumptions based on the legacy behavior of individual CAR
+implementations.</p>
+<p>Due to this, gateway specification changes introduced in this IPIP clarify that:</p>
+<ul>
+<li>The CAR <code>roots</code> behavior is out of scope and flags that clients <em class="rfc2119">MAY</em> ignore it.</li>
+<li>CAR determinism is not present by default, responses may differ across
+requests and gateways.</li>
+<li>Opt-in determinism is possible, but standardized signaling mechanism does not
+exist until we have IPIP-412 or similar.</li>
+</ul>
+</section></section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>This IPIP allows clients to narrow down the amount of data returned as a CAR,
+and introduces a need for defensive programming when the feature set of the
+remote gateway is unknown.</p>
+<p>To avoid denial of service, and resource starvation, clients should probe if
+the gateway supports features described in this IPIP before requesting data, to
+avoid fetching big DAGs when only a small subset of blocks is expected.</p>
+<p>Following the robustness principle, invalid, duplicate or unexpected blocks
+should be discarded.</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<p>Below are alternate designs that were considered, but decided to be out of scope for this IPIP.</p>
+<section id="arbitrary-ipld-selectors"><h4><bdi class="secno">4.4.1 </bdi>Arbitrary IPLD Selectors</h4><a href="#arbitrary-ipld-selectors" class="self-link" aria-label="Section 4.4.1"></a>
+<p>Passing arbitrary selectors was rejected due to the implementation complexity,
+risks, and weak value proposition, as <a href="https://github.com/ipfs/specs/issues/348#issuecomment-1326869509">discussed during IPFS Thing 2022</a></p>
+</section><section id="additional-web-scope"><h4><bdi class="secno">4.4.2 </bdi>Additional "Web" Scope</h4><a href="#additional-web-scope" class="self-link" aria-label="Section 4.4.2"></a>
+<p>A request for
+<code>/ipfs/bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze/wiki/?format=car&amp;dag-scope=entity</code>
+returns all blocks required for enumeration of the big HAMT <code>/wiki</code> directory,
+and then an additional request for <code>index.html</code> needs to be issued.</p>
+<p>Website hosting use case could be made more efficient if gateway returned a CAR
+with <code>index.html</code> instead of all blocks for directory enumeration. The server
+already did the work: it knows the entity is a directory, already parsed it, it
+knows it has child entity named <code>index.html</code>, and everyone would pay a lower cost due
+to lower number of blocks being returned in a single round-trip, instead of two.</p>
+<p>Rhea/Saturn projects requested this to be out of scope for now, but this "web"
+entity scope could be added in the future, as a follow-up optimization IPIP.</p>
+</section><section id="requesting-specific-dag-depth"><h4><bdi class="secno">4.4.3 </bdi>Requesting specific DAG depth</h4><a href="#requesting-specific-dag-depth" class="self-link" aria-label="Section 4.4.3"></a>
+<p>Blindly requesting specific DAG depth did not translate to any type of
+requests web gateways like <code>ipfs.io</code> or one in Brave browser have to handle.</p>
+<p>It is impossible to know if some entity on a sub-path is a file or a directory,
+without sending a probe for the root block, which introduces one round-trip overhead
+per entity.</p>
+<p>This problem is not present in the case of <code>dag-scope=entity</code>, which shifts the
+decision to the server, and allows for fetching unknown UnixFS entity with a
+single request.</p>
+</section></section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>Relevant tests were added to
+<a href="https://github.com/ipfs/gateway-conformance">gateway-conformance</a> test suite
+in <a href="https://github.com/ipfs/gateway-conformance/pull/56">#56</a> and
+<a href="https://github.com/ipfs/gateway-conformance/issues/85">#85</a>.
+A detailed list of compliance checks for <code>dag-scope</code> and <code>entity-bytes</code> can be found in
+<a href="https://github.com/ipfs/gateway-conformance/blob/v0.2.0/tests/trustless_gateway_car_test.go"><code>v0.2.0/trustless_gateway_car_test.go</code></a> or later.</p>
+<p>Below are CIDs, CARs, and short summary of each fixture.</p>
+<section id="testing-pathing"><h3><bdi class="secno">5.1 </bdi>Testing pathing</h3><a href="#testing-pathing" class="self-link" aria-label="Section 5.1"></a>
+<p>The main utility of this scope is saving round-trips when retrieving a specific
+entity as a member of a bigger DAG.</p>
+<p>To test, request a small file that fits in a single block from a sub-path. The
+returned CAR <em class="rfc2119">MUST</em> include both the block with the file data and all blocks
+necessary for traversing from the root CID to the terminating element (all
+parents, root CID and a subdirectory below it).</p>
+<div class="example"><p>Sample fixtures:</p><ul>
+<li>
+<p><code>bafybeietjm63oynimmv5yyqay33nui4y4wx6u3peezwetxgiwvfmelutzu</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/subdir-with-two-single-block-files.car"><code>subdir-with-two-single-block-files.car</code></a>
+for testing <code>/ipfs/dag-pb-cid/subdir/ascii.txt?format=car</code>
+(UnixFS file in a subdirectory)</p>
+</li>
+<li>
+<p><code>bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/single-layer-hamt-with-multi-block-files.car"><code>single-layer-hamt-with-multi-block-files.car</code></a>
+for testing <code>/ipfs/dag-pb-hamt-cid/686.txt?format=car</code>
+(UnixFS file on a path within HAMT-sharded parent directory)</p>
+</li>
+<li>
+<p><code>bafybeia264q44a3kmfc2otctzu4egp2k235o3t7mslz2yjraymp4nv6asi</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/dir-with-dag-cbor-with-links.car"><code>dir-with-dag-cbor-with-links.car</code></a>
+for testing <code>/ipfs/dag-cbor-cid/document?format=car</code>
+(UnixFS file on a path with DAG-CBOR root CID)</p>
+</li>
+</ul></div>
+</section><section id="testing-dag-scope-block"><h3><bdi class="secno">5.2 </bdi>Testing <code>dag-scope=block</code></h3><a href="#testing-dag-scope-block" class="self-link" aria-label="Section 5.2"></a>
+<p>The main utility of this scope is resolving content paths. This means a CAR
+response with blocks related to path traversal, and the root block of the
+terminating entity.</p>
+<p>To test real world use, request UnixFS <code>file</code> or a <code>directory</code> from a sub-path.
+The returned CAR <em class="rfc2119">MUST</em> include blocks required for path traversal and ONLY the
+root block of the terminating entity.</p>
+<div class="example"><p>Sample fixtures:</p><ul>
+<li>
+<p><code>bafybeietjm63oynimmv5yyqay33nui4y4wx6u3peezwetxgiwvfmelutzu</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/subdir-with-two-single-block-files.car"><code>subdir-with-two-single-block-files.car</code></a>
+for testing</p>
+<ul>
+<li><code>/ipfs/dag-pb-cid/subdir/ascii.txt?format=car&amp;dag-scope=block</code> (UnixFS file in a subdirectory)</li>
+<li><code>/ipfs/dag-pb-cid?format=car&amp;dag-scope=block</code> (UnixFS directory)</li>
+</ul>
+</li>
+<li>
+<p><code>bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/single-layer-hamt-with-multi-block-files.car"><code>single-layer-hamt-with-multi-block-files.car</code></a>
+for testing:</p>
+<ul>
+<li><code>/ipfs/dag-pb-hamt-cid/1.txt?format=car&amp;dag-scope=block</code>
+(UnixFS multi-block file on a path within HAMT-sharded parent directory)</li>
+<li><code>/ipfs/dag-pb-hamt-cid?format=car&amp;dag-scope=block</code>
+(UnixFS HAMT-sharded directory)</li>
+</ul>
+</li>
+</ul></div>
+</section><section id="testing-dag-scope-entity"><h3><bdi class="secno">5.3 </bdi>Testing <code>dag-scope=entity</code></h3><a href="#testing-dag-scope-entity" class="self-link" aria-label="Section 5.3"></a>
+<p>The main utility of this scope is retrieving all blocks related to a meaningful
+IPLD entity. Currently, the most popular entity types are:</p>
+<ul>
+<li>
+<p>UnixFS <code>file</code>
+(blocks for all chunks with file data)</p>
+</li>
+<li>
+<p>UnixFS <code>directory</code>
+(blocks for the directory node, allowing its enumeration;
+no root blocks for any of the child entities).</p>
+</li>
+<li>
+<p><code>raw</code> / <code>dag-cbor</code>
+(block with raw data or DAG-CBOR document, potentially linking to other CIDs)</p>
+</li>
+</ul>
+<div class="example"><p>Sample fixtures:</p><ul>
+<li>
+<p><code>bafybeidh6k2vzukelqtrjsmd4p52cpmltd2ufqrdtdg6yigi73in672fwu</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/subdir-with-mixed-block-files.car"><code>subdir-with-mixed-block-files.car</code></a>
+for testing:</p>
+<ul>
+<li><code>/ipfs/dag-pb-cid/subdir/multiblock.txt?format=car&amp;dag-scope=entity</code> (UnixFS multi-block file in a subdirectory)</li>
+<li><code>/ipfs/dag-pb-cid/subdir?format=car&amp;dag-scope=entity</code> (UnixFS directory)</li>
+</ul>
+</li>
+<li>
+<p><code>bafybeidbclfqleg2uojchspzd4bob56dqetqjsj27gy2cq3klkkgxtpn4i</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/single-layer-hamt-with-multi-block-files.car"><code>single-layer-hamt-with-multi-block-files.car</code></a>
+for testing:</p>
+<ul>
+<li><code>/ipfs/dag-pb-hamt-cid/1.txt?format=car&amp;dag-scope=entity</code>
+(UnixFS multi-block file on a path within HAMT-sharded parent directory, returned blocks <em class="rfc2119">MUST</em> be enough to deserialize the file)</li>
+<li><code>/ipfs/dag-pb-hamt-cid?format=car&amp;dag-scope=entity</code>
+(UnixFS HAMT-sharded directory, response <em class="rfc2119">MUST</em> include the minimal set of blocks required for enumeration of directory contents, and no blocks that belong to child entities)</li>
+</ul>
+</li>
+<li>
+<p><code>bafybeia264q44a3kmfc2otctzu4egp2k235o3t7mslz2yjraymp4nv6asi</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/dir-with-dag-cbor-with-links.car"><code>dir-with-dag-cbor-with-links.car</code></a>
+for testing <code>/ipfs/dag-cbor-cid/document?format=car&amp;dag-scope=entity</code>
+(DAG-CBOR document with IPLD Links must return all necessary blocks to verify the path, the document itself, but not the content behind any of the child entity IPLD Links)</p>
+</li>
+</ul></div>
+</section><section id="testing-dag-scope-all"><h3><bdi class="secno">5.4 </bdi>Testing <code>dag-scope=all</code></h3><a href="#testing-dag-scope-all" class="self-link" aria-label="Section 5.4"></a>
+<p>This is the implicit default used when <code>dag-scope</code> is not present,
+and used in the context of deserialized UnixFS TAR responses from [<a class="bibref" href="#ref-ipip-0288">ipip-0288</a>].</p>
+<div class="example"><p>Sample fixtures:</p><ul>
+<li><code>bafybeidh6k2vzukelqtrjsmd4p52cpmltd2ufqrdtdg6yigi73in672fwu</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/subdir-with-mixed-block-files.car"><code>subdir-with-mixed-block-files.car</code></a>
+for testing:
+<ul>
+<li><code>/ipfs/dag-pb-cid/subdir?format=car&amp;dag-scope=all</code> (path parents and the entire UnixFS subdirectory, returned recursively)</li>
+<li><code>/ipfs/dag-pb-cid/subdir/multiblock.txt?format=car&amp;dag-scope=all</code> (path parents and the entire UnixFS multi-block file)</li>
+</ul>
+</li>
+</ul></div>
+</section><section id="testing-entity-bytes-from-to"><h3><bdi class="secno">5.5 </bdi>Testing <code>entity-bytes=from:to</code></h3><a href="#testing-entity-bytes-from-to" class="self-link" aria-label="Section 5.5"></a>
+<p>This type of CAR response is used for facilitating HTTP Range Requests and
+byte seek within bigger entities.</p>
+<div class="warning"><p>Properly testing this type of response requires synthetic DAG that is only
+partially retrievable. This ensures systems that perform internal caching
+won't pass the test due to the entire DAG being precached, or fetched in full.</p></div>
+<p>Use of the below fixture is highly recommended:</p>
+<div class="example"><ul>
+<li>
+<p><code>bafybeidh6k2vzukelqtrjsmd4p52cpmltd2ufqrdtdg6yigi73in672fwu</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/subdir-with-mixed-block-files.car"><code>subdir-with-mixed-block-files.car</code></a>
+for testing:</p>
+<ul>
+<li><code>/ipfs/dag-pb-cid/subdir/multiblock.txt?format=car&amp;dag-scope=entity&amp;entity-bytes=0:*</code> (path blocks and all the blocks for the multi-block UnixFS file)</li>
+<li><code>multiblock.txt?format=car&amp;dag-scope=entity&amp;entity-bytes=512:1023</code> (path blocks and all the blocks for the the range request within multi-block UnixFS file)</li>
+<li><code>multiblock.txt?format=car&amp;dag-scope=entity&amp;entity-bytes=512:-256</code> (path blocks and all the blocks for the the range request within multi-block UnixFS file)</li>
+<li><code>/ipfs/dag-pb-cid/subdir?format=car&amp;dag-scope=entity&amp;entity-bytes=0:*</code> (path blocks and all the blocks to enumerate UnixFS directory)</li>
+</ul>
+</li>
+<li>
+<p><code>QmYhmPjhFjYFyaoiuNzYv8WGavpSRDwdHWe5B4M5du5Rtk</code>
+from <a href="https://github.com/ipfs/gateway-conformance/raw/v0.2.0/fixtures/trustless_gateway_car/file-3k-and-3-blocks-missing-block.car"><code>file-3k-and-3-blocks-missing-block.car</code></a>
+for testing:</p>
+<ul>
+<li><code>/ipfs/dag-pb-cid?format=car&amp;dag-scope=entity&amp;entity-bytes=0:1000</code> (only the blocks needed to fulfill the request, <em class="rfc2119">MUST</em> succeed despite the fact that a block after the range is not retrievable)</li>
+<li><code>/ipfs/dag-pb-cid?format=car&amp;dag-scope=entity&amp;entity-bytes=2200:*</code> (only the blocks needed to fulfill the request, <em class="rfc2119">MUST</em> succeed despite the fact that a block before the range is not retrievable)</li>
+</ul>
+</li>
+</ul></div>
+</section><section id="copyright"><h3><bdi class="secno">5.6 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.6"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipip-0288">[ipip-0288]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0288/"><cite>IPIP-0288: TAR Response Format on HTTP Gateways</cite></a>. Henrique Dias; Marcin Rataj. 2022-06-10. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0288/">https://specs.ipfs.tech/ipips/ipip-0288/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Hannah Howard</span> <a href="https://github.com/hannahhoward"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Adin Schmahmann</span> <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Rod Vagg</span> <a href="https://github.com/rvagg"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

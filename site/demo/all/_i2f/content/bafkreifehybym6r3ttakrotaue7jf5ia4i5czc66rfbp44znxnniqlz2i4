@@ -1,0 +1,34 @@
+{
+  "$type": "ipfs2fil.psa",
+  "service": "http://127.0.0.1:2590",
+  "pins": [
+    {
+      "requestid": "req-0001",
+      "created": "2026-09-14T10:02:11Z",
+      "cid": "QmRdttRRtymRueGiA6N3RxVrX8bdVHPQhZqR3tXhF6LTPV",
+      "name": "papers",
+      "meta": {
+        "app": "ada-desktop"
+      }
+    },
+    {
+      "requestid": "req-0002",
+      "created": "2026-10-02T18:40:55Z",
+      "cid": "QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
+      "name": "iceland-2024",
+      "meta": {
+        "album": "Iceland 2024",
+        "app": "ada-desktop"
+      }
+    },
+    {
+      "requestid": "req-0003",
+      "created": "2026-10-28T08:15:00Z",
+      "cid": "bafybeieqikrxw6kjbu2aojxr5ypfzb4gk75pkvrfzef6yiv6jucec427e4",
+      "name": "specs.ipfs.tech",
+      "meta": {
+        "note": "a copy of specs.ipfs.tech"
+      }
+    }
+  ]
+}

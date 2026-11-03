@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0476: Delegated Routing DHT Closest Peers API</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0476/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0476: Delegated Routing DHT Closest Peers API</h1><p id="last-modified"><time datetime="2025-11-20T00:00:00.000Z">20 November 2025</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/specs/pull/476">ipfs/specs/pull/476</a></dd><dd><a href="https://github.com/ipfs/specs/pull/497">ipfs/specs/pull/497</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0476.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0476.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a><ol class="toc"><li><a href="#get-routing-v1-dht-closest-peers-key" class="tocxref"><bdi class="secno">3.1 </bdi><code>GET /routing/v1/dht/closest/peers/{key}</code></a><ol class="toc"><li><a href="#path-parameters" class="tocxref"><bdi class="secno">3.1.1 </bdi>Path Parameters</a></li><li><a href="#response" class="tocxref"><bdi class="secno">3.1.2 </bdi>Response</a></li></ol></li><li><a href="#specification-changes" class="tocxref"><bdi class="secno">3.2 </bdi>Specification Changes</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#simple-mvp-approach" class="tocxref"><bdi class="secno">4.1 </bdi>Simple MVP Approach</a></li><li><a href="#future-proofed-path-structure" class="tocxref"><bdi class="secno">4.2 </bdi>Future-Proofed Path Structure</a></li><li><a href="#routing-agnostic-implementation" class="tocxref"><bdi class="secno">4.3 </bdi>Routing-Agnostic Implementation</a></li><li><a href="#consistency-with-existing-api" class="tocxref"><bdi class="secno">4.4 </bdi>Consistency with Existing API</a></li><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.5 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.6 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.7 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.8 </bdi>Alternatives</a></li><li><a href="#peer-ordering" class="tocxref"><bdi class="secno">4.9 </bdi>Peer Ordering</a></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#copyright" class="tocxref"><bdi class="secno">5.1 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Add a new HTTP endpoint to the Delegated Routing API that allows clients to find the closest peers to a given peer ID without being full DHT clients.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Browser nodes and other resource-constrained clients need to perform peer discovery operations without the overhead of being full DHT clients. The primary use case is for browser nodes performing random walks to find peers that they can make circuit relay reservations on.</p>
+<p>Currently, to find peers close to a particular key in the DHT keyspace, a node must:</p>
+<ol>
+<li>Be a full DHT client with all the associated overhead</li>
+<li>Maintain connections to many peers</li>
+<li>Handle the complexity of the DHT protocol</li>
+</ol>
+<p>This is particularly problematic for:</p>
+<ul>
+<li>Browser nodes that need to find circuit relay servers</li>
+<li>Light clients that want to populate their routing tables</li>
+<li>Applications that need to find peers to host provider records</li>
+</ul>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>This IPIP introduces a new "DHT Routing API" section to the Delegated Routing V1 HTTP API specification with the following endpoint:</p>
+<section id="get-routing-v1-dht-closest-peers-key"><h3><bdi class="secno">3.1 </bdi><code>GET /routing/v1/dht/closest/peers/{key}</code></h3><a href="#get-routing-v1-dht-closest-peers-key" class="self-link" aria-label="Section 3.1"></a>
+<section id="path-parameters"><h4><bdi class="secno">3.1.1 </bdi>Path Parameters</h4><a href="#path-parameters" class="self-link" aria-label="Section 3.1.1"></a>
+<ul>
+<li><code>key</code> is a <a href="https://github.com/multiformats/cid">CID</a> or Peer ID to find the closest peers to.
+<ul>
+<li>CID <em class="rfc2119">SHOULD</em> be a CIDv1 in any encoding.</li>
+<li>Peer ID can be represented as a Multihash in Base58btc, or a CIDv1 with <code>libp2p-key</code> (<code>0x72</code>) codec in Base36 or Base32.</li>
+<li>Arbitrary multihash lookups can be performed by wrapping the multihash in a CIDv1 with <code>raw</code> (<code>0x55</code>) codec.</li>
+</ul>
+</li>
+</ul>
+</section><section id="response"><h4><bdi class="secno">3.1.2 </bdi>Response</h4><a href="#response" class="self-link" aria-label="Section 3.1.2"></a>
+<p>The response follows the same format as the existing peer routing endpoints, returning a JSON object with a <code>Peers</code> array containing peer records conforming to the Peer Schema.</p>
+</section></section><section id="specification-changes"><h3><bdi class="secno">3.2 </bdi>Specification Changes</h3><a href="#specification-changes" class="self-link" aria-label="Section 3.2"></a>
+<p>The following changes are made to <code>src/routing/http-routing-v1.md</code>:</p>
+<ol>
+<li>Add a new "## DHT Routing API" section after the "Peer Routing API" section</li>
+<li>Document the <code>/routing/v1/dht/closest/peers/{key}</code> endpoint with its parameters and response format</li>
+<li>Update the document date to reflect the modification</li>
+</ol>
+</section></section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>The design follows several key principles:</p>
+<section id="simple-mvp-approach"><h3><bdi class="secno">4.1 </bdi>Simple MVP Approach</h3><a href="#simple-mvp-approach" class="self-link" aria-label="Section 4.1"></a>
+<p>The endpoint provides the minimum viable functionality needed for the primary use cases. It can be expanded later if more complex routing scenarios emerge.</p>
+</section><section id="future-proofed-path-structure"><h3><bdi class="secno">4.2 </bdi>Future-Proofed Path Structure</h3><a href="#future-proofed-path-structure" class="self-link" aria-label="Section 4.2"></a>
+<p>The path <code>/routing/v1/dht/closest/peers/{key}</code> is intentionally structured to allow future expansion:</p>
+<ul>
+<li>The <code>/dht/</code> segment clearly indicates DHT-specific operations</li>
+<li>The <code>/closest/peers/</code> structure allows for potential future endpoints like <code>/closest/keys/</code> for keyspace queries</li>
+<li>This organization keeps the API logical and extensible</li>
+</ul>
+</section><section id="routing-agnostic-implementation"><h3><bdi class="secno">4.3 </bdi>Routing-Agnostic Implementation</h3><a href="#routing-agnostic-implementation" class="self-link" aria-label="Section 4.3"></a>
+<p>While the endpoint is in the DHT namespace, implementations have flexibility in how they determine "closest" peers. This allows for optimization based on the specific routing system being used.</p>
+</section><section id="consistency-with-existing-api"><h3><bdi class="secno">4.4 </bdi>Consistency with Existing API</h3><a href="#consistency-with-existing-api" class="self-link" aria-label="Section 4.4"></a>
+<p>The endpoint follows the established patterns of the Delegated Routing API:</p>
+<ul>
+<li>Uses the same response format as other peer routing endpoints</li>
+<li>Follows the same parameter conventions</li>
+<li>Maintains consistency in error handling and status codes</li>
+</ul>
+</section><section id="user-benefit"><h3><bdi class="secno">4.5 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.5"></a>
+<p>This enhancement provides significant benefits to end users:</p>
+<ol>
+<li><strong>Browser Compatibility</strong>: Browser nodes can discover circuit relay servers without implementing the full DHT protocol</li>
+<li><strong>Reduced Resource Usage</strong>: Light clients save bandwidth and processing power by delegating peer discovery</li>
+<li><strong>Faster Peer Discovery</strong>: Delegated routing servers can provide cached results more quickly than performing DHT walks</li>
+<li><strong>Simplified Implementation</strong>: Application developers can implement peer discovery with simple HTTP requests instead of complex DHT logic</li>
+</ol>
+</section><section id="compatibility"><h3><bdi class="secno">4.6 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.6"></a>
+<p>This change is fully backward compatible:</p>
+<ul>
+<li>It adds a new endpoint without modifying existing ones</li>
+<li>Existing clients continue to work unchanged</li>
+<li>Servers that don't implement the endpoint return 501 (Not Implemented) as per the specification</li>
+</ul>
+</section><section id="security"><h3><bdi class="secno">4.7 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.7"></a>
+<p>The new endpoint introduces no additional security considerations beyond those already present in the Delegated Routing API:</p>
+<ul>
+<li>Standard rate limiting should be applied to prevent abuse</li>
+<li>The endpoint reveals no more information than a DHT query would</li>
+<li>Access controls can be implemented at the HTTP layer if needed</li>
+<li>Response caching helps mitigate potential DoS attacks</li>
+</ul>
+</section><section id="alternatives"><h3><bdi class="secno">4.8 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.8"></a>
+<p>Several alternatives were considered:</p>
+<ol>
+<li>
+<p><strong>Full DHT Client Implementation</strong>: Rejected due to excessive resource requirements for browser and mobile environments</p>
+</li>
+<li>
+<p><strong>Custom libp2p Protocol</strong>: Would require all nodes to implement a new protocol, creating adoption barriers</p>
+</li>
+<li>
+<p><strong>Extension of Existing Peer Routing</strong>: The <code>/routing/v1/peers/</code> endpoint serves a different purpose (finding specific peers rather than closest peers)</p>
+</li>
+<li>
+<p><strong>Amino-Specific Endpoint</strong>: Initially considered <code>/routing/v1/amino/</code> namespace but rejected in favor of the more generic <code>/dht/</code> approach</p>
+</li>
+<li>
+<p><strong>Query Parameters for Filtering and Limiting</strong>: During design discussions, <code>count</code> and <code>closer-than</code> query parameters were considered:</p>
+<ul>
+<li><code>count</code>: limit the number of results returned</li>
+<li><code>closer-than</code>: filter peers to only return those closer than a reference peer</li>
+</ul>
+<p>These were omitted from the initial implementation (boxo v0.35.2, someguy v0.11.0) for simplicity. The endpoint defaults to returning up to the DHT bucket size (20 for Amino DHT). Future backwards-compatible updates <em class="rfc2119">MAY</em> add these parameters if use cases emerge that require more fine-grained control.</p>
+</li>
+</ol>
+</section><section id="peer-ordering"><h3><bdi class="secno">4.9 </bdi>Peer Ordering</h3><a href="#peer-ordering" class="self-link" aria-label="Section 4.9"></a>
+<p>Implementations <em class="rfc2119">SHOULD</em> return peers sorted by closeness to the key. For Kademlia-based DHT implementations (such as Amino DHT), this means sorting by XOR distance with the closest peers first.</p>
+</section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>This IPIP does not deal with content-addressed data, so specific test CIDs are not applicable. However, implementations should test:</p>
+<ol>
+<li>Valid CID and Peer ID inputs return appropriate closest peers</li>
+<li>Results are limited to the DHT bucket size</li>
+<li>Peers are sorted by closeness (XOR distance for Kademlia DHTs)</li>
+<li>Invalid keys return appropriate error responses</li>
+<li>Both streaming (NDJSON) and non-streaming (JSON) response formats work correctly</li>
+</ol>
+<section id="copyright"><h3><bdi class="secno">5.1 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.1"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

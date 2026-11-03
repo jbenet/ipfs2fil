@@ -1,0 +1,151 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0337: Delegated Content Routing HTTP API</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0337/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0337: Delegated Content Routing HTTP API</h1><p id="last-modified"><time datetime="2022-10-18T00:00:00.000Z">18 October 2022</time></p><dl><dt>Related Issue</dt><dd><a href="https://github.com/ipfs/specs/pull/337">ipfs/specs/pull/337</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0337.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0337.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a><ol class="toc"><li><a href="#backwards-compatibility" class="tocxref"><bdi class="secno">4.2.1 </bdi>Backwards Compatibility</a></li><li><a href="#forwards-compatibility" class="tocxref"><bdi class="secno">4.2.2 </bdi>Forwards Compatibility</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">4.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This IPIP specifies an HTTP API for delegated content routing.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Idiomatic and first-class HTTP support for delegated routing is an important requirement for large content routing providers,
+and supporting large content providers is a key strategy for driving down IPFS content routing latency.
+These providers must handle high volumes of traffic and support many users, so leveraging industry-standard tools and services
+such as HTTP load balancers, CDNs, reverse proxies, etc. is a requirement.
+To maximize compatibility with standard tools, IPFS needs an HTTP API specification that uses standard HTTP idioms and payload encoding.
+The Reframe spec for delegated content routing is an experimental attempt at this,
+but it has resulted in a very unidiomatic HTTP API which is difficult to implement and is incompatible with many existing tools.
+The cost of a proper redesign, implementation, and maintenance of Reframe and its implementation is too high relative to the urgency of having a delegated content routing HTTP API.</p>
+<p>Note that this does not supplant nor deprecate Reframe. Ideally in the future, Reframe and its implementation would receive the resources needed to map the IDL to idiomatic HTTP,
+and implementations of this spec could then be rewritten in the IDL, maintaining backwards compatibility.</p>
+<p>We expect this API to be extended beyond "content routing" in the future, so additional IPIPs may rename this to something more general such as "Delegated Routing HTTP API".</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>See the Delegated Content Routing HTTP API spec ([<a class="bibref" href="#ref-http-routing-v1">http-routing-v1</a>]) included with this IPIP.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>To understand the design rationale, it is important to consider the concrete Reframe limitations that we know about:</p>
+<ul>
+<li>Reframe method types using the HTTP transport are encoded inside IPLD-encoded messages
+<ul>
+<li>This prevents URL-based pattern matching on methods, which makes it hard and expensive to do basic HTTP scaling and optimizations:
+<ul>
+<li>Configuring different caching strategies for different methods</li>
+<li>Configuring reverse proxies on a per-method basis
+<ul>
+<li>Routing methods to specific backends</li>
+<li>Method-specific reverse proxy config such as timeouts</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>Developer UX is poor as a result, e.g. for CDN caching you must encode the entire request message and pass it as a query parameter
+<ul>
+<li>This was initially done by URL-escaping the raw bytes
+<ul>
+<li>Not possible to consume correctly using standard JavaScript (see <a href="https://github.com/ipld/edelweiss/issues/61">edelweiss#61</a>)</li>
+<li>Shipped in Kubo 0.16</li>
+</ul>
+</li>
+<li>Packing a CID into a struct, encoding it with DAG-CBOR, multibase-encoding that, percent-encoding that, and then passing it in a URL, rather than merely passing the CID in the URL, is needlessly complex from a user's perspective, and has already made it difficult to manually construct requests or interpret logs</li>
+<li>Added complexity of "Cacheable" methods supporting both POSTs and GETs</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>The required streaming support and message groups add a lot of implementation complexity, but streaming does not currently work for cacheable methods sent over HTTP
+<ul>
+<li>Ex for FindProviders, the response is buffered anyway for ETag calculation</li>
+<li>There are no limits on response sizes nor ways to impose limits and paginate</li>
+<li>This is useful for routers that have highly variable resolution time, to send results as soon as possible, but this is not a use case we are focusing on right now and we can add it later</li>
+</ul>
+</li>
+<li>The Identify method is not implemented because it is not currently useful
+<ul>
+<li>This is because Reframe's ambition is to be a generic catch-all bag of methods across protocols, while delegated routing use case only requires a subset of its methods.</li>
+</ul>
+</li>
+<li>Client and server implementations are difficult to write correctly, because of the non-standard wire formats and conventions
+<ul>
+<li>Example: <a href="https://github.com/ipld/edelweiss/issues/62">bug reported by implementer</a>, and <a href="https://github.com/ipld/edelweiss/issues/61">another one</a></li>
+</ul>
+</li>
+<li>The Go implementation is <a href="https://github.com/ipfs/go-delegated-routing/blob/main/gen/proto/proto_edelweiss.go">complex</a> and <a href="https://github.com/ipfs/go-delegated-routing/blame/main/client/provide.go#L51-L100">brittle</a>, and is currently maintained by IPFS Stewards who are already over-committed with other priorities</li>
+<li>Only the HTTP transport has been designed and implemented, so it's unclear if the existing design will work for other transports, and what their use cases and requirements are
+<ul>
+<li>This means Reframe can't be trusted to be transport-agnostic until there is at least a second transport implemented (e.g. as a reframe-over-libp2p protocol)</li>
+</ul>
+</li>
+<li>There's naming confusion around "Reframe, the protocol" and "Reframe, the set of methods"</li>
+</ul>
+<p>So this API proposal makes the following changes:</p>
+<ul>
+<li>The Delegated Content Routing API is defined using HTTP semantics, and can be implemented without introducing Reframe concepts nor IPLD</li>
+<li>There is a clear distinction between the <a href="https://docs.ipfs.tech/reference/kubo/rpc/">Kubo RPC</a>  and the vendor-agnostic Routing V1 HTTP API.</li>
+<li>"Method names" and cache-relevant parameters are pushed into the URL path</li>
+<li>Streaming support is removed, and default response size limits are added.
+<ul>
+<li>We will add streaming support in a subsequent IPIP, but we are trying to minimize the scope of this IPIP to what is immediately useful</li>
+</ul>
+</li>
+<li>Bodies are encoded using idiomatic JSON, instead of using IPLD codecs, and are compatible with OpenAPI specifications</li>
+<li>The JSON uses human-readable string encodings of common data types
+<ul>
+<li>CIDs are encoded as CIDv1 strings with a multibase prefix (e.g. base32), for consistency with CLIs, browsers, and <a href="https://docs.ipfs.io/how-to/address-ipfs-on-web/">gateway URLs</a></li>
+<li>Multiaddrs use the <a href="https://github.com/multiformats/multiaddr#specification">human-readable format</a> that is used in existing tools and Kubo CLI commands such as <code>ipfs id</code> or <code>ipfs swarm peers</code></li>
+<li>Byte array values, such as signatures, are multibase-encoded strings (with an <code>m</code> prefix indicating Base64)</li>
+</ul>
+</li>
+<li>The "Identify" method and "message groups" are not included</li>
+<li>The "GetIPNS" and "PutIPNS" methods are not included. Instead, a separate Delegated IPNS HTTP API aims to firstly facilitate naming system delegation, and secondly, pave the way for future iterations of IPNS with less interdependency with content routing. For more information, see Delegated IPNS HTTP API ([<a class="bibref" href="#ref-ipip-0379">ipip-0379</a>]).</li>
+</ul>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>The cost of building and operating content routing services will be much lower, as developers will be able to maximally reuse existing industry-standard tooling.
+Users will not need to learn a new RPC protocol and tooling to consume or expose the API.
+This will result in more content routing providers, each providing a better experience for users, driving down content routing latency across the IPFS network
+and increasing data availability.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<section id="backwards-compatibility"><h4><bdi class="secno">4.2.1 </bdi>Backwards Compatibility</h4><a href="#backwards-compatibility" class="self-link" aria-label="Section 4.2.1"></a>
+<p>IPFS Stewards will implement this API in <a href="https://github.com/ipfs/go-delegated-routing">go-delegated-routing</a>, using breaking changes in a new minor version.
+Because the existing Reframe spec can't be safely used in JavaScript and we won't be investing time and resources into changing the wire format implemented in edelweiss to fix it,
+the experimental support for Reframe in Kubo will be deprecated in the next release and delegated content routing will subsequently use this HTTP API.
+We may decide to re-add Reframe support in the future once these issues have been resolved.-</p>
+</section><section id="forwards-compatibility"><h4><bdi class="secno">4.2.2 </bdi>Forwards Compatibility</h4><a href="#forwards-compatibility" class="self-link" aria-label="Section 4.2.2"></a>
+<p>Standard HTTP mechanisms for forward compatibility are used:</p>
+<ul>
+<li>The API is versioned using a version number prefix in the path</li>
+<li>The <code>Accept</code> and <code>Content-Type</code> headers are used for content type negotiation, allowing for backwards-compatible additions of new MIME types, hypothetically such as:
+<ul>
+<li><code>application/cbor</code> for binary-encoded responses</li>
+<li><code>application/x-ndjson</code> for streamed responses</li>
+<li><code>application/octet-stream</code> if the content router can provide the content/block directly</li>
+</ul>
+</li>
+<li>New paths+methods can be introduced in a backwards-compatible way</li>
+<li>Parameters can be added using either new query parameters or new fields in the request/response body.</li>
+<li>Provider records are both opaque and versioned to allow evolution of schemas and semantics for the same transfer protocol</li>
+</ul>
+<p>As a proof-of-concept, the tests for the initial implementation of this HTTP API were successfully tested with a libp2p transport using <a href="https://github.com/libp2p/go-libp2p-http">libp2p/go-libp2p-http</a>, demonstrating viability for also using this API over libp2p.</p>
+</section></section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<ul>
+<li>All CID requests are sent to a central HTTPS endpoint as plain text, with TLS being the only protection against third-party observation.</li>
+<li>While privacy is not a concern in the current version, plans are underway to add a separate endpoint that prioritizes lookup privacy. Follow the progress in related pre-work in  <a href="https://github.com/ipfs/specs/pull/373/">IPIP-272 (double hashed DHT)</a> and <a href="https://github.com/ipni/specs/pull/5">ipni#5 (reader privacy in indexers)</a>.</li>
+<li>The usual JSON parsing rules apply. To prevent potential Denial of Service (DoS) attack, clients should ignore responses larger than 100 providers and introduce a byte size limit that is applicable to their use case.</li>
+</ul>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<ul>
+<li>Reframe (general-purpose RPC) was evaluated, see "Design rationale" section for rationale why it was not selected.</li>
+</ul>
+</section><section id="copyright"><h3><bdi class="secno">4.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 4.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-http-routing-v1">[http-routing-v1]</dt><dd><a href="https://specs.ipfs.tech/routing/http-routing-v1/"><cite>Delegated Routing V1 HTTP API</cite></a>. Henrique Dias; Daniel Norman; Marcin Rataj. 2026-07-29. URL: <a href="https://specs.ipfs.tech/routing/http-routing-v1/">https://specs.ipfs.tech/routing/http-routing-v1/</a></dd><dt id="ref-ipip-0379">[ipip-0379]</dt><dd><a href="https://specs.ipfs.tech/ipips/ipip-0379/"><cite>IPIP-0379: Delegated IPNS HTTP API</cite></a>. Masih H. Derkani; Marcin Rataj. 2023-02-13. URL: <a href="https://specs.ipfs.tech/ipips/ipip-0379/">https://specs.ipfs.tech/ipips/ipip-0379/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Gus Eggert</span> <a href="https://github.com/guseggert"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

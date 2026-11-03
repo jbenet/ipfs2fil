@@ -1,0 +1,135 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0001: Lightweight Improvement Process for IPFS Specifications</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0001/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0001: Lightweight Improvement Process for IPFS Specifications</h1><p id="last-modified"><time datetime="2022-06-10T00:00:00.000Z">10 June 2022</time></p><dl><dt>Related Issue</dt><dd><a href="https://github.com/ipfs/specs/issues/286">ipfs/specs/issues/286</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0001.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0001.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>This <em>InterPlanetary Improvement Proposal</em> (IPIP) introduces a lightweight
+"request for comments/change" process for the IPFS specifications
+<a href="https://github.com/ipfs/specs/">repository</a>.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#motivation" class="tocxref"><bdi class="secno">1. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">2. </bdi>Detailed design</a><ol class="toc"><li><a href="#ipip-lifecycle" class="tocxref"><bdi class="secno">2.1 </bdi>IPIP Lifecycle</a></li><li><a href="#opening-an-improvement-proposal-ipip" class="tocxref"><bdi class="secno">2.2 </bdi>Opening an improvement proposal (IPIP)</a></li><li><a href="#reviewing-ipips" class="tocxref"><bdi class="secno">2.3 </bdi>Reviewing IPIPs</a></li><li><a href="#merging-ipips" class="tocxref"><bdi class="secno">2.4 </bdi>Merging IPIPs</a></li><li><a href="#long-term-plan" class="tocxref"><bdi class="secno">2.5 </bdi>Long-term plan</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">3. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">3.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">3.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">3.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">3.4 </bdi>Alternatives</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">3.5 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="motivation"><h2><bdi class="secno">1. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 1."></a>
+<p>Today, protocol design discussions often take place in a repository of an IPFS
+implementation. These conversations are unintentionally obscured from the useful input of <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a>, other
+implementations, service operators and the wider IPFS Community.</p>
+<p>The IPFS Project needs a mechanism for proposing and evaluating specification
+improvements that are not tied to a specific programming language
+or implementation of IPFS.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">2. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 2."></a>
+<p>Adopt an informal IPIP process for the <a href="https://github.com/ipfs/specs/">ipfs/specs</a> repository, providing a
+minimal structure for opening, reviewing, and merging specification changes.</p>
+<p>The purpose of IPIP documents is to <strong>document motivation</strong> behind the change
+applied to the spec. <strong>IPIP is not to be the spec itself</strong>.</p>
+<p>To illustrate:</p>
+<ul>
+<li>In order to understand how (hypothetical) WebDAV Gateway works, one would
+read contents of specs in <code>ipfs/specs/WEBDAV_GATEWAY.md</code>.</li>
+<li>IPIP in <code>ipfs/specs/IPIP/000N-webdav-gateway.md</code> would only include
+<strong>Motivation</strong> and explainer why certain design decisions were made at a
+certain point in time. Initial <code>IPIP/000N-webdav-gateway.md</code> would explain
+why we added WebDAV spec in the first place.</li>
+<li>If we realize the spec has a bug, we will evaluate the impact: adding more
+details, test vectors, and editorials/cosmetics can be fixed without IPIP.</li>
+<li>Things that could cause an interop issues require a PR with fix and IPIP in
+<code>ipfs/specs/IPIP/000M-webdav-fix-for-foo.md</code> explaining why we make the
+breaking spec change, compatibility/migration considerations etc.</li>
+</ul>
+<section id="ipip-lifecycle"><h3><bdi class="secno">2.1 </bdi>IPIP Lifecycle</h3><a href="#ipip-lifecycle" class="self-link" aria-label="Section 2.1"></a>
+<p>Up-to-date process and IPIP lifecycle will be published in [<a class="bibref" href="#ref-ipip-process">ipip-process</a>].</p>
+</section><section id="opening-an-improvement-proposal-ipip"><h3><bdi class="secno">2.2 </bdi>Opening an improvement proposal (IPIP)</h3><a href="#opening-an-improvement-proposal-ipip" class="self-link" aria-label="Section 2.2"></a>
+<p>Changes to IPFS specifications can be proposed by opening a Git pull-request
+(PR) against the <code>ipfs/specs</code> repository.</p>
+<p>In addition to specification changes, such PR must include a short <strong>IPIP
+document</strong> based on the template in <a href="https://github.com/ipfs/specs/blob/main/ipip-template.md"><code>ipfs/specs/ipip-template.md</code></a>.</p>
+<p>When a new specification file is added to the repo, it should be based on
+the template at <a href="https://github.com/ipfs/specs/blob/main/template.md"><code>ipfs/specs/template.md</code></a>.</p>
+</section><section id="reviewing-ipips"><h3><bdi class="secno">2.3 </bdi>Reviewing IPIPs</h3><a href="#reviewing-ipips" class="self-link" aria-label="Section 2.3"></a>
+<p><a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> will review new IPIP PRs during periodical (best-effort) triage.</p>
+<p>IPFS Community is encouraged to participate in the review process.</p>
+<p>IPIP can be either:</p>
+<ul>
+<li>merged,</li>
+<li>rejected (PR close without merging),</li>
+<li>deferred (converting PR back to a draft).</li>
+</ul>
+<p>The final decision belongs to <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a>.</p>
+</section><section id="merging-ipips"><h3><bdi class="secno">2.4 </bdi>Merging IPIPs</h3><a href="#merging-ipips" class="self-link" aria-label="Section 2.4"></a>
+<p>PR with a IPIP can be merged only after two <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> approve it and
+there are no objections from other Stewards.</p>
+<p>IPIP number is assigned before the PR merge.</p>
+<p>IPIP author and two approving <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> are added to <code>CODEOWNERS</code> file
+to be automatically asked to review any future changes to files added or
+modified by the IPIP.</p>
+</section><section id="long-term-plan"><h3><bdi class="secno">2.5 </bdi>Long-term plan</h3><a href="#long-term-plan" class="self-link" aria-label="Section 2.5"></a>
+<p><a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a> will adjust the process based on usage patterns.</p>
+</section></section><section id="design-rationale"><h2><bdi class="secno">3. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 3."></a>
+<p>We want to empower IPFS community members and implementers with the ability to propose
+changes in a well-known way, without introducing much overhead.</p>
+<p>Guiding principles:</p>
+<ul>
+<li>No new tooling
+<ul>
+<li>Reuse Markdown, Git, and existing PR review process</li>
+</ul>
+</li>
+<li>Convention over Byzantine process
+<ul>
+<li>Proposing a new IPIP should have low cognitive overhead, allowing us to
+focus on specs</li>
+<li>Reuse existing GitHub developer accounts and reputation attached to them</li>
+<li>One should be able to create a valid IPIP without reading a long explainer
+like this one. Looking at past IPIPs, and then copying a template and
+opening a PR with the proposal should be more than enough.</li>
+</ul>
+</li>
+</ul>
+<section id="user-benefit"><h3><bdi class="secno">3.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 3.1"></a>
+<p>End users will indirectly benefit from a healthy IPIP process being in place:</p>
+<ul>
+<li>IPFS community members will be able to use IPIP drafts for evaluating ideas
+before investing time into building new things.</li>
+<li>The bar for creating a brand new IPFS implementation will be lowered, and
+existing implementations will be able to propose improvements for others to
+adopt. This removes the soft vendor lock-in present when the oldest
+implementation is considered as the reference standard and source of truth.</li>
+<li>IPFS implementers will have a better understanding of why certain design
+decisions were made, and have both historical context and language-agnostic
+specifications with test fixtures ready for use in their project, ensuring
+a high level of interoperability.</li>
+<li>More eyes looking at specifications will improve overall quality over time.</li>
+</ul>
+<p>As a result, IPFS will become easier to implement, useful in more contexts,
+and benefit more people.</p>
+</section><section id="compatibility"><h3><bdi class="secno">3.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 3.2"></a>
+<p>Existing contents of <a href="https://github.com/ipfs/specs/">ipfs/specs</a> repository act as the initial state
+against which IPIP PRs can be opened.</p>
+</section><section id="security"><h3><bdi class="secno">3.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 3.3"></a>
+<p>Existing Git-based review infrastructure, user accounts and reputation
+system will be reused.</p>
+<p>Merging IPIP will require approval from two <a href="https://github.com/orgs/ipfs/teams/specs-stewards/members">Specs Stewards</a>.</p>
+</section><section id="alternatives"><h3><bdi class="secno">3.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 3.4"></a>
+<ul>
+<li>Maintaining the status quo (no IPIP process) is not acceptable, as we want to
+move specification discussions away from repositories of specific
+implementations. We need a mechanism for discussing improvements that is not
+tied to specific implementation or language.</li>
+<li>Creating more elaborate IPIP process. This comes with increased overhead and
+risk. Introducing a complex process requires deeper understanding of
+community needs and pitfalls of preexisting processes, and since we don't
+have any process in place, starting light, limits the risk.</li>
+</ul>
+</section><section id="copyright"><h3><bdi class="secno">3.5 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 3.5"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipip-process">[ipip-process]</dt><dd><a href="https://specs.ipfs.tech/meta/ipip-process/"><cite>IPIP: Improvement Process for IPFS Specifications</cite></a>. Marcin Rataj; Guillaume Michel; Henrique Dias. 2023-02-23. URL: <a href="https://specs.ipfs.tech/meta/ipip-process/">https://specs.ipfs.tech/meta/ipip-process/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>wilkyr31d</span> <a href="https://github.com/wilkyr31d"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "Delegated Routing V1 HTTP API",
+    "url": "https://specs.ipfs.tech/routing/http-routing-v1/"
+  },
+  "dfns": []
+}

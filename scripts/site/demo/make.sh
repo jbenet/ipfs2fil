@@ -15,8 +15,13 @@
 #   ~/apps/photo-app/data   a Helia store
 #   ~/exports/art.car       images, video, texts and PDFs
 #   ~/exports/dev-bundle.car code, logs, configs and data; three roots
+#   ~/src/multiformats      five git clones (cid, multihash, multibase,
+#                           multicodec, multiaddr), one git archive set
+#   ~/sites/ipfs-websites.ipfs-sites.toml  a site list: ipfs.tech,
+#                           specs.ipfs.tech and docs.ipfs.tech
 #
-# Plus at://bsky.app, added by ipfs2fil itself. Five of @bsky.app's images go
+# Plus at://bsky.app and github.com/ipfs/go-cid (a git URL), added by
+# ipfs2fil itself, and a PDS and a pinning service that services.sh runs. Five of @bsky.app's images go
 # into ~/.ipfs, the Helia store and art.car with CIDv1 and raw leaves, so they
 # are the same blocks in four repos; so are the NASA photos in ~/.ipfs, the
 # Helia store and art.car.
@@ -87,4 +92,34 @@ node "$NJ/jsipfs.mjs" "$H/.jsipfs" "$C"
 node "$NH/helia.mjs" "$H/apps/photo-app/data" "$C"
 node "$NH/car.mjs" "$A" "$H/exports/art.car"
 node "$NH/devbundle.mjs" "$D" "$H/exports/dev-bundle.car"
+# git: clones of the multiformats specs, archived as one set.
+mkdir -p "$H/src/multiformats"
+for r in cid multihash multibase multicodec multiaddr; do
+  [ -d "$H/src/multiformats/$r" ] || git clone -q "https://github.com/multiformats/$r" "$H/src/multiformats/$r"
+done
+
+# Web sites: a site list, the sites' DAGs fetched once from public gateways
+# into ipfs2fil's cache, and linked into content/sites for services.sh.
+# (blog.ipfs.tech is left out: 380 MB.)
+mkdir -p "$H/sites" "$H/.ipfs2fil/dags" "$C/sites"
+cat >"$H/sites/ipfs-websites.ipfs-sites.toml" <<'TOML'
+[[site]]
+source = "ipfs.tech"
+note = "The IPFS website"
+
+[[site]]
+source = "specs.ipfs.tech"
+note = "The IPFS specs"
+
+[[site]]
+source = "docs.ipfs.tech"
+note = "The IPFS docs"
+TOML
+until ipfs-sites fetch -q -cache "$H/.cache/ipfs-sites" "$H/sites/ipfs-websites.ipfs-sites.toml"; do sleep 10; done
+ipfs-sites resolve -json -cache "$H/.cache/ipfs-sites" "$H/sites/ipfs-websites.ipfs-sites.toml" |
+  python3 -Ic 'import json,sys; [print(s["name"], s["root"]) for s in json.load(sys.stdin)["Site"]]' |
+  while read -r name root; do
+    cp "$H/.cache/ipfs-sites/dags/$root.car" "$H/.ipfs2fil/dags/$root.car"
+    ln -sfn "$H/.ipfs2fil/dags/$root.car" "$C/sites/$name.car"
+  done
 echo "made $H"

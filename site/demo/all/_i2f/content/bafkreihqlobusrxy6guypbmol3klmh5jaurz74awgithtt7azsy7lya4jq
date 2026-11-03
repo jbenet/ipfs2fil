@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0410: Streaming NDJSON in Routing HTTP API",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0410/"
+  },
+  "dfns": []
+}

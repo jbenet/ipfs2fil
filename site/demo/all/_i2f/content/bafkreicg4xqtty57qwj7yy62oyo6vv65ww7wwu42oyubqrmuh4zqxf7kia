@@ -1,0 +1,704 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0499: UnixFS CID Profiles</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0499/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0499: UnixFS CID Profiles</h1><p id="last-modified"><time datetime="2026-03-05T00:00:00.000Z">5 March 2026</time></p><dl><dt>Related Issue</dt><dd><a href="https://discuss.ipfs.tech/t/should-we-profile-cids/18507">discuss.ipfs.tech/t/should-we-profile-cids/18507</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0499.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0499.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a><ol class="toc"><li><a href="#unixfs-parameters" class="tocxref"><bdi class="secno">2.1 </bdi>UnixFS parameters</a></li><li><a href="#balanced-dag-layout-variants" class="tocxref"><bdi class="secno">2.2 </bdi>Balanced DAG layout variants</a><ol class="toc"><li><a href="#balanced" class="tocxref"><bdi class="secno">2.2.1 </bdi><code>balanced</code></a></li><li><a href="#balanced-packed" class="tocxref"><bdi class="secno">2.2.2 </bdi><code>balanced-packed</code></a></li></ol></li><li><a href="#historical-inconsistency-in-hamt-sharding" class="tocxref"><bdi class="secno">2.3 </bdi>Historical inconsistency in HAMT sharding</a></li><li><a href="#divergences-across-ecosystem" class="tocxref"><bdi class="secno">2.4 </bdi>Divergences across ecosystem</a></li></ol></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a><ol class="toc"><li><a href="#the-unixfs-v1-2025-modern-profile" class="tocxref"><bdi class="secno">3.1 </bdi>The <code>unixfs-v1-2025</code> modern profile</a></li><li><a href="#the-unixfs-v0-2015-legacy-profile" class="tocxref"><bdi class="secno">3.2 </bdi>The <code>unixfs-v0-2015</code> legacy profile</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a><ol class="toc"><li><a href="#why-block-bytes-estimation-for-unixfs-v1-2025" class="tocxref"><bdi class="secno">4.2.1 </bdi>Why <code>block-bytes</code> estimation for <code>unixfs-v1-2025</code></a></li><li><a href="#why-strictly-greater-than-for-hamt-threshold" class="tocxref"><bdi class="secno">4.2.2 </bdi>Why <code>&gt;</code> (strictly greater than) for HAMT threshold</a></li></ol></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.3 </bdi>Alternatives</a></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#verification-process" class="tocxref"><bdi class="secno">5.1 </bdi>Verification process</a></li><li><a href="#unixfs-v0-2015-profile" class="tocxref"><bdi class="secno">5.2 </bdi><code>unixfs-v0-2015</code> profile</a></li><li><a href="#unixfs-v1-2025-profile" class="tocxref"><bdi class="secno">5.3 </bdi><code>unixfs-v1-2025</code> profile</a></li><li><a href="#hamt-threshold-behavior" class="tocxref"><bdi class="secno">5.4 </bdi>HAMT threshold behavior</a></li><li><a href="#dag-layout" class="tocxref"><bdi class="secno">5.5 </bdi>DAG layout</a></li><li><a href="#additional-test-vectors" class="tocxref"><bdi class="secno">5.6 </bdi>Additional test vectors</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.7 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This proposal introduces <strong>configuration profiles</strong> for CIDs that represent files and directories using <a href="https://specs.ipfs.tech/unixfs/">UnixFS</a>. The legacy profiles table also documents non-UnixFS implementations for reference.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>While CIDs and UnixFS DAGs are cryptographically verifiable, the same file or directory can produce different CIDs across UnixFS implementations, because DAG construction parameters like chunk size, DAG width, and layout vary between tools. Often, these parameters are not even configurable by users.</p>
+<p>This creates two problems:</p>
+<ul>
+<li><strong>Broken hash semantics:</strong> Unlike standard hash functions where identical input produces identical output, UnixFS CIDs depend on DAG construction parameters. Simple CID comparison leads to false-negatives.</li>
+<li><strong>Verification overhead:</strong> Without knowing the original parameters, users must retrieve and compare entire DAGs to verify content, adding storage, bandwidth, and complexity.</li>
+</ul>
+<p>A potential solution is to define configuration profiles: well-known parameter presets that implementations can adopt when common conventions for DAG creation are desired.</p>
+<p>See related discussion at <a href="https://discuss.ipfs.tech/t/should-we-profile-cids/18507">https://discuss.ipfs.tech/t/should-we-profile-cids/18507</a></p>
+<section id="unixfs-parameters"><h3><bdi class="secno">2.1 </bdi>UnixFS parameters</h3><a href="#unixfs-parameters" class="self-link" aria-label="Section 2.1"></a>
+<p>The following <a href="https://specs.ipfs.tech/unixfs/">UnixFS</a> parameters were identified as factors that affect the resulting CID:</p>
+<ol>
+<li>CID version, e.g. CIDv0 or CIDv1</li>
+<li>Multibase encoding for the CID, e.g. <code>base32</code></li>
+<li>Hash function used for all nodes in the DAG, e.g. <code>sha2-256</code></li>
+<li>UnixFS file chunking algorithm and chunk size (e.g., fixed-size chunks of 256KiB)</li>
+<li>UnixFS DAG layout:
+<ul>
+<li><code>balanced</code>: builds a balanced tree where all leaf nodes are at the same depth. Optimized for random access, seeking, and range requests within files (e.g., video).</li>
+<li><code>balanced-packed</code>: variant of <code>balanced</code> that may produce different tree structure for large files. See <a href="#balanced-dag-layout-variants">Balanced DAG layout variants</a> below.</li>
+<li><code>trickle</code>: builds a tree optimized for on-the-fly one-time streaming, where data can be consumed before the entire file is available. Useful for logs and other append-only data structures where random access is not important.</li>
+</ul>
+</li>
+<li>UnixFS DAG width (max number of links per <code>File</code> node)</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#dag-pb-hamtdirectory">HAMTDirectory</a> fanout: the branching factor at each level of the HAMT tree (e.g., 256 leaves).</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#when-to-use-hamt-sharding">HAMTDirectory threshold</a>: max <code>Directory</code> size before converting to <code>HAMTDirectory</code>, based on <code>PBNode.Links</code> count or estimated serialized <a href="https://ipld.io/specs/codecs/dag-pb/spec/">dag-pb</a> size. See <a href="#historical-inconsistency-in-hamt-sharding">Historical inconsistency in HAMT sharding</a> below.
+<ul>
+<li><code>links-count</code>: <code>PBNode.Links</code> length (child count). Simple but ignores varying entry sizes.</li>
+<li><code>links-bytes</code>: sum of <code>PBNode.Links[].Name</code> and <code>PBNode.Links[].Hash</code> byte lengths. Underestimates actual size by ignoring UnixFS Data, Tsize, and protobuf overhead.</li>
+<li><code>block-bytes</code>: full serialized dag-pb node size. Most accurate, accounts for varint <code>Tsize</code> and optional metadata such as <code>mode</code> or <code>mtime</code>.</li>
+</ul>
+</li>
+<li>Leaves: either <a href="https://specs.ipfs.tech/unixfs/#dag-pb-node">dag-pb wrapped</a> or <a href="https://specs.ipfs.tech/unixfs/#raw-node">raw</a></li>
+<li>Whether empty directories are included in the DAG. Some implementations may apply filtering.</li>
+<li>Whether hidden entities (including dot files) are included in the DAG. Some implementations may apply filtering.</li>
+<li>Directory wrapping for single files: in order to retain the name of a single file, some implementations have the option to wrap the file in a <code>Directory</code> with link to the file.</li>
+<li>Presence and accurate setting of <code>Tsize</code> (correct UnixFS has <code>Tsize</code> of child sub-DAGs).</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#dag-pb-symlink">Symlink</a> handling: preserved as UnixFS Type=4 nodes, or followed (dereferenced to target).</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#mode-field">Mode</a>: optional POSIX file permissions.</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#mtime-field">Mtime</a>: optional modification timestamp.</li>
+<li><a href="https://specs.ipfs.tech/unixfs/#dag-pb-node">PBNode field order</a>: <code>links-first</code> (canonical) or <code>data-first</code> (opt-in, see <a href="https://specs.ipfs.tech/ipips/ipip-0550/">IPIP-0550</a>).</li>
+</ol>
+</section><section id="balanced-dag-layout-variants"><h3><bdi class="secno">2.2 </bdi>Balanced DAG layout variants</h3><a href="#balanced-dag-layout-variants" class="self-link" aria-label="Section 2.2"></a>
+<p>The <code>balanced</code> DAG layout has implementation variants that affect CID determinism for large files. CID mismatches have been <a href="https://discuss.ipfs.tech/t/should-we-profile-cids/18507/41">observed</a> and <a href="https://discuss.ipfs.tech/t/should-we-profile-cids/18507/44">investigated</a> when comparing <a href="https://github.com/ipfs/kubo">kubo</a> and <a href="https://github.com/data-preservation-programs/singularity">Singularity</a> outputs for files exceeding 1 GiB. This IPIP introduces the name <code>balanced-packed</code> to distinguish Singularity's variant from the original <code>balanced</code> layout.</p>
+<p>Implementations adopting a profile <em class="rfc2119">SHOULD</em> specify which balanced variant they use. The <code>unixfs-v1-2025</code> profile uses <code>balanced</code> for maximum compatibility with existing implementations.</p>
+<section id="balanced"><h4><bdi class="secno">2.2.1 </bdi><code>balanced</code></h4><a href="#balanced" class="self-link" aria-label="Section 2.2.1"></a>
+<p>The original balanced layout used by <a href="https://github.com/ipfs/kubo">kubo</a>/<a href="https://github.com/ipfs/boxo">boxo</a>, <a href="https://github.com/ipfs/helia">helia</a>, and others in the ecosystem. Builds the tree incrementally as chunks stream in:</p>
+<ul>
+<li>Starts with first chunk as root, grows tree upward as needed</li>
+<li>Uses explicit depth tracking to fill nodes recursively</li>
+<li>All leaf nodes end up at the <strong>same depth</strong> from the root</li>
+<li>Reference: <a href="https://github.com/ipfs/boxo/blob/v0.35.2/ipld/unixfs/importer/balanced/builder.go"><code>boxo/ipld/unixfs/importer/balanced/builder.go</code></a></li>
+</ul>
+</section><section id="balanced-packed"><h4><bdi class="secno">2.2.2 </bdi><code>balanced-packed</code></h4><a href="#balanced-packed" class="self-link" aria-label="Section 2.2.2"></a>
+<p>Name introduced by this IPIP for <a href="https://github.com/data-preservation-programs/singularity">Singularity</a>'s variant. Groups pre-computed links in batch:</p>
+<ul>
+<li>Takes all chunk links as input, then packs them into parent nodes (up to max width)</li>
+<li>Repeats packing level-by-level until single root remains</li>
+<li>Trailing nodes may have fewer children, causing leaf depth to vary</li>
+<li>Optimized for batch processing of pre-chunked data in CAR files</li>
+<li>Reference: <a href="https://github.com/data-preservation-programs/singularity/blob/v0.6.0-RC4/pack/packutil/util.go"><code>singularity/pack/packutil/util.go</code></a> <code>AssembleFileFromLinks()</code></li>
+</ul>
+<p>According to <a href="https://github.com/data-preservation-programs/singularity/issues/525">Singularity issue #525</a>, "in Singularity's DAG, the last leaf node is not at the same distance from the root as the others." This structural difference causes CID mismatches for files larger than <code>chunk_size * dag_width</code> (e.g., &gt;1 GiB with 1 MiB chunks and 1024 links per node), even when all other parameters match.</p>
+</section></section><section id="historical-inconsistency-in-hamt-sharding"><h3><bdi class="secno">2.3 </bdi>Historical inconsistency in HAMT sharding</h3><a href="#historical-inconsistency-in-hamt-sharding" class="self-link" aria-label="Section 2.3"></a>
+<p>The IPFS ecosystem was never fully consistent in HAMT directory sharding behavior. This section documents the implementation history to explain why standardization through profiles is necessary.</p>
+<p>Timeline of Go implementation changes:</p>
+<ul>
+<li>
+<p>2017-03: <a href="https://github.com/ipfs/kubo/pull/3042">kubo#3042</a> introduced HAMT sharding with a global <code>Experimental.ShardingEnabled</code> flag. When enabled, all directories were sharded regardless of size. This is why historical snapshots like <code>/ipfs/bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze</code> (Wikipedia) have HAMTDirectory nodes even for parent directories with few entries.</p>
+</li>
+<li>
+<p>2021-05: <a href="https://github.com/ipfs/go-unixfs/pull/91">go-unixfs#91</a> introduced <code>HAMTShardingSize</code> threshold for automatic sharding based on estimated directory size, using <code>links-bytes</code> estimation. This was part of the work tracked in <a href="https://github.com/ipfs/kubo/issues/8106">kubo#8106</a>.</p>
+</li>
+<li>
+<p>2021-11: <a href="https://github.com/ipfs/go-unixfs/pull/94">go-unixfs#94</a> added size-based unsharding (switching from HAMT back to basic directory), completing bidirectional automatic sharding with <code>&gt;=</code> comparison. The <a href="https://github.com/ipfs/go-unixfs">go-unixfs</a> repository has since been archived; its code now lives in <a href="https://github.com/ipfs/boxo">boxo</a>.</p>
+</li>
+<li>
+<p>2021-12: <a href="https://github.com/ipfs/kubo/releases/tag/v0.11.0">go-ipfs v0.11.0</a> (now Kubo) shipped with automatic HAMT autosharding, deprecating the global <code>Experimental.ShardingEnabled</code> flag.</p>
+</li>
+<li>
+<p>2023-03: boxo created via <a href="https://github.com/ipfs/boxo/commit/038bdd29">Über Migration</a>, inheriting the <code>&gt;=</code> comparison behavior from go-unixfs.</p>
+</li>
+<li>
+<p>2026-01: <a href="https://github.com/ipfs/boxo/pull/1088">boxo#1088</a> fixed threshold comparison from <code>&gt;=</code> to <code>&gt;</code>, aligning with JS implementation and documentation. Shipped in Kubo 0.40.</p>
+</li>
+</ul>
+<p>Timeline of JavaScript implementation changes:</p>
+<ul>
+<li>
+<p>2017-03: <a href="https://github.com/ipfs/js-ipfs-unixfs/pull/14">js-ipfs-unixfs#14</a> added HAMT data types to UnixFS protobuf definitions.</p>
+</li>
+<li>
+<p>2018-12: <a href="https://github.com/ipfs/js-ipfs/pull/1734">js-ipfs#1734</a> added HAMT sharding support to MFS, using entry count threshold (<code>shardSplitThreshold</code>, default 1000 entries).</p>
+</li>
+<li>
+<p>2019-01: <a href="https://github.com/ipfs/js-ipfs/releases/tag/v0.34.0">js-ipfs v0.34.0</a> shipped with HAMT support in MFS. The threshold was based on entry count, not size, which differed from Go's size-based approach.</p>
+</li>
+<li>
+<p>2022-10: <a href="https://github.com/ipfs/helia">Helia</a> created as the successor to js-ipfs.</p>
+</li>
+<li>
+<p>2023-02: <a href="https://github.com/ipfs/js-ipfs-unixfs/pull/171">js-ipfs-unixfs#171</a> changed from entry count to DAGNode size threshold (<code>shardSplitThresholdBytes</code>, default 256 KiB), aligning with Go implementation. Uses <code>&gt;</code> comparison. This was tracked in <a href="https://github.com/ipfs/js-ipfs-unixfs/issues/149">js-ipfs-unixfs#149</a>. The <a href="https://github.com/ipfs/js-ipfs-unixfs">js-ipfs-unixfs</a> library remains active and is used by Helia.</p>
+</li>
+<li>
+<p>2023-05: <a href="https://github.com/ipfs/js-ipfs">js-ipfs</a> archived; Helia became the recommended JS implementation.</p>
+</li>
+</ul>
+<p>The JavaScript implementation in Helia uses <code>size &gt; threshold</code> (strictly greater than) in <a href="https://github.com/ipfs/helia/blob/main/packages/unixfs/src/commands/utils/is-over-shard-threshold.ts"><code>is-over-shard-threshold.ts</code></a>, consistent with Go after the 2026 fix.</p>
+<p>These inconsistencies between Go and JS implementations over the years, combined with differing threshold methods (entry count vs size) and comparison operators (<code>&gt;=</code> vs <code>&gt;</code>), meant cross-implementation CID determinism for large directories was never reliably achievable. The <code>unixfs-v1-2025</code> profile addresses this by standardizing on <code>block-bytes</code> estimation and explicit <code>&gt;</code> comparison.</p>
+</section><section id="divergences-across-ecosystem"><h3><bdi class="secno">2.4 </bdi>Divergences across ecosystem</h3><a href="#divergences-across-ecosystem" class="self-link" aria-label="Section 2.4"></a>
+<p>We analyzed the default settings across the most popular UnixFS implementations in the ecosystem. The table below documents the divergences that prevent deterministic CID generation today:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th><a href="https://github.com/ipfs/kubo">kubo</a> (CIDv0)</th>
+<th><a href="https://github.com/ipfs/helia">helia</a></th>
+<th><a href="https://github.com/storacha/w3cli">storacha</a></th>
+<th><a href="https://github.com/ipfs/kubo">kubo</a> (CIDv1)</th>
+<th><a href="https://github.com/data-preservation-programs/singularity">singularity</a></th>
+<th><a href="https://dasl.ing">dasl</a></th>
+<th><a href="https://pinata.cloud">pinata</a></th>
+<th><a href="https://filebase.com">filebase</a></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Based on</td>
+<td>v0.39 (<code>unixfs-v0-2015</code>)</td>
+<td>@helia/unixfs 6.0.4</td>
+<td>w3cli 7.12.0</td>
+<td>v0.39 (<code>test-cid-v1</code> profile)</td>
+<td>v0.6.0-RC4 (454b630)</td>
+<td>spec 2025-12</td>
+<td>?</td>
+<td>add via rpc</td>
+</tr>
+<tr>
+<td>CID version</td>
+<td>CIDv0</td>
+<td>CIDv1</td>
+<td>CIDv1</td>
+<td>CIDv1</td>
+<td>CIDv1</td>
+<td>CIDv1</td>
+<td>?</td>
+<td>CIDv0</td>
+</tr>
+<tr>
+<td>Hash function</td>
+<td>sha2-256</td>
+<td>sha2-256</td>
+<td>sha2-256</td>
+<td>sha2-256</td>
+<td>sha2-256</td>
+<td>sha2-256</td>
+<td>?</td>
+<td>sha2-256</td>
+</tr>
+<tr>
+<td>Chunking algorithm</td>
+<td>fixed-size</td>
+<td>fixed-size</td>
+<td>fixed-size</td>
+<td>fixed-size</td>
+<td>fixed-size</td>
+<td>N/A</td>
+<td>?</td>
+<td>fixed-size</td>
+</tr>
+<tr>
+<td>Max chunk size</td>
+<td>256KiB</td>
+<td>1MiB</td>
+<td>1MiB</td>
+<td>1MiB</td>
+<td>1MiB</td>
+<td>N/A</td>
+<td>?</td>
+<td>256KiB</td>
+</tr>
+<tr>
+<td>DAG layout</td>
+<td>balanced</td>
+<td>balanced</td>
+<td>balanced</td>
+<td>balanced</td>
+<td><a href="#balanced-packed">balanced-packed</a></td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>DAG width (children per node)</td>
+<td>174</td>
+<td>1024</td>
+<td>1024</td>
+<td>174</td>
+<td>1024</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>HAMTDirectory fanout</td>
+<td>256 blocks</td>
+<td>256 blocks</td>
+<td>256 blocks</td>
+<td>256 blocks</td>
+<td>256 blocks (boxo)</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>HAMTDirectory threshold</td>
+<td>256KiB (links-bytes)</td>
+<td>256KiB (links-bytes)</td>
+<td>1000 (links-count)</td>
+<td>256KiB (links-bytes)</td>
+<td>256KiB (links-bytes) (boxo)</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>HAMT switch comparison</td>
+<td>&gt;=</td>
+<td>&gt;</td>
+<td>&gt;</td>
+<td>&gt;=</td>
+<td>&gt;= (boxo)</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Leaves</td>
+<td>dag-pb</td>
+<td>raw</td>
+<td>raw</td>
+<td>raw</td>
+<td>raw</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Empty directories</td>
+<td>included</td>
+<td>included</td>
+<td>excluded</td>
+<td>included</td>
+<td>included</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Hidden entities</td>
+<td>excluded (opt-in)</td>
+<td>excluded (opt-in)</td>
+<td>excluded (opt-in)</td>
+<td>excluded (opt-in)</td>
+<td>included (rclone)</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Symlinks</td>
+<td>preserved</td>
+<td>followed</td>
+<td>followed</td>
+<td>preserved</td>
+<td>skipped (rclone)</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Mode (permissions)</td>
+<td>excluded (opt-in)</td>
+<td>excluded (opt-in)</td>
+<td>not supported</td>
+<td>excluded (opt-in)</td>
+<td>not supported</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Mtime (modification time)</td>
+<td>excluded (opt-in)</td>
+<td>excluded (opt-in)</td>
+<td>not supported</td>
+<td>excluded (opt-in)</td>
+<td>not supported</td>
+<td>N/A</td>
+<td>?</td>
+<td>?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Terminology:</strong></p>
+<ul>
+<li><code>included</code>: Always included in the DAG (no option to exclude)</li>
+<li><code>excluded</code>: Always excluded from the DAG (no option to include)</li>
+<li><code>opt-in</code>: Excluded by default; implementations provide a flag to include (e.g., <code>--hidden</code> in Kubo/Storacha, <code>hidden: true</code> in Helia)</li>
+<li><code>opt-out</code>: Included by default; implementations provide a flag to exclude</li>
+<li><code>preserved</code>: Symlinks stored as UnixFS Type=4 nodes with target path (per <a href="https://specs.ipfs.tech/unixfs/">UnixFS spec</a>). Note: Kubo (v0.39) <code>--dereference-args</code> only follows symlinks passed as CLI arguments; symlinks found during recursive traversal are always preserved.</li>
+<li><code>followed</code>: Symlinks dereferenced and treated as target files/directories</li>
+<li><code>skipped</code>: Symlinks ignored during traversal (not included in DAG)</li>
+<li><code>(rclone)</code>: Singularity delegates file traversal to <a href="https://rclone.org/">rclone</a>; values shown reflect rclone defaults</li>
+<li><code>(boxo)</code>: Singularity overrides some <a href="https://github.com/ipfs/boxo">boxo</a> defaults but relies on implicit boxo defaults for these values</li>
+<li><code>?</code>: Service did not provide implementation details when queried in <a href="https://github.com/ipfs/specs/pull/499">ipfs/specs#499</a></li>
+</ul>
+</section></section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>We introduce a set of <strong>named configuration profiles</strong>, each specifying the complete set of parameters for generating UnixFS CIDs. When implementations use these profiles, they guarantee that the same input, processed with the same profile, will yield the same CID across different tools and implementations.</p>
+<section id="the-unixfs-v1-2025-modern-profile"><h3><bdi class="secno">3.1 </bdi>The <code>unixfs-v1-2025</code> modern profile</h3><a href="#the-unixfs-v1-2025-modern-profile" class="self-link" aria-label="Section 3.1"></a>
+<p>Based on the research above, we define <strong><code>unixfs-v1-2025</code></strong> as an opinionated profile for implementations that want to adopt deterministic CID generation for UnixFS DAGs with CIDv1.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th><code>unixfs-v1-2025</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CID version</td>
+<td>CIDv1</td>
+</tr>
+<tr>
+<td>Hash function</td>
+<td>sha2-256</td>
+</tr>
+<tr>
+<td>Chunking algorithm</td>
+<td>fixed-size</td>
+</tr>
+<tr>
+<td>Max chunk size</td>
+<td>1MiB</td>
+</tr>
+<tr>
+<td>DAG layout</td>
+<td>balanced</td>
+</tr>
+<tr>
+<td>DAG width (children per node)</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>HAMTDirectory fanout</td>
+<td>256 blocks</td>
+</tr>
+<tr>
+<td>HAMTDirectory threshold</td>
+<td>256KiB (block-bytes)</td>
+</tr>
+<tr>
+<td>HAMT switch comparison</td>
+<td>&gt;</td>
+</tr>
+<tr>
+<td>Leaves</td>
+<td>raw</td>
+</tr>
+<tr>
+<td>Empty directories</td>
+<td>included (opt-out)</td>
+</tr>
+<tr>
+<td>Hidden entities</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>Symlinks</td>
+<td>preserved</td>
+</tr>
+<tr>
+<td>Mode (permissions)</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>Mtime (modification time)</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>PBNode field order</td>
+<td>links-first</td>
+</tr>
+</tbody>
+</table>
+</section><section id="the-unixfs-v0-2015-legacy-profile"><h3><bdi class="secno">3.2 </bdi>The <code>unixfs-v0-2015</code> legacy profile</h3><a href="#the-unixfs-v0-2015-legacy-profile" class="self-link" aria-label="Section 3.2"></a>
+<p>This profile documents the default UnixFS DAG construction parameters used by Kubo through version 0.39 when producing CIDv0. It is provided for users who depend on CIDv0 identifiers generated by Kubo and need to reproduce them with other implementations, or verify content against existing CIDv0 references. The year 2015 in the name indicates that the majority of these parameters were picked a decade ago, when the initial go-ipfs alpha software was implemented, and these defaults were never contested since then.</p>
+<p>Note: this profile is a best-effort approximation of historical behavior. It produces deterministic CIDs for files and smaller directories. However, as documented in <a href="#historical-inconsistency-in-hamt-sharding">Historical inconsistency in HAMT sharding</a>, there is a risk of divergence when directories exceed the HAMT sharding threshold, due to differences in threshold comparison operators and estimation methods across software versions. In such cases, the only recourse is to identify which version of software originally created the content and manually adjust import parameters to match those historic settings.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th><code>unixfs-v0-2015</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CID version</td>
+<td>CIDv0</td>
+</tr>
+<tr>
+<td>Hash function</td>
+<td>sha2-256</td>
+</tr>
+<tr>
+<td>Chunking algorithm</td>
+<td>fixed-size</td>
+</tr>
+<tr>
+<td>Max chunk size</td>
+<td>256KiB</td>
+</tr>
+<tr>
+<td>DAG layout</td>
+<td>balanced</td>
+</tr>
+<tr>
+<td>DAG width (children per node)</td>
+<td>174</td>
+</tr>
+<tr>
+<td>HAMTDirectory fanout</td>
+<td>256 blocks</td>
+</tr>
+<tr>
+<td>HAMTDirectory threshold</td>
+<td>256KiB (links-bytes)</td>
+</tr>
+<tr>
+<td>HAMT switch comparison</td>
+<td>&gt;</td>
+</tr>
+<tr>
+<td>Leaves</td>
+<td>dag-pb</td>
+</tr>
+<tr>
+<td>Empty directories</td>
+<td>included</td>
+</tr>
+<tr>
+<td>Hidden entities</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>Symlinks</td>
+<td>preserved</td>
+</tr>
+<tr>
+<td>Mode (permissions)</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>Mtime (modification time)</td>
+<td>excluded (opt-in)</td>
+</tr>
+<tr>
+<td>PBNode field order</td>
+<td>links-first</td>
+</tr>
+</tbody>
+</table>
+</section></section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>Profiles provide key advantages for working with content-addressed data:</p>
+<ol>
+<li>
+<p><strong>Predictable, deterministic behavior:</strong> Profiles restore intuitive hash-like behavior: identical input data always produces identical CIDs, regardless of which implementation generates them.</p>
+</li>
+<li>
+<p><strong>Lightweight verification:</strong> Users can verify content without needing to rely on additional merkle proofs or CAR files.</p>
+</li>
+<li>
+<p><strong>Simplified workflow:</strong> Users can select a profile and automatically get consistent CIDs across all implementations, without needing to configure or understand the underlying parameters.</p>
+</li>
+<li>
+<p><strong>Improved efficiency:</strong> The <code>unixfs-v1-2025</code> profile uses 1 MiB chunks with 1024 links per node, compared to the legacy 256 KiB chunks with 174 links. This results in:</p>
+<ul>
+<li>Shallower DAG trees (3 levels for a 1 TiB file vs 4 levels with legacy parameters)</li>
+<li>Approximately 4x fewer total nodes for the same content</li>
+<li>Faster random access and seeking in large files (fewer round-trips to traverse the tree)</li>
+<li>Fewer CIDs to announce, reducing stress on public good routing infrastructure such as the Amino DHT</li>
+</ul>
+</li>
+</ol>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>UnixFS data encoded with the CID profiles defined in this IPIP remains fully compatible with existing implementations, since it conforms to the <a href="https://specs.ipfs.tech/unixfs/">UnixFS specification</a>.</p>
+<p>To generate CIDs in compliance with this IPIP, implementations <em class="rfc2119">MUST</em> support the <code>unixfs-v1-2025</code> profile. The <code>unixfs-v0-2015</code> profile is provided for backward compatibility and <em class="rfc2119">MAY</em> be supported by implementations that need to produce CIDs matching historical Kubo output.</p>
+<p>Implementations <em class="rfc2119">SHOULD</em> allow users to inspect default values and adjust configuration options related to CID generation.</p>
+<section id="why-block-bytes-estimation-for-unixfs-v1-2025"><h4><bdi class="secno">4.2.1 </bdi>Why <code>block-bytes</code> estimation for <code>unixfs-v1-2025</code></h4><a href="#why-block-bytes-estimation-for-unixfs-v1-2025" class="self-link" aria-label="Section 4.2.1"></a>
+<p>The <code>unixfs-v1-2025</code> profile uses <code>block-bytes</code> instead of <code>links-bytes</code> for HAMT threshold estimation because <code>links-bytes</code> has fundamental accuracy problems that undermine CID determinism.</p>
+<p>What <code>links-bytes</code> ignores:</p>
+<ul>
+<li><code>Tsize</code> field: the cumulative size of child sub-DAGs stored in each link. This varint-encoded field can add 1-10 bytes per link.</li>
+<li>Protobuf overhead: length prefixes, field tags, and varint encoding that wrap each link and the overall message structure.</li>
+<li><code>mode</code> field: optional POSIX file permissions. When present, adds a varint to the serialized size.</li>
+<li><code>mtime</code> field: optional modification timestamp. When present, adds an embedded message with seconds (varint) and optional nanoseconds (fixed32).</li>
+</ul>
+<p>Problems caused by underestimation:</p>
+<ol>
+<li>
+<p>Non-deterministic threshold crossing: a directory estimated at 250 KiB by <code>links-bytes</code> might actually serialize to 270 KiB. If another implementation using accurate estimation sees the true size exceeds the threshold, it converts to HAMT, producing a different CID for identical content.</p>
+</li>
+<li>
+<p>Block size limit risks: near the 1 MiB or 2 MiB block size limits used by various transports, underestimation can produce blocks that exceed limits, causing failures or requiring implementation-specific workarounds.</p>
+</li>
+</ol>
+<p>Why <code>links-bytes</code> exists in <code>unixfs-v0-2015</code>:</p>
+<p>The legacy profile documents historical behavior. The <code>links-bytes</code> estimation was the original implementation in early go-ipfs, chosen for simplicity. Since many existing CIDv0 DAGs were created with this estimation, the <code>unixfs-v0-2015</code> profile preserves this behavior for users who need to reproduce legacy CIDs.</p>
+</section><section id="why-strictly-greater-than-for-hamt-threshold"><h4><bdi class="secno">4.2.2 </bdi>Why <code>&gt;</code> (strictly greater than) for HAMT threshold</h4><a href="#why-strictly-greater-than-for-hamt-threshold" class="self-link" aria-label="Section 4.2.2"></a>
+<p>The HAMT threshold comparison uses <code>&gt;</code> rather than <code>&gt;=</code>. A directory with estimated size exactly equal to the threshold (262144 bytes) remains a basic directory; only when size exceeds the threshold does it convert to HAMT.</p>
+<p>Rationale:</p>
+<ol>
+<li>
+<p>Consistency with other profile limits: all threshold-like values in the UnixFS profile use the same <code>&gt;</code> pattern, making the limits represent the maximum allowed value (inclusive). Conversion to a more complex structure happens when the count exceeds the limit:</p>
+<ul>
+<li>HAMT size threshold: <code>estimatedSize &gt; HAMTShardingSize</code> - directory converts to HAMT when size exceeds 256 KiB</li>
+<li>Directory link count: <code>linkCount &gt; maxLinks</code> - directory converts to HAMT when link count exceeds MaxLinks</li>
+<li>File DAG width: <code>childCount &gt; maxLinks</code> - file node creates new tree level when child count exceeds FileDAGWidth</li>
+</ul>
+<p>This consistency means implementers only need to understand one rule: limit values are the maximum allowed, conversion happens only when exceeding.</p>
+</li>
+<li>
+<p>Implementation alignment: the Helia (JavaScript) implementation uses <code>size &gt; threshold</code>. Kubo/boxo documentation also specified <code>&gt;</code>, but the actual Go implementation used <code>&gt;=</code> until <a href="https://github.com/ipfs/boxo/pull/1088">boxo#1088</a> fixed it. This divergence between documentation and implementation is another example of why <code>links-bytes</code> never achieved true cross-implementation determinism, and why the <code>unixfs-v1-2025</code> profile with <code>block-bytes</code> provides an opportunity to establish a proper standard.</p>
+</li>
+<li>
+<p>Threshold semantics: the threshold value represents the maximum allowed size for a basic directory, not the minimum size for HAMT. A directory at exactly the threshold is still within the allowed range for basic representation.</p>
+</li>
+<li>
+<p>Simpler representation preferred: at the exact boundary, basic directory is simpler (single flat node vs HAMT tree). When both representations are valid, preferring the simpler one reduces DAG complexity.</p>
+</li>
+<li>
+<p>Deterministic boundary behavior: edge cases are where CID mismatches most likely occur. Explicitly specifying that the threshold value stays basic eliminates ambiguity.</p>
+</li>
+</ol>
+</section></section><section id="alternatives"><h3><bdi class="secno">4.3 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.3"></a>
+<p>As an alternative to profiles, users can store and transfer CAR files of UnixFS content, which include the merkle DAG nodes needed to verify the CID.</p>
+</section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>Test fixtures allow implementations to verify profile compliance by comparing CIDs produced for identical input data.</p>
+<section id="verification-process"><h3><bdi class="secno">5.1 </bdi>Verification process</h3><a href="#verification-process" class="self-link" aria-label="Section 5.1"></a>
+<ol>
+<li>Fetch the reference DAG by CID from the IPFS network or a gateway</li>
+<li>Export the DAG content to the local filesystem (e.g., <code>ipfs get &lt;CID&gt;</code>)</li>
+<li>Re-import using the implementation under test with the specified profile</li>
+<li>Confirm the resulting CID matches the reference</li>
+</ol>
+</section><section id="unixfs-v0-2015-profile"><h3><bdi class="secno">5.2 </bdi><code>unixfs-v0-2015</code> profile</h3><a href="#unixfs-v0-2015-profile" class="self-link" aria-label="Section 5.2"></a>
+<table>
+<thead>
+<tr>
+<th>CID</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Qmf412jQZiuVUtdgnB36FXFX7xg5V6KEbSJ4dpQuhkLyfD</code></td>
+<td>Small file: <code>hello world</code> string, dag-pb wrapped leaf</td>
+</tr>
+<tr>
+<td><code>QmWmRj3dFDZdb6ABvbmKhEL6TmPbAfBZ1t5BxsEyJrcZhE</code></td>
+<td>File at chunk size: 262144 bytes, single dag-pb block with no links</td>
+</tr>
+<tr>
+<td><code>QmYyLxtzZyW22zpoVAtKANLRHpDjZtNeDjQdJrcQNWoRkJ</code></td>
+<td>File over chunk size: 262145 bytes, root with 2 dag-pb leaf links</td>
+</tr>
+<tr>
+<td><code>QmUbBALi174SnogsUzLpYbD4xPiBSFANF4iztWCsHbMKh2</code></td>
+<td>File at max links: 174 × 256 KiB chunks, single-level DAG with 174 links</td>
+</tr>
+<tr>
+<td><code>QmV81WL765sC8DXsRhE5fJv2rwhS4icHRaf3J9Zk5FdRnW</code></td>
+<td>File over max links: 174 × 256 KiB + 1 byte, rebalanced to 2-level DAG</td>
+</tr>
+<tr>
+<td><code>QmX5GtRk3TSSEHtdrykgqm4eqMEn3n2XhfkFAis5fjyZmN</code></td>
+<td>Directory at HAMT threshold: links-bytes size = 262144 (basic directory)</td>
+</tr>
+<tr>
+<td><code>QmeMiJzmhpJAUgynAcxTQYek5PPKgdv3qEvFsdV3XpVnvP</code></td>
+<td>Directory over HAMT threshold: links-bytes size = 262145 (HAMT sharded)</td>
+</tr>
+</tbody>
+</table>
+</section><section id="unixfs-v1-2025-profile"><h3><bdi class="secno">5.3 </bdi><code>unixfs-v1-2025</code> profile</h3><a href="#unixfs-v1-2025-profile" class="self-link" aria-label="Section 5.3"></a>
+<table>
+<thead>
+<tr>
+<th>CID</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e</code></td>
+<td>Small file: <code>hello world</code> string, raw leaf</td>
+</tr>
+<tr>
+<td><code>bafkreiacndfy443ter6qr2tmbbdhadvxxheowwf75s6zehscklu6ezxmta</code></td>
+<td>File at chunk size: 1048576 bytes (1 MiB), single raw leaf block</td>
+</tr>
+<tr>
+<td><code>bafybeigmix7t42i6jacydtquhet7srwvgpizfg7gjbq7627d35mjomtu64</code></td>
+<td>File over chunk size: 1048577 bytes, root with 2 raw leaf links</td>
+</tr>
+<tr>
+<td><code>bafybeihmf37wcuvtx4hpu7he5zl5qaf2ineo2lqlfrapokkm5zzw7zyhvm</code></td>
+<td>File at max links: 1024 × 1 MiB chunks, single-level DAG with 1024 links</td>
+</tr>
+<tr>
+<td><code>bafybeibdsi225ugbkmpbdohnxioyab6jsqrmkts3twhpvfnzp77xtzpyhe</code></td>
+<td>File over max links: 1024 × 1 MiB + 1 byte, rebalanced to 2-level DAG</td>
+</tr>
+<tr>
+<td><code>bafybeic3h7rwruealwxkacabdy45jivq2crwz6bufb5ljwupn36gicplx4</code></td>
+<td>Directory at HAMT threshold: block-bytes size = 262144 (basic directory)</td>
+</tr>
+<tr>
+<td><code>bafybeiegvuterwurhdtkikfhbxcldohmxp566vpjdofhzmnhv6o4freidu</code></td>
+<td>Directory over HAMT threshold: block-bytes size = 262145 (HAMT sharded)</td>
+</tr>
+</tbody>
+</table>
+</section><section id="hamt-threshold-behavior"><h3><bdi class="secno">5.4 </bdi>HAMT threshold behavior</h3><a href="#hamt-threshold-behavior" class="self-link" aria-label="Section 5.4"></a>
+<p>The HAMT threshold comparison uses <code>&gt;</code> (strictly greater than), not <code>&gt;=</code>. A directory with estimated size exactly equal to the threshold (262144 bytes) remains a basic directory. Only when the size exceeds the threshold does it convert to HAMT.</p>
+</section><section id="dag-layout"><h3><bdi class="secno">5.5 </bdi>DAG layout</h3><a href="#dag-layout" class="self-link" aria-label="Section 5.5"></a>
+<p>Both profiles use the <code>balanced</code> layout where distance from root to each leaf is the same number of hops.</p>
+<pre><code>balanced:                              trickle:
+
+         root                                root
+        /    \                         /   /  |  \   \
+     node     node                  leaf node leaf node ...
+    / | \     / | \                      |         |
+ leaf leaf leaf leaf ...              node       node
+                                      / \        / \
+                                   leaf leaf  leaf leaf
+ ^^^^^^^^^^^^^^^^^^^^^^
+    uniform depth                    ^^^^     ^^^^^^
+                                     varying leaf depth
+</code></pre>
+<p>Implementations <em class="rfc2119">MAY</em> use below CIDs to verify DAG layout handling. The <code>trickle</code> layout is not part of official profiles, but is included for verifying that UnixFS readers can parse non-standard DAG layouts produced by other software in the ecosystem:</p>
+<table>
+<thead>
+<tr>
+<th>CID</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QmV81WL765sC8DXsRhE5fJv2rwhS4icHRaf3J9Zk5FdRnW</code></td>
+<td>Balanced (v0): 174 × 256 KiB + 1 byte, 175 chunks, depth 2</td>
+</tr>
+<tr>
+<td><code>bafybeibdsi225ugbkmpbdohnxioyab6jsqrmkts3twhpvfnzp77xtzpyhe</code></td>
+<td>Balanced (v1): 1024 × 1 MiB + 1 byte, 1025 chunks, depth 2</td>
+</tr>
+<tr>
+<td><code>QmbqR6g7YCpndLcCZZXkGyj13uMcSrwDYUvZ47vJqBVjUH</code></td>
+<td>Trickle (v0): 45 MiB file, 180 leaves at varying depths (1-2)</td>
+</tr>
+</tbody>
+</table>
+</section><section id="additional-test-vectors"><h3><bdi class="secno">5.6 </bdi>Additional test vectors</h3><a href="#additional-test-vectors" class="self-link" aria-label="Section 5.6"></a>
+<p>For the following cases, see existing test vectors in the <a href="https://specs.ipfs.tech/unixfs/#appendix-test-vectors">UnixFS spec</a>:</p>
+<ul>
+<li><strong>Empty directory</strong>: well-known CIDs <code>QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn</code> (v0) and <code>bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354</code> (v1)</li>
+<li><strong>Preserved symlink</strong>: <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.8.1/fixtures/path_gateway_unixfs/symlink.car"><code>QmWvY6FaqFMS89YAQ9NAPjVP4WZKA1qbHbicc9HeSKQTgt</code></a> (v0)</li>
+</ul>
+</section><section id="copyright"><h3><bdi class="secno">5.7 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.7"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Michelle Lee</span> (<a href="https://ipfsfoundation.org">IPFS Foundation</a>) <a href="https://github.com/mishmosh"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Daniel Norman</span> (<a href="https://norman.life">Independent</a>) <a href="https://github.com/2color"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com/">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com/">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Juan Caballero</span> (<a href="https://ipfsfoundation.org">IPFS Foundation</a>) <a href="https://github.com/bumblefudge"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Hector Sanjuan</span> (<a href="https://ipshipyard.com/">Shipyard</a>) <a href="https://github.com/hsanjuan"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Steven Vandevelde</span> <a href="https://github.com/icidasset"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Christian Paul</span> <a href="https://github.com/jaller94"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Rod Vagg</span> <a href="https://github.com/rvagg"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Seth Docherty</span> <a href="https://github.com/SethDocherty"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

@@ -1,0 +1,1 @@
+I2F.put("meta",{"format":2,"entries":233,"dirs":69,"shards":["c403d52dec4c6fb0"],"buckets":1,"types":{"code":[52,68407],"doc":[10,2223691],"image":[28,920017],"other":[15,2545572],"page":[59,1117511],"text":[1,330]},"parts":{"pins":[165,6875528]},"pieces":[{"where":"pins","kind":"other","label":"pins (4 roots)","path":"pins"}]});

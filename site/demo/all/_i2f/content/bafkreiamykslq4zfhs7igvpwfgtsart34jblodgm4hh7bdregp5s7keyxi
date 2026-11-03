@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0379: Delegated IPNS HTTP API",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0379/"
+  },
+  "dfns": []
+}

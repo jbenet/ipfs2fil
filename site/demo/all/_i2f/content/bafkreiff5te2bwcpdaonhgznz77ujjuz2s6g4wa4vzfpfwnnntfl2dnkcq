@@ -1,0 +1,132 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0523: Prefer format param over Accept header</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0523/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0523: Prefer format param over Accept header</h1><p id="last-modified"><time datetime="2026-03-05T00:00:00.000Z">5 March 2026</time></p><dl><dt>Related Issue</dt><dd><a href="https://github.com/ipfs/specs/issues/521">ipfs/specs/issues/521</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0523.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0523.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a><ol class="toc"><li><a href="#keep-status-quo-with-wildcard-exception" class="tocxref"><bdi class="secno">4.4.1 </bdi>Keep status quo with wildcard exception</a></li><li><a href="#return-http-400-on-conflicting-format-preferences" class="tocxref"><bdi class="secno">4.4.2 </bdi>Return HTTP 400 on conflicting format preferences</a></li></ol></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#copyright" class="tocxref"><bdi class="secno">5.1 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Prefer the <code>?format=</code> URL query parameter over the <code>Accept:</code> HTTP request header.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>The <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept"><code>Accept</code></a>
+HTTP request header can be sent with an HTTP request to provide a prioritized
+list of response formats the client will accept for a given resource.</p>
+<p>The <a href="https://specs.ipfs.tech/http-gateways/path-gateway/#format-request-query-parameter"><code>format</code></a>
+URL query parameter can also be sent to an IPFS HTTP Gateway to provide the
+same information, and is typically done when sending an HTTP header is difficult
+or impractical, for example when using a browser address bar.</p>
+<p>The existing <a href="https://specs.ipfs.tech/http-gateways/path-gateway/#format-request-query-parameter">Path Gateway</a> and <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/#format-request-query-parameter">Trustless Gateway</a> specs say:</p>
+<blockquote>
+<p>When both the Accept header and format parameter are present, a specific Accept value (e.g., application/vnd.ipld.raw) <em class="rfc2119">SHOULD</em> take precedence over format.</p>
+</blockquote>
+<p>This makes it impossible for browsers to use the <code>format</code> URL query parameter,
+since they will always send an <code>Accept</code> HTTP header which would then cause
+the <code>format</code> URL query parameter to be ignored.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>The priority of the <code>format</code> URL query parameter vs the <code>Accept</code> HTTP header is
+reversed in both [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] and [<a class="bibref" href="#ref-trustless-gateway">trustless-gateway</a>] specs: the
+<code>format</code> URL query parameter <em class="rfc2119">SHOULD</em> always take precedence over the <code>Accept</code>
+HTTP header when both are present.</p>
+<p>This simplifies the specification by removing the previous wildcard exception
+logic. Implementations no longer need to distinguish between specific <code>Accept</code>
+header values (e.g., <code>application/vnd.ipld.raw</code>) and wildcards (e.g., <code>*/*</code>)
+when determining precedence.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>Browsers will always send an <code>Accept</code> HTTP header that contains specific values
+so it cannot be allowed to take priority over the <code>format</code> URL query parameter.</p>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p>Users will be able to use the <code>format</code> URL query parameter to control the
+response type of requests made from browser address bars.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>This change simplifies precedence rules by making the <code>format</code> URL query
+parameter always take priority over the <code>Accept</code> HTTP header when both are
+present.</p>
+<p>In practice, this is largely compatible with existing web browser use cases.
+Browsers send <code>Accept</code> HTTP headers with wildcards (e.g., <code>*/*</code> or
+<code>text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</code>), and
+the previous spec already treated wildcards as non-specific, allowing <code>format</code>
+to take precedence. This means browser address bar usage with <code>?format=</code> was
+already working as expected.</p>
+<p>In recent years we also realized that HTTP cache implementations are often
+flawed, and virtually all HTTP clients add explicit <code>?format=</code> anyway to ensure
+a unique HTTP cache key is used for each URL. This provides extra protection
+from poorly written or configured software and CDNs that comingle different
+response types under the same cache key (e.g., deserialized response, raw block,
+and CAR being cached and returned based on what was requested and cached first).
+By prioritizing <code>?format=</code> we ensure deterministic HTTP caching behavior across
+the ecosystem, making it easier to deploy and reason about HTTP trustless
+gateways.</p>
+<p>The actual breakage is limited to edge cases where a client sends both a
+specific <code>Accept</code> HTTP header (e.g., <code>Accept: application/vnd.ipld.raw</code>) and a
+different <code>format</code> URL query parameter (e.g., <code>?format=car</code>). Previously, the
+specific <code>Accept</code> header value would win; now <code>format</code> wins. This scenario is
+rare in practice and arguably represents a client misconfiguration.</p>
+<p>The primary impact is on <a href="https://github.com/ipfs/gateway-conformance/">gateway-conformance</a>
+tests, which explicitly test the old precedence behavior. A minor version bump
+of gateway-conformance is required to update these tests.</p>
+</section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>This change has no security implications. It only affects which response format
+is returned when a client sends conflicting format preferences, and does not
+change authentication, authorization, or data integrity behaviors.</p>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<section id="keep-status-quo-with-wildcard-exception"><h4><bdi class="secno">4.4.1 </bdi>Keep status quo with wildcard exception</h4><a href="#keep-status-quo-with-wildcard-exception" class="self-link" aria-label="Section 4.4.1"></a>
+<p>The previous spec already had a
+carve-out where wildcards (e.g., <code>*/*</code>, <code>application/*</code>) in the <code>Accept</code> HTTP
+header did not take precedence over the <code>format</code> URL query parameter. This meant
+browser use cases were effectively supported, since browsers include wildcards
+in their default <code>Accept</code> HTTP headers.</p>
+<p>This alternative was rejected because:</p>
+<ol>
+<li>The wildcard exception adds implementation complexity</li>
+<li>The resulting behavior is harder to reason about and document</li>
+<li>The simpler rule ("format always wins") is easier to understand and implement</li>
+<li>Real-world browser use cases work identically under both rules</li>
+</ol>
+</section><section id="return-http-400-on-conflicting-format-preferences"><h4><bdi class="secno">4.4.2 </bdi>Return HTTP 400 on conflicting format preferences</h4><a href="#return-http-400-on-conflicting-format-preferences" class="self-link" aria-label="Section 4.4.2"></a>
+<p>Require gateways to return HTTP 400 when the <code>Accept</code> header and <code>format</code>
+parameter specify different formats, signaling client misconfiguration.</p>
+<p>This was rejected as impractical:</p>
+<ol>
+<li>
+<p><strong>Reintroduces complexity</strong>: Detecting "conflicts" requires fully parsing
+<code>Accept</code> headers, handling wildcards and quality values - the very complexity
+this IPIP eliminates.</p>
+</li>
+<li>
+<p><strong>Incompatible with real-world HTTP infrastructure</strong>: CDNs and reverse proxies
+(Nginx, Cloudflare, etc.) routinely strip, transform, or ignore <code>Accept</code>
+headers. When requests traverse multiple hops, each with different behaviors,
+the <code>Accept</code> header often doesn't reach the gateway intact. The URL is the
+only reliable cache key across the entire stack.</p>
+</li>
+<li>
+<p><strong>Untestable in practice</strong>: Conformance tests expecting HTTP 400 would
+spuriously pass or fail depending on whether upstream infrastructure forwarded
+the <code>Accept</code> header. This creates a specification that cannot be reliably
+verified.</p>
+</li>
+</ol>
+<p>The chosen approach - <code>format</code> always takes precedence, no error on disagreement -
+is a pragmatic choice that minimizes implementation complexity and maximizes
+interoperability with real-world HTTP clients, CDNs, reverse proxies, and caches.</p>
+</section></section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>Implementers can either write own test that prefers the <code>format</code> URL query
+parameter over any present <code>Accept</code> HTTP header, or run the
+<a href="https://github.com/ipfs/gateway-conformance/">gateway-conformance</a> test suite,
+which includes tests for this scenario since
+<a href="https://github.com/ipfs/gateway-conformance/pull/252">gateway-conformance/pull/252</a>.</p>
+<section id="copyright"><h3><bdi class="secno">5.1 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.1"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-trustless-gateway">[trustless-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/"><cite>Trustless Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj; Héctor Sanjuán; Adin Schmahmann. 2026-03-05. URL: <a href="https://specs.ipfs.tech/http-gateways/trustless-gateway/">https://specs.ipfs.tech/http-gateways/trustless-gateway/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://achingbrain.net">Alex Potsides</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Adin Schmahmann</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/aschmahmann"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

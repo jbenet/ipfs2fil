@@ -1,0 +1,198 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0548: Sunset X-Ipfs-Path header</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0548/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0548: Sunset X-Ipfs-Path header</h1><p id="last-modified"><time datetime="2026-08-27T00:00:00.000Z">27 August 2026</time></p><dl><dt>Related Issue</dt><dd><a href="https://github.com/ipfs/specs/issues/547">ipfs/specs/issues/547</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0548.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0548.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li></ol></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#copyright" class="tocxref"><bdi class="secno">5.1 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>Replace <code>X-Ipfs-Path</code> header with <code>Ipfs-Uri</code> version that can correctly encode
+any special characters likely to be found in an IPFS Path.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>HTTP header values can only include characters from a limited set.</p>
+<p>There is a gap in the existing gateway specification in that it does not say how
+characters from outside this set are to be treated.</p>
+<p>Values already arrive broken: browser <code>fetch()</code> garbles raw UTF-8, and
+Go's <code>net/http</code> replaces CR and LF with spaces.</p>
+<p>The spec is implemented and consumed widely so retrospectively adding encoding
+rules would be disruptive, and we would have to agree on an encoding format.</p>
+<p>URIs already have a well-defined encoding format (percent encoding, defined in
+<a href="https://www.rfc-editor.org/rfc/rfc3986.html#section-2.1">RFC 3986</a>), so
+introduce an <code>Ipfs-Uri</code> header to be used in preference to <code>X-Ipfs-Path</code> which
+can handle any and all characters found in an IPFS path, and can be losslessly
+converted back into an IPFS Path if the client desires it.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>The <code>Ipfs-Uri</code> header should be added which contains the IPFS/IPNS path as a
+URI (e.g. <code>ipfs://...</code> or <code>ipns://...</code>) with any special characters
+percent-encoded as per RFC 3986.</p>
+<p>The URI schemes are defined by [<a class="bibref" href="#ref-ipfs-uri">ipfs-uri</a>] and [<a class="bibref" href="#ref-ipns-uri">ipns-uri</a>]; the
+<a href="https://specs.ipfs.tech/http-gateways/path-gateway/#ipfs-uri-response-header"><code>Ipfs-Uri</code> section</a>
+of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] defines the exact serialization.</p>
+<p>This IPIP also updates [<a class="bibref" href="#ref-unixfs">unixfs</a>]: names containing <code>/</code> join the
+restricted names list, and the path escaping section defines the HTTP
+gateway and URI behavior while leaving other contexts unspecified.</p>
+<p><code>Ipfs-Uri</code> deprecates <code>X-Ipfs-Path</code>, and clients <em class="rfc2119">SHOULD</em> prefer <code>Ipfs-Uri</code>
+when both are present. The
+<a href="https://specs.ipfs.tech/http-gateways/path-gateway/#x-ipfs-path-response-header"><code>X-Ipfs-Path</code> section</a>
+says when the legacy header <em class="rfc2119">MUST</em> be omitted to avoid issues with unsafe
+byte ranges.</p>
+</section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>Retroactively adding encoding rules to <code>X-Ipfs-Path</code> would be too disruptive to
+existing clients so adding a new header and deprecating the old one seems like
+the least worst way forward.</p>
+<p>Path escaping was previously undefined across the stack: the UnixFS spec
+explicitly declared it out of scope, and nothing said how gateways decode
+request paths or how a content path becomes a header-safe string. This IPIP
+locks that behavior down: request path components are percent-decoded once
+(so <code>%2F</code> is a component separator), <code>Ipfs-Uri</code> is the canonical encoded
+form, and names containing <code>/</code> are formally not path-addressable.</p>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<p><code>Ipfs-Uri</code> correctly encodes otherwise illegal characters so users can determine
+the original IPFS Path of a resource without data corruption.</p>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>Since we are adding a new header this is a non-breaking change.</p>
+<p>Existing deployments can keep returning both headers; new implementations
+return only <code>Ipfs-Uri</code>.</p>
+</section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>Percent-encoding keeps raw control bytes such as CR and LF out of <code>Ipfs-Uri</code>
+values.</p>
+</section></section><section id="test-fixtures"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures" class="self-link" aria-label="Section 5."></a>
+<p>A UnixFS directory under
+<code>bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae</code>
+(<a href="https://github.com/user-attachments/files/31286627/ipip-0548-test-fixtures.zip"><code>dir-with-tricky-filenames.car</code> in
+ipip-0548-test-fixtures.zip</a>),
+and the header returned for each file in it:</p>
+<table>
+<thead>
+<tr>
+<th>UnixFS file name</th>
+<th>Response header</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plain.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/plain.txt</code></td>
+</tr>
+<tr>
+<td><code>with space.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/with%20space.txt</code></td>
+</tr>
+<tr>
+<td><code>100% sure.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/100%25%20sure.txt</code></td>
+</tr>
+<tr>
+<td><code>a#b?c.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/a%23b%3Fc.txt</code></td>
+</tr>
+<tr>
+<td><code>łódź.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%C5%82%C3%B3d%C5%BA.txt</code></td>
+</tr>
+<tr>
+<td><code>emoji🚀.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/emoji%F0%9F%9A%80.txt</code></td>
+</tr>
+<tr>
+<td><code>αρχείο.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%CE%B1%CF%81%CF%87%CE%B5%CE%AF%CE%BF.txt</code></td>
+</tr>
+<tr>
+<td><code>файл.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%D1%84%D0%B0%D0%B9%D0%BB.txt</code></td>
+</tr>
+<tr>
+<td><code>קובץ.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%D7%A7%D7%95%D7%91%D7%A5.txt</code></td>
+</tr>
+<tr>
+<td><code>ملف.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%D9%85%D9%84%D9%81.txt</code></td>
+</tr>
+<tr>
+<td><code>नमस्ते.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%E0%A4%A8%E0%A4%AE%E0%A4%B8%E0%A5%8D%E0%A4%A4%E0%A5%87.txt</code></td>
+</tr>
+<tr>
+<td><code>ไฟล์.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%E0%B9%84%E0%B8%9F%E0%B8%A5%E0%B9%8C.txt</code></td>
+</tr>
+<tr>
+<td><code>ファイル.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB.txt</code></td>
+</tr>
+<tr>
+<td><code>你好.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%E4%BD%A0%E5%A5%BD.txt</code></td>
+</tr>
+<tr>
+<td><code>파일.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeiflhd5aimv4xavauidbetge3v3uadbqfibu5lfo4b26yyieqvnvae/%ED%8C%8C%EC%9D%BC.txt</code></td>
+</tr>
+</tbody>
+</table>
+<p>A second fixture, the preexisting
+<a href="https://github.com/ipfs/gateway-conformance/raw/v0.14.0/fixtures/path_gateway_unixfs/dir-with-percent-encoded-filename.car"><code>dir-with-percent-encoded-filename.car</code></a>
+directory under
+<code>bafybeig675grnxcmshiuzdaz2xalm6ef4thxxds6o6ypakpghm5kghpc34</code>, holds a
+name that already looks percent-encoded. The literal <code>%2C</code> is encoded
+again (<code>%252C</code>), never decoded into a comma, and <code>+</code> and <code>=</code> do not pass
+through raw:</p>
+<table>
+<thead>
+<tr>
+<th>UnixFS file name</th>
+<th>Response header</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Portugal%2C+España=Peninsula Ibérica.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeig675grnxcmshiuzdaz2xalm6ef4thxxds6o6ypakpghm5kghpc34/Portugal%252C%2BEspa%C3%B1a%3DPeninsula%20Ib%C3%A9rica.txt</code></td>
+</tr>
+</tbody>
+</table>
+<p>A third fixture,
+<a href="https://github.com/ipfs/gateway-conformance/raw/v0.14.0/fixtures/path_gateway_unixfs/dir-with-slash-in-filename.car"><code>dir-with-slash-in-filename.car</code></a>
+under <code>bafybeihuqitp4tzukehqfyaozl6zexd7szyzeywojuynfxopnn7dqjepv4</code>, holds
+a real subdirectory <code>a</code> with <code>b.txt</code> inside, plus a sibling link literally
+named <code>a/b.txt</code>. Such a link is legal in dag-pb but not addressable by any
+content path: <code>%2F</code> decodes to a separator, so every spelling resolves to
+the nested file:</p>
+<table>
+<thead>
+<tr>
+<th>Request path</th>
+<th>Response header</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/ipfs/{cid}/a/b.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeihuqitp4tzukehqfyaozl6zexd7szyzeywojuynfxopnn7dqjepv4/a/b.txt</code></td>
+</tr>
+<tr>
+<td><code>/ipfs/{cid}/a%2Fb.txt</code></td>
+<td><code>Ipfs-Uri: ipfs://bafybeihuqitp4tzukehqfyaozl6zexd7szyzeywojuynfxopnn7dqjepv4/a/b.txt</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <a href="https://github.com/ipfs/gateway-conformance">gateway-conformance</a>
+test suite uses these directories to test <code>Ipfs-Uri</code> and the legacy
+<code>X-Ipfs-Path</code> behavior.</p>
+<section id="copyright"><h3><bdi class="secno">5.1 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.1"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-ipfs-uri">[ipfs-uri]</dt><dd><a href="https://specs.ipfs.tech/ipfs-uri/"><cite>IPFS URI (ipfs://)</cite></a>. Marcin Rataj. 2026-08-03. URL: <a href="https://specs.ipfs.tech/ipfs-uri/">https://specs.ipfs.tech/ipfs-uri/</a></dd><dt id="ref-ipns-uri">[ipns-uri]</dt><dd><a href="https://specs.ipfs.tech/ipns-uri/"><cite>IPNS URI (ipns://)</cite></a>. Marcin Rataj. 2026-08-03. URL: <a href="https://specs.ipfs.tech/ipns-uri/">https://specs.ipfs.tech/ipns-uri/</a></dd><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-unixfs">[unixfs]</dt><dd><a href="https://specs.ipfs.tech/unixfs/"><cite>UnixFS</cite></a>. Hugo Valtier; Marcin Rataj. 2026-09-07. URL: <a href="https://specs.ipfs.tech/unixfs/">https://specs.ipfs.tech/unixfs/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://achingbrain.net">Alex Potsides</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

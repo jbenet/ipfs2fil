@@ -1,0 +1,128 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>IPIP-0512: Limit Identity CID Size to 128 Bytes in UnixFS Contexts</title>
+    <meta name="description" content="">
+    <link rel="canonical" href="https://specs.ipfs.tech/ipips/ipip-0512/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body class="ipip-ratified">
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">IPIP-0512: Limit Identity CID Size to 128 Bytes in UnixFS Contexts</h1><p id="last-modified"><time datetime="2025-09-09T00:00:00.000Z">9 September 2025</time></p><dl><dt>Related Issues</dt><dd><a href="https://github.com/ipfs/boxo/pull/1018">ipfs/boxo/pull/1018</a></dd><dd><a href="https://github.com/multiformats/cid/issues/21">multiformats/cid/issues/21</a></dd><dd><a href="https://github.com/multiformats/multihash/issues/130">multiformats/multihash/issues/130</a></dd><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/ipips/ipip-0512.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/ipips/ipip-0512.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"></div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#summary" class="tocxref"><bdi class="secno">1. </bdi>Summary</a></li><li><a href="#motivation" class="tocxref"><bdi class="secno">2. </bdi>Motivation</a></li><li><a href="#detailed-design" class="tocxref"><bdi class="secno">3. </bdi>Detailed design</a><ol class="toc"><li><a href="#changes-to-unixfs-specification" class="tocxref"><bdi class="secno">3.1 </bdi>Changes to UnixFS Specification</a></li><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">3.2 </bdi>Test Fixtures</a></li></ol></li><li><a href="#design-rationale" class="tocxref"><bdi class="secno">4. </bdi>Design rationale</a><ol class="toc"><li><a href="#user-benefit" class="tocxref"><bdi class="secno">4.1 </bdi>User benefit</a></li><li><a href="#compatibility" class="tocxref"><bdi class="secno">4.2 </bdi>Compatibility</a></li><li><a href="#security" class="tocxref"><bdi class="secno">4.3 </bdi>Security</a></li><li><a href="#alternatives" class="tocxref"><bdi class="secno">4.4 </bdi>Alternatives</a></li></ol></li><li><a href="#test-fixtures-0" class="tocxref"><bdi class="secno">5. </bdi>Test fixtures</a><ol class="toc"><li><a href="#valid-identity-cid-128-bytes" class="tocxref"><bdi class="secno">5.1 </bdi>Valid Identity CID (128 bytes)</a></li><li><a href="#invalid-identity-cid-129-bytes" class="tocxref"><bdi class="secno">5.2 </bdi>Invalid Identity CID (129 bytes)</a></li><li><a href="#copyright" class="tocxref"><bdi class="secno">5.3 </bdi>Copyright</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="summary"><h2><bdi class="secno">1. </bdi>Summary</h2><a href="#summary" class="self-link" aria-label="Section 1."></a>
+<p>This IPIP establishes a 128-byte maximum digest size limit for identity CIDs (multihash code <code>0x00</code>) in UnixFS contexts to prevent abuse and clarify appropriate usage boundaries.</p>
+</section><section id="motivation"><h2><bdi class="secno">2. </bdi>Motivation</h2><a href="#motivation" class="self-link" aria-label="Section 2."></a>
+<p>Identity CIDs are unique in that they inline data directly into the CID itself rather than hashing it. Without clear limits, this creates several problems:</p>
+<ol>
+<li>
+<p><strong>Resource Exhaustion</strong>: Poorly written clients could encode large payloads as identity CIDs and propagate them through the network, consuming bandwidth and resources without providing value.</p>
+</li>
+<li>
+<p><strong>Security Vulnerabilities</strong>: Identity CIDs provide no integrity verification and are vulnerable to bit flips. Large identity CIDs amplify this risk.</p>
+</li>
+<li>
+<p><strong>Unclear Boundaries</strong>: The ecosystem lacks clear guidelines on when identity CIDs are appropriate, leading to potential misuse.</p>
+</li>
+<li>
+<p><strong>CIDs as Data Containers</strong>: Without limits, identity CIDs could embed arbitrary amounts of data, effectively turning CIDs from content addresses into data containers.</p>
+</li>
+</ol>
+<p>As discussed in <a href="https://github.com/ipfs/boxo/pull/1018">ipfs/boxo#1018</a>, the community consensus is that large identity CIDs are problematic and a reasonable limit is needed.</p>
+</section><section id="detailed-design"><h2><bdi class="secno">3. </bdi>Detailed design</h2><a href="#detailed-design" class="self-link" aria-label="Section 3."></a>
+<p>This IPIP adds a new section to the UnixFS specification documenting the 128-byte digest size limit for identity CIDs:</p>
+<section id="changes-to-unixfs-specification"><h3><bdi class="secno">3.1 </bdi>Changes to UnixFS Specification</h3><a href="#changes-to-unixfs-specification" class="self-link" aria-label="Section 3.1"></a>
+<p>Add new section "Identity CID Size Limit" that specifies:</p>
+<ul>
+<li>Identity CIDs (multihash code <code>0x00</code>) are experimental and limited to 128-byte digest size</li>
+<li>Implementations <em class="rfc2119">MUST</em> never produce identity CIDs with digest sizes exceeding 128 bytes</li>
+<li>Implementations <em class="rfc2119">MUST</em> reject identity CIDs with digest sizes exceeding 128 bytes when reading</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> automatically convert to regular blocks if data modifications would exceed the limit</li>
+</ul>
+</section><section id="test-fixtures"><h3><bdi class="secno">3.2 </bdi>Test Fixtures</h3><a href="#test-fixtures" class="self-link" aria-label="Section 3.2"></a>
+<p>Add invalid test case for a 129-byte identity CID that implementations <em class="rfc2119">MUST</em> reject.</p>
+</section></section><section id="design-rationale"><h2><bdi class="secno">4. </bdi>Design rationale</h2><a href="#design-rationale" class="self-link" aria-label="Section 4."></a>
+<p>The 128-byte limit was chosen based on several factors:</p>
+<ol>
+<li>
+<p><strong>Alignment with Existing Constraints</strong>: The limit matches <code>DefaultMaxDigestSize</code> already used for cryptographic hashes in the ecosystem. 128 bytes is a sensible limit that accommodates the digest sizes of the longest popular hash functions (e.g., SHA-512 produces 64-byte digests), while preventing unbounded growth.</p>
+</li>
+<li>
+<p><strong>Community Consensus</strong>: Key maintainers expressed support for this limit:</p>
+<ul>
+<li><a href="https://github.com/ipfs/boxo/pull/1018#issuecomment-3240647923">@rvagg</a>: "128 seems reasonable to me. I'm happy to have them squished down their happy-path use to a size where they're more likely being used for their size-saving utility"</li>
+<li><a href="https://github.com/ipfs/boxo/pull/1018#issuecomment-3241779136">@vmx</a>: "I'm not a fan of large identity CIDs... 128 bytes sound reasonable to me"</li>
+<li><a href="https://github.com/ipfs/boxo/pull/1018#discussion_r2318132492">@achingbrain</a>: "It looks fine at first glance 👍" (confirming Helia compatibility)</li>
+</ul>
+</li>
+<li>
+<p><strong>Practical Usage</strong>: 128 bytes is sufficient for legitimate use cases (small inline data) while preventing abuse.</p>
+</li>
+<li>
+<p><strong>Implementation Precedent</strong>: This limit has been implemented in:</p>
+<ul>
+<li>GO: <a href="https://github.com/ipfs/boxo/releases/tag/v0.35.0">Boxo v0.35.0</a> (shipped in <a href="https://github.com/ipfs/kubo/releases/tag/v0.38.1">Kubo v0.38.1</a>)</li>
+<li>JS: <a href="https://github.com/ipfs/helia/releases/tag/unixfs-v6.0.1">Helia UnixFS v6.0.1</a> (shipped in <a href="https://github.com/ipfs/helia/releases/tag/helia-v6.0.1">Helia v6.0.1</a>)</li>
+</ul>
+</li>
+</ol>
+<section id="user-benefit"><h3><bdi class="secno">4.1 </bdi>User benefit</h3><a href="#user-benefit" class="self-link" aria-label="Section 4.1"></a>
+<ul>
+<li><strong>Protection from Resource Exhaustion</strong>: Users are protected from malicious or poorly-written clients that might otherwise propagate large identity CIDs.</li>
+<li><strong>Clear Guidelines</strong>: Developers have explicit boundaries for appropriate identity CID usage.</li>
+<li><strong>Consistent Behavior</strong>: All conforming implementations will handle identity CIDs consistently.</li>
+<li><strong>No Wasted Resources</strong>: Avoids unnecessary roundtrips where clients send data to remote services only to have the deserialized bytes sent back, when the client already had the data and could have avoided the entire network operation.</li>
+</ul>
+</section><section id="compatibility"><h3><bdi class="secno">4.2 </bdi>Compatibility</h3><a href="#compatibility" class="self-link" aria-label="Section 4.2"></a>
+<p>Identity CIDs have always been marked as experimental, and this change does not impact users who used default settings in software like Kubo or Helia, which never produced identity CIDs by default.</p>
+<p>This is a breaking change only for any existing identity CIDs with digest sizes exceeding 128 bytes. However:</p>
+<ul>
+<li>Existing valid identity CIDs (≤128 bytes) remain unaffected</li>
+<li>The change has been tested in Kubo 0.38 RC1 to gather feedback</li>
+<li>Most users are unaffected as identity CIDs require explicit opt-in</li>
+</ul>
+<p>Implementations upgrading to support this IPIP will need to:</p>
+<ol>
+<li>Add validation to reject oversized identity CIDs when reading</li>
+<li>Prevent creation of identity CIDs exceeding the limit</li>
+<li>Consider automatic conversion to regular blocks when data grows</li>
+</ol>
+</section><section id="security"><h3><bdi class="secno">4.3 </bdi>Security</h3><a href="#security" class="self-link" aria-label="Section 4.3"></a>
+<p>This change improves security by:</p>
+<ol>
+<li><strong>Preventing Unbounded Resource Consumption</strong>: Limits the amount of data that can be inlined in CIDs</li>
+<li><strong>Reducing Attack Surface</strong>: Smaller identity CIDs reduce the impact of bit flip vulnerabilities</li>
+<li><strong>Clear Security Boundaries</strong>: Explicit limits help security audits and threat modeling</li>
+<li><strong>Mitigating Known Vulnerabilities</strong>: The go-car library previously had a vulnerability (<a href="https://github.com/ipld/go-car/security/advisories/GHSA-9x4h-8wgm-8xfg">GHSA-9x4h-8wgm-8xfg</a>) where decoding user-controlled identity CIDs could cause excessive memory allocation, leading to denial of service. While go-car mitigated this by capping allocations at 1MiB, establishing a 128-byte limit at the UnixFS specification level ensures all implementations are protected from this class of vulnerabilities by default.</li>
+</ol>
+</section><section id="alternatives"><h3><bdi class="secno">4.4 </bdi>Alternatives</h3><a href="#alternatives" class="self-link" aria-label="Section 4.4"></a>
+<p>Several alternatives were considered:</p>
+<ol>
+<li><strong>No Limit</strong>: Rejected due to resource exhaustion and abuse potential</li>
+<li><strong>Smaller Limit (32-64 bytes)</strong>: Would break more existing use cases</li>
+<li><strong>Larger Limit (256+ bytes)</strong>: As noted by @rvagg, "the higher you go, the harder it is to justify their use"</li>
+<li><strong>Complete Deprecation</strong>: Too disruptive; identity CIDs have legitimate uses for tiny data</li>
+</ol>
+</section></section><section id="test-fixtures-0"><h2><bdi class="secno">5. </bdi>Test fixtures</h2><a href="#test-fixtures-0" class="self-link" aria-label="Section 5."></a>
+<section id="valid-identity-cid-128-bytes"><h3><bdi class="secno">5.1 </bdi>Valid Identity CID (128 bytes)</h3><a href="#valid-identity-cid-128-bytes" class="self-link" aria-label="Section 5.1"></a>
+<ul>
+<li>CID: <code>bafkqbaabijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbeeqscijbee</code></li>
+<li>Content: 128 'B' characters</li>
+<li>Expected: Implementations <em class="rfc2119">MUST</em> accept this CID</li>
+</ul>
+</section><section id="invalid-identity-cid-129-bytes"><h3><bdi class="secno">5.2 </bdi>Invalid Identity CID (129 bytes)</h3><a href="#invalid-identity-cid-129-bytes" class="self-link" aria-label="Section 5.2"></a>
+<ul>
+<li>CID: <code>bafkqbaibifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqkbifaucqi</code></li>
+<li>Content: 129 'A' characters</li>
+<li>Expected: Implementations <em class="rfc2119">MUST</em> reject this CID with an appropriate error</li>
+</ul>
+</section><section id="copyright"><h3><bdi class="secno">5.3 </bdi>Copyright</h3><a href="#copyright" class="self-link" aria-label="Section 5.3"></a>
+<p>Copyright and related rights waived via <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Rod Vagg</span> <a href="https://github.com/rvagg"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Volker Mische</span> <a href="https://github.com/vmx"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

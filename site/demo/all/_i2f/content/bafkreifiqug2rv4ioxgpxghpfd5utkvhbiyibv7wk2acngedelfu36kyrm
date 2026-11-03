@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>CID (Content IDentifier)</title>
+    <meta name="description" content="Self-describing content-addressed identifiers for distributed systems">
+    <link rel="canonical" href="https://specs.ipfs.tech/cid/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">CID (Content IDentifier)</h1><p id="last-modified"><time datetime="2026-06-26T00:00:00.000Z">26 June 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-permanent-blue.svg?style=flat-square" height="20" alt="status: permanent"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/cid.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/cid.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p><strong>CID</strong> is a format for referencing content in distributed information systems, like <a href="https://ipfs.tech">IPFS</a>.
+It leverages <a href="https://en.wikipedia.org/wiki/Content-addressable_storage">content addressing</a>,
+<a href="https://simple.wikipedia.org/wiki/Cryptographic_hash_function">cryptographic hashing</a>, and
+<a href="https://github.com/multiformats/multiformats">self-describing formats</a>.
+It is the core identifier used by <a href="https://ipfs.tech">IPFS</a> and <a href="https://ipld.io">IPLD</a>.
+It uses a <a href="https://github.com/multiformats/multicodec">multicodec</a> to indicate its version, making it fully self-describing.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#what-is-it" class="tocxref"><bdi class="secno">1. </bdi>What is it?</a></li><li><a href="#how-does-it-work" class="tocxref"><bdi class="secno">2. </bdi>How does it work?</a></li><li><a href="#stringified-form" class="tocxref"><bdi class="secno">3. </bdi>Stringified Form</a></li><li><a href="#design-considerations" class="tocxref"><bdi class="secno">4. </bdi>Design Considerations</a></li><li><a href="#versions" class="tocxref"><bdi class="secno">5. </bdi>Versions</a><ol class="toc"><li><a href="#cidv0" class="tocxref"><bdi class="secno">5.1 </bdi>CIDv0</a></li><li><a href="#cidv1" class="tocxref"><bdi class="secno">5.2 </bdi>CIDv1</a></li></ol></li><li><a href="#decoding-algorithm" class="tocxref"><bdi class="secno">6. </bdi>Decoding Algorithm</a><ol class="toc"><li><a href="#decoding-a-binary-cid" class="tocxref"><bdi class="secno">6.1 </bdi>Decoding a binary CID</a></li><li><a href="#decoding-a-cid-string" class="tocxref"><bdi class="secno">6.2 </bdi>Decoding a CID string</a></li></ol></li><li><a href="#appendices" class="tocxref"><bdi class="secno">7. </bdi>Appendices</a><ol class="toc"><li><a href="#faq" class="tocxref"><bdi class="secno">7.1 </bdi>FAQ</a></li><li><a href="#historical-design-decisions" class="tocxref"><bdi class="secno">7.2 </bdi>Historical Design Decisions</a></li><li><a href="#human-readable-form" class="tocxref"><bdi class="secno">7.3 </bdi>Human-Readable Form</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="what-is-it"><h2><bdi class="secno">1. </bdi>What is it?</h2><a href="#what-is-it" class="self-link" aria-label="Section 1."></a>
+<p>A CID is a self-describing content-addressed identifier.
+It uses cryptographic hashes for content addressing and several
+<a href="https://github.com/multiformats/multiformats">multiformats</a> for flexible self-description, namely:</p>
+<ol>
+<li><a href="https://github.com/multiformats/multihash">multihash</a> for content-addressed hashing,</li>
+<li><a href="https://github.com/multiformats/multicodec">multicodec</a> to type that addressed content, and</li>
+<li>optionally, <a href="https://github.com/multiformats/multibase">multibase</a> to encode the binary CID as a string.</li>
+</ol>
+<p>The first two form a self-contained binary identifier; the third is added only when the CID is written as text.</p>
+<p>Concretely, it's a <em>typed</em> content address: a tuple of <code>(content-type, content-address)</code>.</p>
+</section><section id="how-does-it-work"><h2><bdi class="secno">2. </bdi>How does it work?</h2><a href="#how-does-it-work" class="self-link" aria-label="Section 2."></a>
+<p>Current version: CIDv1.</p>
+<p>CIDv1 is a <strong>binary</strong> format composed of <a href="https://github.com/multiformats/unsigned-varint">unsigned varints</a>
+prefixing a hash digest to form a self-describing "content address":</p>
+<pre><code class="">&lt;cidv1&gt; ::= &lt;multicodec-cidv1&gt;&lt;multicodec-content-type&gt;&lt;multihash-content-address&gt;
+
+# example: a CIDv1 addressing the raw bytes "hello", in hex
+01 55 12 20 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+# 01: cidv1 | 55: raw | 12 20: sha2-256, 32 bytes | 2cf2...: sha2-256 digest of "hello"
+</code></pre>
+<p>Where</p>
+<ul>
+<li><code>&lt;multicodec-cidv1&gt;</code> is a <a href="https://github.com/multiformats/multicodec">multicodec</a> representing the version of CID, here for upgradability purposes.</li>
+<li><code>&lt;multicodec-content-type&gt;</code> is a <a href="https://github.com/multiformats/multicodec">multicodec</a> code representing the content type or format of the data being addressed.</li>
+<li><code>&lt;multihash-content-address&gt;</code> is a <a href="https://github.com/multiformats/multihash">multihash</a> value, which uses a registry of hash function abbreviations to prefix a cryptographic hash of the content being addressed, thus making it self-describing.</li>
+</ul>
+</section><section id="stringified-form"><h2><bdi class="secno">3. </bdi>Stringified Form</h2><a href="#stringified-form" class="self-link" aria-label="Section 3."></a>
+<p>Since CIDs have many applications outside binary-only contexts, a CID may need to be base-encoded for different consumers or transports.
+In such applications, CIDs are expressed as a Unicode <em>string</em> with a <a href="https://github.com/multiformats/multibase">multibase</a> prefix.
+The multibase prefix identifies the string encoding but is not part of the CID itself; the same binary CID can appear in different bases depending on context and needs such as string length and case-sensitivity.
+The full string form is:</p>
+<pre><code class="">&lt;cidv1-str&gt; ::= &lt;multibase-prefix&gt;&lt;multibase-encoding(&lt;multicodec-cidv1&gt;&lt;multicodec-content-type&gt;&lt;multihash-content-address&gt;)&gt;
+</code></pre>
+<p>Where</p>
+<ul>
+<li><code>&lt;multibase-prefix&gt;</code> is a <a href="https://github.com/multiformats/multibase/blob/master/multibase.csv">multibase prefix</a> (1 Unicode code point) that makes the string self-describing for conversion back to binary.</li>
+</ul>
+<p>IPFS implementations <em class="rfc2119">SHOULD</em> support at minimum <code>base58btc</code> (<code>z</code>), <code>base32</code> (<code>b</code>), <code>base16</code> (<code>f</code>), and <code>base36</code> (<code>k</code>, for ed25519 keys in <a href="https://specs.ipfs.tech/ipns/ipns-record/">IPNS Records</a>).</p>
+</section><section id="design-considerations"><h2><bdi class="secno">4. </bdi>Design Considerations</h2><a href="#design-considerations" class="self-link" aria-label="Section 4."></a>
+<p>The design of CIDs takes into account many difficult tradeoffs encountered while building <a href="https://ipfs.tech">IPFS</a>. Most of these come from the multiformats project.</p>
+<ul>
+<li>Compactness: CIDs are binary to keep them as compact as possible, since they're meant to be part of longer path identifiers or URIs.</li>
+<li>Transport friendliness (or "copy-pastability"): CIDs are encoded with multibase to allow choosing the best base for transporting. For example, CIDs can be encoded into base58btc to yield shorter and easily-copy-pastable hashes.</li>
+<li>Versatility: CIDs are meant to be able to represent values of any format with any cryptographic hash.</li>
+<li>Avoid Lock-in: CIDs prevent lock-in to old, potentially-outdated decisions.</li>
+<li>Upgradability: CIDs encode a version to ensure the CID format itself can evolve.</li>
+</ul>
+</section><section id="versions"><h2><bdi class="secno">5. </bdi>Versions</h2><a href="#versions" class="self-link" aria-label="Section 5."></a>
+<section id="cidv0"><h3><bdi class="secno">5.1 </bdi>CIDv0</h3><a href="#cidv0" class="self-link" aria-label="Section 5.1"></a>
+<p>CIDv0 is a backwards-compatible version, where:</p>
+<ul>
+<li>the <code>multibase</code> of the string representation is always <code>base58btc</code> and implicit (prefix <code>z</code> not present)</li>
+<li>the <code>multicodec</code> is always <code>dag-pb</code> (<code>0x70</code>) and implicit (not written)</li>
+<li>the <code>cid-version</code> is always <code>cidv0</code> (<code>0</code>) and implicit (not written)</li>
+<li>the <code>multihash</code> is written as is but is always a full (length 32) <code>sha2-256</code> (<code>0x12</code>) hash.</li>
+</ul>
+<pre><code class="">cidv0 ::= &lt;multihash-content-address&gt;
+</code></pre>
+</section><section id="cidv1"><h3><bdi class="secno">5.2 </bdi>CIDv1</h3><a href="#cidv1" class="self-link" aria-label="Section 5.2"></a>
+<p>See the section: <a href="#how-does-it-work">How does it work?</a></p>
+<pre><code class="">&lt;cidv1&gt; ::= &lt;multicodec-cidv1&gt;&lt;multicodec-content-type&gt;&lt;multihash-content-address&gt;
+</code></pre>
+</section></section><section id="decoding-algorithm"><h2><bdi class="secno">6. </bdi>Decoding Algorithm</h2><a href="#decoding-algorithm" class="self-link" aria-label="Section 6."></a>
+<p>The binary fields of a CID are <a href="https://github.com/multiformats/unsigned-varint">unsigned varints</a>.
+Two rules hold for every CID:</p>
+<ul>
+<li>each varint <em class="rfc2119">MUST</em> be minimally encoded, and a decoder <em class="rfc2119">MUST</em> reject any overlong (non-minimal) varint;</li>
+<li>a decoder <em class="rfc2119">MUST</em> reject any bytes left over after the multihash.</li>
+</ul>
+<p>A binary CID has one of two shapes, told apart by its leading bytes:</p>
+<table>
+<thead>
+<tr>
+<th>Leading bytes</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x01</code></td>
+<td>a <strong>CIDv1</strong>, where this first varint is the version field</td>
+</tr>
+<tr>
+<td><code>0x12 0x20</code></td>
+<td>a bare 34-byte <code>sha2-256</code> multihash: a <strong>CIDv0</strong></td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>not a CID; a decoder <em class="rfc2119">MUST</em> reject it</td>
+</tr>
+</tbody>
+</table>
+<p>A CIDv0 is identified by the two-byte prefix <code>0x12 0x20</code>, not by the leading byte <code>0x12</code> alone: <code>0x12</code> is the <code>sha2-256</code> multihash code and <code>0x20</code> is its digest length, 32. A CIDv0 has no version field.</p>
+<section id="decoding-a-binary-cid"><h3><bdi class="secno">6.1 </bdi>Decoding a binary CID</h3><a href="#decoding-a-binary-cid" class="self-link" aria-label="Section 6.1"></a>
+<p>To decode a binary CID <code>bytes</code>:</p>
+<ol>
+<li>If <code>bytes</code> is exactly 34 bytes long and begins with <code>0x12 0x20</code>, it is a <strong>CIDv0</strong>, a bare <code>sha2-256</code> multihash (<code>cidv0 ::= &lt;multihash-content-address&gt;</code>):
+<ol>
+<li>The 34 bytes are <code>0x12</code> (the <code>sha2-256</code> code), <code>0x20</code> (the digest length, 32), and a 32-byte digest.</li>
+<li>The content type is implicitly <code>dag-pb</code> (<code>0x70</code>) and is not encoded.</li>
+</ol>
+</li>
+<li>Otherwise, read the leading varint of <code>bytes</code>.</li>
+<li>If the leading varint is <code>0x01</code>, it is a <strong>CIDv1</strong> (<code>&lt;cidv1&gt; ::= &lt;multicodec-cidv1&gt;&lt;multicodec-content-type&gt;&lt;multihash-content-address&gt;</code>):
+<ol>
+<li>The <code>&lt;multicodec-cidv1&gt;</code> version field is the <code>0x01</code> just read.</li>
+<li>Read the next varint as the <code>&lt;multicodec-content-type&gt;</code>, which types the content.</li>
+<li>Read the <a href="https://github.com/multiformats/multihash"><code>&lt;multihash-content-address&gt;</code></a> that follows, structured as <code>&lt;hash-code&gt;&lt;digest-length&gt;&lt;digest&gt;</code>.</li>
+<li>The <code>&lt;digest-length&gt;</code> <em class="rfc2119">MUST</em> consume the remaining bytes exactly; a decoder <em class="rfc2119">MUST</em> reject a truncated digest or any trailing bytes.</li>
+</ol>
+</li>
+<li>Otherwise, a decoder <em class="rfc2119">MUST</em> reject <code>bytes</code>. No other leading value is a CID. In particular, reject a leading <code>0x12</code> that is not the <code>0x12 0x20</code> prefix of a 34-byte input, and reject <code>0x00</code>, <code>0x02</code> (reserved for the never-deployed CIDv2), and <code>0x03</code> (reserved for the never-deployed CIDv3).</li>
+</ol>
+</section><section id="decoding-a-cid-string"><h3><bdi class="secno">6.2 </bdi>Decoding a CID string</h3><a href="#decoding-a-cid-string" class="self-link" aria-label="Section 6.2"></a>
+<p>To decode a CID string (ASCII or UTF-8):</p>
+<ol>
+<li>Convert the string to binary <code>bytes</code>:
+<ul>
+<li>If it is 46 characters long and begins with <code>Qm</code>, it is a CIDv0; decode it as <code>base58btc</code>.</li>
+<li>Otherwise, decode it by its <a href="https://github.com/multiformats/multibase">multibase</a> prefix.</li>
+</ul>
+</li>
+<li>Decode <code>bytes</code> as a binary CID (above) and return the result.</li>
+</ol>
+</section></section><section id="appendices"><h2><bdi class="secno">7. </bdi>Appendices</h2><a href="#appendices" class="self-link" aria-label="Section 7."></a>
+<div class="warning"><p>These sections provide additional context. This is not part of specification,
+and is provided here only for extra context.</p></div>
+<section id="faq"><h3><bdi class="secno">7.1 </bdi>FAQ</h3><a href="#faq" class="self-link" aria-label="Section 7.1"></a>
+<blockquote>
+<p><strong>Q. I have questions on multicodec, multibase, multihash, or unsigned-varint.</strong></p>
+</blockquote>
+<p>Please check their repositories: <a href="https://github.com/multiformats/multicodec">multicodec</a>, <a href="https://github.com/multiformats/multibase">multibase</a>, <a href="https://github.com/multiformats/multihash">multihash</a>, <a href="https://github.com/multiformats/unsigned-varint">unsigned-varint</a>.</p>
+<blockquote>
+<p><strong>Q. Why does CID exist?</strong></p>
+</blockquote>
+<p>IPFS originally used base58btc-encoded multihashes, but the need to support multiple data formats via IPLD revealed limitations of bare multihashes as identifiers.
+CIDs were created to provide a self-describing, versioned, typed content address.
+The history of this format is documented at: <a href="https://github.com/ipfs/specs/issues/130">https://github.com/ipfs/specs/issues/130</a></p>
+<blockquote>
+<p><strong>Q. Is the use of multicodec similar to file extensions?</strong></p>
+</blockquote>
+<p>Yes. Like a file extension, the multicodec in a CID tells consumers how to interpret the bytes.
+And just like file extensions, most users will never change it, but you can swap the codec to change how the same bytes are parsed.</p>
+<blockquote>
+<p><strong>Q. What formats (multicodec codes) does CID support?</strong></p>
+</blockquote>
+<p>CID can reference content of any type registered in the <a href="https://github.com/multiformats/multicodec/blob/master/table.csv">multicodec table</a>.
+In practice, IPFS primarily uses <a href="https://web.archive.org/web/20260305020653/https://ipld.io/specs/codecs/dag-pb/spec/"><code>dag-pb</code></a> (<code>0x70</code>), <a href="https://www.iana.org/assignments/media-types/application/vnd.ipld.raw"><code>raw</code></a> (<code>0x55</code>), <a href="https://web.archive.org/web/20260305020653/https://ipld.io/specs/codecs/dag-cbor/spec/"><code>dag-cbor</code></a> (<code>0x71</code>), <a href="https://web.archive.org/web/20260305020653/https://ipld.io/specs/codecs/dag-json/spec/"><code>dag-json</code></a> (<code>0x0129</code>), and <a href="https://github.com/libp2p/specs/blob/4e2c796bc77a2639136b277224468b7c48b9fff1/RFC/0001-text-peerid-cid.md"><code>libp2p-key</code></a> (<code>0x72</code>).</p>
+<blockquote>
+<p><strong>Q. What is the process for updating CID specification (e.g., adding a new version)?</strong></p>
+</blockquote>
+<p>CIDs are a well established standard.
+IPFS uses CIDs for content-addressing and IPNS.
+Changing such a core protocol requires careful review, including feedback from implementers and stakeholders across the ecosystem.</p>
+<p>For this reason, changes to the CID specification <em class="rfc2119">MUST</em> be submitted as an improvement proposal to <a href="https://github.com/ipfs/specs/tree/main/IPIP">ipfs/specs</a> repository (PR with <a href="https://github.com/ipfs/specs/blob/main/ipip-template.md">IPIP document</a>), and follow the IPIP process described there.</p>
+</section><section id="historical-design-decisions"><h3><bdi class="secno">7.2 </bdi>Historical Design Decisions</h3><a href="#historical-design-decisions" class="self-link" aria-label="Section 7.2"></a>
+<p>You can read an <a href="https://github.com/ipfs/specs/issues/130">in-depth discussion on why this format was needed in IPFS</a> and the <a href="https://github.com/multiformats/cid/blob/f638ca68390758f0d4c7f90ac843091d3973cd02/original-rfc.md">original CIDv1 proposal</a>.</p>
+</section><section id="human-readable-form"><h3><bdi class="secno">7.3 </bdi>Human-Readable Form</h3><a href="#human-readable-form" class="self-link" aria-label="Section 7.3"></a>
+<p>This is design guidance for tools that present a human-readable CID inspector to a user, such as a debugger, a block explorer, or the diagnostic UI at <a href="https://cid.ipfs.tech">https://cid.ipfs.tech</a>.
+It is not a wire format: nothing produces or parses it, and it carries no information beyond what the CID already encodes.</p>
+<p>When such a UI needs to show what a CID contains, it can expand the already self-describing CID into a labelled listing of its parts:</p>
+<pre><code class="">&lt;hr-cid&gt; ::= &lt;hr-mbc&gt; "-" &lt;hr-cid-mc&gt; "-" &lt;hr-mc&gt; "-" &lt;hr-mh&gt;
+</code></pre>
+<p>Where each sub-component is the name of its code in the relevant multiformats registry:</p>
+<ul>
+<li><code>&lt;hr-mbc&gt;</code> is the multibase code name (eg <code>b</code> -&gt; <code>base32</code>)</li>
+<li><code>&lt;hr-cid-mc&gt;</code> is the CID version multicodec name (eg <code>0x01</code> -&gt; <code>cidv1</code>)</li>
+<li><code>&lt;hr-mc&gt;</code> is the content-type multicodec name (eg <code>0x55</code> -&gt; <code>raw</code>)</li>
+<li><code>&lt;hr-mh&gt;</code> is the multihash code name and digest length (eg <code>sha2-256-256</code>), then a final dash and the hex digest</li>
+</ul>
+<p>For example, the CIDv1 for the raw bytes <code>hello</code>:</p>
+<pre><code class=""># example CID
+bafkreibm6jg3ux5qumhcn2b3flc3tyu6dmlb4xa7u5bf44yegnrjhc4yeq
+# corresponding human readable CID
+base32 - cidv1 - raw - sha2-256-256-2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+</code></pre>
+<p>These names come from the multiformats registries and are provisional labels for human eyes only; only the numeric codes are stable.
+A UI should show the codes next to the names, and no consumer should rely on a name staying the same.
+See: <a href="https://cid.ipfs.tech/#bafkreibm6jg3ux5qumhcn2b3flc3tyu6dmlb4xa7u5bf44yegnrjhc4yeq">https://cid.ipfs.tech/#bafkreibm6jg3ux5qumhcn2b3flc3tyu6dmlb4xa7u5bf44yegnrjhc4yeq</a></p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com/">Interplanetary Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><a href="https://berjon.com/">Robin Berjon</a> (<a href="https://ipfsfoundation.org/">IPFS Foundation</a>) <a href="mailto:robin@berjon.com"><img src="/img/email.svg" width="16" height="16" alt="Email: robin@berjon.com"></a> <a href="https://github.com/darobin"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a> <a href="https://bsky.app/profile/robin.berjon.com"><img src="/img/bluesky.png" width="16" height="16" alt="Bluesky"></a></dd><dt>Former Editor</dt><dd><span>Juan Benet</span> <a href="https://github.com/jbenet"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Steven Allen</span> <a href="https://github.com/Stebalien"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Rod Vagg</span> <a href="https://github.com/rvagg"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>bumblefudge</span> <a href="https://github.com/bumblefudge"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Volker Mische</span> <a href="https://github.com/vmx"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Joel Thorstensson</span> <a href="https://github.com/oed"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Oli Evans</span> <a href="https://github.com/olizilla"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

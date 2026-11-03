@@ -1,0 +1,11 @@
+[[site]]
+source = "ipfs.tech"
+note = "The IPFS website"
+
+[[site]]
+source = "specs.ipfs.tech"
+note = "The IPFS specs"
+
+[[site]]
+source = "docs.ipfs.tech"
+note = "The IPFS docs"

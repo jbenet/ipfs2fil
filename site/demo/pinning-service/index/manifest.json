@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "tool": "ipfs2fil dev",
+  "root": "bafybeibg4f6z52ozrkpbzihpduc4s2x6o2cvztya6hmfcfaodzgw5cvq4e",
+  "dataRoot": "bafybeick3a7ey6rnxahxnhukfquqpngicrtisuyeppxcqeum7of7rpfiqi",
+  "source": {
+    "kind": "psa",
+    "repoVersion": 0,
+    "blocks": 236,
+    "bytes": 6889821
+  },
+  "roots": [
+    {
+      "cid": "QmRdttRRtymRueGiA6N3RxVrX8bdVHPQhZqR3tXhF6LTPV",
+      "kind": "pin-recursive",
+      "name": "papers",
+      "path": "pins/recursive/QmRdttRRtymRueGiA6N3RxVrX8bdVHPQhZqR3tXhF6LTPV",
+      "bytes": 2225092,
+      "blocks": 18,
+      "own": 2225092,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
+      "kind": "pin-recursive",
+      "name": "iceland-2024",
+      "path": "pins/recursive/QmVKAZBNRMF5UJ9QMHg5nu2hzwzg3nrFAphJho7Pc5rMrz",
+      "bytes": 769197,
+      "blocks": 15,
+      "own": 769197,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafybeieqikrxw6kjbu2aojxr5ypfzb4gk75pkvrfzef6yiv6jucec427e4",
+      "kind": "pin-recursive",
+      "name": "specs.ipfs.tech",
+      "path": "pins/recursive/bafybeieqikrxw6kjbu2aojxr5ypfzb4gk75pkvrfzef6yiv6jucec427e4",
+      "bytes": 3894698,
+      "blocks": 202,
+      "own": 3894698,
+      "firstPiece": 0,
+      "lastPiece": 0
+    },
+    {
+      "cid": "bafkreifehybym6r3ttakrotaue7jf5ia4i5czc66rfbp44znxnniqlz2i4",
+      "kind": "pin-direct",
+      "name": "psa.json",
+      "path": "pins/direct/bafkreifehybym6r3ttakrotaue7jf5ia4i5czc66rfbp44znxnniqlz2i4",
+      "bytes": 834,
+      "blocks": 1,
+      "own": 834,
+      "firstPiece": 0,
+      "lastPiece": 0
+    }
+  ],
+  "pieces": [
+    {
+      "index": 0,
+      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
+      "carBytes": 523317785,
+      "blocks": 19016,
+      "blockList": "pieces/0000",
+      "part": "bundle",
+      "dataBytes": 6898739,
+      "snapshot": 0
+    }
+  ],
+  "copies": [
+    {
+      "provider": "2",
+      "dataSetId": "5310",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "9",
+      "dataSetId": "5311",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    },
+    {
+      "provider": "16",
+      "dataSetId": "5312",
+      "pieceIds": {
+        "0": "0"
+      },
+      "service": "unknown"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": "2026-11-03T10:30:03Z",
+      "root": "bafybeibg4f6z52ozrkpbzihpduc4s2x6o2cvztya6hmfcfaodzgw5cvq4e",
+      "newPieces": [
+        0
+      ]
+    }
+  ],
+  "collection": "repos:default"
+}

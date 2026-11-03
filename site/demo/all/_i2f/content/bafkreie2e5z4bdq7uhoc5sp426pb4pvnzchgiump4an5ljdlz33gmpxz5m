@@ -1,0 +1,359 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Delegated Routing V1 HTTP API</title>
+    <meta name="description" content="Delegated routing is a mechanism for IPFS implementations to use for offloading content routing, peer routing and naming to another process/server. This specification describes an HTTP API for delegated routing of content, peers, and IPNS.">
+    <link rel="canonical" href="https://specs.ipfs.tech/routing/http-routing-v1/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Delegated Routing V1 HTTP API</h1><p id="last-modified"><time datetime="2026-07-29T00:00:00.000Z">29 July 2026</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/routing/http-routing-v1.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/routing/http-routing-v1.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>Delegated routing is a mechanism for IPFS implementations to use for offloading content routing, peer routing, and naming to another process/server. This specification describes a vendor-agnostic HTTP API for delegated content routing.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#api-specification" class="tocxref"><bdi class="secno">1. </bdi>API Specification</a></li><li><a href="#common-data-types" class="tocxref"><bdi class="secno">2. </bdi>Common Data Types</a></li><li><a href="#versioning" class="tocxref"><bdi class="secno">3. </bdi>Versioning</a></li><li><a href="#content-routing-api" class="tocxref"><bdi class="secno">4. </bdi>Content Routing API</a><ol class="toc"><li><a href="#get-routing-v1-providers-cid" class="tocxref"><bdi class="secno">4.1 </bdi><code>GET /routing/v1/providers/{cid}</code></a><ol class="toc"><li><a href="#path-parameters" class="tocxref"><bdi class="secno">4.1.1 </bdi>Path Parameters</a></li><li><a href="#request-query-parameters" class="tocxref"><bdi class="secno">4.1.2 </bdi>Request Query Parameters</a><ol class="toc"><li><a href="#filter-addrs-providers-request-query-parameter" class="tocxref"><bdi class="secno">4.1.2.1 </bdi><code>filter-addrs</code> (providers request query parameter)</a></li><li><a href="#filter-protocols-providers-request-query-parameter" class="tocxref"><bdi class="secno">4.1.2.2 </bdi><code>filter-protocols</code> (providers request query parameter)</a></li></ol></li><li><a href="#response-status-codes" class="tocxref"><bdi class="secno">4.1.3 </bdi>Response Status Codes</a></li><li><a href="#response-headers" class="tocxref"><bdi class="secno">4.1.4 </bdi>Response Headers</a></li><li><a href="#response-body" class="tocxref"><bdi class="secno">4.1.5 </bdi>Response Body</a></li></ol></li></ol></li><li><a href="#peer-routing-api" class="tocxref"><bdi class="secno">5. </bdi>Peer Routing API</a><ol class="toc"><li><a href="#get-routing-v1-peers-peer-id" class="tocxref"><bdi class="secno">5.1 </bdi><code>GET /routing/v1/peers/{peer-id}</code></a><ol class="toc"><li><a href="#path-parameters-0" class="tocxref"><bdi class="secno">5.1.1 </bdi>Path Parameters</a></li><li><a href="#request-query-parameters-0" class="tocxref"><bdi class="secno">5.1.2 </bdi>Request Query Parameters</a><ol class="toc"><li><a href="#filter-addrs-peers-request-query-parameter" class="tocxref"><bdi class="secno">5.1.2.1 </bdi><code>filter-addrs</code> (peers request query parameter)</a></li><li><a href="#filter-protocols-peers-request-query-parameter" class="tocxref"><bdi class="secno">5.1.2.2 </bdi><code>filter-protocols</code> (peers request query parameter)</a></li></ol></li><li><a href="#response-status-codes-0" class="tocxref"><bdi class="secno">5.1.3 </bdi>Response Status Codes</a></li><li><a href="#response-headers-0" class="tocxref"><bdi class="secno">5.1.4 </bdi>Response Headers</a></li><li><a href="#response-body-0" class="tocxref"><bdi class="secno">5.1.5 </bdi>Response Body</a></li></ol></li></ol></li><li><a href="#ipns-api" class="tocxref"><bdi class="secno">6. </bdi>IPNS API</a><ol class="toc"><li><a href="#get-routing-v1-ipns-name" class="tocxref"><bdi class="secno">6.1 </bdi><code>GET /routing/v1/ipns/{name}</code></a><ol class="toc"><li><a href="#path-parameters-1" class="tocxref"><bdi class="secno">6.1.1 </bdi>Path Parameters</a></li><li><a href="#response-status-codes-1" class="tocxref"><bdi class="secno">6.1.2 </bdi>Response Status Codes</a></li><li><a href="#response-headers-1" class="tocxref"><bdi class="secno">6.1.3 </bdi>Response Headers</a></li><li><a href="#response-body-1" class="tocxref"><bdi class="secno">6.1.4 </bdi>Response Body</a></li></ol></li><li><a href="#put-routing-v1-ipns-name" class="tocxref"><bdi class="secno">6.2 </bdi><code>PUT /routing/v1/ipns/{name}</code></a><ol class="toc"><li><a href="#path-parameters-2" class="tocxref"><bdi class="secno">6.2.1 </bdi>Path Parameters</a></li><li><a href="#request-body" class="tocxref"><bdi class="secno">6.2.2 </bdi>Request Body</a></li><li><a href="#response-status-codes-2" class="tocxref"><bdi class="secno">6.2.3 </bdi>Response Status Codes</a></li></ol></li></ol></li><li><a href="#dht-routing-api" class="tocxref"><bdi class="secno">7. </bdi>DHT Routing API</a><ol class="toc"><li><a href="#get-routing-v1-dht-closest-peers-key" class="tocxref"><bdi class="secno">7.1 </bdi><code>GET /routing/v1/dht/closest/peers/{key}</code></a><ol class="toc"><li><a href="#path-parameters-3" class="tocxref"><bdi class="secno">7.1.1 </bdi>Path Parameters</a></li><li><a href="#response-status-codes-3" class="tocxref"><bdi class="secno">7.1.2 </bdi>Response Status Codes</a></li><li><a href="#response-headers-2" class="tocxref"><bdi class="secno">7.1.3 </bdi>Response Headers</a></li><li><a href="#response-body-2" class="tocxref"><bdi class="secno">7.1.4 </bdi>Response Body</a></li></ol></li></ol></li><li><a href="#pagination" class="tocxref"><bdi class="secno">8. </bdi>Pagination</a></li><li><a href="#streaming" class="tocxref"><bdi class="secno">9. </bdi>Streaming</a></li><li><a href="#error-codes" class="tocxref"><bdi class="secno">10. </bdi>Error Codes</a></li><li><a href="#cors-and-web-browsers" class="tocxref"><bdi class="secno">11. </bdi>CORS and Web Browsers</a></li><li><a href="#known-schemas" class="tocxref"><bdi class="secno">12. </bdi>Known Schemas</a><ol class="toc"><li><a href="#peer-schema" class="tocxref"><bdi class="secno">12.1 </bdi>Peer Schema</a></li><li><a href="#legacy-schemas" class="tocxref"><bdi class="secno">12.2 </bdi>Legacy Schemas</a><ol class="toc"><li><a href="#bitswap-schema" class="tocxref"><bdi class="secno">12.2.1 </bdi>Bitswap Schema</a></li><li><a href="#graphsync-schema" class="tocxref"><bdi class="secno">12.2.2 </bdi>Graphsync Schema</a></li></ol></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="api-specification"><h2><bdi class="secno">1. </bdi>API Specification</h2><a href="#api-specification" class="self-link" aria-label="Section 1."></a>
+<p>The Routing HTTP API uses the <code>application/json</code> content type by default. For <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Names</a>, the verifiable <a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record"><code>application/vnd.ipfs.ipns-record</code></a> content type is used.</p>
+<p>As such, human-readable encodings of types are preferred. This specification may be updated in the future with a compact <code>application/cbor</code> encoding, in which case compact encodings of the various types would be used.</p>
+</section><section id="common-data-types"><h2><bdi class="secno">2. </bdi>Common Data Types</h2><a href="#common-data-types" class="self-link" aria-label="Section 2."></a>
+<ul>
+<li>CIDs are always string-encoded using a <a href="https://github.com/multiformats/multibase">multibase</a>-encoded <a href="https://github.com/multiformats/cid#cidv1">CIDv1</a>.</li>
+<li>Multiaddrs are string-encoded according to the <a href="https://github.com/multiformats/multiaddr#specification">human-readable multiaddr specification</a>.</li>
+<li>Peer IDs are string-encoded according <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#string-representation">PeerID string representation specification</a>: either a Multihash in Base58btc, or a CIDv1 with libp2p-key (<code>0x72</code>) codec in Base36 or Base32.</li>
+<li>Multibase bytes are string-encoded according to <a href="https://github.com/multiformats/multibase">the Multibase spec</a>, and <em class="rfc2119">SHOULD</em> use base64.</li>
+<li>Timestamps are Unix millisecond epoch timestamps.</li>
+</ul>
+<p>Until required for business logic, servers should treat these types as opaque strings, and should preserve unknown JSON fields.</p>
+</section><section id="versioning"><h2><bdi class="secno">3. </bdi>Versioning</h2><a href="#versioning" class="self-link" aria-label="Section 3."></a>
+<p>This API uses a standard version prefix in the path, such as <code>/v1/...</code>. If a backwards-incompatible change must be made, then the version number should be increased.</p>
+</section><section id="content-routing-api"><h2><bdi class="secno">4. </bdi>Content Routing API</h2><a href="#content-routing-api" class="self-link" aria-label="Section 4."></a>
+<section id="get-routing-v1-providers-cid"><h3><bdi class="secno">4.1 </bdi><code>GET /routing/v1/providers/{cid}</code></h3><a href="#get-routing-v1-providers-cid" class="self-link" aria-label="Section 4.1"></a>
+<section id="path-parameters"><h4><bdi class="secno">4.1.1 </bdi>Path Parameters</h4><a href="#path-parameters" class="self-link" aria-label="Section 4.1.1"></a>
+<ul>
+<li><code>cid</code> is the <a href="https://github.com/multiformats/cid">CID</a> to fetch provider records for (preferably normalized to a CIDv1 in Base32, to maximize HTTP cache hits).</li>
+</ul>
+</section><section id="request-query-parameters"><h4><bdi class="secno">4.1.2 </bdi>Request Query Parameters</h4><a href="#request-query-parameters" class="self-link" aria-label="Section 4.1.2"></a>
+<section id="filter-addrs-providers-request-query-parameter"><h5><bdi class="secno">4.1.2.1 </bdi><code>filter-addrs</code> (providers request query parameter)</h5><a href="#filter-addrs-providers-request-query-parameter" class="self-link" aria-label="Section 4.1.2.1"></a>
+<p>Optional <code>?filter-addrs</code> to apply Network Address Filtering from <a href="https://specs.ipfs.tech/ipips/ipip-0484/">IPIP-484</a>.</p>
+<ul>
+<li><code>?filter-addrs=&lt;comma-separated-list&gt;</code> optional parameter that indicates which network transports to return by filtering the multiaddrs in the <code>Addrs</code> field of the <a href="#peer-schema">Peer schema</a>.</li>
+<li>The value of the <code>filter-addrs</code> parameter is a comma-separated (<code>,</code> or <code>%2C</code>) list of network transport protocol <em>name strings</em> as defined in the <a href="https://github.com/multiformats/multiaddr/blob/master/protocols.csv">multiaddr protocol registry</a>, e.g. <code>?filter-addrs=tls,webrtc-direct,webtransport</code>.</li>
+<li><code>unknown</code> can be be passed to include providers whose multiaddrs are unknown, e.g. <code>?filter-addrs=unknown</code>. This allows for not removing providers whose multiaddrs are unknown at the time of filtering (e.g. keeping DHT results that require additional peer lookup).</li>
+<li>Multiaddrs are filtered by checking if the protocol name appears in any of the multiaddrs (logical OR).</li>
+<li>Negative filtering is done by prefixing the protocol name with <code>!</code>, e.g. to skip IPv6 and QUIC addrs: <code>?filter-addrs=!ip6,!quic-v1</code>. Note that negative filtering is done by checking if the protocol name does not appear in any of the multiaddrs (logical AND).</li>
+<li>If no parameter is passed, the default behavior is to return the original list of addresses unchanged.</li>
+<li>If only negative filters are provided, addresses not passing any of the negative filters are included.</li>
+<li>If positive filters are provided, only addresses passing at least one positive filter (and no negative filters) are included.</li>
+<li>If both positive and negative filters are provided, the address must pass all negative filters and at least one positive filter to be included.</li>
+<li>If there are no multiaddrs that match the passed transports, the provider is omitted from the response.</li>
+<li>Filtering is case-insensitive.</li>
+<li>Where a peer reports a <a href="https://github.com/multiformats/multiaddr/blob/master/protocols/DNSADDR.md">DNSADDR</a> address, it <em class="rfc2119">SHOULD</em> be fully resolved before filtering is applied to the final address set. The original <code>/dnsaddr</code> address <em class="rfc2119">SHOULD</em> be kept in that set, so that a client asking for it (e.g. <code>?filter-addrs=dnsaddr</code>) still gets it back.</li>
+</ul>
+</section><section id="filter-protocols-providers-request-query-parameter"><h5><bdi class="secno">4.1.2.2 </bdi><code>filter-protocols</code> (providers request query parameter)</h5><a href="#filter-protocols-providers-request-query-parameter" class="self-link" aria-label="Section 4.1.2.2"></a>
+<p>Optional <code>?filter-protocols</code> to apply IPFS Protocol Filtering from <a href="https://specs.ipfs.tech/ipips/ipip-0484/">IPIP-484</a>.</p>
+<ul>
+<li>The <code>filter-protocols</code> parameter is a comma-separated (<code>,</code> or <code>%2C</code>) list of transfer protocol names, e.g. <code>?filter-protocols=unknown,transport-bitswap,transport-ipfs-gateway-http</code>.</li>
+<li>Transfer protocols names should be treated as opaque strings and have a max length of 63 characters. A non-exhaustive list of transfer protocols are defined per convention in the <a href="https://github.com/multiformats/multicodec/blob/3b7b52deb31481790bc4bae984d8675bda4e0c82/table.csv#L149-L151">multicodec registry</a>.</li>
+<li>Implementations <em class="rfc2119">MUST</em> preserve all transfer protocol names when returning a positive result that matches one or more of them.</li>
+<li>A special <code>unknown</code> name can be be passed to include providers whose transfer protocol list is empty (unknown), e.g. <code>?filter-protocols=unknown</code>. This allows for including providers returned from the DHT that do not contain explicit transfer protocol information.</li>
+<li>Providers are filtered by checking if the transfer protocol name appears in the <code>Protocols</code> array (logical OR).</li>
+<li>If the provider doesn't match any of the passed transfer protocols, the provider is omitted from the response.</li>
+<li>If a provider passes the filter, it is returned unchanged, i.e. the full set of protocols is returned including protocols that not included in the filter. (note that this is different from <code>filter-addrs</code> where only the multiaddrs that pass the filter are returned)</li>
+<li>Filtering is case-insensitive.</li>
+<li>If no parameter is passed, the default behavior is to not filter by transfer protocol.</li>
+</ul>
+</section></section><section id="response-status-codes"><h4><bdi class="secno">4.1.3 </bdi>Response Status Codes</h4><a href="#response-status-codes" class="self-link" aria-label="Section 4.1.3"></a>
+<ul>
+<li><code>200</code> (OK): the response body contains 0 or more records.</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as 200 with 0 results for backward compatibility, resiliency, and maximal interoperability.</li>
+<li><code>422</code> (Unprocessable Entity): request does not conform to schema or semantic constraints.</li>
+</ul>
+</section><section id="response-headers"><h4><bdi class="secno">4.1.4 </bdi>Response Headers</h4><a href="#response-headers" class="self-link" aria-label="Section 4.1.4"></a>
+<ul>
+<li><code>Content-Type</code>: the content type of this response, which <em class="rfc2119">MUST</em> be <code>application/json</code> or <code>application/x-ndjson</code> (see <a href="#streaming">streaming</a>).</li>
+<li><code>Last-Modified</code>: an HTTP-date timestamp (<a href="https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7">RFC9110, Section 5.6.7</a>) of the resolution, allowing HTTP proxies and CDNs to support inexpensive update checks via <code>If-Modified-Since</code></li>
+<li><code>Cache-Control: public, max-age={ttl}, public, stale-while-revalidate={max-ttl}, stale-if-error={max-ttl}</code>: meaningful cache TTL returned with the response.
+<ul>
+<li>The <code>max-age</code> <em class="rfc2119">SHOULD</em> be shorter for responses whose resolution ended in no results (e.g. 15 seconds),
+and longer for responses that have results (e.g. 5 minutes).</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> include <code>max-ttl</code>, set to the maximum cache window of the underlying routing system.
+For example, if Amino DHT results are returned, <code>stale-while-revalidate</code> <em class="rfc2119">SHOULD</em> be set to <code>172800</code> (48h, which at the time of writing this specification, is the provider record expiration window).</li>
+</ul>
+</li>
+<li><code>Vary: Accept</code>: allows intermediate caches to play nicely with the different possible content types.</li>
+</ul>
+</section><section id="response-body"><h4><bdi class="secno">4.1.5 </bdi>Response Body</h4><a href="#response-body" class="self-link" aria-label="Section 4.1.5"></a>
+<pre><code class="">{
+  "Providers": [
+    {
+      "Schema": "&lt;schema&gt;",
+      "ID": "bafz...",
+      "Addrs": ["/ip4/..."],
+      ...
+    },
+    ...
+  ]
+}
+</code></pre>
+<p>The <code>application/json</code> responses <em class="rfc2119">SHOULD</em> be limited to 100 providers.</p>
+<p>The client <em class="rfc2119">SHOULD</em> be able to make a request with <code>Accept: application/x-ndjson</code> and get a <a href="#streaming">stream</a> with more results.</p>
+<p>Each object in the <code>Providers</code> list is a record conforming to a schema, usually the <a href="#peer-schema">Peer Schema</a>.</p>
+</section></section></section><section id="peer-routing-api"><h2><bdi class="secno">5. </bdi>Peer Routing API</h2><a href="#peer-routing-api" class="self-link" aria-label="Section 5."></a>
+<section id="get-routing-v1-peers-peer-id"><h3><bdi class="secno">5.1 </bdi><code>GET /routing/v1/peers/{peer-id}</code></h3><a href="#get-routing-v1-peers-peer-id" class="self-link" aria-label="Section 5.1"></a>
+<section id="path-parameters-0"><h4><bdi class="secno">5.1.1 </bdi>Path Parameters</h4><a href="#path-parameters-0" class="self-link" aria-label="Section 5.1.1"></a>
+<ul>
+<li><code>peer-id</code> is the <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md">Peer ID</a> to fetch peer records for,
+represented as either a Multihash in Base58btc, or a CIDv1 with libp2p-key (<code>0x72</code>) codec (in Base36 or Base32).</li>
+</ul>
+</section><section id="request-query-parameters-0"><h4><bdi class="secno">5.1.2 </bdi>Request Query Parameters</h4><a href="#request-query-parameters-0" class="self-link" aria-label="Section 5.1.2"></a>
+<section id="filter-addrs-peers-request-query-parameter"><h5><bdi class="secno">5.1.2.1 </bdi><code>filter-addrs</code> (peers request query parameter)</h5><a href="#filter-addrs-peers-request-query-parameter" class="self-link" aria-label="Section 5.1.2.1"></a>
+<p>Optional, same rules as <a href="#filter-addrs-providers-request-query-parameter"><code>filter-addrs</code> providers request query parameter</a>.</p>
+</section><section id="filter-protocols-peers-request-query-parameter"><h5><bdi class="secno">5.1.2.2 </bdi><code>filter-protocols</code> (peers request query parameter)</h5><a href="#filter-protocols-peers-request-query-parameter" class="self-link" aria-label="Section 5.1.2.2"></a>
+<p>Optional, same rules as <a href="#filter-protocols-providers-request-query-parameter"><code>filter-protocols</code> providers request query parameter</a>.</p>
+</section></section><section id="response-status-codes-0"><h4><bdi class="secno">5.1.3 </bdi>Response Status Codes</h4><a href="#response-status-codes-0" class="self-link" aria-label="Section 5.1.3"></a>
+<ul>
+<li><code>200</code> (OK): the response body contains 0 or more peer records.</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as 200 with 0 results for backward compatibility, resiliency, and maximal interoperability.</li>
+<li><code>422</code> (Unprocessable Entity): request does not conform to schema or semantic constraints.</li>
+</ul>
+</section><section id="response-headers-0"><h4><bdi class="secno">5.1.4 </bdi>Response Headers</h4><a href="#response-headers-0" class="self-link" aria-label="Section 5.1.4"></a>
+<ul>
+<li><code>Content-Type</code>: the content type of this response, which <em class="rfc2119">MUST</em> be <code>application/json</code> or <code>application/x-ndjson</code> (see <a href="#streaming">streaming</a>).</li>
+<li><code>Last-Modified</code>: an HTTP-date timestamp (<a href="https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7">RFC9110, Section 5.6.7</a>) of the resolution, allowing HTTP proxies and CDNs to support inexpensive update checks via <code>If-Modified-Since</code></li>
+<li><code>Cache-Control: public, max-age={ttl}, public, stale-while-revalidate={max-ttl}, stale-if-error={max-ttl}</code>: meaningful cache TTL returned with the response.
+<ul>
+<li>When present, <code>ttl</code> <em class="rfc2119">SHOULD</em> be shorter for responses whose resolution ended in no results (e.g. 15 seconds),
+and longer for responses that have results (e.g. 5 minutes).</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> include <code>max-ttl</code>, set to the maximum cache window of the underlying routing system.
+For example, if Amino DHT results are returned, <code>stale-while-revalidate</code> <em class="rfc2119">SHOULD</em> be set to <code>172800</code> (48h, which at the time of writing this specification, is the provider record expiration window).</li>
+</ul>
+</li>
+<li><code>Vary: Accept</code>: allows intermediate caches to play nicely with the different possible content types.</li>
+</ul>
+</section><section id="response-body-0"><h4><bdi class="secno">5.1.5 </bdi>Response Body</h4><a href="#response-body-0" class="self-link" aria-label="Section 5.1.5"></a>
+<pre><code class="">{
+  "Peers": [
+    {
+      "Schema": "&lt;schema&gt;",
+      "Protocols": ["&lt;protocol-a&gt;", "&lt;protocol-b&gt;", ...],
+      "ID": "bafz...",
+      "Addrs": ["/ip4/..."],
+      ...
+    },
+    ...
+  ]
+}
+</code></pre>
+<p>The <code>application/json</code> responses <em class="rfc2119">SHOULD</em> be limited to 100 peers.</p>
+<p>The client <em class="rfc2119">SHOULD</em> be able to make a request with <code>Accept: application/x-ndjson</code> and get a <a href="#streaming">stream</a> with more results.</p>
+<p>Each object in the <code>Peers</code> list is a record conforming to the <a href="#peer-schema">Peer Schema</a>.</p>
+</section></section></section><section id="ipns-api"><h2><bdi class="secno">6. </bdi>IPNS API</h2><a href="#ipns-api" class="self-link" aria-label="Section 6."></a>
+<section id="get-routing-v1-ipns-name"><h3><bdi class="secno">6.1 </bdi><code>GET /routing/v1/ipns/{name}</code></h3><a href="#get-routing-v1-ipns-name" class="self-link" aria-label="Section 6.1"></a>
+<section id="path-parameters-1"><h4><bdi class="secno">6.1.1 </bdi>Path Parameters</h4><a href="#path-parameters-1" class="self-link" aria-label="Section 6.1.1"></a>
+<ul>
+<li><code>name</code> is the <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> to resolve, encoded as CIDv1.</li>
+</ul>
+</section><section id="response-status-codes-1"><h4><bdi class="secno">6.1.2 </bdi>Response Status Codes</h4><a href="#response-status-codes-1" class="self-link" aria-label="Section 6.1.2"></a>
+<ul>
+<li><code>200</code> (OK): the response body contains the <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a> for the given <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> with <code>Content-Type: application/vnd.ipfs.ipns-record</code>. Any other content type <em class="rfc2119">MUST</em> be interpreted as "no record found".</li>
+<li><code>404</code> (Not Found): <em class="rfc2119">SHOULD NOT</em> be returned by a server, but if a client receives it, it <em class="rfc2119">MUST</em> be interpreted as "no record found" for backward compatibility, resiliency, and maximal interoperability.</li>
+<li><code>406</code> (Not Acceptable): requested content type is missing or not supported. Error message returned in body should inform the user to retry with <code>Accept: application/vnd.ipfs.ipns-record</code>.</li>
+</ul>
+</section><section id="response-headers-1"><h4><bdi class="secno">6.1.3 </bdi>Response Headers</h4><a href="#response-headers-1" class="self-link" aria-label="Section 6.1.3"></a>
+<ul>
+<li><code>Etag</code>: a globally unique opaque string used for HTTP caching. <em class="rfc2119">MUST</em> be derived from the protobuf record returned in the body.</li>
+<li><code>Cache-Control: public, max-age={ttl}, public, stale-while-revalidate={sig-ttl}, stale-if-error={sig-ttl}</code>: meaningful cache TTL returned with <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a>
+<ul>
+<li>The <code>max-age</code> value in seconds <em class="rfc2119">SHOULD</em> match duration from <code>IpnsEntry.data[TTL]</code>, if present and bigger than <code>0</code>. Otherwise, implementation <em class="rfc2119">SHOULD</em> default to <code>max-age=60</code>.</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> include <code>sig-ttl</code>, set to the remaining number of seconds the returned IPNS Record is valid.</li>
+</ul>
+</li>
+<li><code>Expires:</code>: an HTTP-date timestamp (<a href="https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7">RFC9110, Section 5.6.7</a>) when the validity of IPNS Record expires (if <code>ValidityType=0</code>, when signature expires)</li>
+<li><code>Last-Modified</code>: an HTTP-date timestamp of when cacheable resolution occurred: allows HTTP proxies and CDNs to support inexpensive update checks via <code>If-Modified-Since</code></li>
+<li><code>Vary: Accept</code>: allows intermediate caches to play nicely with the different possible content types.</li>
+</ul>
+</section><section id="response-body-1"><h4><bdi class="secno">6.1.4 </bdi>Response Body</h4><a href="#response-body-1" class="self-link" aria-label="Section 6.1.4"></a>
+<p>The response body contains a <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a> serialized using the verifiable <a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record"><code>application/vnd.ipfs.ipns-record</code></a> protobuf format.</p>
+</section></section><section id="put-routing-v1-ipns-name"><h3><bdi class="secno">6.2 </bdi><code>PUT /routing/v1/ipns/{name}</code></h3><a href="#put-routing-v1-ipns-name" class="self-link" aria-label="Section 6.2"></a>
+<section id="path-parameters-2"><h4><bdi class="secno">6.2.1 </bdi>Path Parameters</h4><a href="#path-parameters-2" class="self-link" aria-label="Section 6.2.1"></a>
+<ul>
+<li><code>name</code> is the <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> to publish, encoded as CIDv1.</li>
+</ul>
+</section><section id="request-body"><h4><bdi class="secno">6.2.2 </bdi>Request Body</h4><a href="#request-body" class="self-link" aria-label="Section 6.2.2"></a>
+<p>The content body must be a <a href="https://www.iana.org/assignments/media-types/application/vnd.ipfs.ipns-record"><code>application/vnd.ipfs.ipns-record</code></a> serialized <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a>, with a valid signature matching the <code>name</code> path parameter.</p>
+</section><section id="response-status-codes-2"><h4><bdi class="secno">6.2.3 </bdi>Response Status Codes</h4><a href="#response-status-codes-2" class="self-link" aria-label="Section 6.2.3"></a>
+<ul>
+<li><code>200</code> (OK): the provided <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a> was published.</li>
+<li><code>400</code> (Bad Request): the provided <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Record" data-dfn-type="dfn">IPNS Record</a> or <a href="https://specs.ipfs.tech/ipns/ipns-record/#dfn-IPNS Name" data-dfn-type="dfn">IPNS Name</a> are not valid.</li>
+<li><code>406</code> (Not Acceptable): submitted content type is not supported. Error message returned in body should inform the user to retry with <code>Content-Type: application/vnd.ipfs.ipns-record</code>.</li>
+</ul>
+</section></section></section><section id="dht-routing-api"><h2><bdi class="secno">7. </bdi>DHT Routing API</h2><a href="#dht-routing-api" class="self-link" aria-label="Section 7."></a>
+<p>The DHT Routing API is <em class="rfc2119">OPTIONAL</em>. Implementations that do not support DHT operations <em class="rfc2119">MAY</em> return <code>404</code> (Not Found) or <code>501</code> (Not Implemented) as specified in <a href="#error-codes">Error Codes</a>.</p>
+<section id="get-routing-v1-dht-closest-peers-key"><h3><bdi class="secno">7.1 </bdi><code>GET /routing/v1/dht/closest/peers/{key}</code></h3><a href="#get-routing-v1-dht-closest-peers-key" class="self-link" aria-label="Section 7.1"></a>
+<p>This optional endpoint allows light clients to lower the cost of DHT walks in browser contexts.</p>
+<section id="path-parameters-3"><h4><bdi class="secno">7.1.1 </bdi>Path Parameters</h4><a href="#path-parameters-3" class="self-link" aria-label="Section 7.1.1"></a>
+<ul>
+<li><code>key</code> is a [CID] or <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#string-representation">Peer ID</a> to find the closest peers to.
+<ul>
+<li>[CID] <em class="rfc2119">SHOULD</em> be a CIDv1 in any encoding.</li>
+<li><a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#string-representation">Peer ID</a> can be represented as a Multihash in Base58btc, or a CIDv1 with <code>libp2p-key</code> (<code>0x72</code>) codec in Base36 or Base32.</li>
+<li>Arbitrary multihash lookups can be performed by wrapping the multihash in a CIDv1 with <code>raw</code> (<code>0x55</code>) codec.</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> support both CID and Peer ID formats for maximum interoperability.</li>
+</ul>
+</li>
+</ul>
+</section><section id="response-status-codes-3"><h4><bdi class="secno">7.1.2 </bdi>Response Status Codes</h4><a href="#response-status-codes-3" class="self-link" aria-label="Section 7.1.2"></a>
+<ul>
+<li><code>200</code> (OK): the response body contains peer records.</li>
+<li><code>404</code> (Not Found): must be returned if no matching records are found.</li>
+<li><code>422</code> (Unprocessable Entity): request does not conform to schema or semantic constraints.</li>
+<li><code>501</code> (Not Implemented): may be returned if DHT operations are not supported.</li>
+</ul>
+</section><section id="response-headers-2"><h4><bdi class="secno">7.1.3 </bdi>Response Headers</h4><a href="#response-headers-2" class="self-link" aria-label="Section 7.1.3"></a>
+<ul>
+<li><code>Content-Type</code>: the content type of this response, which <em class="rfc2119">MUST</em> be <code>application/json</code> or <code>application/x-ndjson</code> (see <a href="#streaming">streaming</a>).</li>
+<li><code>Last-Modified</code>: an HTTP-date timestamp (<a href="https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7">RFC9110, Section 5.6.7</a>) of the resolution, allowing HTTP proxies and CDNs to support inexpensive update checks via <code>If-Modified-Since</code></li>
+<li><code>Cache-Control: public, max-age={ttl}, public, stale-while-revalidate={max-ttl}, stale-if-error={max-ttl}</code>: meaningful cache TTL returned with the response.
+<ul>
+<li>When present, <code>ttl</code> <em class="rfc2119">SHOULD</em> be shorter for responses whose resolution ended in no results (e.g. 15 seconds),
+and longer for responses that have results (e.g. 5 minutes).</li>
+<li>Implementations <em class="rfc2119">SHOULD</em> include <code>max-ttl</code>, set to the maximum cache window of the underlying routing system.
+For example, if Amino DHT results are returned, <code>stale-while-revalidate</code> <em class="rfc2119">SHOULD</em> be set to <code>172800</code> (48h, which at the time of writing this specification, is the provider record expiration window).</li>
+</ul>
+</li>
+<li><code>Vary: Accept</code>: allows intermediate caches to play nicely with the different possible content types.</li>
+</ul>
+</section><section id="response-body-2"><h4><bdi class="secno">7.1.4 </bdi>Response Body</h4><a href="#response-body-2" class="self-link" aria-label="Section 7.1.4"></a>
+<pre><code class="">{
+  "Peers": [
+    {
+      "Schema": "&lt;schema&gt;",
+      "Protocols": ["&lt;protocol-a&gt;", "&lt;protocol-b&gt;", ...],
+      "ID": "bafz...",
+      "Addrs": ["/ip4/..."],
+      ...
+    },
+    ...
+  ]
+}
+</code></pre>
+<p>The number of peer records in the response <em class="rfc2119">SHOULD</em> be limited to the DHT bucket size (20 for Amino DHT).</p>
+<p>Peers <em class="rfc2119">SHOULD</em> be returned sorted by closeness to the key. For Kademlia-based DHT implementations (such as Amino DHT), this means sorting by XOR distance with the closest peers first.</p>
+<p>The client <em class="rfc2119">SHOULD</em> be able to make a request with <code>Accept: application/x-ndjson</code> and get a <a href="#streaming">stream</a> with results. Note that due to the XOR sorting requirement, the streamed response may be blocked until the DHT lookup completes and peers can be sorted before transmission.</p>
+<p>Each object in the <code>Peers</code> list is a record conforming to the <a href="#peer-schema">Peer Schema</a>.</p>
+</section></section></section><section id="pagination"><h2><bdi class="secno">8. </bdi>Pagination</h2><a href="#pagination" class="self-link" aria-label="Section 8."></a>
+<p>This API does not support pagination, but optional pagination can be added in a backwards-compatible spec update.</p>
+</section><section id="streaming"><h2><bdi class="secno">9. </bdi>Streaming</h2><a href="#streaming" class="self-link" aria-label="Section 9."></a>
+<p>JSON-based endpoints support streaming requests made
+with <code>Accept: application/x-ndjson</code> HTTP Header.</p>
+<p>Steaming responses are formatted as
+<a href="https://github.com/ndjson/ndjson-spec">Newline Delimited JSON (ndjson)</a>,
+with one result per line:</p>
+<pre><code class="">{"Schema": "&lt;schema&gt;", ...}
+{"Schema": "&lt;schema&gt;", ...}
+{"Schema": "&lt;schema&gt;", ...}
+...
+</code></pre>
+<div class="note"><p>Streaming is opt-in and backwards-compatible with clients and servers that do
+not support streaming:</p><ul>
+<li>Requests without the <code>Accept: application/x-ndjson</code> header <em class="rfc2119">MUST</em> default to
+regular, non-streaming, JSON responses.</li>
+<li>Legacy server <em class="rfc2119">MAY</em> respond with non-streaming <code>application/json</code> response even
+if the client requested streaming. It is up to the client to inspect
+the <code>Content-Type</code> header before parsing the response.</li>
+<li>The server <em class="rfc2119">MUST NOT</em> respond with streaming response if the client did not
+explicitly request so.</li>
+</ul></div>
+</section><section id="error-codes"><h2><bdi class="secno">10. </bdi>Error Codes</h2><a href="#error-codes" class="self-link" aria-label="Section 10."></a>
+<ul>
+<li><code>400</code> (Bad Request): must be returned if an unknown path is requested.</li>
+<li><code>429</code> (Too Many Requests): may be returned along with optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After">Retry-After</a> header to indicate to the caller that it is issuing requests too quickly.</li>
+<li><code>501</code> (Not Implemented): must be returned if a method/path is not supported.</li>
+</ul>
+</section><section id="cors-and-web-browsers"><h2><bdi class="secno">11. </bdi>CORS and Web Browsers</h2><a href="#cors-and-web-browsers" class="self-link" aria-label="Section 11."></a>
+<p>Browser interoperability requires implementations to support
+<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">CORS</a>.</p>
+<p>JavaScript client running on a third-party Origin must be able to send HTTP
+request to the endpoints defined in this specification, and read the received
+values. This means HTTP server implementing this API must (1) support
+<a href="https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request">CORS preflight requests</a>
+sent as HTTP OPTIONS, and (2) always respond with headers that remove CORS
+limits, allowing every site to query the API for results:</p>
+<pre><code class="">Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, OPTIONS
+</code></pre>
+</section><section id="known-schemas"><h2><bdi class="secno">12. </bdi>Known Schemas</h2><a href="#known-schemas" class="self-link" aria-label="Section 12."></a>
+<p>This section contains a non-exhaustive list of known schemas that <em class="rfc2119">MAY</em> be supported by clients and servers.</p>
+<section id="peer-schema"><h3><bdi class="secno">12.1 </bdi>Peer Schema</h3><a href="#peer-schema" class="self-link" aria-label="Section 12.1"></a>
+<p>The <code>peer</code> schema represents an arbitrary peer.</p>
+<pre><code class="">{
+  "Schema": "peer",
+  "ID": "bafz...",
+  "Addrs": ["/ip4/..."],
+  "Protocols": ["transport-bitswap", ...]
+  ...
+}
+</code></pre>
+<ul>
+<li><code>ID</code>: the <a href="https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md">Peer ID</a> as Multihash in Base58btc or CIDv1 with libp2p-key codec.</li>
+<li><code>Addrs</code>: an optional list of known <a href="https://github.com/multiformats/multiaddr#specification">multiaddrs</a> for this peer.
+<ul>
+<li>If missing or empty, it means the router server is missing that information, and the client should use <code>ID</code> to lookup updated peer information.</li>
+</ul>
+</li>
+<li><code>Protocols</code>: an optional list of protocols known to be supported by this peer.
+<ul>
+<li>If missing or empty, it means the router server is missing that information, and the client should use <code>ID</code> and <code>Addrs</code> to lookup connect to the peer and use the <a href="https://github.com/libp2p/specs/tree/master/identify">libp2p identify protocol</a> to learn about supported ones.</li>
+</ul>
+</li>
+</ul>
+<div class="note"><p>To allow for protocol-specific fields and future-proofing, the parser <em class="rfc2119">MUST</em>
+allow for unknown fields, and the clients <em class="rfc2119">MUST</em> ignore unknown ones.</p><p>Below is an example on how one could include <code>protocol-a</code> and <code>protocol-b</code>
+protocols that includes an additional fields <code>protocol-a</code> and <code>protocol-b</code>.</p><p>If the client knows the protocol, they are free to use the extra binary
+(base64) or JSON information contained in the additional field. If that is not
+the case, the field <em class="rfc2119">MUST</em> be ignored.</p><pre><code class="">{
+  "Schema": "peer",
+  "ID": "bafz...",
+  "Addrs": ["/ip4/..."],
+  "Protocols": ["transport-bitswap", "protocol-a", "protocol-b", ...],
+  "protocol-a": "[base64-blob]",
+  "protocol-b": { "foo": "bar" }
+}
+</code></pre></div>
+</section><section id="legacy-schemas"><h3><bdi class="secno">12.2 </bdi>Legacy Schemas</h3><a href="#legacy-schemas" class="self-link" aria-label="Section 12.2"></a>
+<p>Legacy schemas include <code>ID</code> and optional <code>Addrs</code> list just like
+the <a href="#peer-schema"><code>peer</code> schema</a> does.</p>
+<p>These schemas are deprecated and <em class="rfc2119">SHOULD</em> be replaced with <code>peer</code> over time, but
+<em class="rfc2119">MAY</em> be returned by some legacy endpoints. In such case, a client <em class="rfc2119">MAY</em> parse
+them the same way as the <code>peer</code> schema.</p>
+<section id="bitswap-schema"><h4><bdi class="secno">12.2.1 </bdi>Bitswap Schema</h4><a href="#bitswap-schema" class="self-link" aria-label="Section 12.2.1"></a>
+<p>A legacy schema used by some routers to indicate a peer supports retrieval over
+the <code>/ipfs/bitswap[/*]</code> libp2p protocol.</p>
+<pre><code class="">{
+  "Protocol": "transport-bitswap",
+  "Schema": "bitswap",
+  "ID": "bafz...",
+  "Addrs": ["/ip4/..."]
+}
+</code></pre>
+</section><section id="graphsync-schema"><h4><bdi class="secno">12.2.2 </bdi>Graphsync Schema</h4><a href="#graphsync-schema" class="self-link" aria-label="Section 12.2.2"></a>
+<p>A legacy schema used by some routers to indicate a peer supports retrieval over
+the <a href="https://github.com/ipfs/go-graphsync/blob/main/docs/architecture.md">graphsync</a>
+libp2p protocol.</p>
+<pre><code class="">{
+  "Protocol": "transport-graphsync-filecoinv1",
+  "Schema": "graphsync-filecoinv1",
+  "ID": "bafz...",
+  "Addrs": ["/ip4/..."],
+  "PieceCID": "&lt;cid&gt;",
+  "VerifiedDeal": true,
+  "FastRetrieval": true
+}
+</code></pre>
+
+    <div class="watermark"></div>
+  
+
+</section></section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editor</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Former Editors</dt><dd><a href="https://hacdias.com/">Henrique Dias</a> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/hacdias"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Daniel Norman</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/2color"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dt>Special Thanks</dt><dd><span>Gus Eggert</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/guseggert"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Masih H. Derkani</span> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/masih"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Alex Potsides</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/achingbrain"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Will Scott</span> <a href="https://github.com/willscott"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Hector Sanjuan</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/hsanjuan"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

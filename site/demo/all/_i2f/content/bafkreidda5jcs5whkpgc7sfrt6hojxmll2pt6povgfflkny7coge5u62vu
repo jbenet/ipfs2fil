@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Web _redirects File Specification</title>
+    <meta name="description" content="Defines how URL redirects and rewrites can be implemented by adding rules to a plain text file stored underneath the root CID of a website.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/web-redirects-file/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">Web _redirects File Specification</h1><p id="last-modified"><time datetime="2025-03-19T00:00:00.000Z">19 March 2025</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/web-redirects-file.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/web-redirects-file.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>The Web Redirects File specification is an extension of the Subdomain Gateway and DNSLink Gateway specifications.</p>
+<p>Developers can enable URL redirects or rewrites by adding redirect rules to a file named <code>_redirects</code> stored underneath the root CID of their website.</p>
+<p>This can be used, for example, to enable URL rewriting for hosting a single-page application, to redirect invalid URLs to a pretty 404 page, or to avoid  <a href="https://en.wikipedia.org/wiki/Link_rot">link rot</a> when moving to IPFS-based website hosting.</p>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#file-name-and-location" class="tocxref"><bdi class="secno">1. </bdi>File Name and Location</a></li><li><a href="#file-format" class="tocxref"><bdi class="secno">2. </bdi>File Format</a><ol class="toc"><li><a href="#from" class="tocxref"><bdi class="secno">2.1 </bdi>From</a></li><li><a href="#to" class="tocxref"><bdi class="secno">2.2 </bdi>To</a></li><li><a href="#status" class="tocxref"><bdi class="secno">2.3 </bdi>Status</a></li><li><a href="#placeholders" class="tocxref"><bdi class="secno">2.4 </bdi>Placeholders</a><ol class="toc"><li><a href="#catch-all-splat" class="tocxref"><bdi class="secno">2.4.1 </bdi>Catch-All Splat</a></li><li><a href="#comments" class="tocxref"><bdi class="secno">2.4.2 </bdi>Comments</a></li><li><a href="#line-termination" class="tocxref"><bdi class="secno">2.4.3 </bdi>Line Termination</a></li><li><a href="#whitespace-characters" class="tocxref"><bdi class="secno">2.4.4 </bdi>Whitespace Characters</a></li><li><a href="#max-file-size" class="tocxref"><bdi class="secno">2.4.5 </bdi>Max File Size</a></li></ol></li></ol></li><li><a href="#evaluation" class="tocxref"><bdi class="secno">3. </bdi>Evaluation</a><ol class="toc"><li><a href="#same-origin-requirement" class="tocxref"><bdi class="secno">3.1 </bdi>Same-Origin Requirement</a></li><li><a href="#order" class="tocxref"><bdi class="secno">3.2 </bdi>Order</a></li><li><a href="#no-forced-redirects" class="tocxref"><bdi class="secno">3.3 </bdi>No Forced Redirects</a></li><li><a href="#error-handling" class="tocxref"><bdi class="secno">3.4 </bdi>Error Handling</a></li><li><a href="#query-parameters" class="tocxref"><bdi class="secno">3.5 </bdi>Query Parameters</a></li></ol></li><li><a href="#security" class="tocxref"><bdi class="secno">4. </bdi>Security</a></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">5. </bdi>Appendix: notes for implementers</a><ol class="toc"><li><a href="#test-fixtures" class="tocxref"><bdi class="secno">5.1 </bdi>Test fixtures</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="file-name-and-location"><h2><bdi class="secno">1. </bdi>File Name and Location</h2><a href="#file-name-and-location" class="self-link" aria-label="Section 1."></a>
+<p>The Redirects File <em class="rfc2119">MUST</em> be named <code>_redirects</code> and stored underneath the root CID of the website.</p>
+</section><section id="file-format"><h2><bdi class="secno">2. </bdi>File Format</h2><a href="#file-format" class="self-link" aria-label="Section 2."></a>
+<p>The Redirects File <em class="rfc2119">MUST</em> be a text file containing one or more lines with the following format (brackets indication optionality).</p>
+<pre><code>from to [status]
+</code></pre>
+<section id="from"><h3><bdi class="secno">2.1 </bdi>From</h3><a href="#from" class="self-link" aria-label="Section 2.1"></a>
+<p>The path to redirect from.</p>
+</section><section id="to"><h3><bdi class="secno">2.2 </bdi>To</h3><a href="#to" class="self-link" aria-label="Section 2.2"></a>
+<p>The URL or path to redirect to.</p>
+</section><section id="status"><h3><bdi class="secno">2.3 </bdi>Status</h3><a href="#status" class="self-link" aria-label="Section 2.3"></a>
+<p>An optional integer specifying the HTTP status code to return from the request.  Supported values are:</p>
+<ul>
+<li><code>200</code> - OK
+<ul>
+<li>Redirect will be treated as a rewrite, returning OK without changing the URL in the browser.</li>
+</ul>
+</li>
+<li><code>301</code> - Permanent Redirect (default)</li>
+<li><code>302</code> - Found (commonly used for Temporary Redirect)</li>
+<li><code>303</code> - See Other (replacing PUT and POST with GET)</li>
+<li><code>307</code> - Temporary Redirect (explicitly preserving body and HTTP method of original request)</li>
+<li><code>308</code> - Permanent Redirect (explicitly preserving body and HTTP method of original request)</li>
+<li><code>404</code> - Not Found
+<ul>
+<li>Useful for redirecting invalid URLs to a pretty 404 page.</li>
+</ul>
+</li>
+<li><code>410</code> - Gone</li>
+<li><code>451</code> - Unavailable For Legal Reasons</li>
+</ul>
+</section><section id="placeholders"><h3><bdi class="secno">2.4 </bdi>Placeholders</h3><a href="#placeholders" class="self-link" aria-label="Section 2.4"></a>
+<p>Placeholders are named variables that can be used to match path segments in the <code>from</code> path and inject them into the <code>to</code> path.</p>
+<p>For example:</p>
+<pre><code>/posts/:month/:day/:year/:slug  /articles/:year/:month/:day/:slug
+</code></pre>
+<p>This rule will redirect a URL like <code>/posts/06/15/2022/hello-world</code> to <code>/articles/2022/06/15/hello-world</code>.</p>
+<p>Implementation <em class="rfc2119">MUST</em> error when the same placeholder name is used more than once in <code>from</code>.</p>
+<p>Implementation <em class="rfc2119">MUST</em> allow the same placeholder name to be used more than once in <code>to</code>.</p>
+<section id="catch-all-splat"><h4><bdi class="secno">2.4.1 </bdi>Catch-All Splat</h4><a href="#catch-all-splat" class="self-link" aria-label="Section 2.4.1"></a>
+<p>If a <code>from</code> path ends with an asterisk (i.e. <code>*</code>), the remainder of the <code>from</code> path is slurped up into the special <code>:splat</code> placeholder, which can then be injected into the <code>to</code> path.</p>
+<p>For example:</p>
+<pre><code>/posts/* /articles/:splat
+</code></pre>
+<p>This rule will redirect a URL like <code>/posts/2022/06/15/hello-world</code> to <code>/articles/2022/06/15/hello-world</code>.</p>
+<p>Splat logic <em class="rfc2119">MUST</em> only apply to a single trailing asterisk, as this is a greedy match, consuming the remainder of the path.</p>
+</section><section id="comments"><h4><bdi class="secno">2.4.2 </bdi>Comments</h4><a href="#comments" class="self-link" aria-label="Section 2.4.2"></a>
+<p>Any line beginning with <code>#</code> <em class="rfc2119">MUST</em> be treated as a comment and ignored at evaluation time.</p>
+<p>For example:</p>
+<pre><code># Redirect home to index.html
+/home /index.html 301
+</code></pre>
+<p>is functionally equivalent to</p>
+<pre><code>/home /index.html 301
+</code></pre>
+</section><section id="line-termination"><h4><bdi class="secno">2.4.3 </bdi>Line Termination</h4><a href="#line-termination" class="self-link" aria-label="Section 2.4.3"></a>
+<p>Lines <em class="rfc2119">MUST</em> be separated from each other by either <code>\n</code> or <code>\r\n</code>.</p>
+<p>Termination of the last line in the file is optional.</p>
+</section><section id="whitespace-characters"><h4><bdi class="secno">2.4.4 </bdi>Whitespace Characters</h4><a href="#whitespace-characters" class="self-link" aria-label="Section 2.4.4"></a>
+<p>Blank lines, leading and trailing whitespace characters like <code>\x20</code> (space) or
+<code>\t</code> (tab) <em class="rfc2119">MUST</em> be ignored, aside from the line termination mentioned above.</p>
+</section><section id="max-file-size"><h4><bdi class="secno">2.4.5 </bdi>Max File Size</h4><a href="#max-file-size" class="self-link" aria-label="Section 2.4.5"></a>
+<p>The file size <em class="rfc2119">MUST NOT</em> exceed 64 KiB.</p>
+</section></section></section><section id="evaluation"><h2><bdi class="secno">3. </bdi>Evaluation</h2><a href="#evaluation" class="self-link" aria-label="Section 3."></a>
+<section id="same-origin-requirement"><h3><bdi class="secno">3.1 </bdi>Same-Origin Requirement</h3><a href="#same-origin-requirement" class="self-link" aria-label="Section 3.1"></a>
+<p>Rules <em class="rfc2119">MUST</em> only be evaluated in contexts where
+<a href="https://en.wikipedia.org/wiki/Same-origin_policy">Same-Origin</a> isolation per
+root CID is possible.</p>
+<p>This requirement is fulfilled on a Subdomain or DNSLink HTTP Gateway,
+and also applies to a web browser with native <code>ipfs://</code> and <code>ipns://</code> scheme handler.</p>
+</section><section id="order"><h3><bdi class="secno">3.2 </bdi>Order</h3><a href="#order" class="self-link" aria-label="Section 3.2"></a>
+<p>Rules <em class="rfc2119">MUST</em> be evaluated in order, redirecting or rewriting using the first matching rule.</p>
+<p>The non-existent paths that are being requested should be intercepted and redirected to the destination path and the specified HTTP status code returned. The rules are evaluated in the order they appear in the file.</p>
+<p>Any request for an existing file should be returned as is, and not intercepted by the last catch all rule.</p>
+</section><section id="no-forced-redirects"><h3><bdi class="secno">3.3 </bdi>No Forced Redirects</h3><a href="#no-forced-redirects" class="self-link" aria-label="Section 3.3"></a>
+<p>All redirect logic <em class="rfc2119">MUST</em> only be evaluated if the requested path is not present in the DAG.  This means that any performance impact associated with checking for the existence of a <code>_redirects</code> file or evaluating redirect rules will only be incurred for non-existent paths.</p>
+</section><section id="error-handling"><h3><bdi class="secno">3.4 </bdi>Error Handling</h3><a href="#error-handling" class="self-link" aria-label="Section 3.4"></a>
+<p>If the <code>_redirects</code> file exists but there is an error reading or parsing it, the errors <em class="rfc2119">MUST</em> be returned to the user with a 500 HTTP status code.</p>
+</section><section id="query-parameters"><h3><bdi class="secno">3.5 </bdi>Query Parameters</h3><a href="#query-parameters" class="self-link" aria-label="Section 3.5"></a>
+<p>Implementations <em class="rfc2119">SHOULD</em> retain any dynamic query parameters supplied by the user and pass them along in the <code>Location</code> header of the HTTP redirect response.</p>
+<p>When merging these user-provided parameters with any static ones defined in the <a href="#to"><code>To</code></a> field, the user’s dynamic values take precedence, overriding static ones in case of a conflict.</p>
+</section></section><section id="security"><h2><bdi class="secno">4. </bdi>Security</h2><a href="#security" class="self-link" aria-label="Section 4."></a>
+<p>This functionality will only be evaluated for Subdomain or DNSLink Gateways, to ensure that redirect paths are relative to the root CID hosted at the specified domain name.</p>
+<p>Parsing of the <code>_redirects</code> file should be done safely to prevent any sort of injection vector or daemon crash.</p>
+<p>The <a href="#max-file-size">max file size</a> helps to prevent an additional <a href="https://en.wikipedia.org/wiki/Denial-of-service_attack">denial of service attack</a> vector.</p>
+</section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">5. </bdi>Appendix: notes for implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 5."></a>
+<section id="test-fixtures"><h3><bdi class="secno">5.1 </bdi>Test fixtures</h3><a href="#test-fixtures" class="self-link" aria-label="Section 5.1"></a>
+<p>Sample files for various test cases can be found in <code>QmQyqMY5vUBSbSxyitJqthgwZunCQjDVtNd8ggVCxzuPQ4</code>.
+Implementations <em class="rfc2119">SHOULD</em> use it for internal testing.
+The data is available as <a href="https://github.com/ipfs/gateway-conformance/raw/refs/tags/v0.13.2/fixtures/redirects_file/redirects.car"><code>redirects.car</code></a>.</p>
+<pre><code>$ ipfs ls QmQyqMY5vUBSbSxyitJqthgwZunCQjDVtNd8ggVCxzuPQ4
+QmcBcFnKKqgpCVMxxGsriw9ByTVF6uDdKDMuEBq3m6f1bm - bad-codes/
+QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj - examples/
+QmU7ysGXwAtiV7aBarZASJsxKoKyKmd9Xrz2FFamSCbg8S - forced/
+QmWHn2TunA1g7gQ7q9rwAoWuot2hMpojZ6cZ9ERsNKm5gE - good-codes/
+QmRgpzYQESidTtTojN8zRWjiNs9Cy6o7KHRxh7kDpJm3KH - invalid/
+QmYzMrtPyBv7LKiEAGLLRPtvqm3SjQYLWxwWQ2vnpxQwRd - newlines/
+QmQTfvjGmvTfxFpUcZNLdTLuKV227KJkGiN6xooHVeVZAS - too-large/
+</code></pre>
+<p>For example, the "examples" site can be found in <code>QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj</code>.</p>
+<pre><code>$ ipfs ls /ipfs/QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj
+Qmd9GD7Bauh6N2ZLfNnYS3b7QVAijbud83b8GE8LPMNBBP 7   404.html
+QmSmR9NShZ89VEBrn9SBy7Xxvjw8Qe6XArD5GqtHvbtBM3 7   410.html
+QmVQqj9oZig9tH3ENHo4bxV5pNgssUwFCXUjAJAVcZVbJG 7   451.html
+QmZU3kboiyi9jV59D8Mw8wzuvsr3HmvskqhYRRhdFA8wRq 317 _redirects
+QmaWDLb4gnJcJbT1Df5X3j91ysiwkkyxw6329NLiC1KMDR -   articles/
+QmS6ZNKE9s8fsHoEnArsZXnzMWijKddhXXDsAev8LdTT5z 9   index.html
+QmNwEgMrExwSsE8DCjZjahYfHUfkSWRhtqSkQUh4Fk3udD 7   one.html
+QmVe2GcTbEPZkMbjVoQ9YieVGKCHmuHMcJ2kbSCzuBKh2s -   redirected-splat/
+QmUGVnZaofnd5nEDvT2bxcFck7rHyJRbpXkh9znjrJNV92 7   two.html
+</code></pre>
+<p>The <code>_redirects</code> file is as follows.</p>
+<pre><code>$ ipfs cat /ipfs/QmYBhLYDwVFvxos9h8CGU2ibaY66QNgv8hpfewxaQrPiZj/_redirects
+/redirect-one /one.html
+/301-redirect-one /one.html 301
+/302-redirect-two /two.html 302
+/200-index /index.html 200
+/posts/:year/:month/:day/:title /articles/:year/:month/:day/:title 301
+/splat/* /redirected-splat/:splat 301
+/not-found/* /404.html 404
+/gone/* /410.html 410
+/unavail/* /451.html 451
+/* /index.html 200
+</code></pre>
+<p>A dedicated test vector with URL query parameter behavior can be found in <code>bafybeiee3ltldvmfgsxiqazbatrkbvkl34eanbourajwnavhupb64nnbxa</code>.
+Implementations <em class="rfc2119">SHOULD</em> use it for internal testing when <a href="#query-parameters">query parameter support</a> is desired.
+The data is available as <a href="https://github.com/ipfs/boxo/raw/refs/tags/v0.42.1/gateway/testdata/redirects-query-params.car"><code>redirects-query-params.car</code></a>.</p>
+<pre><code>$ ipfs cat bafybeiee3ltldvmfgsxiqazbatrkbvkl34eanbourajwnavhupb64nnbxa/_redirects
+# redirect to URL with some static query parameters
+/source1/* /target-file?static-query1=static-val1&amp;static-query2=static-val2 301
+
+# redirect to URL where path segments are converted to query parameters
+/source2/:code/:name /target-file?code=:code&amp;name=:name 301
+
+# catch-all redirect (test should make request with query parameters, and confirm response preserved them in returned Location header)
+/source3/* https://example.net/target3/:splat 301
+</code></pre>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><span>Justin Johnson</span> (<a href="https://fission.codes/">Fission</a>) <a href="https://github.com/justincjohnson"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Marcin Rataj</span> (<a href="https://ipshipyard.com">Shipyard</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

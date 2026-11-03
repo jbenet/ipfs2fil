@@ -1,0 +1,82 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>DNSLink Gateway Specification</title>
+    <meta name="description" content="Defines how to utilize the HTTP Host header to serve a content path from a DNSLink record as a website under a particular DNS name.">
+    <link rel="canonical" href="https://specs.ipfs.tech/http-gateways/dnslink-gateway/">
+    <link rel="stylesheet" href="/css/ipseity.min.css">
+    <link rel="stylesheet" href="/css/specs.css">
+    <link rel="icon" href="/img/ipfs-standards.svg">
+  </head>
+  <body>
+    <nav id="ipseity-back-to-root">
+      <a href="/">IPFS Standards</a>
+    </nav>
+    <header><h1 id="title">DNSLink Gateway Specification</h1><p id="last-modified"><time datetime="2022-11-09T00:00:00.000Z">9 November 2022</time></p><div class="ipseity-maturity"><img src="https://img.shields.io/badge/status-reliable-green.svg?style=flat-square" height="20" alt="status: reliable"></div><dl><dt>History</dt><dd><a href="https://github.com/ipfs/specs/commits/main/src/http-gateways/dnslink-gateway.md">Commit History</a></dd><dt>Feedback</dt><dd><a href="https://github.com/ipfs/specs">GitHub ipfs/specs</a><span> (</span><a href="https://github.com/ipfs/specs/blob/main/src/http-gateways/dnslink-gateway.md">inspect source</a><span>, </span><a href="https://github.com/ipfs/specs/issues/new/choose">open issue</a><span>)</span></dd></dl><div id="abstract"><p>DNSLink Gateway is an extension of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] that enables hosting a
+specific content path under a specific DNS name.</p>
+<p>This document describes the delta between [<a class="bibref" href="#ref-path-gateway">path-gateway</a>] and this gateway type.</p>
+<p>In short:</p>
+<ul>
+<li>HTTP request includes a valid <a href="https://dnslink.dev/">DNSLink</a> name in <code>Host</code> header</li>
+<li>gateway decides if DNSlink name is allowed</li>
+<li>gateway resolves DNSLink to an immutable content root identified by a CID</li>
+<li>HTTP response includes the data for the CID</li>
+</ul>
+</div></header>
+    <nav id="toc"><h2 id="table-of-contents">Table of Contents</h2><ol class="toc"><li><a href="#http-api" class="tocxref"><bdi class="secno">1. </bdi>HTTP API</a><ol class="toc"><li><a href="#get-path-params" class="tocxref"><bdi class="secno">1.1 </bdi><code>GET /[{path}][?{params}]</code></a></li><li><a href="#head-path-params" class="tocxref"><bdi class="secno">1.2 </bdi><code>HEAD /[{path}][?{params}]</code></a></li></ol></li><li><a href="#http-request" class="tocxref"><bdi class="secno">2. </bdi>HTTP Request</a><ol class="toc"><li><a href="#request-headers" class="tocxref"><bdi class="secno">2.1 </bdi>Request headers</a><ol class="toc"><li><a href="#host-request-header" class="tocxref"><bdi class="secno">2.1.1 </bdi><code>Host</code> (request header)</a></li></ol></li></ol></li><li><a href="#http-response" class="tocxref"><bdi class="secno">3. </bdi>HTTP Response</a></li><li><a href="#appendix-notes-for-implementers" class="tocxref"><bdi class="secno">4. </bdi>Appendix: notes for implementers</a><ol class="toc"><li><a href="#leveraging-dns-for-content-routing" class="tocxref"><bdi class="secno">4.1 </bdi>Leveraging DNS for content routing</a></li><li><a href="#redirects-single-page-applications-and-custom-404s" class="tocxref"><bdi class="secno">4.2 </bdi>Redirects, single-page applications, and custom 404s</a></li></ol></li><li><a href="#references" class="tocxref"><bdi class="secno">A. </bdi>References</a></li><li><a href="#acknowledgments" class="tocxref"><bdi class="secno">B. </bdi>Acknowledgments</a></li></ol></nav><section id="http-api"><h2><bdi class="secno">1. </bdi>HTTP API</h2><a href="#http-api" class="self-link" aria-label="Section 1."></a>
+<section id="get-path-params"><h3><bdi class="secno">1.1 </bdi><code>GET /[{path}][?{params}]</code></h3><a href="#get-path-params" class="self-link" aria-label="Section 1.1"></a>
+<p>Downloads data at specified path under the content path for DNSLink name provided in <code>Host</code> header.</p>
+<ul>
+<li><code>path</code> – optional path to a file or a directory under the content root sent in <code>Host</code> HTTP header
+<ul>
+<li>Example: if <code>Host: example.com</code> then the content path to resolve is <code>/ipns/example.com/{path}</code></li>
+</ul>
+</li>
+</ul>
+</section><section id="head-path-params"><h3><bdi class="secno">1.2 </bdi><code>HEAD /[{path}][?{params}]</code></h3><a href="#head-path-params" class="self-link" aria-label="Section 1.2"></a>
+<p>Same as GET, but does not return any payload.</p>
+</section></section><section id="http-request"><h2><bdi class="secno">2. </bdi>HTTP Request</h2><a href="#http-request" class="self-link" aria-label="Section 2."></a>
+<p>Below <em class="rfc2119">MUST</em> be implemented <strong>in addition</strong> to "HTTP Request" of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+<section id="request-headers"><h3><bdi class="secno">2.1 </bdi>Request headers</h3><a href="#request-headers" class="self-link" aria-label="Section 2.1"></a>
+<section id="host-request-header"><h4><bdi class="secno">2.1.1 </bdi><code>Host</code> (request header)</h4><a href="#host-request-header" class="self-link" aria-label="Section 2.1.1"></a>
+<p>Defines the <a href="https://docs.ipfs.io/concepts/glossary/#dnslink">DNSLink</a> name
+to RECURSIVELY resolve into an immutable <code>/ipfs/{cid}/</code> prefix that should
+be prepended to the <code>path</code> before the final IPFS content path resolution
+is performed.</p>
+<p>Implementations <em class="rfc2119">MUST</em> ensure DNSLink resolution is safe and correct:</p>
+<ul>
+<li>each DNSLink may include an additional path segment, which <em class="rfc2119">MUST</em> be preserved</li>
+<li>each DNSLink may point at other DNSLink, which means there <em class="rfc2119">MUST</em> be a hard
+recursion limit (e.g. 32) and HTTP 400 Bad Request error <em class="rfc2119">MUST</em> be returned
+when the limit is reached.</li>
+</ul>
+<div class="note"><p>Example: resolving an advanced DNSLink chain</p><p>To illustrate, given DNSLink records:</p><ul>
+<li><code>_dnslink.a.example.com</code> TXT record: <code>dnslink=/ipns/b.example.net/path-b</code></li>
+<li><code>_dnslink.b.example.net</code> TXT record: <code>dnslink=/ipfs/bafy…qy3k/path-c</code></li>
+</ul><p>HTTP client sends <code>GET /path-a</code> request with  <code>Host: a.example.com</code> header
+which recursively resolves all DNSLinks and produces the final immutable
+content path:</p><ol>
+<li><code>Host</code> header + <code>/path-a</code> → <code>/ipns/a.example.net/path-a</code></li>
+<li>Resolving DNSlink at <code>a.example.net</code> replaces <code>/ipns/a.example.net</code> with <code>/ipns/b.example.net/path-b</code></li>
+<li>Resolving DNSlink at <code>b.example.net</code> replaces <code>/ipns/b.example.net</code> with <code>/ipfs/bafy…qy3k/path-c</code></li>
+<li>The immutable content path is <code>/ipfs/bafy…qy3k/path-c/path-b/path-a</code></li>
+</ol></div>
+</section></section></section><section id="http-response"><h2><bdi class="secno">3. </bdi>HTTP Response</h2><a href="#http-response" class="self-link" aria-label="Section 3."></a>
+<p>Same as "HTTP Response" of [<a class="bibref" href="#ref-path-gateway">path-gateway</a>].</p>
+</section><section id="appendix-notes-for-implementers"><h2><bdi class="secno">4. </bdi>Appendix: notes for implementers</h2><a href="#appendix-notes-for-implementers" class="self-link" aria-label="Section 4."></a>
+<section id="leveraging-dns-for-content-routing"><h3><bdi class="secno">4.1 </bdi>Leveraging DNS for content routing</h3><a href="#leveraging-dns-for-content-routing" class="self-link" aria-label="Section 4.1"></a>
+<ul>
+<li>It is a good idea to publish
+<a href="https://github.com/multiformats/multiaddr/blob/master/protocols/DNSADDR.md">DNSAddr</a>
+TXT records with known content providers for the data behind a DNSLink. IPFS
+clients will be able to detect DNSAddr and preconnect to known content
+providers, removing the need for expensive DHT lookup.</li>
+</ul>
+</section><section id="redirects-single-page-applications-and-custom-404s"><h3><bdi class="secno">4.2 </bdi>Redirects, single-page applications, and custom 404s</h3><a href="#redirects-single-page-applications-and-custom-404s" class="self-link" aria-label="Section 4.2"></a>
+<p>DNSLink Gateway implementations <em class="rfc2119">SHOULD</em> include <code>_redirects</code> file support
+defined in [<a class="bibref" href="#ref-web-redirects-file">web-redirects-file</a>].</p>
+
+    <div class="watermark"></div>
+  
+
+</section></section><section class="appendix" id="references"><h2><bdi class="secno">A. </bdi>References</h2><a href="#references" class="self-link" aria-label="Appendix A."></a><dl class="bibliography"><dt id="ref-path-gateway">[path-gateway]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/path-gateway/"><cite>Path Gateway Specification</cite></a>. Henrique Dias; Marcin Rataj. 2026-08-24. URL: <a href="https://specs.ipfs.tech/http-gateways/path-gateway/">https://specs.ipfs.tech/http-gateways/path-gateway/</a></dd><dt id="ref-rfc2119">[rfc2119]</dt><dd><a href="https://www.rfc-editor.org/rfc/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. S. Bradner. IETF. March 1997. Best Current Practice. URL: <a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a></dd><dt id="ref-web-redirects-file">[web-redirects-file]</dt><dd><a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/"><cite>Web _redirects File Specification</cite></a>. Justin Johnson; Marcin Rataj. 2025-03-19. URL: <a href="https://specs.ipfs.tech/http-gateways/web-redirects-file/">https://specs.ipfs.tech/http-gateways/web-redirects-file/</a></dd></dl></section><section class="appendix" id="acknowledgments"><h2><bdi class="secno">B. </bdi>Acknowledgments</h2><a href="#acknowledgments" class="self-link" aria-label="Appendix B."></a><p>We gratefully acknowledge the following individuals for their valuable contributions, ranging from minor suggestions to major insights, which have shaped and improved this specification.</p><dl class="bibliography"><dt>Editors</dt><dd><a href="https://lidel.org/">Marcin Rataj</a> (<a href="https://protocol.ai/">Protocol Labs</a>) <a href="https://github.com/lidel"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd><dd><span>Thibault Meunier</span> (<a href="https://cloudflare.com/">Cloudflare</a>) <a href="https://github.com/thibmeu"><img src="/img/gh.png" width="16" height="16" alt="GitHub"></a></dd></dl></section><p role="navigation" id="back-to-top"><a href="#title"><abbr title="Back to top">↑</abbr></a></p></body></html>

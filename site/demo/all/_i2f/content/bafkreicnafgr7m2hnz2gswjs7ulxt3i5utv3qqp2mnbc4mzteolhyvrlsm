@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "IPIP-0523: Prefer format param over Accept header",
+    "url": "https://specs.ipfs.tech/ipips/ipip-0523/"
+  },
+  "dfns": []
+}

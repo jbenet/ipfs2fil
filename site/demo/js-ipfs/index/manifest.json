@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeig47ozmj5wk23ycu6ni36mhluja4a23cukzzgsiy3zosylgwl64g4",
+  "root": "bafybeiexqfj2gspawc3pm4dnztj2wlwd2ylvvkx4rpu45ahgq4iwqfto2i",
   "dataRoot": "bafybeifgq3evijn7y5dcidopcjgsere6yfkvphiqzaf4crvhsqhinuybiu",
   "source": {
     "kind": "js-ipfs",
@@ -47,8 +47,8 @@
       "bytes": 10065774,
       "blocks": 47,
       "own": 10065774,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmUJ7bc5w3pjjoLrKuwtJX35PGauCUm8xqZgpDMGSdY3n3",
@@ -66,8 +66,8 @@
       "bytes": 4,
       "blocks": 1,
       "own": 4,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmUUbPY3TM4gcMH5LSGSduqH7qKybt1pUcWzniAKhw8eew",
@@ -93,8 +93,8 @@
       "path": "pins/recursive/QmVWmfz5TioaBDT5cKaqUhM8ihxvBAQU7oHNkZr35tyBhY",
       "bytes": 705838,
       "blocks": 4,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmWeeq6PoDZcBUAzfssyusehPvc3eCnA8JkShH66WydCNs",
@@ -111,8 +111,8 @@
       "path": "pins/recursive/QmWpXca7XESMHQpbFLuTCc9dbXwJewo8tpQ1Pku1sGbTrb",
       "bytes": 4497208,
       "blocks": 19,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmWzp4MgyyyQAU7qiC6BAXAL2gHmafyr9CShFqtb8H9ybk",
@@ -120,8 +120,8 @@
       "path": "pins/recursive/QmWzp4MgyyyQAU7qiC6BAXAL2gHmafyr9CShFqtb8H9ybk",
       "bytes": 1490116,
       "blocks": 7,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmYydvuwq3MsVX4XSSZ76wihR4yzkGUyqanPRcJBMtH4wv",
@@ -129,8 +129,8 @@
       "path": "pins/recursive/QmYydvuwq3MsVX4XSSZ76wihR4yzkGUyqanPRcJBMtH4wv",
       "bytes": 2237708,
       "blocks": 10,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmZg8YqQkSkxUxCqdDRBatEp1WQjjVQXe87DwXh7iG1gRg",
@@ -138,8 +138,8 @@
       "path": "pins/recursive/QmZg8YqQkSkxUxCqdDRBatEp1WQjjVQXe87DwXh7iG1gRg",
       "bytes": 1134573,
       "blocks": 6,
-      "firstPiece": -1,
-      "lastPiece": -1
+      "firstPiece": 0,
+      "lastPiece": 0
     },
     {
       "cid": "QmaLcwXYRcCcQctdTBf2q1idjJ9NuZBYo9aWvdeD1KEP9S",
@@ -240,28 +240,12 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibersjamd6dm7gopih6qmvoattkcvrgyw3g7sjrwqi3dfvttwz5od3eqvzlau",
-      "carBytes": 939764,
-      "blocks": 36,
+      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
+      "carBytes": 523317785,
+      "blocks": 19016,
       "blockList": "pieces/0000",
-      "snapshot": 0
-    },
-    {
-      "index": 1,
-      "pieceCid": "bafkzcibewkaa6dtt3q7w3k3muy2yavg3bo7hthbncafb5mw6vkedxj6uapyhbu7rcm",
-      "carBytes": 274382,
-      "blocks": 19,
-      "blockList": "",
-      "part": "index",
-      "snapshot": 0
-    },
-    {
-      "index": 2,
-      "pieceCid": "bafkzcibdxqcat5djn4mna446c563v6gpfot7wcaxc25yiv2ym4ibugyd7fn6tua2",
-      "carBytes": 15684,
-      "blocks": 8,
-      "blockList": "",
-      "part": "head",
+      "part": "bundle",
+      "dataBytes": 11007253,
       "snapshot": 0
     }
   ],
@@ -270,9 +254,7 @@
       "provider": "2",
       "dataSetId": "5310",
       "pieceIds": {
-        "0": "11",
-        "1": "10",
-        "2": "9"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -280,9 +262,7 @@
       "provider": "9",
       "dataSetId": "5311",
       "pieceIds": {
-        "0": "11",
-        "1": "9",
-        "2": "10"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -290,34 +270,19 @@
       "provider": "16",
       "dataSetId": "5312",
       "pieceIds": {
-        "0": "9",
-        "1": "11",
-        "2": "10"
+        "0": "0"
       },
       "service": "unknown"
     }
   ],
   "snapshots": [
     {
-      "time": "2026-11-01T08:54:09Z",
-      "root": "bafybeig47ozmj5wk23ycu6ni36mhluja4a23cukzzgsiy3zosylgwl64g4",
+      "time": "2026-11-03T10:30:00Z",
+      "root": "bafybeiexqfj2gspawc3pm4dnztj2wlwd2ylvvkx4rpu45ahgq4iwqfto2i",
       "newPieces": [
-        0,
-        1,
-        2
+        0
       ]
     }
   ],
-  "shared": {
-    "blocks": 48,
-    "bytes": 10065778,
-    "pieces": [
-      {
-        "pieceCid": "bafkzcibfqhqpayyymtnbqsauzeeijh557nklupltkvxigzpxrojvhghag5p4kbvfjuma",
-        "archive": "bafybeigbbpcqf32alr7afw5ey2jfsi3idkpuhe3thensfw54662rmzuc7m",
-        "blocks": 48
-      }
-    ]
-  },
   "collection": "repos:default"
 }

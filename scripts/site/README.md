@@ -30,7 +30,10 @@ made. Everything shows two made-up repos, never anyone's real data.
    from step 6, plus photos, notes and PDFs), a js-ipfs repo 12 and a Helia
    store made by their own code, `art.car` (images, video, texts, PDFs) and
    `dev-bundle.car` (code, logs, configs, data; three roots: a folder, a
-   dag-cbor build record and a dag-json release). Five of @bsky.app's images
+   dag-cbor build record and a dag-json release), clones of five
+   multiformats spec repos in `~/src/multiformats` (one git archive set) and
+   a site list of ipfs.tech, specs.ipfs.tech and docs.ipfs.tech, whose DAGs
+   it fetches once from public gateways. Five of @bsky.app's images
    and the NASA photos go into several of them with CIDv1, raw leaves and
    1 MiB chunks, so they are the same blocks everywhere and stored once.
    Install Helia and js-ipfs in separate folders (their dependencies clash):
@@ -47,7 +50,21 @@ made. Everything shows two made-up repos, never anyone's real data.
        ipfs2fil repos add ~/.jsipfs --name js-ipfs
        ipfs2fil repos add ~/apps/photo-app/data --name helia-photo-app
        ipfs2fil repos add ~/exports/art.car; ipfs2fil repos add ~/exports/dev-bundle.car
+       ipfs2fil repos add ~/src/multiformats            # five git repos, one set
+       ipfs2fil repos add https://github.com/ipfs/go-cid
+       ipfs2fil repos add pds:http://localhost:2583 --name pds
+       ipfs2fil repos add ~/sites/ipfs-websites.ipfs-sites.toml
+       ipfs2fil repos add psa+http://127.0.0.1:2590 --name pinning-service
        ipfs2fil up --all --yes && ipfs2fil explore
+
+   The PDS and the pinning service are local: `demo/services.sh $HOME <pds
+   npm dir>` (with `npm i @atproto/pds @did-plc/server @atproto/api` in that
+   dir) runs the reference PDS with a PLC directory and three made-up
+   accounts (`demo/pds.mjs`), a small Pinning Services API server
+   (`demo/psa.mjs`) and a kubo node holding its pins, and prints the
+   `IPFS2FIL_PLC_DIRECTORY`, `IPFS2FIL_HANDLE_RESOLVER`, `IPFS2FIL_GATEWAYS`
+   and `IPFS2FIL_PSA_TOKEN` to export first. Keep it running until `up`
+   is done: its PLC directory is in memory.
 
    Then mirror it as static files for GitHub Pages:
 

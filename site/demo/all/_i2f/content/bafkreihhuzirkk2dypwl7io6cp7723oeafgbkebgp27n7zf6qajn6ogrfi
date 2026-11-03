@@ -1,0 +1,7 @@
+{
+  "spec": {
+    "title": "Subdomain Gateway Specification",
+    "url": "https://specs.ipfs.tech/http-gateways/subdomain-gateway/"
+  },
+  "dfns": []
+}
