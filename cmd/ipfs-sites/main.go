@@ -73,7 +73,7 @@ the one in the current folder is used. Its results go in
 <name>.ipfs-sites.lock.toml next to it.
 
 A source is a domain with DNSLink (benet.ai), an https URL (its host's DNSLink,
-else the X-Ipfs-Path its server sends), an ENS name (vitalik.eth), an IPNS
+else the X-Ipfs-Path its server sends), an ENS name (yourname.eth), an IPNS
 name (/ipns/k51...; its signed record is checked) or a fixed /ipfs/<cid>.
 
 Run 'ipfs-sites <command> -h' for a command's flags.

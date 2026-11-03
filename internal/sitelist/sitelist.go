@@ -14,7 +14,7 @@
 //	source = "https://fil.pub/"                  # a URL: its host's DNSLink, else the X-Ipfs-Path its server sends
 //
 //	[[site]]
-//	source = "vitalik.eth"                       # an ENS name
+//	source = "yourname.eth"                      # an ENS name
 //
 //	[[site]]
 //	source = "/ipns/k51qzi5uqu5d..."             # an IPNS name; its signed record is checked

@@ -346,7 +346,7 @@ hold as many lists as you like:
     source = "https://fil.pub/"                  # its host's DNSLink, else the X-Ipfs-Path its server sends
 
     [[site]]
-    source = "vitalik.eth"                       # an ENS name, through eth.limo
+    source = "yourname.eth"                      # an ENS name, through eth.limo
 
     [[site]]
     source = "docs.ipfs.tech"
