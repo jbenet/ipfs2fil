@@ -19,6 +19,7 @@ import (
 	"github.com/jbenet/ipfs2fil/internal/collection"
 	"github.com/jbenet/ipfs2fil/internal/gitarchive"
 	"github.com/jbenet/ipfs2fil/internal/repo"
+	"github.com/jbenet/ipfs2fil/internal/sitelist"
 )
 
 var (
@@ -211,10 +212,10 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // domain does not read as an archive of that website. A whole PDS is
 // pds-<host>, a pinning service psa-<name> (psa:pinata -> psa-pinata,
 // psa+https://api.example.com/psa -> psa-example.com), and a site list
-// sites-<file name> (/x/mine.sites -> sites-mine).
+// sites-<file name> (/x/mine.ipfs-sites.toml -> sites-mine).
 func defaultName(path string) string {
 	if repo.IsSitesName(path) {
-		path = "sites-" + strings.TrimSuffix(filepath.Base(strings.TrimPrefix(path, "sites:")), repo.SitesExt)
+		path = "sites-" + sitelist.ListName(strings.TrimPrefix(path, "sites:"))
 	} else if name, ok := strings.CutPrefix(path, "psa:"); ok {
 		path = "psa-" + name
 	} else if ep, ok := strings.CutPrefix(path, "psa+"); ok {

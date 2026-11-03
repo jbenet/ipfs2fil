@@ -2,6 +2,7 @@ package sitelist
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,8 +20,13 @@ import (
 // Resolver finds the root a site serves now.
 type Resolver struct {
 	HTTP *http.Client
-	// LookupTXT is net.DefaultResolver.LookupTXT by default.
+	// LookupTXT is net.DefaultResolver.LookupTXT by default, and then,
+	// when that finds no DNSLink, DNS over HTTPS (DoH).
 	LookupTXT func(ctx context.Context, name string) ([]string, error)
+	// DoH is a DNS-over-HTTPS JSON endpoint the default lookup falls back
+	// to, for networks whose own DNS answers no TXT queries. Default
+	// https://cloudflare-dns.com/dns-query; "off" turns it off.
+	DoH string
 	// Gateways answer IPNS record requests (?format=ipns-record).
 	Gateways []string
 	// ENSGateway is a format with one %s, the ENS name, giving the URL of an
@@ -116,10 +122,21 @@ func (r *Resolver) resolve(ctx context.Context, kind, host string, how []string,
 
 // dnslink reads the _dnslink TXT record of host.
 func (r *Resolver) dnslink(ctx context.Context, host string) (string, error) {
-	lookup := r.LookupTXT
-	if lookup == nil {
-		lookup = net.DefaultResolver.LookupTXT
+	if r.LookupTXT != nil {
+		return r.dnslinkWith(ctx, r.LookupTXT, host)
 	}
+	v, err := r.dnslinkWith(ctx, net.DefaultResolver.LookupTXT, host)
+	if err == nil || r.DoH == "off" {
+		return v, err
+	}
+	v, derr := r.dnslinkWith(ctx, r.dohTXT, host)
+	if derr == nil {
+		return v, nil
+	}
+	return "", fmt.Errorf("%v; over DoH: %v", err, derr)
+}
+
+func (r *Resolver) dnslinkWith(ctx context.Context, lookup func(context.Context, string) ([]string, error), host string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	txts, err := lookup(ctx, "_dnslink."+host)
@@ -225,4 +242,52 @@ func (r *Resolver) ipnsFrom(ctx context.Context, gw string, name ipns.Name) (str
 		return "", err
 	}
 	return p.String(), nil
+}
+
+// dohTXT looks up the TXT records of name with DNS over HTTPS (the JSON
+// API Cloudflare and Google serve), following CNAMEs as the server does.
+func (r *Resolver) dohTXT(ctx context.Context, name string) ([]string, error) {
+	ep := r.DoH
+	if ep == "" {
+		ep = "https://cloudflare-dns.com/dns-query"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ep+"?name="+url.QueryEscape(name)+"&type=TXT", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/dns-json")
+	res, err := r.client().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s: %s", ep, res.Status)
+	}
+	var ans struct {
+		Status int
+		Answer []struct {
+			Type int    `json:"type"`
+			Data string `json:"data"`
+		}
+	}
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&ans); err != nil {
+		return nil, err
+	}
+	if ans.Status != 0 {
+		return nil, fmt.Errorf("%s: no such name (DNS status %d)", name, ans.Status)
+	}
+	var out []string
+	for _, a := range ans.Answer {
+		if a.Type != 16 { // TXT
+			continue
+		}
+		// "a" "b" -> ab, as a TXT record's strings join
+		var b strings.Builder
+		for _, part := range strings.Split(a.Data, "\" \"") {
+			b.WriteString(strings.Trim(part, "\""))
+		}
+		out = append(out, b.String())
+	}
+	return out, nil
 }

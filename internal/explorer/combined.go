@@ -37,6 +37,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		accounts []accountInfo
 		atFiles  = map[int]json.RawMessage{} // at/<n>.js, n in accounts
 		gits     []gitInfo
+		sites    []siteInfo
 		gFiles   = map[int]json.RawMessage{} // g/<n>.js, n in gits
 		types    = map[string]tally{}
 		parts    = map[string]tally{}
@@ -211,6 +212,12 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 			}
 			gits = append(gits, gi)
 		}
+		for _, si := range mt.Sites {
+			if si.Path != "" {
+				si.Path = top + "/" + si.Path
+			}
+			sites = append(sites, si)
+		}
 		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
 	}
 
@@ -239,7 +246,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
 		return nil, nil, err
 	}
-	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Gits = types, parts, repos, accounts, gits
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Gits, mt.Sites = types, parts, repos, accounts, gits, sites
 	for i, v := range gFiles {
 		k := fmt.Sprintf("g/%d", i)
 		if files[k+".js"], err = jsFile(k, v); err != nil {

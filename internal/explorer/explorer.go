@@ -50,10 +50,14 @@ func Write(dir string, m *manifest.Manifest, entries []Entry, accounts ...*atpro
 }
 
 // Extras are the summaries of roots the explorer has pages for: Bluesky
-// accounts (the Bluesky App viewer) and git archives (the Git viewer).
+// accounts (the Bluesky App viewer), git archives (the Git viewer) and
+// site lists.
 type Extras struct {
 	Accounts []*atproto.Summary
 	Gits     []*gitarchive.Summary
+	// Sites are the site lists' sites.json among the roots (Library > Web
+	// sites).
+	Sites []*SiteList
 }
 
 // WriteWith is Write with every kind of summary.

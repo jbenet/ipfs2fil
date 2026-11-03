@@ -332,29 +332,76 @@ a service's own dedicated gateway.
 
 ## Site lists
 
-Websites that live on IPFS archive together from one site list, a text file
-ending in `.sites` (or any file, as `sites:<path>`). One site per line, then
-an optional `name=`; `#` starts a comment:
+Websites that live on IPFS archive together from one site list, a TOML file
+named `<name>.ipfs-sites.toml` (or just `ipfs-sites.toml`), so a folder can
+hold as many lists as you like:
 
-    # my sites
-    benet.ai                                   # a domain with DNSLink
-    docs.ipfs.tech        name=ipfs-docs
-    https://fil.pub/                           # its host's DNSLink, else the X-Ipfs-Path its server sends
-    vitalik.eth                                # an ENS name, through eth.limo
-    /ipns/k51qzi5uqu5d... name=blog            # an IPNS name; its signed record is checked
-    /ipfs/bafybei...      name=launch-2019     # a fixed version, never looked up again
+    # mine.ipfs-sites.toml
+    title = "My sites"
+    sites = [
+      "benet.ai",                                # a domain with DNSLink
+      "https://fil.pub/",                        # its host's DNSLink, else the X-Ipfs-Path its server sends
+      "vitalik.eth",                             # an ENS name, through eth.limo
+      { source = "docs.ipfs.tech", name = "ipfs-docs" },
+    ]
 
-    ipfs2fil up --repo ~/my.sites
+    [[site]]                                     # the same, one table per site
+    source = "/ipns/k51qzi5uqu5d..."             # an IPNS name; its signed record is checked
+    name = "blog"
+    note = "my blog"
+
+    [[site]]
+    source = "/ipfs/bafybei..."                  # a fixed version, never looked up again
+    name = "launch-2019"
+
+    ipfs2fil up --repo ~/sites/mine.ipfs-sites.toml
+
+A site has a `source` and, optionally, a `name` (how it is pinned and shown;
+by default the domain, ENS name or ID) and a `note`. `gateways = [...]` at
+the top replaces the gateways that list's sites are fetched from. Unknown
+keys are errors, so a typo is caught.
 
 Each run finds the root every site serves now (DNSLink chains and IPNS
-records are followed, up to 8 steps; a path inside a DAG is refused), then
-fetches the whole DAG from trustless gateways with every block checked, as
-for pinning services. Each site becomes a recursive pin under its name (the
-domain, ENS name or ID unless `name=` says otherwise). `sites.json`, pinned
-beside them with the list itself, says for each site which root was stored
-and how it was found. A site that cannot be reached keeps the root it had
-last time, marked `stale` with the error. Since every run that finds a new
-root stores a new snapshot, the archive holds each site's history.
+records are followed, up to 8 steps; a path inside a DAG is refused; DNSLink
+falls back to DNS over HTTPS when the local DNS answers no TXT queries),
+then fetches the whole DAG from trustless gateways with every block checked,
+as for pinning services. Each site becomes a recursive pin under its name.
+
+What each site resolved to goes in the list's lock file beside it,
+`mine.ipfs-sites.lock.toml`: the root, how it was found, since when the site
+has served it, when it was last seen, and the roots it served before. A
+site that cannot be reached keeps the root it had last time, marked `stale`
+with the error. `sites.json`, pinned in the archive beside the sites with
+the list itself, holds the same. Since every run that finds a new root
+stores a new snapshot, the archive holds each site's history, and the
+explorer lists the sites under Library > Web sites: each with its home
+page, its live address, its root and the roots it served before.
+
+Lists in the older line format (a `.sites` file, one site per line with an
+optional `name=`) are still read; `ipfs-sites convert mine.sites` writes one
+as TOML.
+
+### ipfs-sites
+
+`ipfs-sites` ships beside `ipfs2fil` and works on the same lists with no
+Filecoin at all: it keeps the lock file, fetches sites and writes them out
+as a CAR.
+
+    ipfs-sites add benet.ai                     # add a site (makes ipfs-sites.toml if there is none)
+    ipfs-sites add /ipns/k51... blog -note "my blog"
+    ipfs-sites resolve                          # look every site up; update the lock file
+    ipfs-sites check                            # which sites changed since the lock file? (exit 1 if any)
+    ipfs-sites fetch                            # download every site, hash-checked
+    ipfs-sites car -o sites.car                 # one CAR holding every site, roots in list order
+    ipfs-sites show                             # the lock file, as a table
+    ipfs-sites convert mine.sites               # an old line-format list, as mine.ipfs-sites.toml
+
+With no list named it uses the one in the current folder. Fetched sites are
+kept in your cache folder (`--cache`), one CAR per root, so a site that has
+not changed is not fetched again. `$IPFS_SITES_GATEWAYS` (comma-separated)
+or `--gateways` names other gateways. `check` and `resolve` only look sites
+up; they download nothing, so `ipfs-sites check` in a cron job says when a
+site you care about changed.
 
 ## Git repos
 

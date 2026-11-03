@@ -144,7 +144,7 @@ func refreshIndex(dir string) (map[string][]byte, error) {
 		return nil, nil
 	}
 	// The old totals count each block once; the rows alone cannot.
-	mt.Types, mt.Parts, mt.Repos, mt.Accounts = old.Types, old.Parts, old.Repos, old.Accounts
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Sites = old.Types, old.Parts, old.Repos, old.Accounts, old.Sites
 	if files["meta.js"], err = jsFile("meta", mt); err != nil {
 		return nil, err
 	}

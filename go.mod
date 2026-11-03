@@ -3,6 +3,7 @@ module github.com/jbenet/ipfs2fil
 go 1.26.9
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/cockroachdb/pebble/v2 v2.1.7
 	github.com/dgraph-io/badger v1.6.2
