@@ -209,9 +209,17 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // directory (/Users/ada/.ipfs -> ada). A Bluesky account is bsky-<handle>
 // (at://ada.bsky.social -> bsky-ada.bsky.social), so a handle that is a
 // domain does not read as an archive of that website. A whole PDS is
-// pds-<host>.
+// pds-<host>, a pinning service psa-<name> (psa:pinata -> psa-pinata,
+// psa+https://api.example.com/psa -> psa-example.com).
 func defaultName(path string) string {
-	if strings.HasPrefix(path, "pds:") || strings.HasPrefix(path, "https://") && repo.IsPDS(path) {
+	if name, ok := strings.CutPrefix(path, "psa:"); ok {
+		path = "psa-" + name
+	} else if ep, ok := strings.CutPrefix(path, "psa+"); ok {
+		if u, err := url.Parse(ep); err == nil && u.Hostname() != "" {
+			ep = strings.TrimPrefix(u.Hostname(), "api.")
+		}
+		path = "psa-" + ep
+	} else if strings.HasPrefix(path, "pds:") || strings.HasPrefix(path, "https://") && repo.IsPDS(path) {
 		host := strings.TrimPrefix(strings.TrimPrefix(path, "pds:"), "//")
 		if u, err := url.Parse(host); err == nil && u.Hostname() != "" {
 			host = u.Hostname()

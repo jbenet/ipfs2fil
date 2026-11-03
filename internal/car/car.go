@@ -19,6 +19,10 @@ import (
 // MinBytes is the smallest CAR a PieceCID can be computed for.
 const MinBytes = 65
 
+// Header is the CARv1 header naming roots, without its length prefix: for
+// writing a CAR that is not a piece (Writer insists on piece sizes).
+func Header(roots ...cid.Cid) []byte { return header(roots...) }
+
 // header is the CARv1 header as dag-cbor: {"roots": [roots...], "version": 1}.
 func header(roots ...cid.Cid) []byte {
 	h := []byte{0xa2, 0x65}
