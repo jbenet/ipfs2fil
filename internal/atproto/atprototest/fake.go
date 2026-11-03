@@ -32,6 +32,11 @@ type Account struct {
 	Server      *httptest.Server
 	mu          sync.Mutex
 	requests    map[string]int
+	// Others are more accounts on the same PDS (see Host); Inactive ones
+	// are listed by listRepos as deactivated.
+	Others   []*Account
+	Inactive bool
+	host     *Account // the account whose server this one lives on
 }
 
 // Requests says how many calls of an XRPC method the PDS answered.
@@ -65,15 +70,53 @@ func (a *Account) put(t testing.TB, codec uint64, v any) cid.Cid {
 // New builds the account and starts its PDS and PLC directory, pointing the
 // atproto package's resolvers at them until the test ends.
 func New(t testing.TB) *Account {
-	a := &Account{DID: "did:plc:testaliceaaaaaaaaaaaaaaa", Handle: "alice.test", Blocks: map[cid.Cid][]byte{}, requests: map[string]int{}}
+	a := build(t, "did:plc:testaliceaaaaaaaaaaaaaaa", "alice.test", "Alice")
+	a.Server = httptest.NewServer(http.HandlerFunc(a.serve))
+	t.Cleanup(a.Server.Close)
+	old := []any{atproto.PLCDirectory, atproto.HandleResolver, atproto.LookupTXT, atproto.WellKnown}
+	atproto.PLCDirectory = a.Server.URL + "/plc"
+	atproto.HandleResolver = a.Server.URL
+	atproto.LookupTXT = func(_ context.Context, name string) ([]string, error) {
+		for _, x := range a.all() {
+			if name == "_atproto."+x.Handle {
+				return []string{"did=" + x.DID}, nil
+			}
+		}
+		return nil, fmt.Errorf("no such host")
+	}
+	atproto.WellKnown = func(host, path string) string { return a.Server.URL + "/wk/" + host + "/" + path }
+	t.Cleanup(func() {
+		atproto.PLCDirectory = old[0].(string)
+		atproto.HandleResolver = old[1].(string)
+		atproto.LookupTXT = old[2].(func(context.Context, string) ([]string, error))
+		atproto.WellKnown = old[3].(func(string, string) string)
+	})
+	return a
+}
+
+// Host adds another account, with its own records and blobs (the same
+// shapes as the first, with name in the text), to a's PDS.
+func (a *Account) Host(t testing.TB, did, handle, name string) *Account {
+	o := build(t, did, handle, name)
+	o.Server, o.host = a.Server, a
+	a.mu.Lock()
+	a.Others = append(a.Others, o)
+	a.mu.Unlock()
+	return o
+}
+
+func (a *Account) all() []*Account { return append([]*Account{a}, a.Others...) }
+
+func build(t testing.TB, did, handle, name string) *Account {
+	a := &Account{DID: did, Handle: handle, Blocks: map[cid.Cid][]byte{}, requests: map[string]int{}}
 	a.Image = a.put(t, cid.Raw, []byte("\x89PNG not really an image"))
-	a.Old = a.put(t, cid.Raw, []byte("a blob whose post was deleted"))
+	a.Old = a.put(t, cid.Raw, []byte("a blob whose post was deleted by "+name))
 	blob := func(c cid.Cid, mime string, size int) map[string]any {
 		return map[string]any{"$type": "blob", "ref": link(c), "mimeType": mime, "size": size}
 	}
 	recs := map[string]cid.Cid{}
 	recs["app.bsky.actor.profile/self"] = a.put(t, cid.DagCBOR, map[string]any{
-		"$type": "app.bsky.actor.profile", "displayName": "Alice", "description": "testing", "avatar": blob(a.Image, "image/png", 24)})
+		"$type": "app.bsky.actor.profile", "displayName": name, "description": "testing", "avatar": blob(a.Image, "image/png", 24)})
 	first := a.put(t, cid.DagCBOR, map[string]any{"$type": "app.bsky.feed.post", "text": "héllo world", "createdAt": "2024-01-01T00:00:00.000Z", "langs": []any{"en"},
 		"facets": []any{map[string]any{"index": map[string]any{"byteStart": 7, "byteEnd": 12},
 			"features": []any{map[string]any{"$type": "app.bsky.richtext.facet#link", "uri": "https://example.com/"}}}}})
@@ -107,25 +150,6 @@ func New(t testing.TB) *Account {
 	}
 	data := a.put(t, cid.DagCBOR, map[string]any{"l": nil, "e": es})
 	a.Commit = a.put(t, cid.DagCBOR, map[string]any{"did": a.DID, "version": 3, "data": link(data), "rev": "3zzzzzzzzzzzz", "prev": nil, "sig": []byte("signature")})
-
-	a.Server = httptest.NewServer(http.HandlerFunc(a.serve))
-	t.Cleanup(a.Server.Close)
-	old := []any{atproto.PLCDirectory, atproto.HandleResolver, atproto.LookupTXT, atproto.WellKnown}
-	atproto.PLCDirectory = a.Server.URL + "/plc"
-	atproto.HandleResolver = a.Server.URL
-	atproto.LookupTXT = func(_ context.Context, name string) ([]string, error) {
-		if name == "_atproto."+a.Handle {
-			return []string{"did=" + a.DID}, nil
-		}
-		return nil, fmt.Errorf("no such host")
-	}
-	atproto.WellKnown = func(host, path string) string { return a.Server.URL + "/wk/" + host + "/" + path }
-	t.Cleanup(func() {
-		atproto.PLCDirectory = old[0].(string)
-		atproto.HandleResolver = old[1].(string)
-		atproto.LookupTXT = old[2].(func(context.Context, string) ([]string, error))
-		atproto.WellKnown = old[3].(func(string, string) string)
-	})
 	return a
 }
 
@@ -158,13 +182,46 @@ func (a *Account) CAR() []byte {
 	return buf.Bytes()
 }
 
-func (a *Account) serve(w http.ResponseWriter, r *http.Request) {
+func (h *Account) serve(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	path := r.URL.Path
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if m, ok := strings.CutPrefix(path, "/xrpc/"); ok {
-		a.requests[m]++
+		h.requests[m]++
+	}
+	switch path {
+	case "/xrpc/com.atproto.server.describeServer":
+		json.NewEncoder(w).Encode(map[string]any{"did": "did:web:pds.test", "availableUserDomains": []string{".test"}})
+		return
+	case "/xrpc/com.atproto.sync.listRepos":
+		// One account per page, to follow the cursor.
+		all := h.all()
+		i := 0
+		if c := q.Get("cursor"); c != "" {
+			for i < len(all) && all[i].DID != c {
+				i++
+			}
+			i++
+		}
+		page := map[string]any{"repos": []any{}}
+		if i < len(all) {
+			x := all[i]
+			e := map[string]any{"did": x.DID, "head": x.Commit.String(), "rev": "3zzzzzzzzzzzz", "active": !x.Inactive}
+			if x.Inactive {
+				e["status"] = "deactivated"
+			}
+			page["repos"] = []any{e}
+			page["cursor"] = x.DID
+		}
+		json.NewEncoder(w).Encode(page)
+		return
+	}
+	a := h
+	for _, x := range h.all() {
+		if q.Get("did") == x.DID || strings.HasPrefix(path, "/plc/"+x.DID) {
+			a = x
+		}
 	}
 	switch {
 	case path == "/plc/"+a.DID:

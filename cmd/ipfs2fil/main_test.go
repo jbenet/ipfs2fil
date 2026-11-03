@@ -504,3 +504,33 @@ func TestPackBluesky(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A whole PDS packs as one archive holding every active account, each
+// shown in the explorer's Bluesky viewer.
+func TestPDSRepo(t *testing.T) {
+	a := atprototest.New(t)
+	a.Host(t, "did:plc:testbobbbbbbbbbbbbbbbbbbb", "bob.test", "Bob")
+	t.Setenv("IPFS2FIL_HOME", t.TempDir())
+	src := "pds:" + a.Server.URL
+	out, _, err := ipfs2fil(t, "scan", "--repo", src)
+	if err != nil || !strings.Contains(out, "Bluesky PDS 127.0.0.1") || !strings.Contains(out, "2 accounts") {
+		t.Fatalf("scan: %v\n%s", err, out)
+	}
+	dir := t.TempDir()
+	if _, _, err := ipfs2fil(t, "pack", "--repo", src, "--out", dir); err != nil {
+		t.Fatal(err)
+	}
+	m, err := manifest.Read(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Source.Kind != repo.KindPDS {
+		t.Fatalf("source %+v", m.Source)
+	}
+	meta, _ := os.ReadFile(filepath.Join(dir, "explorer", "idx", "meta.js"))
+	for _, want := range []string{`"name":"@alice.test"`, `"name":"@bob.test"`} {
+		if !strings.Contains(string(meta), want) {
+			t.Errorf("no %s in meta: %s", want, meta)
+		}
+	}
+}

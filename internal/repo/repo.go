@@ -59,8 +59,10 @@ const (
 	KindCAR     = "car"
 	KindRPC     = "kubo-rpc"
 	KindATProto = "atproto"
-	KindJSIPFS  = "js-ipfs"
-	KindHelia   = "helia"
+	// KindPDS is a whole atproto PDS: every account it hosts, as one repo.
+	KindPDS    = "atproto-pds"
+	KindJSIPFS = "js-ipfs"
+	KindHelia  = "helia"
 )
 
 // Repo is a read-only view of one repo.
@@ -98,7 +100,8 @@ var (
 // Open detects what path holds and returns a reader for it: an fs-repo
 // directory, a js-ipfs repo, a Helia blockstore, a CAR file, a directory of
 // CAR files, the http:// address of a kubo node's RPC API, a Bluesky
-// account (at://handle or a DID), a git repo, a git URL (see IsGitURL), or
+// account (at://handle or a DID), a whole Bluesky PDS (pds:https://host, or
+// an https URL whose server is one), a git repo, a git URL (see IsGitURL), or
 // a folder of git repos, archived as one set.
 func Open(path string) (Repo, error) {
 	if atproto.IsAccount(path) {
@@ -106,6 +109,9 @@ func Open(path string) (Repo, error) {
 	}
 	if IsGitRemote(path) {
 		return openGit(path)
+	}
+	if IsPDS(path) {
+		return openPDS(path)
 	}
 	if isRPC(path) {
 		return openRPC(path)
@@ -169,7 +175,7 @@ func Discover(explicit string) (string, error) {
 		if c == "" {
 			continue
 		}
-		if c == explicit && (atproto.IsAccount(c) || IsGitURL(c) || isRPC(c) || isCAR(c) || isGit(c)) {
+		if c == explicit && (atproto.IsAccount(c) || IsGitURL(c) || IsPDS(c) || isRPC(c) || isCAR(c) || isGit(c)) {
 			return c, nil
 		}
 		if _, ok := heliaBlockstore(c); ok && c == explicit {

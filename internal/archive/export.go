@@ -86,6 +86,8 @@ const (
 // as the very files, byte for byte, when the archive recorded their layout
 // (index/cars, from this version on). A Bluesky account comes back as the
 // directory ipfs2fil fetched: repo.car, blobs/ and the identity documents.
+// A whole PDS comes back as one such directory per account, named by DID,
+// with pds.json beside them.
 // Every other repo comes back as blocks.car with every block, pins.json with
 // its pins and export.json with its MFS root, plus a script that loads them
 // into a kubo repo.
@@ -122,7 +124,7 @@ func Export(ctx context.Context, archiveDir, dir string, opts ExportOptions) (*E
 	w := &exporter{ctx: ctx, src: src, dir: dir, res: res, progress: opts.Progress, total: int64(len(order))}
 
 	covered := map[string]bool{}
-	if len(layouts) > 0 && (kind == repo.KindCAR || kind == repo.KindATProto) {
+	if len(layouts) > 0 && (kind == repo.KindCAR || kind == repo.KindATProto || kind == repo.KindPDS) {
 		for _, l := range layouts {
 			if err := w.writeCAR(l); err != nil {
 				return nil, err
@@ -135,6 +137,8 @@ func Export(ctx context.Context, archiveDir, dir string, opts ExportOptions) (*E
 	switch {
 	case kind == repo.KindATProto && len(layouts) > 0:
 		err = w.writeAccount(m, order, covered)
+	case kind == repo.KindPDS && len(layouts) > 0:
+		err = w.writePDS(m, order, covered)
 	case kind == repo.KindCAR && len(layouts) > 0:
 		// Every block is in the files; nothing else to write.
 	default:
@@ -482,6 +486,135 @@ func (w *exporter) writeAccount(m *manifest.Manifest, order []cid.Cid, covered m
 		return err
 	}
 	return w.writeFile(atproto.IdentityFile, b)
+}
+
+// writePDS writes a PDS archive as one account directory per account, as
+// writeAccount would, plus pds.json. Each account's blobs.json says which
+// blobs are its own, linked from its records or not; a blob no account
+// claims goes in unclaimed-blobs/.
+func (w *exporter) writePDS(m *manifest.Manifest, order []cid.Cid, covered map[string]bool) error {
+	type acct struct {
+		handle, did string
+		docs        map[string]string // multihash -> file name
+		didDoc      []byte
+	}
+	byName := map[string]*acct{}
+	get := func(name string) *acct {
+		if byName[name] == nil {
+			byName[name] = &acct{docs: map[string]string{}}
+			if h, ok := strings.CutPrefix(name, "@"); ok {
+				byName[name].handle = h
+			}
+		}
+		return byName[name]
+	}
+	owner := map[string]*acct{}    // multihash -> the account whose document it is
+	blobOf := map[string][]*acct{} // multihash -> the accounts holding the blob
+	top := map[string]string{}     // multihash -> file at the top
+	for _, rt := range m.Roots {
+		if rt.Kind != manifest.KindPinDirect {
+			continue
+		}
+		c, err := cid.Decode(rt.CID)
+		if err != nil {
+			return err
+		}
+		if rt.Name == repo.PDSFile {
+			top[string(c.Hash())] = repo.PDSFile
+			continue
+		}
+		name, file, ok := strings.Cut(rt.Name, " ")
+		if !ok {
+			continue
+		}
+		a := get(name)
+		switch file {
+		case atproto.DIDDocFile, atproto.AuditLogFile:
+			a.docs[string(c.Hash())] = file
+			owner[string(c.Hash())] = a
+		case repo.PDSBlobsFile:
+			data, err := w.src.getChecked(w.ctx, c)
+			if err != nil {
+				return err
+			}
+			var bl struct {
+				DID   string   `json:"did"`
+				Blobs []string `json:"blobs"`
+			}
+			if err := json.Unmarshal(data, &bl); err != nil {
+				return fmt.Errorf("%s: %w", rt.Name, err)
+			}
+			a.did = bl.DID
+			for _, s := range bl.Blobs {
+				if bc, err := cid.Decode(s); err == nil {
+					blobOf[string(bc.Hash())] = append(blobOf[string(bc.Hash())], a)
+				}
+			}
+			top[string(c.Hash())] = "" // not written: the layout says it all
+		}
+	}
+	for _, c := range order {
+		k := string(c.Hash())
+		if covered[k] {
+			continue
+		}
+		name, isTop := top[k]
+		if isTop && name == "" {
+			w.tick()
+			continue
+		}
+		data, err := w.src.getChecked(w.ctx, c)
+		if err != nil {
+			return err
+		}
+		var names []string
+		if a := owner[k]; a != nil && !isTop {
+			if a.docs[k] == atproto.DIDDocFile {
+				a.didDoc = data
+				if did, _, _, ok := atproto.DIDDoc(data); ok && a.did == "" {
+					a.did = did
+				}
+			}
+			if a.did == "" {
+				return fmt.Errorf("a document of %q, an account the archive names no DID for", a.handle)
+			}
+			names = append(names, repo.PDSAccountDir(a.did)+"/"+a.docs[k])
+		} else if isTop {
+			names = append(names, name)
+		} else if as := blobOf[k]; len(as) > 0 {
+			for _, a := range as {
+				if a.did == "" {
+					return fmt.Errorf("a blob of %q, an account the archive names no DID for", a.handle)
+				}
+				names = append(names, repo.PDSAccountDir(a.did)+"/"+atproto.BlobDir+"/"+cid.NewCidV1(cid.Raw, c.Hash()).String())
+			}
+		} else {
+			names = append(names, "unclaimed-blobs/"+cid.NewCidV1(cid.Raw, c.Hash()).String())
+		}
+		for _, name := range names {
+			if err := w.writeFile(name, data); err != nil {
+				return err
+			}
+		}
+		w.tick()
+	}
+	for _, a := range byName {
+		if a.didDoc == nil {
+			continue
+		}
+		id, err := atproto.IdentityFromDoc(a.didDoc, a.handle)
+		if err != nil {
+			return err
+		}
+		b, err := json.MarshalIndent(id, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := w.writeFile(repo.PDSAccountDir(a.did)+"/"+atproto.IdentityFile, b); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w *exporter) writeFile(name string, data []byte) error {

@@ -288,6 +288,57 @@ func TestExportATProto(t *testing.T) {
 	}
 }
 
+// A whole PDS comes back as one fetched-account directory per account,
+// each byte for byte, with pds.json beside them.
+func TestExportPDS(t *testing.T) {
+	a := atprototest.New(t)
+	a.Host(t, "did:plc:testbobbbbbbbbbbbbbbbbbbb", "bob.test", "Bob")
+	repo.ATProtoDir = t.TempDir()
+	r, err := repo.Open("pds:" + a.Server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	adir := t.TempDir()
+	build(t, r, adir)
+	dir, res := export(t, adir, ExportOptions{})
+	if res.Kind != repo.KindPDS {
+		t.Errorf("kind %q", res.Kind)
+	}
+	fetched, _ := filepath.Glob(filepath.Join(repo.ATProtoDir, "*"))
+	if len(fetched) != 2 {
+		t.Fatalf("fetched %v", fetched)
+	}
+	n := 0
+	for _, f := range fetched {
+		err = filepath.WalkDir(f, func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			rel, _ := filepath.Rel(repo.ATProtoDir, p)
+			want, _ := os.ReadFile(p)
+			got, err := os.ReadFile(filepath.Join(dir, rel))
+			if err != nil || !bytes.Equal(got, want) {
+				t.Errorf("%s differs from the fetched copy (%v)\n got %q\nwant %q", rel, err, trim(got), trim(want))
+			}
+			n++
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n < 10 {
+		t.Errorf("only %d files fetched", n)
+	}
+	if _, err := os.Stat(filepath.Join(dir, repo.PDSFile)); err != nil {
+		t.Error(err)
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, "unclaimed-blobs", "*")); len(left) > 0 {
+		t.Errorf("unclaimed blobs %v", left)
+	}
+}
+
 func trim(b []byte) []byte {
 	if len(b) > 200 {
 		return b[:200]
