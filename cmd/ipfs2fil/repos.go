@@ -210,9 +210,12 @@ func reposAdd(o *opts, c *collection.Collection, args []string) error {
 // (at://ada.bsky.social -> bsky-ada.bsky.social), so a handle that is a
 // domain does not read as an archive of that website. A whole PDS is
 // pds-<host>, a pinning service psa-<name> (psa:pinata -> psa-pinata,
-// psa+https://api.example.com/psa -> psa-example.com).
+// psa+https://api.example.com/psa -> psa-example.com), and a site list
+// sites-<file name> (/x/mine.sites -> sites-mine).
 func defaultName(path string) string {
-	if name, ok := strings.CutPrefix(path, "psa:"); ok {
+	if repo.IsSitesName(path) {
+		path = "sites-" + strings.TrimSuffix(filepath.Base(strings.TrimPrefix(path, "sites:")), repo.SitesExt)
+	} else if name, ok := strings.CutPrefix(path, "psa:"); ok {
 		path = "psa-" + name
 	} else if ep, ok := strings.CutPrefix(path, "psa+"); ok {
 		if u, err := url.Parse(ep); err == nil && u.Hostname() != "" {

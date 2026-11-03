@@ -49,7 +49,7 @@ func TestPSA(t *testing.T) {
 	oldGW, oldMax := Gateways, maxOpenCARs
 	Gateways, maxOpenCARs = []string{gw.URL}, 1
 	t.Cleanup(func() { Gateways, maxOpenCARs = oldGW, oldMax })
-	PSADir = t.TempDir()
+	PSADir, DAGDir = t.TempDir(), t.TempDir()
 	pin := func(id, created string, c cid.Cid, name string) map[string]any {
 		return map[string]any{"requestid": id, "status": "pinned", "created": created,
 			"pin": map[string]any{"cid": c.String(), "name": name, "meta": map[string]string{"app": "test"}}}
