@@ -121,7 +121,6 @@ func Load(path string) (*List, error) {
 type tomlList struct {
 	Title    string     `toml:"title"`
 	Gateways []string   `toml:"gateways"`
-	Sites    []any      `toml:"sites"`
 	Site     []tomlSite `toml:"site"`
 }
 
@@ -131,12 +130,9 @@ type tomlSite struct {
 	Note   string `toml:"note"`
 }
 
-// siteKeys are the fields a site may have.
-var siteKeys = map[string]bool{"source": true, "name": true, "note": true}
-
-// ParseTOML reads a list in TOML: the sites in sites = [...] (strings, or
-// inline tables like [[site]]'s), then those in [[site]] tables. Unknown
-// keys are errors, so a typo does not go unnoticed.
+// ParseTOML reads a list in TOML: one [[site]] table per site, so adding
+// or removing a site touches only its own lines. Unknown keys are errors,
+// so a typo does not go unnoticed.
 func ParseTOML(b []byte) (*List, error) {
 	var f tomlList
 	md, err := toml.Decode(string(b), &f)
@@ -146,14 +142,10 @@ func ParseTOML(b []byte) (*List, error) {
 	if und := md.Undecoded(); len(und) > 0 {
 		var keys []string
 		for _, k := range und {
-			if len(k) > 0 && k[0] != "sites" { // checked below
-				keys = append(keys, k.String())
-			}
+			keys = append(keys, k.String())
 		}
 		sort.Strings(keys)
-		if len(keys) > 0 {
-			return nil, fmt.Errorf("unknown keys: %s (a list has title, gateways, sites and [[site]] tables with source, name and note)", strings.Join(keys, ", "))
-		}
+		return nil, fmt.Errorf("unknown keys: %s (a list has title, gateways, and [[site]] tables with source, name and note)", strings.Join(keys, ", "))
 	}
 	l := &List{Title: f.Title}
 	for _, g := range f.Gateways {
@@ -162,35 +154,8 @@ func ParseTOML(b []byte) (*List, error) {
 		}
 		l.Gateways = append(l.Gateways, strings.TrimSuffix(g, "/"))
 	}
-	var all []tomlSite
-	for i, v := range f.Sites {
-		switch v := v.(type) {
-		case string:
-			all = append(all, tomlSite{Source: v})
-		case map[string]any:
-			var ts tomlSite
-			for k, x := range v {
-				s, ok := x.(string)
-				if !siteKeys[k] || !ok {
-					return nil, fmt.Errorf("sites[%d]: %s is not a site field (source, name, note are, as strings)", i, k)
-				}
-				switch k {
-				case "source":
-					ts.Source = s
-				case "name":
-					ts.Name = s
-				case "note":
-					ts.Note = s
-				}
-			}
-			all = append(all, ts)
-		default:
-			return nil, fmt.Errorf("sites[%d]: give a string or { source = ..., name = ... }", i)
-		}
-	}
-	all = append(all, f.Site...)
 	names := map[string]string{}
-	for i, ts := range all {
+	for i, ts := range f.Site {
 		where := fmt.Sprintf("site %d", i+1)
 		if ts.Source == "" {
 			return nil, fmt.Errorf("%s: no source", where)
@@ -216,35 +181,19 @@ func ParseTOML(b []byte) (*List, error) {
 		}
 	}
 	if len(l.Sites) == 0 {
-		return nil, errors.New("the list names no sites")
+		return nil, errors.New("the list names no sites; add a [[site]] table with a source")
 	}
 	return l, nil
 }
 
-// EncodeTOML writes sites as a list file: plain sources in sites = [...],
-// and sites with a name of their own or a note as [[site]] tables.
+// EncodeTOML writes sites as a list file, one [[site]] table each.
 func EncodeTOML(title string, sites []Site) []byte {
 	var b bytes.Buffer
 	b.WriteString("# Websites on IPFS to archive. Each run looks every site up again and\n# fetches what it serves now. See https://github.com/jbenet/ipfs2fil#site-lists\n")
 	if title != "" {
 		fmt.Fprintf(&b, "title = %s\n", Quote(title))
 	}
-	var plain, tables []Site
 	for _, s := range sites {
-		if s.Note != "" || s.Name != defaultName(s) {
-			tables = append(tables, s)
-		} else {
-			plain = append(plain, s)
-		}
-	}
-	if len(plain) > 0 {
-		b.WriteString("\nsites = [\n")
-		for _, s := range plain {
-			fmt.Fprintf(&b, "  %s,\n", Quote(s.Source))
-		}
-		b.WriteString("]\n")
-	}
-	for _, s := range tables {
 		fmt.Fprintf(&b, "\n[[site]]\nsource = %s\n", Quote(s.Source))
 		if s.Name != defaultName(s) {
 			fmt.Fprintf(&b, "name = %s\n", Quote(s.Name))

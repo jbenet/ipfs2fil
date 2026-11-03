@@ -338,14 +338,21 @@ hold as many lists as you like:
 
     # mine.ipfs-sites.toml
     title = "My sites"
-    sites = [
-      "benet.ai",                                # a domain with DNSLink
-      "https://fil.pub/",                        # its host's DNSLink, else the X-Ipfs-Path its server sends
-      "vitalik.eth",                             # an ENS name, through eth.limo
-      { source = "docs.ipfs.tech", name = "ipfs-docs" },
-    ]
 
-    [[site]]                                     # the same, one table per site
+    [[site]]
+    source = "benet.ai"                          # a domain with DNSLink
+
+    [[site]]
+    source = "https://fil.pub/"                  # its host's DNSLink, else the X-Ipfs-Path its server sends
+
+    [[site]]
+    source = "vitalik.eth"                       # an ENS name, through eth.limo
+
+    [[site]]
+    source = "docs.ipfs.tech"
+    name = "ipfs-docs"
+
+    [[site]]
     source = "/ipns/k51qzi5uqu5d..."             # an IPNS name; its signed record is checked
     name = "blog"
     note = "my blog"
@@ -356,7 +363,8 @@ hold as many lists as you like:
 
     ipfs2fil up --repo ~/sites/mine.ipfs-sites.toml
 
-A site has a `source` and, optionally, a `name` (how it is pinned and shown;
+One `[[site]]` table per site, so adding or removing one touches only its own
+lines and lists merge cleanly. A site has a `source` and, optionally, a `name` (how it is pinned and shown;
 by default the domain, ENS name or ID) and a `note`. `gateways = [...]` at
 the top replaces the gateways that list's sites are fetched from. Unknown
 keys are errors, so a typo is caught.

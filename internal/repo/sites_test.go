@@ -116,7 +116,11 @@ func TestSitesTOML(t *testing.T) {
 	// The list's own gateways replace the usual ones.
 	os.WriteFile(list, []byte(`title = "Mine"
 gateways = ["`+gw.URL+`"]
-sites = [{ source = "example.org", name = "ex", note = "the example" }]
+
+[[site]]
+source = "example.org"
+name = "ex"
+note = "the example"
 `), 0o644)
 	if !IsSites(list) || IsSites(filepath.Join(dir, "mine.ipfs-sites.lock.toml")) {
 		t.Fatal("IsSites")
