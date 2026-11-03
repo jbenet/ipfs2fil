@@ -232,6 +232,7 @@ remembered; `--catalog filecoin` goes back to reading it from chain.
     ipfs2fil up --repo http://127.0.0.1:5001       # a running kubo node
     ipfs2fil up --repo at://you.bsky.social        # a Bluesky account
     ipfs2fil up --repo pds:https://pds.example.com # every account on a PDS
+    ipfs2fil up --repo psa:pinata                  # your pins on a pinning service
 
 A running node on another machine works through an ssh tunnel:
 
@@ -304,6 +305,30 @@ account's `blobs.json` lists the blobs that are its own (blobs shared by
 several accounts are stored once). The explorer's library lists every
 account. `ipfs2fil export` writes one folder per account, named by DID,
 each the same as an `at://` fetch, byte for byte.
+
+## Pins on a pinning service
+
+Pins kept on a pinning service (Pinata, Filebase, 4EVERLAND, or any service
+that speaks the [IPFS Pinning Services API](https://ipfs.github.io/pinning-services-api-spec/))
+archive as one repo:
+
+    export IPFS2FIL_PSA_TOKEN=...                       # the service's API token
+    ipfs2fil up --repo psa:pinata                       # or psa:filebase, psa:4everland
+    ipfs2fil up --repo psa+https://api.example.com/psa  # any other endpoint
+
+The token can also live in `~/.ipfs2fil/psa/tokens/<host>` (one line). It is
+never written to the archive or the catalog, and a URL holding one is
+refused. ipfs2fil lists every pin with status `pinned`, then fetches each
+pin's whole DAG as a CAR from public trustless gateways (the services list
+pins but do not serve them), checking every block's hash and that no block
+the DAG links to is missing. Pins are cached by CID in
+`~/.ipfs2fil/psa/cars/`, so later runs fetch only new pins. Each pin becomes
+a recursive pin under its name (or its CID when it has none). `psa.json`,
+pinned beside them, holds what the service said about every pin: request
+ID, CID, name, creation time, origins and metadata, so the pins can be made
+again elsewhere, and names any pin no gateway served in full. Set
+`$IPFS2FIL_GATEWAYS` (comma-separated) to fetch from other gateways, such as
+a service's own dedicated gateway.
 
 ## Git repos
 

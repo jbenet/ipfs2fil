@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/ipfs/go-cid"
 	carv2 "github.com/ipld/go-car/v2"
@@ -26,11 +27,20 @@ import (
 // open, and read from the files on demand.
 type carRepo struct {
 	path  string
-	files []*os.File
+	names []string // the CAR files, by index
 	pins  []Pin
 	order []string            // multihashes in first-seen order
 	at    map[string]carBlock // multihash -> where its bytes are
+
+	// Files open on demand, at most maxOpenCARs at a time, so a folder of
+	// thousands of CARs does not run out of file descriptors.
+	mu   sync.RWMutex
+	open map[int]*os.File
+	lru  []int // open files, oldest first
 }
+
+// maxOpenCARs bounds the CAR files a carRepo keeps open.
+var maxOpenCARs = 64
 
 type carBlock struct {
 	file int
@@ -118,7 +128,8 @@ func (r *carRepo) index(name, base string) error {
 	if err != nil {
 		return err
 	}
-	r.files = append(r.files, f)
+	defer f.Close()
+	r.names = append(r.names, name)
 	br, err := carv2.NewBlockReader(f)
 	if err != nil {
 		return fmt.Errorf("%s: %w", name, err)
@@ -145,7 +156,7 @@ func (r *carRepo) index(name, base string) error {
 		var buf [binary.MaxVarintLen64]byte
 		lenLen := uint64(binary.PutUvarint(buf[:], cidLen+m.Size))
 		r.order = append(r.order, k)
-		r.at[k] = carBlock{file: len(r.files) - 1, off: int64(m.SourceOffset + lenLen + cidLen), size: int(m.Size)}
+		r.at[k] = carBlock{file: len(r.names) - 1, off: int64(m.SourceOffset + lenLen + cidLen), size: int(m.Size)}
 	}
 }
 
@@ -161,11 +172,47 @@ func (r *carRepo) Kind() string     { return KindCAR }
 func (r *carRepo) Version() Version { return 0 }
 
 func (r *carRepo) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	var errs []error
-	for _, f := range r.files {
+	for _, f := range r.open {
 		errs = append(errs, f.Close())
 	}
+	r.open, r.lru = nil, nil
 	return errors.Join(errs...)
+}
+
+// readAt reads from CAR file i, opening it if it is not open.
+func (r *carRepo) readAt(i int, data []byte, off int64) error {
+	for {
+		r.mu.RLock()
+		f := r.open[i]
+		if f != nil {
+			_, err := f.ReadAt(data, off)
+			r.mu.RUnlock()
+			return err
+		}
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if r.open[i] == nil {
+			nf, err := os.Open(r.names[i])
+			if err != nil {
+				r.mu.Unlock()
+				return err
+			}
+			if r.open == nil {
+				r.open = map[int]*os.File{}
+			}
+			for len(r.lru) >= maxOpenCARs {
+				r.open[r.lru[0]].Close()
+				delete(r.open, r.lru[0])
+				r.lru = r.lru[1:]
+			}
+			r.open[i] = nf
+			r.lru = append(r.lru, i)
+		}
+		r.mu.Unlock()
+	}
 }
 
 func (r *carRepo) ForEachBlock(ctx context.Context, fn func(multihash.Multihash, int) error) error {
@@ -186,7 +233,7 @@ func (r *carRepo) Get(_ context.Context, mh multihash.Multihash) ([]byte, error)
 		return nil, ErrNotFound
 	}
 	data := make([]byte, b.size)
-	if _, err := r.files[b.file].ReadAt(data, b.off); err != nil {
+	if err := r.readAt(b.file, data, b.off); err != nil {
 		return nil, err
 	}
 	return data, nil

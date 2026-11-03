@@ -46,12 +46,12 @@ func (r *carRepo) CARLayouts() ([]CARLayout, error) {
 		base = r.path
 	}
 	var out []CARLayout
-	for _, f := range r.files {
-		l, err := ReadCARLayout(f.Name())
+	for _, name := range r.names {
+		l, err := ReadCARLayout(name)
 		if err != nil {
 			return nil, err
 		}
-		l.Name = filepath.ToSlash(mustRel(base, f.Name()))
+		l.Name = filepath.ToSlash(mustRel(base, name))
 		out = append(out, *l)
 	}
 	return out, nil
