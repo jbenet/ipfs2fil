@@ -59,8 +59,10 @@ made. Everything shows two made-up repos, never anyone's real data.
 
    The PDS and the pinning service are local: `demo/services.sh $HOME <pds
    npm dir>` (with `npm i @atproto/pds @did-plc/server @atproto/api` in that
-   dir) runs the reference PDS with a PLC directory and three made-up
-   accounts (`demo/pds.mjs`), a small Pinning Services API server
+   dir, installed with `--before 2026-11-02`) runs the reference PDS with a
+   PLC directory, three made-up accounts and @bsky-app.test, a copy of
+   @bsky.app's latest posts whose images dedupe with the at://bsky.app repo
+   (`demo/pds.mjs`), a small Pinning Services API server
    (`demo/psa.mjs`) and a kubo node holding its pins, and prints the
    `IPFS2FIL_PLC_DIRECTORY`, `IPFS2FIL_HANDLE_RESOLVER`, `IPFS2FIL_GATEWAYS`
    and `IPFS2FIL_PSA_TOKEN` to export first. Keep it running until `up`

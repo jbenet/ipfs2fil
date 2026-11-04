@@ -1,0 +1,1 @@
+{"$type":"app.bsky.feed.post","createdAt":"2026-09-21T18:04:06.128Z","facets":[{"$type":"app.bsky.richtext.facet","features":[{"$type":"app.bsky.richtext.facet#mention","did":"did:web:bsky38.com"}],"index":{"byteEnd":41,"byteStart":30}}],"langs":["en"],"text":"If you're in line to vote for @bsky38.com, please stay in line! Polls close in just under 5 hours."}

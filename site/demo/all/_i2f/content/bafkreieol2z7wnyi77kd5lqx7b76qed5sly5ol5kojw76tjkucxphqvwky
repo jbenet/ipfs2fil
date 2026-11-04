@@ -1,0 +1,31 @@
+{
+  "$type": "ipfs2fil.pds",
+  "server": "http://localhost:2583",
+  "did": "did:web:localhost",
+  "accounts": [
+    {
+      "did": "did:plc:e2eqxcot3uob3ytgw4yt2zy2",
+      "handle": "gardenlog.test",
+      "rev": "3mziyyekcck2w",
+      "commit": "bafyreifrdpplawbkzcsf52vf7vgnlo6abg5ikrknp3ys4w6j4crungo4qi"
+    },
+    {
+      "did": "did:plc:iuzjus7tmsxj3pz3xxcuxjgy",
+      "handle": "bsky-app.test",
+      "rev": "3mziyyi2m2k2w",
+      "commit": "bafyreib2qeynpoojnhtwlkxsdylrvbg2nesdxwsbnarnsmfmknzoxargcy"
+    },
+    {
+      "did": "did:plc:padtncnuafsbfb6qhq7jas4c",
+      "handle": "cidlab.test",
+      "rev": "3mziyyej75k2w",
+      "commit": "bafyreibkhlcxja2o2k2hnb4dnvnhuloyjjsk5artdzvvy5tfosqv3piajm"
+    },
+    {
+      "did": "did:plc:zbzlsjbv342h3eo3jfosay5f",
+      "handle": "ada.test",
+      "rev": "3mziyyejqq22w",
+      "commit": "bafyreidcpvqya5r6s7qxkrt54fl4iwyvaqvfmr3kbtnxgvwxh5bb4g47om"
+    }
+  ]
+}

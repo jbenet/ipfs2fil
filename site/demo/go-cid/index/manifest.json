@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeiekf6ctkslxo36nuhj7xlgzpywdsm77e7e4v6a3rgbtbwtnvrdwrm",
+  "root": "bafybeigbock3bb2rp4u5mi4vvfzuoil6htgd7f4e6gkquqrnodvq7c2eiq",
   "dataRoot": "bafybeibn5bhbqxhuoqbmzflnz6f33urgjossc2b2624vdnqx2wtz7kwoha",
   "source": {
     "kind": "git",
@@ -25,9 +25,9 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibfvhh2kbay42mwdqmxqclxvp6dagkmwrhubaqffl5dammzrrb2c23ivl3jgyia",
-      "carBytes": 523671639,
-      "blocks": 19038,
+      "pieceCid": "bafkzcibfsc52cbayfddolwawffranj724lz2rtnblossohzwpy76mtwzm2ug7t3eoqxq",
+      "carBytes": 523739760,
+      "blocks": 19098,
       "blockList": "pieces/0000",
       "part": "bundle",
       "dataBytes": 455089,
@@ -62,8 +62,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-11-04T11:16:06Z",
-      "root": "bafybeiekf6ctkslxo36nuhj7xlgzpywdsm77e7e4v6a3rgbtbwtnvrdwrm",
+      "time": "2026-11-04T18:43:41Z",
+      "root": "bafybeigbock3bb2rp4u5mi4vvfzuoil6htgd7f4e6gkquqrnodvq7c2eiq",
       "newPieces": [
         0
       ]
