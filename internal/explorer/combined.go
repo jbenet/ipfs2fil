@@ -248,6 +248,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 		return nil, nil, err
 	}
 	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Gits, mt.Sites = types, parts, repos, accounts, gits, sites
+	mt.WebRoots = withoutSites(mt.WebRoots, sites)
 	for i, v := range gFiles {
 		k := fmt.Sprintf("g/%d", i)
 		if files[k+".js"], err = jsFile(k, v); err != nil {

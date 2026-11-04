@@ -85,3 +85,58 @@ func subRepos(byPath map[string]*Entry, children map[string][]*Entry) []string {
 	sort.Strings(out)
 	return out
 }
+
+// maxWebRoots bounds the folders webRoots lists.
+const maxWebRoots = 2000
+
+// webRoots lists the folders in the content that look like a website's
+// root: a folder holding an index.html (or index.htm), not inside another
+// such folder. Library > Web sites lists them under Other archives, where
+// the explorer shows them as sites (the folder as the site's root). Site
+// lists' sites are listed on their own; withoutSites drops them.
+func webRoots(byPath map[string]*Entry, children map[string][]*Entry) []string {
+	var found []string
+	for p, e := range byPath {
+		if e.Kind != "folder" || p == "" {
+			continue
+		}
+		for _, c := range children[p] {
+			if c.Kind != "folder" && (strings.EqualFold(c.Name, "index.html") || strings.EqualFold(c.Name, "index.htm")) {
+				found = append(found, p)
+				break
+			}
+		}
+	}
+	sort.Strings(found)
+	var out []string
+	for _, p := range found {
+		// sorted, so a folder comes before the folders inside it
+		if n := len(out); n > 0 && strings.HasPrefix(p, out[n-1]+"/") {
+			continue
+		}
+		out = append(out, p)
+		if len(out) == maxWebRoots {
+			break
+		}
+	}
+	return out
+}
+
+// withoutSites drops from roots the site lists' sites and the folders in
+// them.
+func withoutSites(roots []string, sites []siteInfo) []string {
+	var out []string
+	for _, p := range roots {
+		keep := true
+		for _, s := range sites {
+			if s.Path != "" && (p == s.Path || strings.HasPrefix(p, s.Path+"/")) {
+				keep = false
+				break
+			}
+		}
+		if keep {
+			out = append(out, p)
+		}
+	}
+	return out
+}

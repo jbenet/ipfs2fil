@@ -98,6 +98,9 @@ type meta struct {
 	Sites []siteInfo `json:"sites,omitempty"`
 	// SubRepos lists the repos inside the content (see subRepos).
 	SubRepos []string `json:"subRepos,omitempty"`
+	// WebRoots lists the folders in the content that look like websites
+	// (see webRoots).
+	WebRoots []string `json:"webRoots,omitempty"`
 }
 
 type accountInfo struct {
@@ -131,7 +134,10 @@ type gitInfo struct {
 	Commits   int    `json:"commits"`
 	Snapshots int    `json:"snapshots"`
 	Bytes     int64  `json:"bytes"` // packs, every snapshot
-	Path      string `json:"path,omitempty"`
+	// Remote is the URL of its origin remote (else its first), which names
+	// its owner in the Git viewer.
+	Remote string `json:"remote,omitempty"`
+	Path   string `json:"path,omitempty"`
 	// Href is the Git viewer in the archive's own explorer, in a combined index.
 	Href string `json:"href,omitempty"`
 }
@@ -236,7 +242,7 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 		}
 	}
 
-	mt := meta{Format: IndexFormat, Entries: len(byPath), Types: map[string]tally{}, Parts: map[string]tally{}, SubRepos: subRepos(byPath, children)}
+	mt := meta{Format: IndexFormat, Entries: len(byPath), Types: map[string]tally{}, Parts: map[string]tally{}, SubRepos: subRepos(byPath, children), WebRoots: webRoots(byPath, children)}
 	for _, e := range byPath {
 		if e.Kind == "folder" {
 			continue
@@ -368,6 +374,11 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 		for _, s := range g.Snapshots {
 			gi.Bytes += s.Bytes
 		}
+		for _, r := range g.Remotes {
+			if gi.Remote == "" || r[0] == "origin" {
+				gi.Remote = r[1]
+			}
+		}
 		for _, r := range m.Roots {
 			if r.CID == g.Root {
 				gi.Path = r.Path
@@ -399,6 +410,7 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 		}
 	}
 	mt.Sites = siteInfos(m, x.Sites)
+	mt.WebRoots = withoutSites(mt.WebRoots, mt.Sites)
 	if err := put("meta.js", "meta", mt); err != nil {
 		return nil, err
 	}

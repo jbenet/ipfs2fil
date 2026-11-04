@@ -134,3 +134,36 @@ func TestRefreshIndex(t *testing.T) {
 		t.Error("meta.js on disk was rewritten")
 	}
 }
+
+// Folders holding an index.html are websites in the content, the topmost
+// one of each tree, leaving out the sites of site lists.
+func TestWebRoots(t *testing.T) {
+	m := &manifest.Manifest{DataRoot: "bafydata"}
+	f := func(p, kind string) Entry {
+		return Entry{Name: filepath.Base(p), Path: p, CID: "bafy" + strings.NewReplacer("/", "", ".", "").Replace(p), Kind: kind, Bytes: 1, Piece: -1}
+	}
+	es := []Entry{
+		f("games/2048/index.html", "page"),
+		f("games/2048/js/app.js", "code"),
+		f("games/2048/meta/index.html", "page"), // inside a site: not one of its own
+		f("games/bird/INDEX.HTM", "page"),
+		f("games/readme.md", "text"),
+		f("notes/index.html/x.txt", "text"), // a folder named index.html
+		f("sites/bafysite/index.html", "page"),
+	}
+	files, err := buildIndexWith(m, es, Extras{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mt meta
+	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"games/2048", "games/bird", "sites/bafysite"}
+	if !reflect.DeepEqual(mt.WebRoots, want) {
+		t.Errorf("webRoots = %q, want %q", mt.WebRoots, want)
+	}
+	if got := withoutSites(want, []siteInfo{{Path: "sites/bafysite"}}); !reflect.DeepEqual(got, want[:2]) {
+		t.Errorf("withoutSites = %q", got)
+	}
+}

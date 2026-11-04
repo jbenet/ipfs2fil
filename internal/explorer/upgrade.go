@@ -140,11 +140,13 @@ func refreshIndex(dir string) (map[string][]byte, error) {
 	if err := json.Unmarshal(jsValue(files["meta.js"], "meta"), &mt); err != nil {
 		return nil, err
 	}
-	if n == 0 && len(mt.SubRepos) == len(old.SubRepos) {
+	mt.WebRoots = withoutSites(mt.WebRoots, old.Sites)
+	if n == 0 && len(mt.SubRepos) == len(old.SubRepos) && len(mt.WebRoots) == len(old.WebRoots) {
 		return nil, nil
 	}
 	// The old totals count each block once; the rows alone cannot.
-	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Sites = old.Types, old.Parts, old.Repos, old.Accounts, old.Sites
+	// (and what came from the archive's roots, not its entries: g/ and at/ stay as they are)
+	mt.Types, mt.Parts, mt.Repos, mt.Accounts, mt.Gits, mt.Sites = old.Types, old.Parts, old.Repos, old.Accounts, old.Gits, old.Sites
 	if files["meta.js"], err = jsFile("meta", mt); err != nil {
 		return nil, err
 	}
