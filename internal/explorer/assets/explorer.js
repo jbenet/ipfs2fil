@@ -63,6 +63,8 @@
   // packs/ holds the packs. GITP maps a record's path to its place in
   // meta.gits.
   const GITP = {}, GITL = {}, GITR = {};
+  // A git archive set's record opens as a folder of its repos.
+  const GSET = {};
   const gitOf = async (n) => GITL[n] || (GITL[n] = await load('g/' + n));
   const gitPack = (c, name) => LOCAL ? CONTENT + encodeURIComponent(c) + '?name=' + name : HERE || PUBLIC ? gw(c) : null;
   function gitReader(n, g) {
@@ -74,7 +76,13 @@
   const gitAt = (p) => Object.keys(GITP).filter((k) => p === k || p.startsWith(k + '/')).sort((a, b) => b.length - a.length)[0];
   async function inGit(p) {
     const gp = gitAt(p);
-    if (gp == null) return null;
+    if (gp == null) {
+      if (!GSET[p]) return null;
+      const meta = await load('meta'), gits = meta.gits || [];
+      const kids = Object.keys(GITP).filter((k) => k.slice(0, k.lastIndexOf('/')) === p).sort()
+        .map((k) => ({ name: k.slice(k.lastIndexOf('/') + 1), path: k, dir: p, kind: 'record', bytes: gits[GITP[k]].bytes || 0, cid: gits[GITP[k]].root, piece: -1 }));
+      return { virtual: true, cid: '', chunks: [], n: kids.length, bytes: kids.reduce((a, k) => a + k.bytes, 0), files: kids.length, folders: 0, types: { record: [kids.length, 0] }, kids, flat: kids };
+    }
     const n = GITP[gp], g = await gitOf(n);
     const rest = p === gp ? [] : p.slice(gp.length + 1).split('/');
     const kid = (name, kind, extra) => ({ name, path: p + '/' + name, dir: p, kind, bytes: 0, cid: '', piece: -1, ...extra });
@@ -159,7 +167,7 @@
     } catch (err) { toast(err.message); return null; }
   }
   // Archives open like folders.
-  const isDir = (e) => !!e && (e.kind === 'folder' || GITP[e.path] != null || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
+  const isDir = (e) => !!e && (e.kind === 'folder' || GITP[e.path] != null || GSET[e.path] || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
   // Shards name pieces by PieceCID; PIECE maps them to their index here.
   let PIECE = {};
   // This snapshot's bundle is "" there: its PieceCID was not known yet.
@@ -813,6 +821,8 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     const ACC = meta.accounts || [], GITS = meta.gits || [];
     GITS.forEach((g, i) => { if (g.path && (!g.href || /^browse\.html/.test(g.href))) GITP[g.path] = i; });
     GITS.forEach((g) => { if (g.path) REPOK[g.path] = 'git'; });
+    // (a repo of a set is named set/repo, and sits at <set record>/repo)
+    GITS.forEach((g) => { const i = g.name.indexOf('/'); if (i > 0 && g.path && g.path.endsWith('/' + g.name.slice(i + 1))) { const d = g.path.slice(0, g.path.lastIndexOf('/')); GSET[d] = true; REPOK[d] = 'git'; } });
     ACC.forEach((a) => { if (a.path) REPOK[a.path] = 'atproto'; });
     (REPOS || []).forEach((r) => { REPOK[r.name.replace(/[/\\]/g, '_')] = r.kind || ''; });
     const inHere = (a) => !a.href || /^(posts|browse)\.html/.test(a.href);

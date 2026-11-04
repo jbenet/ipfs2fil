@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeiexqfj2gspawc3pm4dnztj2wlwd2ylvvkx4rpu45ahgq4iwqfto2i",
+  "root": "bafybeichdsztc52h5e6imnso3kwxnkdx656yguibels6wwt2faa6nkvlim",
   "dataRoot": "bafybeifgq3evijn7y5dcidopcjgsere6yfkvphiqzaf4crvhsqhinuybiu",
   "source": {
     "kind": "js-ipfs",
@@ -240,9 +240,9 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
-      "carBytes": 523317785,
-      "blocks": 19016,
+      "pieceCid": "bafkzcibfvhh2kbay42mwdqmxqclxvp6dagkmwrhubaqffl5dammzrrb2c23ivl3jgyia",
+      "carBytes": 523671639,
+      "blocks": 19038,
       "blockList": "pieces/0000",
       "part": "bundle",
       "dataBytes": 11007253,
@@ -277,8 +277,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-11-03T10:30:00Z",
-      "root": "bafybeiexqfj2gspawc3pm4dnztj2wlwd2ylvvkx4rpu45ahgq4iwqfto2i",
+      "time": "2026-11-04T11:16:05Z",
+      "root": "bafybeichdsztc52h5e6imnso3kwxnkdx656yguibels6wwt2faa6nkvlim",
       "newPieces": [
         0
       ]

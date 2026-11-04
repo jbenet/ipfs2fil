@@ -1,8 +1,8 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeihpsnnw23gfgovw3gf76fbfdvyzceuaqbb5xjciprpcwl4jbnskda",
-  "dataRoot": "bafybeieg4spxd3yhpiksstyw2glkworrva5shzgcvwgfvjo5gkehibrkvu",
+  "root": "bafybeiekf6ctkslxo36nuhj7xlgzpywdsm77e7e4v6a3rgbtbwtnvrdwrm",
+  "dataRoot": "bafybeibn5bhbqxhuoqbmzflnz6f33urgjossc2b2624vdnqx2wtz7kwoha",
   "source": {
     "kind": "git",
     "repoVersion": 0,
@@ -14,7 +14,7 @@
       "cid": "bafyreigitabmqaqvj4nr2aemqecngkt5dt5pltk442bqt6cor246ijuhre",
       "kind": "pin-recursive",
       "name": "go-cid",
-      "path": "pins/recursive/bafyreigitabmqaqvj4nr2aemqecngkt5dt5pltk442bqt6cor246ijuhre",
+      "path": "bafyreigitabmqaqvj4nr2aemqecngkt5dt5pltk442bqt6cor246ijuhre",
       "bytes": 454934,
       "blocks": 4,
       "own": 454934,
@@ -25,9 +25,9 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibf46n3wbaythpes5amipk3apkkcxcxzj3h5mabkx5htcosg77qnmsgq4hflqqq",
-      "carBytes": 523317785,
-      "blocks": 19016,
+      "pieceCid": "bafkzcibfvhh2kbay42mwdqmxqclxvp6dagkmwrhubaqffl5dammzrrb2c23ivl3jgyia",
+      "carBytes": 523671639,
+      "blocks": 19038,
       "blockList": "pieces/0000",
       "part": "bundle",
       "dataBytes": 455089,
@@ -62,8 +62,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-11-03T10:30:02Z",
-      "root": "bafybeihpsnnw23gfgovw3gf76fbfdvyzceuaqbb5xjciprpcwl4jbnskda",
+      "time": "2026-11-04T11:16:06Z",
+      "root": "bafybeiekf6ctkslxo36nuhj7xlgzpywdsm77e7e4v6a3rgbtbwtnvrdwrm",
       "newPieces": [
         0
       ]

@@ -383,6 +383,16 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 				}
 			}
 		}
+		if set, name, ok := strings.Cut(g.Name, "/"); ok && gi.Path == "" {
+			// a repo of a git archive set (set/name): under the set's record,
+			// which the explorer opens as a folder of its repos
+			for _, r := range m.Roots {
+				if r.Name == set {
+					gi.Path = r.Path + "/" + name
+					break
+				}
+			}
+		}
 		mt.Gits = append(mt.Gits, gi)
 		if err := put(fmt.Sprintf("g/%d.js", i), fmt.Sprintf("g/%d", i), g); err != nil {
 			return nil, err
