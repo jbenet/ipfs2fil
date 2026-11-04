@@ -1,0 +1,38 @@
+{
+  "$type": "ipfs2fil.sites",
+  "title": "ipfs-websites",
+  "list": "ipfs-websites.ipfs-sites.toml",
+  "checked": "2026-11-04T11:22:43Z",
+  "sites": [
+    {
+      "name": "ipfs.tech",
+      "source": "ipfs.tech",
+      "kind": "dnslink",
+      "note": "The IPFS website",
+      "root": "bafybeiejegeowlh5warqnrjjmhbkf7hdjaiuhnpqajbktx6ta77urqmljy",
+      "how": "dnslink",
+      "since": "2026-11-04T11:12:48Z",
+      "checked": "2026-11-04T11:22:43Z"
+    },
+    {
+      "name": "specs.ipfs.tech",
+      "source": "specs.ipfs.tech",
+      "kind": "dnslink",
+      "note": "The IPFS specs",
+      "root": "bafybeieqikrxw6kjbu2aojxr5ypfzb4gk75pkvrfzef6yiv6jucec427e4",
+      "how": "dnslink",
+      "since": "2026-11-04T11:13:47Z",
+      "checked": "2026-11-04T11:22:43Z"
+    },
+    {
+      "name": "docs.ipfs.tech",
+      "source": "docs.ipfs.tech",
+      "kind": "dnslink",
+      "note": "The IPFS docs",
+      "root": "bafybeier6ud42ptljtfaxrdlknktw54b7ohfpg5h33mosxpxjndxs7xzvm",
+      "how": "dnslink",
+      "since": "2026-11-04T11:12:46Z",
+      "checked": "2026-11-04T11:22:43Z"
+    }
+  ]
+}

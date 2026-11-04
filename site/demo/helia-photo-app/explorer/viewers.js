@@ -102,7 +102,8 @@
       } else if (/^\s*([-*+]|\d+[.)])\s/.test(l)) {
         const ordered = /^\s*\d/.test(l), items = [];
         for (; i < lines.length && (/^\s*([-*+]|\d+[.)])\s/.test(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length)); i++) {
-          if (/^\s*([-*+]|\d+[.)])\s/.test(lines[i]) && !/^\s{2,}/.test(lines[i])) items.push([lines[i].replace(/^\s*([-*+]|\d+[.)])\s+/, '')]);
+          // (a list may start indented: its first item is still an item)
+          if (/^\s*([-*+]|\d+[.)])\s/.test(lines[i]) && (!/^\s{2,}/.test(lines[i]) || !items.length)) items.push([lines[i].replace(/^\s*([-*+]|\d+[.)])\s+/, '')]);
           else items[items.length - 1].push(lines[i].replace(/^\s{2,4}/, ''));
         }
         const li = (it) => {

@@ -1,1 +1,0 @@
-I2F.put("s/7dd4a1dc34680dba",{"dirs":["","pins","pins/recursive"],"pieces":[""],"rows":[[0,"pins","folder",4668,"",0],[1,"recursive","folder",4668,"",0],[2,"go-cid.dag-cbor.json","record",4668,"bafyreigitabmqaqvj4nr2aemqecngkt5dt5pltk442bqt6cor246ijuhre",0,"bafyreigitabmqaqvj4nr2aemqecngkt5dt5pltk442bqt6cor246ijuhre"]]});

@@ -1,9 +1,0 @@
-{
-  "$type": "ipfs2fil.blobs",
-  "blobs": [
-    "bafkreiacxget7xgxyliigdtozcsrpuhoajmwjv6m456dsmcobs6uxkwtgq",
-    "bafkreihijq7qib2pgk5nvgovjr6vxbrsxotip3jipbigos6ne2tjfpruxu",
-    "bafkreihilywmejutwc74y727ax72qwsuspktdkyss6fka44iq3sji2bbdu"
-  ],
-  "did": "did:plc:3biq4ledbcztc7ir377yc4rk"
-}
