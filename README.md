@@ -385,7 +385,9 @@ What each site resolved to goes in the list's lock file beside it,
 has served it, when it was last seen, and the roots it served before. A
 site that cannot be reached keeps the root it had last time, marked `stale`
 with the error. `sites.json`, pinned in the archive beside the sites with
-the list itself, holds the same. Since every run that finds a new root
+the list itself, holds the same. It is DAG-JSON, with each site's root
+also as an IPLD link, so `ipfs pin add <its CID>` pins every site at once.
+Since every run that finds a new root
 stores a new snapshot, the archive holds each site's history, and the
 explorer lists the sites under Library > Web sites: each with its home
 page, its live address, its root and the roots it served before.

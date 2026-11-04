@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	"github.com/ipld/go-ipld-prime/codec/dagjson"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 	"github.com/multiformats/go-multihash"
 
 	"github.com/jbenet/ipfs2fil/internal/sitelist"
@@ -75,6 +78,49 @@ type SitesDoc struct {
 // SiteEntry is one site of the list: the root it is archived at and how
 // that root was found.
 type SiteEntry = sitelist.Entry
+
+// SitesDocBytes encodes sites.json as DAG-JSON: each site found has its
+// root as a string (root, as before) and as an IPLD link (link), so the
+// document is an IPLD node whose links are the sites. Pinning it
+// recursively (ipfs pin add) pins every site's current root. Earlier roots
+// stay strings: they may not be stored anywhere any more.
+func SitesDocBytes(d SitesDoc) ([]byte, error) {
+	b, err := json.Marshal(d)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	if ss, ok := m["sites"].([]any); ok {
+		for _, x := range ss {
+			if e, ok := x.(map[string]any); ok {
+				if root, _ := e["root"].(string); root != "" {
+					if _, err := cid.Decode(root); err == nil {
+						e["link"] = map[string]any{"/": root}
+					}
+				}
+			}
+		}
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(m); err != nil {
+		return nil, err
+	}
+	// canonical DAG-JSON: sorted keys, no spaces, links as links
+	nb := basicnode.Prototype.Any.NewBuilder()
+	if err := dagjson.Decode(nb, &buf); err != nil {
+		return nil, err
+	}
+	var out bytes.Buffer
+	if err := dagjson.Encode(nb.Build(), &out); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
 
 func openSites(path string) (Repo, error) {
 	p := strings.TrimPrefix(path, "sites:")
@@ -195,7 +241,7 @@ func (r *sitesRepo) fetch() error {
 	if failed > 0 {
 		logf("  %d of %d sites are not in this snapshot; sites.json says why\n", failed, len(entries))
 	}
-	doc, err := json.MarshalIndent(SitesDoc{Type: "ipfs2fil.sites", Title: r.list.Title, List: filepath.Base(r.path), Checked: lock.Checked.Format(time.RFC3339), Sites: entries}, "", "  ")
+	doc, err := SitesDocBytes(SitesDoc{Type: "ipfs2fil.sites", Title: r.list.Title, List: filepath.Base(r.path), Checked: lock.Checked.Format(time.RFC3339), Sites: entries})
 	if err != nil {
 		return err
 	}
@@ -210,7 +256,11 @@ func (r *sitesRepo) fetch() error {
 			r.docs[string(mh)] = d.b
 			r.order = append(r.order, string(mh))
 		}
-		r.pins = append(r.pins, Pin{Root: cid.NewCidV1(cid.Raw, mh), Mode: Direct, Name: d.name})
+		codec := uint64(cid.Raw)
+		if d.name == SitesFile {
+			codec = cid.DagJSON // its sites' roots are links
+		}
+		r.pins = append(r.pins, Pin{Root: cid.NewCidV1(codec, mh), Mode: Direct, Name: d.name})
 	}
 	return nil
 }
