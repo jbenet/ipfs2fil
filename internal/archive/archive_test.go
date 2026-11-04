@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"testing"
 	"time"
 
@@ -1026,5 +1027,54 @@ func TestRecordRoots(t *testing.T) {
 	}
 	if e := got[djCID.String()]; e.Name != "bundle.dag-json.json" || e.Kind != "record" {
 		t.Errorf("dag-json root: %+v", e)
+	}
+}
+
+// kindRepo is a fake repo of another kind than an IPFS node's.
+type kindRepo struct {
+	*fakeRepo
+	kind string
+}
+
+func (k kindRepo) Kind() string { return k.kind }
+
+// Only an IPFS node's repo has pins: any other repo's roots sit straight
+// under data/, with no pins/recursive.
+func TestRootsAtTopForOtherRepos(t *testing.T) {
+	ctx := context.Background()
+	for _, kind := range []string{repo.KindCAR, repo.KindGit, repo.KindSites, repo.KindATProto, repo.KindFSRepo} {
+		f := newFake()
+		a := f.dir(t, map[string]format.Node{"a.txt": f.file(t, []byte("a"), true)})
+		b := f.file(t, []byte("b"), true)
+		f.pins = []repo.Pin{{Root: a.Cid(), Mode: repo.Recursive, Name: "a"}, {Root: b.Cid(), Mode: repo.Direct}}
+		l := newLayout(kindRepo{f, kind})
+		if err := l.list(ctx); err != nil {
+			t.Fatal(err)
+		}
+		roots, err := l.walkRoots(ctx, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		node, err := l.dataDir(ctx, memDAG{}, roots)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, ln := range node.Links() {
+			names = append(names, ln.Name)
+		}
+		owned := make([]bool, len(l.tab))
+		var paths []string
+		for _, rt := range roots {
+			paths = append(paths, l.rootEntry(rt, owned).Path)
+		}
+		want, wantPaths := []string{a.Cid().String(), b.Cid().String()}, []string{a.Cid().String(), b.Cid().String()}
+		if kind == repo.KindFSRepo {
+			want, wantPaths = []string{"pins"}, []string{"pins/recursive/" + a.Cid().String(), "pins/direct/" + b.Cid().String()}
+		}
+		sort.Strings(want)
+		if fmt.Sprint(names) != fmt.Sprint(want) || fmt.Sprint(paths) != fmt.Sprint(wantPaths) {
+			t.Errorf("%s: data/ holds %v, want %v; root paths %v, want %v", kind, names, want, paths, wantPaths)
+		}
 	}
 }

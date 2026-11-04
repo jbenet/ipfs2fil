@@ -44,6 +44,20 @@ type root struct {
 	c    cid.Cid
 	kind string
 	name string
+	// top puts the root straight under data/ (data/<cid>), for repos whose
+	// roots are not pins in any IPFS node's sense: a CAR, a Bluesky account,
+	// a site list, a git repo. Only IPFS nodes' repos get pins/recursive.
+	top bool
+}
+
+// pinsDir says whether a repo's roots are an IPFS node's pins, laid out
+// under data/pins/<mode>/ beside its MFS root and orphans.
+func pinsDir(kind string) bool {
+	switch kind {
+	case repo.KindFSRepo, repo.KindRPC, repo.KindJSIPFS, repo.KindHelia:
+		return true
+	}
+	return false
 }
 
 // layout places every block reachable from the roots, depth first, once.
@@ -155,7 +169,7 @@ func (l *layout) walkRoots(ctx context.Context, orphans bool) ([]root, error) {
 	}
 	var rec, dir []root
 	for _, p := range pins {
-		rt := root{c: p.Root, kind: manifest.KindPinRecursive, name: p.Name}
+		rt := root{c: p.Root, kind: manifest.KindPinRecursive, name: p.Name, top: !pinsDir(l.r.Kind())}
 		if p.Mode == repo.Direct {
 			rt.kind = manifest.KindPinDirect
 			dir = append(dir, rt)

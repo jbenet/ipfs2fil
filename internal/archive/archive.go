@@ -1210,6 +1210,9 @@ func (l *layout) rootEntry(rt root, owned []bool) manifest.Root {
 }
 
 func (rt root) path() string {
+	if rt.top && (rt.kind == manifest.KindPinRecursive || rt.kind == manifest.KindPinDirect) {
+		return rt.c.String()
+	}
 	switch rt.kind {
 	case manifest.KindPinRecursive:
 		return "pins/recursive/" + rt.c.String()
@@ -1221,10 +1224,13 @@ func (rt root) path() string {
 	return "orphans/" + rt.c.String()
 }
 
-// dataDir makes data/: pins/recursive, pins/direct, mfs and orphans.
+// dataDir makes data/: pins/recursive, pins/direct, mfs and orphans for an
+// IPFS node's repo, or each root at data/<cid> for any other repo.
 func (l *layout) dataDir(ctx context.Context, dag memDAG, roots []root) (format.Node, error) {
 	dirs := map[string][]child{}
 	var top []child
+	atTop := map[string]bool{}
+	pinned := false
 	for _, rt := range roots {
 		data, err := l.get(ctx, rt.c)
 		if err != nil {
@@ -1238,22 +1244,35 @@ func (l *layout) dataDir(ctx context.Context, dag memDAG, roots []root) (format.
 			top = append(top, child{"mfs", n})
 			continue
 		}
+		if p := rt.path(); !strings.Contains(p, "/") {
+			// (one CID can be a root twice, as a recursive and a direct pin)
+			if !atTop[p] {
+				atTop[p] = true
+				top = append(top, child{p, n})
+			}
+			continue
+		}
+		if rt.kind == manifest.KindPinRecursive || rt.kind == manifest.KindPinDirect {
+			pinned = true
+		}
 		p := filepath.Dir(rt.path())
 		dirs[p] = append(dirs[p], child{rt.c.String(), n})
 	}
-	var pins []child
-	for _, name := range []string{"recursive", "direct"} {
-		n, err := mkdir(ctx, dag, dirs["pins/"+name])
+	if pinned || pinsDir(l.r.Kind()) {
+		var pins []child
+		for _, name := range []string{"recursive", "direct"} {
+			n, err := mkdir(ctx, dag, dirs["pins/"+name])
+			if err != nil {
+				return nil, err
+			}
+			pins = append(pins, child{name, n})
+		}
+		n, err := mkdir(ctx, dag, pins)
 		if err != nil {
 			return nil, err
 		}
-		pins = append(pins, child{name, n})
+		top = append(top, child{"pins", n})
 	}
-	n, err := mkdir(ctx, dag, pins)
-	if err != nil {
-		return nil, err
-	}
-	top = append(top, child{"pins", n})
 	if kids := dirs["orphans"]; len(kids) > 0 {
 		n, err := mkdir(ctx, dag, kids)
 		if err != nil {

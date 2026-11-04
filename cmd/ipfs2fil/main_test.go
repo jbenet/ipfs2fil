@@ -485,17 +485,22 @@ func TestPackBluesky(t *testing.T) {
 	}
 	meta, _ := os.ReadFile(filepath.Join(dir, "explorer", "idx", "meta.js"))
 	if !strings.Contains(string(meta), `"accounts":[{"name":"@alice.test","did":"`+a.DID+`","posts":3,"handle":"alice.test"`) ||
-		!strings.Contains(string(meta), `"path":"pins/recursive/`+a.Commit.String()+`"`) || !strings.Contains(string(meta), `"blobs":{"linked":1,"held":1`) {
+		!strings.Contains(string(meta), `"path":"`+a.Commit.String()+`"`) || !strings.Contains(string(meta), `"blobs":{"linked":1,"held":1`) {
 		t.Errorf("meta: %s", meta)
 	}
 	// In Files, the account is a folder of its records and blobs.
+	// An account is no IPFS node: its roots sit straight under data/, with
+	// no pins/ folder.
+	if strings.Contains(string(meta), `"pins"`) {
+		t.Errorf("a pins/ folder in a Bluesky archive: %s", meta)
+	}
 	shards, _ := filepath.Glob(filepath.Join(dir, "explorer", "idx", "s", "*.js"))
 	var rows string
 	for _, f := range shards {
 		b, _ := os.ReadFile(f)
 		rows += string(b)
 	}
-	for _, want := range []string{"pins/recursive/" + a.Commit.String() + "/app.bsky.feed.post", `"3aaaaaaaaaaaa.json","post"`, `"self.json","record"`, `"profile avatar.png","image"`} {
+	for _, want := range []string{`"` + a.Commit.String() + "/app.bsky.feed.post", `"orphans"`, `"3aaaaaaaaaaaa.json","post"`, `"self.json","record"`, `"profile avatar.png","image"`} {
 		if !strings.Contains(rows, want) {
 			t.Errorf("no %s in the index:\n%s", want, rows)
 		}
