@@ -17,6 +17,7 @@ require (
 	github.com/ipfs/go-cid v0.6.2
 	github.com/ipfs/go-ipld-format v0.6.4
 	github.com/ipld/go-car/v2 v2.17.0
+	github.com/ipld/go-ipld-prime v0.24.0
 	github.com/libp2p/go-libp2p v0.49.0
 	github.com/mr-tron/base58 v1.3.0
 	github.com/multiformats/go-multibase v0.3.0
@@ -81,7 +82,6 @@ require (
 	github.com/ipfs/go-log/v2 v2.9.2 // indirect
 	github.com/ipfs/go-metrics-interface v0.3.0 // indirect
 	github.com/ipld/go-codec-dagpb v1.7.0 // indirect
-	github.com/ipld/go-ipld-prime v0.24.0 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

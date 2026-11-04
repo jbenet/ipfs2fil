@@ -946,7 +946,8 @@ func (l *layout) siteLists(ctx context.Context, roots []manifest.Root) []*explor
 	var out []*explorer.SiteList
 	for _, rt := range roots {
 		c, err := cid.Decode(rt.CID)
-		if err != nil || c.Type() != cid.Raw || rt.Kind != manifest.KindPinDirect || rt.Name != "sites.json" {
+		// (raw before sites.json was DAG-JSON)
+		if err != nil || (c.Type() != cid.Raw && c.Type() != cid.DagJSON) || rt.Kind != manifest.KindPinDirect || rt.Name != "sites.json" {
 			continue
 		}
 		b, err := l.get(ctx, c)

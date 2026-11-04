@@ -77,6 +77,16 @@ func TestSites(t *testing.T) {
 	if len(doc.Sites) != 3 || doc.Sites[0].How != "dnslink" || doc.Sites[1].How != "fixed" || doc.Sites[2].Root != "" || doc.Sites[2].Error == "" {
 		t.Fatalf("sites.json %+v", doc)
 	}
+	// sites.json is DAG-JSON whose links are the sites' roots
+	for _, p := range pins {
+		if p.Name != SitesFile {
+			continue
+		}
+		b, _ := r.Get(context.Background(), p.Root.Hash())
+		if p.Root.Type() != cid.DagJSON || !strings.Contains(string(b), `"link":{"/":"`+home.String()+`"}`) || strings.Contains(string(b), "\n") {
+			t.Fatalf("sites.json %s: %s", p.Root, b)
+		}
+	}
 	n := 0
 	r.ForEachBlock(context.Background(), func(h multihash.Multihash, size int) error {
 		if b, err := r.Get(context.Background(), h); err != nil || len(b) != size {
