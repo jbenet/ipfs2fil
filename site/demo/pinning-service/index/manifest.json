@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeidwoikxp6rurklpdkjoiaxvghjsy3jagafzzbfr7kpsh65h7ph2fm",
+  "root": "bafybeibdbsfiyrl2szpvu7p4pyprxaa54jv5kcp4kox2ul5nqpcrucluxq",
   "dataRoot": "bafybeichs4r37ljnzapk7g6ikvfs2hgm2kt4py5ij4zazgxv5i4gyqhahq",
   "source": {
     "kind": "psa",
@@ -58,9 +58,9 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibfvhh2kbay42mwdqmxqclxvp6dagkmwrhubaqffl5dammzrrb2c23ivl3jgyia",
-      "carBytes": 523671639,
-      "blocks": 19038,
+      "pieceCid": "bafkzcibfsc52cbayfddolwawffranj724lz2rtnblossohzwpy76mtwzm2ug7t3eoqxq",
+      "carBytes": 523739760,
+      "blocks": 19098,
       "blockList": "pieces/0000",
       "part": "bundle",
       "dataBytes": 6898739,
@@ -95,8 +95,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-11-04T11:16:07Z",
-      "root": "bafybeidwoikxp6rurklpdkjoiaxvghjsy3jagafzzbfr7kpsh65h7ph2fm",
+      "time": "2026-11-04T18:43:43Z",
+      "root": "bafybeibdbsfiyrl2szpvu7p4pyprxaa54jv5kcp4kox2ul5nqpcrucluxq",
       "newPieces": [
         0
       ]

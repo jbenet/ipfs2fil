@@ -8,7 +8,8 @@
 # It starts:
 #
 #   :2582  a PLC directory (in memory) and :2583 a PDS with three made-up
-#          accounts (@ada.test, @gardenlog.test, @cidlab.test), pds.mjs
+#          accounts (@ada.test, @gardenlog.test, @cidlab.test) and @bsky-app.test,
+#          a copy of @bsky.app's latest posts with the same images, pds.mjs
 #   :2590  a pinning service listing three pins, psa.mjs
 #   :8190  the gateway of a kubo node holding those pins (~/services/psa-node)
 #

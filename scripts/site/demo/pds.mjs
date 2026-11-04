@@ -1,6 +1,6 @@
 // Runs a self-hosted Bluesky PDS (the reference @atproto/pds) and a PLC
 // directory (@did-plc/server, in memory) on this machine, with a few made-up
-// accounts, for the website demo's "whole PDS" repo:
+// accounts and a copy of @bsky.app, for the website demo's "whole PDS" repo:
 //
 //   node pds.mjs <data dir> <demo content dir>
 //
@@ -101,6 +101,37 @@ await agents['cidlab.test'].like(first.uri, first.cid)
 const reply = await agents['cidlab.test'].post({ text: 'And the CID proves it is the same photo.', reply: { root: first, parent: first }, createdAt: new Date(t += 3600e3).toISOString() })
 await agents['ada.test'].post({ text: 'Exactly.', reply: { root: first, parent: reply }, createdAt: new Date(t += 3600e3).toISOString() })
 await agents['gardenlog.test'].repost(made['ada.test'][0].uri, made['ada.test'][0].cid)
+
+// A copy of @bsky.app's profile and latest posts (not replies or videos), as @bsky-app.test (handles
+// here must end in .test). Its images are uploaded unchanged, so they get the
+// same CIDs as in the at://bsky.app archive and are stored once.
+const BSKY = { did: 'did:plc:z72i7hdynmk6r22z27h6tvur', pds: 'https://puffball.us-east.host.bsky.network' }
+const xrpc = async (m, q) => {
+  const r = await fetch(BSKY.pds + '/xrpc/' + m + '?' + new URLSearchParams({ repo: BSKY.did, did: BSKY.did, ...q }))
+  if (!r.ok) throw new Error(m + ': ' + r.status)
+  return m.endsWith('getBlob') ? Buffer.from(await r.arrayBuffer()) : r.json()
+}
+const copyBlob = async (a, b) => b && (await a.uploadBlob(await xrpc('com.atproto.sync.getBlob', { cid: b.ref.$link }), { encoding: b.mimeType })).data.blob
+try {
+  const a = new AtpAgent({ service: base })
+  await a.createAccount({ handle: 'bsky-app.test', email: 'bsky-app@example.com', password: 'demo-password' })
+  const prof = (await xrpc('com.atproto.repo.getRecord', { collection: 'app.bsky.actor.profile', rkey: 'self' })).value
+  const avatar = await copyBlob(a, prof.avatar), banner = await copyBlob(a, prof.banner)
+  await a.upsertProfile(() => ({ displayName: prof.displayName, description: prof.description, ...(avatar && { avatar }), ...(banner && { banner }) }))
+  const { records } = await xrpc('com.atproto.repo.listRecords', { collection: 'app.bsky.feed.post', limit: '100' })
+  let n = 0
+  for (const { value: v } of records.filter(r => !r.value.reply && r.value.embed?.$type !== 'app.bsky.embed.video').slice(0, 30).reverse()) {
+    const rec = { text: v.text, facets: v.facets, langs: v.langs, createdAt: v.createdAt }
+    const e = v.embed
+    if (e?.$type === 'app.bsky.embed.images')
+      rec.embed = { $type: e.$type, images: await Promise.all(e.images.map(async i => ({ ...i, image: await copyBlob(a, i.image) }))) }
+    else if (e?.$type === 'app.bsky.embed.external')
+      rec.embed = { $type: e.$type, external: { ...e.external, thumb: await copyBlob(a, e.external.thumb) || undefined } }
+    await a.post(JSON.parse(JSON.stringify(rec)))
+    n++
+  }
+  console.log('@bsky-app.test: ' + n + ' posts copied from @bsky.app')
+} catch (err) { console.error('could not copy @bsky.app: ' + err.message) }
 
 console.log('PDS at ' + base + ' with ' + people.map(p => '@' + p.handle + ' ' + did(p.handle)).join(', '))
 console.log('Serving until stopped.')

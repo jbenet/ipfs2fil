@@ -1,7 +1,7 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeidzhehtmyehkzwuixi3plp3zcmqbpn5r2m7dqt4ab64auknyg6zzi",
+  "root": "bafybeiefjweeqh6r4bup6b55nqc4nfbsppmzlyvmgdwovvuikpoynixram",
   "dataRoot": "bafybeifdbs4d7pmex2jtuowzclvsjx6k2xaybvs2ycsc6ssy4wzjme7lpa",
   "source": {
     "kind": "helia",
@@ -107,9 +107,9 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibfvhh2kbay42mwdqmxqclxvp6dagkmwrhubaqffl5dammzrrb2c23ivl3jgyia",
-      "carBytes": 523671639,
-      "blocks": 19038,
+      "pieceCid": "bafkzcibfsc52cbayfddolwawffranj724lz2rtnblossohzwpy76mtwzm2ug7t3eoqxq",
+      "carBytes": 523739760,
+      "blocks": 19098,
       "blockList": "pieces/0000",
       "part": "bundle",
       "dataBytes": 3036328,
@@ -144,8 +144,8 @@
   ],
   "snapshots": [
     {
-      "time": "2026-11-04T11:16:05Z",
-      "root": "bafybeidzhehtmyehkzwuixi3plp3zcmqbpn5r2m7dqt4ab64auknyg6zzi",
+      "time": "2026-11-04T18:43:40Z",
+      "root": "bafybeiefjweeqh6r4bup6b55nqc4nfbsppmzlyvmgdwovvuikpoynixram",
       "newPieces": [
         0
       ]

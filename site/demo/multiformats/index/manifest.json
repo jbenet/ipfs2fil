@@ -1,23 +1,23 @@
 {
   "format": 1,
   "tool": "ipfs2fil dev",
-  "root": "bafybeifc7lwl4cjzcc37fn7h2cijd6gnjcor6qz7olygf7eqjxnhldimaq",
-  "dataRoot": "bafybeigxb7epxplcslewmb7sjpzn4rrigpyn6ouaxpdximfu4gk5soqvnq",
+  "root": "bafybeie6scoc4nay4pnsmlcdn4e4puuniou2tay3bpeco5hbldzm75nyte",
+  "dataRoot": "bafybeicb56r6jsiudyx6bhinf6dbkzzq7pncl74kqr4mahurxsmn4jdgxu",
   "source": {
     "kind": "git",
     "repoVersion": 0,
     "blocks": 21,
-    "bytes": 1991295
+    "bytes": 1990286
   },
   "roots": [
     {
-      "cid": "bafyreiaozge2oy6d7yherzgo3oinz2iksy6z5gsrddpikznjndsefyul5e",
+      "cid": "bafyreidislxzqt5s3q3lmqfyxvedv4vsevlsnz4droqpo5c2t7iujd777q",
       "kind": "pin-recursive",
       "name": "multiformats",
-      "path": "bafyreiaozge2oy6d7yherzgo3oinz2iksy6z5gsrddpikznjndsefyul5e",
-      "bytes": 1991295,
+      "path": "bafyreidislxzqt5s3q3lmqfyxvedv4vsevlsnz4droqpo5c2t7iujd777q",
+      "bytes": 1990286,
       "blocks": 21,
-      "own": 1991295,
+      "own": 1990286,
       "firstPiece": 0,
       "lastPiece": 0
     }
@@ -25,12 +25,12 @@
   "pieces": [
     {
       "index": 0,
-      "pieceCid": "bafkzcibewlqvaem4io3slo2ezmjpab4iucqi4kyom7x3x6qadnfz4alkr6pmchqrd4",
-      "carBytes": 2838350,
-      "blocks": 72,
+      "pieceCid": "bafkzcibfsc52cbayfddolwawffranj724lz2rtnblossohzwpy76mtwzm2ug7t3eoqxq",
+      "carBytes": 523739760,
+      "blocks": 19098,
       "blockList": "pieces/0000",
       "part": "bundle",
-      "dataBytes": 1992104,
+      "dataBytes": 1991095,
       "snapshot": 0
     }
   ],
@@ -39,7 +39,7 @@
       "provider": "2",
       "dataSetId": "5310",
       "pieceIds": {
-        "0": "1"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -47,7 +47,7 @@
       "provider": "9",
       "dataSetId": "5311",
       "pieceIds": {
-        "0": "1"
+        "0": "0"
       },
       "service": "unknown"
     },
@@ -55,15 +55,15 @@
       "provider": "16",
       "dataSetId": "5312",
       "pieceIds": {
-        "0": "1"
+        "0": "0"
       },
       "service": "unknown"
     }
   ],
   "snapshots": [
     {
-      "time": "2026-11-04T11:22:42Z",
-      "root": "bafybeifc7lwl4cjzcc37fn7h2cijd6gnjcor6qz7olygf7eqjxnhldimaq",
+      "time": "2026-11-04T18:43:41Z",
+      "root": "bafybeie6scoc4nay4pnsmlcdn4e4puuniou2tay3bpeco5hbldzm75nyte",
       "newPieces": [
         0
       ]
