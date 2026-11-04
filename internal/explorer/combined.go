@@ -17,6 +17,7 @@ import (
 type repoInfo struct {
 	Name   string `json:"name"`             // its folder at the top of the combined data/
 	Repo   string `json:"repo,omitempty"`   // the IPFS repo it was packed from
+	Kind   string `json:"kind,omitempty"`   // the repo's kind (repo.Kind*), "" for an fs-repo
 	Root   string `json:"root,omitempty"`   // the archive root
 	Bytes  int64  `json:"bytes"`            // the repo's size
 	Shared int64  `json:"shared,omitempty"` // of Bytes, what earlier repos hold already
@@ -218,7 +219,7 @@ func combine(as []Archive, href func(Archive) string) (map[string][]byte, *manif
 			}
 			sites = append(sites, si)
 		}
-		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
+		repos = append(repos, repoInfo{Name: a.Name, Repo: a.Repo, Kind: m.Source.Kind, Root: m.Root, Bytes: m.Source.Bytes, Shared: shared, Pieces: len(m.Pieces), Href: href(a)})
 	}
 
 	// Snapshots in time order, with the pieces' numbers to match.

@@ -374,6 +374,15 @@ func buildIndexWith(m *manifest.Manifest, entries []Entry, x Extras) (map[string
 				break
 			}
 		}
+		if gi.Path == "" {
+			// a repo in a folder of repos: its record where the folder holds it
+			for _, e := range entries {
+				if e.CID == g.Root {
+					gi.Path = e.Path
+					break
+				}
+			}
+		}
 		mt.Gits = append(mt.Gits, gi)
 		if err := put(fmt.Sprintf("g/%d.js", i), fmt.Sprintf("g/%d", i), g); err != nil {
 			return nil, err

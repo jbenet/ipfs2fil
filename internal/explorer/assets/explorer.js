@@ -56,7 +56,93 @@
   async function dirInfo(p) {
     const meta = await load('meta');
     const b = await load('d/' + bucketOf(p, meta.buckets));
-    return b[p] || inArchive(p);
+    return b[p] || (await inGit(p).catch((err) => { toast(err.message); return null; })) || inArchive(p);
+  }
+  // ---- A git repo's record opens like a folder: HEAD/ and refs/<kind>/<name>/
+  // are the files at that commit, read from the packs in the browser, and
+  // packs/ holds the packs. GITP maps a record's path to its place in
+  // meta.gits.
+  const GITP = {}, GITL = {}, GITR = {};
+  const gitOf = async (n) => GITL[n] || (GITL[n] = await load('g/' + n));
+  const gitPack = (c, name) => LOCAL ? CONTENT + encodeURIComponent(c) + '?name=' + name : HERE || PUBLIC ? gw(c) : null;
+  function gitReader(n, g) {
+    if (GITR[n]) return GITR[n];
+    if (!window.I2FGit || !gitPack('x', '')) return null;
+    const packs = g.snapshots.slice().reverse().flatMap((s) => s.packs || []).concat(g.basePacks || []).map((p) => ({ pack: gitPack(p[0], 'objects.pack'), idx: gitPack(p[1], 'objects.idx') }));
+    return (GITR[n] = window.I2FGit.open({ packs, format: g.objectFormat }));
+  }
+  const gitAt = (p) => Object.keys(GITP).filter((k) => p === k || p.startsWith(k + '/')).sort((a, b) => b.length - a.length)[0];
+  async function inGit(p) {
+    const gp = gitAt(p);
+    if (gp == null) return null;
+    const n = GITP[gp], g = await gitOf(n);
+    const rest = p === gp ? [] : p.slice(gp.length + 1).split('/');
+    const kid = (name, kind, extra) => ({ name, path: p + '/' + name, dir: p, kind, bytes: 0, cid: '', piece: -1, ...extra });
+    const info = (kids, cid) => {
+      const types = {};
+      let bytes = 0, files = 0, folders = 0;
+      for (const k of kids) {
+        if (k.kind === 'folder') { folders++; continue; }
+        files++; bytes += k.bytes || 0;
+        const t = types[k.kind] || (types[k.kind] = [0, 0]);
+        t[0]++; t[1] += k.bytes || 0;
+      }
+      return { virtual: true, git: n, cid: cid || '', chunks: [], n: kids.length, bytes, files, folders, types, kids, flat: kids };
+    };
+    const refs = g.refs.map((r) => [r[0], r[2] || r[1]]); // [name, commit]
+    const head = g.head && (g.head.startsWith('refs/') ? (refs.find((r) => r[0] === g.head) || [])[1] : g.head);
+    if (!rest.length) {
+      const kids = [];
+      if (head) kids.push(kid('HEAD', 'folder'));
+      if (refs.length) kids.push(kid('refs', 'folder'));
+      if (g.snapshots.some((x) => (x.packs || []).length) || (g.basePacks || []).length) kids.push(kid('packs', 'folder'));
+      return info(kids);
+    }
+    if (rest[0] === 'packs') {
+      if (rest.length > 1) return null;
+      const kids = [];
+      g.snapshots.forEach((x, i) => (x.packs || []).forEach((pk, j) => {
+        const nm = `snapshot-${g.snapshots.length - i}${(x.packs || []).length > 1 ? '-' + (j + 1) : ''}`;
+        kids.push(kid(nm + '.pack', 'other', { cid: pk[0], bytes: (x.packs || []).length === 1 ? x.bytes || 0 : 0 }), kid(nm + '.idx', 'other', { cid: pk[1] }));
+      }));
+      (g.basePacks || []).forEach((pk, j) => kids.push(kid(`base-${j + 1}.pack`, 'other', { cid: pk[0] }), kid(`base-${j + 1}.idx`, 'other', { cid: pk[1] })));
+      return info(kids);
+    }
+    let id = null, at = 1;
+    if (rest[0] === 'HEAD') id = head;
+    else if (rest[0] === 'refs') {
+      for (at = 2; at <= rest.length && !id; at++) { const r = refs.find((x) => x[0] === rest.slice(0, at).join('/')); if (r) id = r[1]; }
+      at--;
+      if (!id) {
+        // a folder of refs: refs/, refs/heads/, refs/heads/feat/
+        const pre = rest.join('/') + '/', names = new Set(refs.filter((r) => r[0].startsWith(pre)).map((r) => r[0].slice(pre.length).split('/')[0]));
+        return names.size ? info([...names].sort().map((nm) => kid(nm, 'folder'))) : null;
+      }
+    } else return null;
+    if (!id) return null;
+    const R = gitReader(n, g);
+    if (!R) throw new Error('The packs are read from ipfs2fil explore or an IPFS gateway; this page has neither.');
+    let tid = (await R.commit(id)).tree;
+    for (const part of rest.slice(at)) {
+      const d = (await R.tree(tid)).find((e) => e.name === part && e.kind === 'dir');
+      if (!d) return null;
+      tid = d.id;
+    }
+    const A = window.I2FV && window.I2FV.arc;
+    const inner = rest.join('/');
+    return info((await R.tree(tid)).map((e) => kid(e.name, e.kind === 'dir' ? 'folder' : e.kind === 'module' ? 'repo' : (A && A.kindOf(e.name)) || 'other', { bytes: null, git: { n, id: e.id, kind: e.kind }, va: { arc: gp, inner: inner + '/' + e.name } })));
+  }
+  // A file of a git repo, read from its packs when first shown.
+  async function gitBlob(e) {
+    if (!e.git || e.blob || e.kind === 'folder' || e.git.kind === 'module') return;
+    const R = gitReader(e.git.n, await gitOf(e.git.n));
+    if (!R) throw new Error('The packs are read from ipfs2fil explore or an IPFS gateway; this page has neither.');
+    const o = await R.read(e.git.id);
+    if (e.git.kind === 'link') { e.kind = 'text'; }
+    e.blob = new Blob([o.data]);
+    e.bytes = o.data.length;
+    const A = window.I2FV && window.I2FV.arc;
+    if (e.kind === 'other' && A) e.kind = A.sniff(o.data.subarray(0, 1024)) || 'other';
   }
   // A folder inside a .tar, .tar.gz or zip, read in the browser (arc in
   // viewers.js); null when p is not in one.
@@ -73,7 +159,7 @@
     } catch (err) { toast(err.message); return null; }
   }
   // Archives open like folders.
-  const isDir = (e) => !!e && (e.kind === 'folder' || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
+  const isDir = (e) => !!e && (e.kind === 'folder' || GITP[e.path] != null || !!(window.I2FV && window.I2FV.arc && window.I2FV.arc.is(e)));
   // Shards name pieces by PieceCID; PIECE maps them to their index here.
   let PIECE = {};
   // This snapshot's bundle is "" there: its PieceCID was not known yet.
@@ -103,6 +189,7 @@
     return `This copy of the archive does not include this file${e && e.bytes ? ' (' + bytes(e.bytes) + ')' : ''}: big files are left out to keep it small. Run ipfs2fil explore on the archive to ${e && (e.kind === 'video' || e.kind === 'audio') ? 'play' : 'open'} it.`;
   }
   function bytes(n) {
+    if (n == null) return ''; // not known yet: a git file before it is read
     const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
     let i = 0;
     while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
@@ -148,6 +235,14 @@
   const GITIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#F05133" stroke-width="1.5" aria-hidden="true"><circle cx="4" cy="3.5" r="1.5"></circle><circle cx="4" cy="12.5" r="1.5"></circle><circle cx="12" cy="6" r="1.5"></circle><path d="M4 5v6M12 7.5c0 2.5-3 2.5-6.5 4"></path></svg>';
   const BSKY = '<svg width="16" height="16" viewBox="0 0 600 530" aria-hidden="true"><path fill="#1185FE" d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"/></svg>';
   const KINDS = Object.keys(KIND);
+  // Icons for repos by their kind: in a combined explorer each repo's folder,
+  // and in any explorer a git repo's record and a Bluesky account's repo.
+  const REPOK = {}; // path under data/ -> repo kind
+  const ATIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1185FE" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="2.6"></circle><path d="M10.6 5.4v3.7c0 1.2 1 1.9 2 1.4 1.1-.6 1.4-2 1.4-2.5a6 6 0 1 0-2.6 4.9"></path></svg>';
+  const IPFSIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3B9EA6" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5l5.6 3.2v6.6L8 14.5l-5.6-3.2V4.7z M2.4 4.7L8 8l5.6-3.3 M8 8v6.5"></path></svg>';
+  const PINIC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8a4.2 4.2 0 0 1 4.2 4.2c0 3-4.2 8.2-4.2 8.2S3.8 9 3.8 6A4.2 4.2 0 0 1 8 1.8z"></path><circle cx="8" cy="6" r="1.5"></circle></svg>';
+  const repoKindIcon = (k) => k === 'git' ? GITIC : k === 'atproto' || k === 'atproto-pds' ? ATIC : k === 'sites' ? icon('site') : k === 'car' ? icon('archive') : k === 'psa' ? PINIC : k === '' || k === 'fs-repo' || k === 'kubo-rpc' || k === 'js-ipfs' || k === 'helia' ? IPFSIC : '';
+  const repoIcon = (e) => e && REPOK[e.path] != null ? repoKindIcon(REPOK[e.path]) : '';
   const icon = (k) => `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="${kindOf(k)[1]}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${kindOf(k)[0]}"></path></svg>`;
   const PART = { pins: ['Pins', '#1B5FD6'], mfs: ['MFS', '#8DB2F0'], orphans: ['Orphans', '#C2410C'], index: ['Index and explorer', '#9AA1AD'] };
   const ROOTKIND = { 'pin-recursive': 'Recursive pin', 'pin-direct': 'Direct pin', mfs: 'MFS root', orphan: 'Orphan, not pinned' };
@@ -716,6 +811,10 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
     // here in the main pane, or in its own archive's explorer when this
     // combined one does not hold its summary.
     const ACC = meta.accounts || [], GITS = meta.gits || [];
+    GITS.forEach((g, i) => { if (g.path && (!g.href || /^browse\.html/.test(g.href))) GITP[g.path] = i; });
+    GITS.forEach((g) => { if (g.path) REPOK[g.path] = 'git'; });
+    ACC.forEach((a) => { if (a.path) REPOK[a.path] = 'atproto'; });
+    (REPOS || []).forEach((r) => { REPOK[r.name.replace(/[/\\]/g, '_')] = r.kind || ''; });
     const inHere = (a) => !a.href || /^(posts|browse)\.html/.test(a.href);
     const accHref = (i, k) => inHere(ACC[i]) ? appHref(i, k) : ACC[i].href.replace(/#.*/, '') + (k ? '&t=' + encodeURIComponent(k) : '');
     const POSTDIR = '/app.bsky.feed.post/';
@@ -793,7 +892,7 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
       const libOn = S.deep && !S.q && !S.p && !S.app;
       const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'site' ? SITEE.length : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
-<div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${icon('folder')}${esc(w[1])}</a>`).join('')}
+<div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name, repoKindIcon(r.kind || '')]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${w[2] || icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ? `<a href="${esc(accHref(ACC.findIndex(inHere) >= 0 ? ACC.findIndex(inHere) : 0))}"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky App</a>` : ''}${GITS.length ? `<a href="${esc(gitHref(GITS, 0))}"${S.app === 'git' ? ' aria-current="page"' : ''}>${GITIC}Git</a>` : ''}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
       const on = NAV && $('.lib a[aria-current="page"]');
@@ -856,6 +955,7 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
       if (S.kind === 'repo' && S.deep) {
         const at = new Map((all || []).map((e) => [e.path, e]));
         shown = REPOP.map((p) => at.get(p)).filter((e) => e && under(S.p)(e) && (!ql || (e.name + ' ' + e.cid).toLowerCase().includes(ql)));
+        counts.repo = shown.length;
       }
       // a grid of results groups them by folder
       if (S.view === 'grid' && S.deep && S.sort === 'name') shown = shown.map((e, i) => [e, i]).sort((a, b) => a[0].dir < b[0].dir ? -1 : a[0].dir > b[0].dir ? 1 : a[1] - b[1]).map((x) => x[0]);
@@ -928,6 +1028,8 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
     // show their first lines.
     const THUMBS = new Set(['image', 'video', 'audio', 'doc']);
     const thumbOr = (e, cls) => {
+      const ri = repoIcon(e);
+      if (ri) return `<span class="${cls} ic">${ri}</span>`;
       const w = cls === 'tt' ? 320 : 96, badge = PARTS[e.cid] ? '<span class="partial" title="Only part of this file is here">partial</span>' : '';
       if (e.kind === 'post' || e.kind === 'account') {
         const P = e.kind === 'post' ? postOf(e) : null, K = P ? P.K : e.kind === 'account' ? kitOf(e.acct) : null;
@@ -1001,7 +1103,9 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
         shown.forEach((e) => { for (let d = e.dir; d && d !== S.p && d.startsWith(S.p); d = d.includes('/') ? d.slice(0, d.lastIndexOf('/')) : '') keepDirs.add(d); });
         const byDir = {};
         shown.forEach((e) => { (byDir[e.dir] = byDir[e.dir] || []).push(e); });
-        (all || []).forEach((e) => { if (keepDirs.has(e.path)) (byDir[e.dir] = byDir[e.dir] || []).push(e); });
+        // (a folder listed itself, like a repo under Repositories, is there already)
+        const listed = new Set(shown.map((e) => e.path));
+        (all || []).forEach((e) => { if (keepDirs.has(e.path) && !listed.has(e.path)) { listed.add(e.path); (byDir[e.dir] = byDir[e.dir] || []).push(e); } });
         const below = {};
         shown.forEach((e) => { for (let d = e.dir; d && d !== S.p; d = d.includes('/') ? d.slice(0, d.lastIndexOf('/')) : '') below[d] = (below[d] || 0) + 1; });
         const nOf = (d) => below[d] || 0;
@@ -1096,12 +1200,17 @@ ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ?
       if (e.kind === 'folder') return folderPane(pane, await dirInfo(e.path), e.path, false, e);
       if (e.kind === 'account') return accountPane(pane, e);
       if (e.kind === 'site') return sitePane(pane, e);
+      if (e.git && !e.blob && e.kind !== 'folder') {
+        pane.innerHTML = '<p class="muted pad">Reading the packs…</p>';
+        try { await gitBlob(e); } catch (err) { if (current() === e) pane.innerHTML = `<div class="none"><p>${esc(err.message)}</p></div>`; return; }
+        if (current() !== e) return;
+      }
       const P = postOf(e);
       const url = contentURL(e), copies = m.copies || [];
       const piece = e.piece >= 0 ? (m.pieces || [])[e.piece] : null;
       const stored = piece ? copies.filter((c) => c.pieceIds && c.pieceIds[e.piece] != null) : [];
       const nav = `<button type="button" class="ib" data-step="-1" aria-label="Previous (k)">‹</button><button type="button" class="ib" data-step="1" aria-label="Next (j)">›</button>`;
-      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${P ? `${P.K.name} · ${esc(P.x.t ? day(P.x.t) : e.name)}` : esc(e.name)}</strong>${nav}${P ? `<a class="btn sm" href="${esc(accHref(P.n, P.x.k))}">Open in Bluesky App</a>` : ''}${isDir(e) ? `<a class="btn sm" href="${esc(browseHref(e.path))}" data-enter title="Open the archive like a folder (Enter)">Open</a>` : ''}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">${P ? 'Record' : 'Download'}</a>` : ''}${url ? fullBtn() : ''}</div>
+      pane.innerHTML = `<div class="ph"><strong title="${esc(e.name)}">${P ? `${P.K.name} · ${esc(P.x.t ? day(P.x.t) : e.name)}` : esc(e.name)}</strong>${nav}${P ? `<a class="btn sm" href="${esc(accHref(P.n, P.x.k))}">Open in Bluesky App</a>` : ''}${isDir(e) ? `<a class="btn sm" href="${esc(browseHref(e.path))}" data-enter title="${GITP[e.path] != null ? 'Open the repo like a folder: HEAD, refs and packs (Enter)' : 'Open the archive like a folder (Enter)'}">Open</a>` : ''}${GITP[e.path] != null ? `<a class="btn sm" href="${esc(gitHref(GITS, GITP[e.path]))}">Git viewer</a>` : ''}${url ? `<a class="btn sm" href="${esc(contentURL(e, { dl: 1 }))}" download="${esc(e.name)}">${P ? 'Record' : 'Download'}</a>` : ''}${url ? fullBtn() : ''}</div>
 <div class="stage" data-kind="${esc(e.kind)}">${P ? `<div class="at-thread">${P.K.thread(P.x).html}</div>` : stage(e, url)}</div>
 <div class="facts2">
   <div><span>Size</span><b>${bytes(e.bytes)}</b></div><div><span>Kind</span><b>${esc(kindOf(e.kind)[2])}${ext(e.name) ? ' · ' + esc(ext(e.name).toUpperCase()) : ''}</b></div>
@@ -1139,7 +1248,7 @@ ${e.va ? arcFacts(e) : `<div class="facts dl">
     function arcFacts(e) {
       const a = e.va.arc, ad = a.includes('/') ? a.slice(0, a.lastIndexOf('/')) : '';
       return `<div class="facts dl">
-  <span>In</span><span><a href="${esc('browse.html?' + qs({ p: ad, sel: a }))}" title="${esc(showPath(a) || a)}">${esc(a.split('/').pop())}</a> <span class="faint">${e.va.gz ? 'unpacked here' : 'read out of the archive here'}</span></span>
+  <span>In</span><span><a href="${esc('browse.html?' + qs({ p: ad, sel: a }))}" title="${esc(showPath(a) || a)}">${esc(e.git ? (GITL[e.git.n] || {}).name || 'the git repo' : a.split('/').pop())}</a> <span class="faint">${e.git ? 'read from its git packs here' : e.va.gz ? 'unpacked here' : 'read out of the archive here'}</span></span>${e.git ? `<span>Object</span><span><code class="chipcode">${esc(e.git.id)}</code></span>` : ''}
   ${e.va.gz ? '' : `<span>Path</span><span>${esc(e.va.inner)}</span>`}
   ${e.time ? `<span>Modified</span><span>${esc(new Date(e.time).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }))} UTC</span>` : ''}
   ${e.note ? `<span>Note</span><span class="faint">${esc(e.note)}</span>` : ''}
@@ -1193,7 +1302,8 @@ ${e.va ? arcFacts(e) : `<div class="facts dl">
       const home = kids.find((k) => /^index\.html?$/i.test(k.name));
       if (current() !== e || !st.isConnected) return;
       if (!home) { st.innerHTML = `<div class="none">${icon('site')}<p>${di ? 'No index.html at its root. Use Files to see what it holds.' : 'Its files are not indexed in this explorer.'}</p></div>`; return; }
-      const page = { ...home, kind: 'page', path: e.path, dir: x.path };
+      // (site: its links that start with / mean the site's root, not the archive's)
+      const page = { ...home, kind: 'page', path: e.path, dir: x.path, file: home.path, site: x.path };
       const url = contentURL(page);
       st.dataset.kind = 'page';
       st.innerHTML = stage(page, url);
@@ -1597,9 +1707,13 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
     // folder is not there for them to load from.
     async function pageDoc(e, html) {
       const d = new DOMParser().parseFromString(html, 'text/html');
+      // A website's page names its files from the site's root (/assets/…),
+      // which here is its folder in the archive.
+      const at = e.file || e.path, SB = e.site ? 'http://z/' + segs(e.site) + '/' : '';
       const find = async (rel, from) => {
         if (!rel || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(rel.trim())) return null;
-        const u = new URL(rel.trim(), 'http://z/' + segs(from));
+        rel = rel.trim();
+        const u = SB && rel[0] === '/' ? new URL('.' + rel, SB) : new URL(rel, 'http://z/' + segs(from));
         if (u.host !== 'z') return null;
         let p;
         try { p = decodeURIComponent(u.pathname.slice(1)); } catch (err) { return null; }
@@ -1615,19 +1729,23 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
         let i = 0;
         return t.replace(URLS, (m) => { const u = got[i++]; return u ? `url("${u}")` : m; }).replace(/<\/style/gi, '<\\/style');
       };
+      // A website's scripts expect to run at its own address (a router reads
+      // the path, chunks load from the root), which a page shown from its
+      // text has not; its HTML is already rendered, so show that.
+      if (SB) for (const x of Array.from(d.querySelectorAll('script, link[rel~="preload"], link[rel~="prefetch"], link[rel~="modulepreload"]'))) x.remove();
       const work = [];
       for (const x of Array.from(d.querySelectorAll('link[href], style, script[src], img[src], source[src], video[src], video[poster], audio[src], input[src], [style]'))) {
         if (x.localName === 'link') {
           const rel = (x.getAttribute('rel') || '').toLowerCase();
-          if (/\bstylesheet\b/.test(rel)) work.push(find(x.getAttribute('href'), e.path).then(async (k) => { if (!k) return; const t = await text(k); const st = d.createElement('style'); st.textContent = await css(t, k.path); x.replaceWith(st); }));
-          else if (/\bicon\b/.test(rel)) work.push(find(x.getAttribute('href'), e.path).then((k) => { if (k) x.setAttribute('href', abs(k)); }));
+          if (/\bstylesheet\b/.test(rel)) work.push(find(x.getAttribute('href'), at).then(async (k) => { if (!k) return; const t = await text(k); const st = d.createElement('style'); st.textContent = await css(t, k.path); x.replaceWith(st); }));
+          else if (/\bicon\b/.test(rel)) work.push(find(x.getAttribute('href'), at).then((k) => { if (k) x.setAttribute('href', abs(k)); }));
         } else if (x.localName === 'style') {
-          work.push(css(x.textContent, e.path).then((t) => { x.textContent = t; }));
+          work.push(css(x.textContent, at).then((t) => { x.textContent = t; }));
         } else if (x.localName === 'script') {
-          work.push(find(x.getAttribute('src'), e.path).then(async (k) => { if (!k) return; const t = await text(k); x.removeAttribute('src'); x.textContent = t.replace(/<\/script/gi, '<\\/script'); }));
+          work.push(find(x.getAttribute('src'), at).then(async (k) => { if (!k) return; const t = await text(k); x.removeAttribute('src'); x.textContent = t.replace(/<\/script/gi, '<\\/script'); }));
         } else {
-          for (const a of ['src', 'poster']) if (x.hasAttribute(a) && x.localName !== 'script') work.push(find(x.getAttribute(a), e.path).then((k) => { if (k) x.setAttribute(a, abs(k)); }));
-          if (x.hasAttribute('style')) work.push(css(x.getAttribute('style'), e.path).then((t) => x.setAttribute('style', t)));
+          for (const a of ['src', 'poster']) if (x.hasAttribute(a) && x.localName !== 'script') work.push(find(x.getAttribute(a), at).then((k) => { if (k) x.setAttribute(a, abs(k)); }));
+          if (x.hasAttribute('style')) work.push(css(x.getAttribute('style'), at).then((t) => x.setAttribute('style', t)));
           x.removeAttribute('srcset');
         }
       }
@@ -1650,8 +1768,8 @@ ol{list-style:none;padding:0;margin:0;border-top:1px solid #E3E5E8}li a{display:
         }
       }
       const rt = d.createElement('script');
-      rt.textContent = `(function(){var F=${JSON.stringify(files).replace(/</g, '\\u003c')},B=${JSON.stringify('http://z/' + segs(e.dir) + (e.dir ? '/' : ''))};
-function R(u){try{var x=new URL(String(u),B);if(x.host!=='z')return u;var p=decodeURIComponent(x.pathname.slice(1));return F[p]||u}catch(e){return u}}
+      rt.textContent = `(function(){var F=${JSON.stringify(files).replace(/</g, '\\u003c')},B=${JSON.stringify('http://z/' + segs(at.includes('/') ? at.slice(0, at.lastIndexOf('/')) : '') + (at.includes('/') ? '/' : ''))},SB=${JSON.stringify(SB)};
+function R(u){try{var s=String(u),x=SB&&s[0]==='/'&&s[1]!=='/'?new URL('.'+s,SB):new URL(s,B);if(x.host!=='z')return u;var p=decodeURIComponent(x.pathname.slice(1));return F[p]||u}catch(e){return u}}
 var f=window.fetch;if(f)window.fetch=function(i,o){return f.call(this,typeof i==='string'||i instanceof URL?R(i):i,o)};
 var X=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){arguments[1]=R(u);return X.apply(this,arguments)};
 [[HTMLImageElement,'src'],[HTMLMediaElement,'src'],[HTMLScriptElement,'src'],[HTMLSourceElement,'src']].forEach(function(a){var d=Object.getOwnPropertyDescriptor(a[0].prototype,a[1]);if(d&&d.set)Object.defineProperty(a[0].prototype,a[1],{get:d.get,set:function(v){d.set.call(this,R(v))},configurable:true})});
