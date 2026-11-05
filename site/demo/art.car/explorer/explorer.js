@@ -823,6 +823,59 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
   const svg = (d, w) => `<svg width="${w || 16}" height="16" viewBox="0 0 ${w || 16} 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
   const ext = (n) => { const i = n.lastIndexOf('.'); return i > 0 ? n.slice(i + 1).toLowerCase() : ''; };
 
+  // ---- A viewer's home (Bluesky accounts, git repos) as a grid of cards or
+  // a list: one row per item, its numbers in columns, sorted by any column.
+  // Each viewer keeps its own choice (i2f.appview.<app>).
+  const APPVIEWS = [VIEWS[1], VIEWS[0]];
+  const appView = (app) => pref('appview.' + app, 'grid') === 'list' ? 'list' : 'grid';
+  const appViewSeg = (cur) => `<div class="seg app-view" role="group" aria-label="Layout">${APPVIEWS.map((v) => `<button type="button" data-appview="${v[0]}" aria-pressed="${cur === v[0]}" title="${v[1]} (v)" aria-label="${v[1]}">${svg(v[2])}</button>`).join('')}</div>`;
+  // cols: { h: header, k: (id) => value to sort by, r: numbers (right, sorted
+  // largest first) }. st: { by: column or -1 (the given order), dir }.
+  function appTable(cols, ids, row, st) {
+    const cmp = (a, b) => typeof a === 'string' || typeof b === 'string' ? String(a || '').localeCompare(String(b || '')) : (a || 0) - (b || 0);
+    const c = cols[st.by], order = c ? ids.slice().sort((a, b) => cmp(c.k(a), c.k(b)) * st.dir || ids.indexOf(a) - ids.indexOf(b)) : ids;
+    const arrow = (j) => st.by === j ? (st.dir > 0 ? ' ↑' : ' ↓') : '';
+    return `<div class="app-list"><table class="app-table"><thead><tr>${cols.map((x, j) => `<th${x.r ? ' class="r"' : ''}${st.by === j ? ` aria-sort="${st.dir > 0 ? 'ascending' : 'descending'}"` : ''}>${x.k ? `<button type="button" data-sortcol="${j}">${x.h}${arrow(j)}</button>` : x.h}</th>`).join('')}</tr></thead><tbody>${order.map((id, i) => row(id, i, order)).join('')}</tbody></table></div>`;
+  }
+  // The clicks and keys a viewer's home shares: the grid / list switch (v),
+  // sorting by a column, a click anywhere on a row, and j / k through items.
+  function appHome(el, app, redraw) {
+    const st = { by: -1, dir: 1 };
+    if (!el.dataset.apphome) {
+      el.dataset.apphome = '1';
+      el.addEventListener('click', (ev) => {
+        const v = ev.target.closest('[data-appview]');
+        if (v) { keep('appview.' + el.dataset.app, v.dataset.appview); el._redraw(); return; }
+        const s = ev.target.closest('[data-sortcol]');
+        if (s) {
+          const j = +s.dataset.sortcol, x = el._st;
+          if (x.by === j) x.dir = -x.dir; else { x.by = j; x.dir = el._cols && el._cols[j] && el._cols[j].r ? -1 : 1; }
+          el._redraw();
+          return;
+        }
+        const tr = ev.target.closest('.app-table tbody tr');
+        if (tr && !ev.target.closest('a, button')) { const a = tr.querySelector('a.app-main'); if (a) a.click(); }
+      });
+    }
+    el.dataset.app = app;
+    el._st = st;
+    el._redraw = redraw;
+    Object.assign(pageKeys, {
+      v: () => { const b = el.querySelector('[data-appview][aria-pressed="false"]'); if (!b) return false; b.click(); toast(b.getAttribute('aria-label') + ' view'); return true; },
+      j: () => appStep(el, 1), k: () => appStep(el, -1)
+    });
+    return st;
+  }
+  function appStep(el, d) {
+    const items = Array.from(el.querySelectorAll('.app-item'));
+    if (!items.length) return false;
+    const i = items.findIndex((x) => x === D.activeElement || x.contains(D.activeElement));
+    const to = items[Math.max(0, Math.min(items.length - 1, i < 0 ? 0 : i + d))];
+    const f = to.matches('a') ? to : to.querySelector('a.app-main');
+    if (f) { f.focus({ preventScroll: true }); to.scrollIntoView({ block: 'nearest' }); }
+    return true;
+  }
+
   async function files() {
     const [m, meta] = await Promise.all([manifest(), load('meta')]);
     // Accounts (Bluesky's): each one's posts open in the Bluesky App viewer,
@@ -929,8 +982,8 @@ ${REPOS ? `<section class="card"><h2>Archive repos</h2><div id="repos"></div></s
       const libOn = S.deep && !S.q && !S.p && !S.app;
       const nOf = (k) => k === 'all' ? meta.entries : k === 'account' ? ACCTS.length : k === 'site' ? SITES.length + (FOUND ? FOUND.length : 0) : k === 'repo' ? REPOP.length : t[k] ? t[k][0] : 0;
       $('.lib').innerHTML = `<div class="h">Library</div>${LIB.filter((k) => nOf(k[0])).map((k) => `<a href="${libHref(k[0])}"${libOn && S.kind === k[0] ? ' aria-current="page"' : ''}><span style="color:${k[0] === 'all' ? 'var(--muted)' : kindOf(k[0])[1]}">${k[0] === 'all' ? svg(VIEWS[1][2]) : icon(k[0])}</span>${k[1]}<span class="n">${count(nOf(k[0]))}</span></a>`).join('')}
-<div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name, repoKindIcon(r.kind || '')]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${w[2] || icon('folder')}${esc(w[1])}</a>`).join('')}
 ${ACC.length || GITS.length ? '<div class="h">Viewers</div>' : ''}${ACC.length ? `<a href="browse.html?app=bsky"${S.app === 'bsky' ? ' aria-current="page"' : ''}>${BSKY}Bluesky</a>` : ''}${GITS.length ? `<a href="browse.html?app=git"${S.app === 'git' ? ' aria-current="page"' : ''}>${GITIC}Git</a>` : ''}
+<div class="h">${REPOS ? 'Archive repos' : 'Places'}</div><a href="browse.html"${!S.p && !S.deep && !S.app ? ' aria-current="page"' : ''}>${icon('folder')}${REPOS ? 'All repos' : 'All of data/'}</a>${(REPOS ? REPOS.map((r) => [r.name, r.name, repoKindIcon(r.kind || '')]) : ['pins', 'mfs', 'orphans'].filter((w) => parts[w]).map((w) => [w, PART[w][0]])).map((w) => `<a href="${browseHref(w[0])}"${S.p === w[0] && !S.deep ? ' aria-current="page"' : ''}>${w[2] || icon('folder')}${esc(w[1])}</a>`).join('')}
 <div class="h">Smart</div><a href="browse.html?${qs({ deep: '1', sort: 'size', dir: '-1' })}">${svg('M2 13h12M4 13V8M8 13V3M12 13V6')}Largest files</a>`;
       const on = NAV && $('.lib a[aria-current="page"]');
       if (on) on.focus({ preventScroll: true });
@@ -2548,19 +2601,55 @@ ${p.description ? `<span class="at-acct-bio">${esc(p.description)}</span>` : ''}
 <span class="at-acct-stats">${stat(x.posts, 'posts')}${stat(c['app.bsky.graph.follow'], 'following')}${stat(c['app.bsky.feed.like'], 'likes')}${stat((b.images || 0) + (b.videos || 0), 'media')}${stat(x.records, 'records')}</span>
 <span class="faint at-acct-foot">${repoOf(x) ? `In ${esc(repoOf(x))}` : ''}${x.time ? `${repoOf(x) ? ' · ' : ''}as of ${esc(day(x.time))}` : ''}${x.pds ? ` · on ${esc(x.pds.replace(/^https?:\/\//, ''))}` : ''}</span>`;
     };
+    // The list: one row per account, its numbers in columns.
+    const Ks = [];
+    const nums = (x, K) => { const c = (K && K.a.counts) || {}, b = x.blobs || {}; return { posts: x.posts || 0, follows: c['app.bsky.graph.follow'] || 0, likes: c['app.bsky.feed.like'] || 0, media: (b.images || 0) + (b.videos || 0), records: x.records || 0 }; };
+    const nameOf = (x, K) => { const p = K ? K.p : {}, h = x.handle || (K && K.handle) || x.name.replace(/^@/, ''); return [p.displayName || h, h]; };
+    const COLS = [
+      { h: 'Account', k: (i) => nameOf(accts[i], Ks[i])[0].toLowerCase() },
+      { h: 'Posts', r: 1, k: (i) => nums(accts[i], Ks[i]).posts },
+      { h: 'Following', r: 1, k: (i) => nums(accts[i], Ks[i]).follows },
+      { h: 'Likes', r: 1, k: (i) => nums(accts[i], Ks[i]).likes },
+      { h: 'Media', r: 1, k: (i) => nums(accts[i], Ks[i]).media },
+      { h: 'Records', r: 1, k: (i) => nums(accts[i], Ks[i]).records },
+      { h: 'As of', k: (i) => accts[i].time || '' },
+      { h: REPOS ? 'Repo' : 'PDS', k: (i) => REPOS ? repoOf(accts[i]) : accts[i].pds || '' }
+    ];
+    const cells = (x, i, K) => {
+      const p = K ? K.p : {}, [dn, handle] = nameOf(x, K), n = nums(x, K);
+      const u = K && p.avatar ? K.blob(p.avatar, 'avatar', LOCAL ? { w: 96 } : null) : null;
+      const z = (v) => `<td class="r">${v ? count(v) : '<span class="faint">–</span>'}</td>`;
+      return `<td><a class="at-row-name app-main" href="${esc(href(i))}"><span class="at-row-av">${u ? `<img alt="" src="${esc(u)}">` : BSKY}</span><span><b>${esc(dn)}</b><span class="faint">@${esc(handle)}</span>${p.description ? `<span class="at-row-bio">${esc(p.description)}</span>` : ''}</span></a></td>
+${z(n.posts)}${z(n.follows)}${z(n.likes)}${z(n.media)}${z(n.records)}<td class="faint nowrap">${x.time ? esc(day(x.time)) : ''}</td><td class="faint">${esc(REPOS ? repoOf(x) : (x.pds || '').replace(/^https?:\/\//, ''))}</td>`;
+    };
     el.innerHTML = `${appCrumbs([[BSKY + ' Bluesky', '', 1]])}
-<section class="card"><div class="titled"><h2>Bluesky accounts</h2><span class="faint">${plural(accts.length, 'account')} in this archive</span></div>
+<section class="card"><div class="titled"><h2>Bluesky accounts</h2><span class="faint">${plural(accts.length, 'account')} in this archive</span><span class="app-view-at"></span></div>
 <p class="faint">Each account's repo as archived: its posts, replies and media, shown as Bluesky shows them. Choose one.</p>
 ${!LOCAL && !HERE && !PUBLIC ? `<p class="faint">Open this explorer with <code>ipfs2fil explore</code> or through an IPFS gateway to see the pictures. <a href="browse.html?app=bsky&amp;public=1">Load them from ${GATEWAYS[0][0]}</a></p>` : ''}</section>
-<div class="at-accts">${accts.map((x, i) => `<a class="card at-acct" data-n="${i}" href="${esc(href(i))}">${card(x, i, null)}</a>`).join('')}</div>`;
+<div class="app-body"></div>`;
+    const ids = accts.map((x, i) => i);
+    let st;
+    const draw = () => {
+      const lv = appView('bsky');
+      el.querySelector('.app-view-at').innerHTML = appViewSeg(lv);
+      el._cols = COLS;
+      el.querySelector('.app-body').innerHTML = lv === 'list'
+        ? appTable(COLS, ids, (i) => `<tr class="app-item" data-n="${i}">${cells(accts[i], i, Ks[i])}</tr>`, st)
+        : `<div class="at-accts">${accts.map((x, i) => `<a class="card at-acct app-item" data-n="${i}" href="${esc(href(i))}">${card(x, i, Ks[i])}</a>`).join('')}</div>`;
+    };
+    st = appHome(el, 'bsky', draw);
+    draw();
     status(plural(accts.length, 'account'));
-    // each card gets its pictures and counts as its account loads, a few at a time
+    // each account fills in its pictures and counts as it loads, a few at a time
     const todo = accts.map((x, i) => i).filter((i) => inHere(accts[i]));
     const work = async () => {
       while (todo.length) {
         const i = todo.shift();
-        const K = await bsky(i).catch(() => null), c = el.querySelector(`.at-acct[data-n="${i}"]`);
-        if (K && c) c.innerHTML = card(accts[i], i, K);
+        const K = await bsky(i).catch(() => null);
+        if (!K) continue;
+        Ks[i] = K;
+        const c = el.querySelector(`.app-item[data-n="${i}"]`);
+        if (c) c.innerHTML = c.matches('tr') ? cells(accts[i], i, K) : card(accts[i], i, K);
       }
     };
     await Promise.all([work(), work(), work()]);
@@ -2684,7 +2773,7 @@ ${!LOCAL && !HERE && !PUBLIC ? `<p class="faint">Open this explorer with <code>i
     // ---- The repos, by owner
     async function home(my) {
       el.innerHTML = `${appCrumbs([[BASE, '', 1]])}
-<section class="card"><div class="titled"><h2>Git repos</h2><span class="faint">${plural(gits.length, 'repo')} in this archive</span></div>
+<section class="card"><div class="titled"><h2>Git repos</h2><span class="faint">${plural(gits.length, 'repo')} in this archive</span><span class="app-view-at"></span></div>
 <p class="faint">Each repo's history is stored as git packs and read here in the browser: its files at any commit, its log, branches and tags. Grouped by owner, as each repo's remote names it.</p></section>
 <div class="git-orgs"><p class="muted">Loading…</p></div>`;
       await loadAll();
@@ -2692,25 +2781,72 @@ ${!LOCAL && !HERE && !PUBLIC ? `<p class="faint">Open this explorer with <code>i
       const sl = gitSlugs(gits), groups = new Map();
       gits.forEach((gi, i) => { const o = sl[i].org; if (!groups.has(o)) groups.set(o, []); groups.get(o).push(i); });
       const orgs = [...groups.keys()].sort((a, b) => (a === '') - (b === '') || a.localeCompare(b));
-      const card = (i) => {
-        const gi = gits[i], g = GITL[i], s = sl[i];
-        const refs = g ? g.refs : [], last = g && g.commits.length ? Math.max(...g.commits.map((c) => c[6])) : 0;
-        const nb = refs.filter((r) => r[0].startsWith('refs/heads/')).length, nt = refs.filter((r) => r[0].startsWith('refs/tags/')).length;
-        const head = (gi.head || '').replace(/^refs\/heads\//, '');
-        const rem = g ? remoteOf(g) : gi.remote || '';
-        const stat = (n, what) => `<span><b>${num(n)}</b> ${what}</span>`;
-        return `<a class="card git-repo" href="${esc(gitHref(gits, i))}"><span class="git-repo-name">${GITIC}<b>${esc(s.name)}</b></span>
-${rem ? `<span class="faint git-repo-url">${esc(rem.replace(/^https?:\/\//, ''))}</span>` : ''}
-<span class="git-repo-stats">${stat(gi.commits, gi.commits === 1 ? 'commit' : 'commits')}${g ? stat(nb, nb === 1 ? 'branch' : 'branches') + stat(nt, nt === 1 ? 'tag' : 'tags') : stat(gi.refs, 'refs')}<span>${bytes(gi.bytes || 0)}</span></span>
-<span class="faint">${head ? `HEAD ${esc(head.length > 24 ? head.slice(0, 10) : head)}` : ''}${last ? `${head ? ' · ' : ''}last commit ${esc(day(new Date(last * 1000)))}` : ''}${REPOS && gi.path ? ` · in ${esc(gi.path.split('/')[0])}` : ''}</span></a>`;
+      const facts = (i) => {
+        const gi = gits[i], g = GITL[i], refs = g ? g.refs : [];
+        return {
+          last: g && g.commits.length ? Math.max(...g.commits.map((c) => c[6])) : 0,
+          nb: g ? refs.filter((r) => r[0].startsWith('refs/heads/')).length : null,
+          nt: g ? refs.filter((r) => r[0].startsWith('refs/tags/')).length : null,
+          head: (gi.head || '').replace(/^refs\/heads\//, ''),
+          rem: g ? remoteOf(g) : gi.remote || ''
+        };
       };
-      el.querySelector('.git-orgs').innerHTML = orgs.map((o) => `<section class="git-org" id="org-${esc(o || '-')}"><div class="titled"><h2><a href="${esc(gitPath('', '#org-' + encodeURIComponent(o || '-')))}">${esc(o || 'Other repos')}</a></h2><span class="faint">${plural(groups.get(o).length, 'repo')}</span></div><div class="git-repos">${groups.get(o).sort((a, b) => sl[a].name.localeCompare(sl[b].name)).map(card).join('')}</div></section>`).join('');
-      status(plural(gits.length, 'git repo'));
+      const F = gits.map((gi, i) => facts(i));
+      const headOf = (h) => esc(h.length > 24 ? h.slice(0, 10) : h);
+      const card = (i) => {
+        const gi = gits[i], s = sl[i], { last, nb, nt, head, rem } = F[i];
+        const stat = (n, what) => `<span><b>${num(n)}</b> ${what}</span>`;
+        return `<a class="card git-repo app-item" href="${esc(gitHref(gits, i))}"><span class="git-repo-name">${GITIC}<b>${esc(s.name)}</b></span>
+${rem ? `<span class="faint git-repo-url">${esc(rem.replace(/^https?:\/\//, ''))}</span>` : ''}
+<span class="git-repo-stats">${stat(gi.commits, gi.commits === 1 ? 'commit' : 'commits')}${nb !== null ? stat(nb, nb === 1 ? 'branch' : 'branches') + stat(nt, nt === 1 ? 'tag' : 'tags') : stat(gi.refs, 'refs')}<span>${bytes(gi.bytes || 0)}</span></span>
+<span class="faint">${head ? `HEAD ${headOf(head)}` : ''}${last ? `${head ? ' · ' : ''}last commit ${esc(day(new Date(last * 1000)))}` : ''}${REPOS && gi.path ? ` · in ${esc(gi.path.split('/')[0])}` : ''}</span></a>`;
+      };
+      // The list: the owner leads each run of its repos (in the owner order),
+      // then one column per number.
+      const byOwner = orgs.flatMap((o) => groups.get(o).slice().sort((a, b) => sl[a].name.localeCompare(sl[b].name)));
+      const COLS = [
+        { h: 'Owner', k: (i) => (sl[i].org || '~') + '/' + sl[i].name.toLowerCase() },
+        { h: 'Repo', k: (i) => sl[i].name.toLowerCase() },
+        { h: 'Commits', r: 1, k: (i) => gits[i].commits || 0 },
+        { h: 'Branches', r: 1, k: (i) => F[i].nb || 0 },
+        { h: 'Tags', r: 1, k: (i) => F[i].nt || 0 },
+        { h: 'Size', r: 1, k: (i) => gits[i].bytes || 0 },
+        { h: 'HEAD', k: (i) => F[i].head },
+        { h: 'Last commit', r: 1, k: (i) => F[i].last }
+      ].concat(REPOS ? [{ h: 'In', k: (i) => (gits[i].path || '').split('/')[0] }] : []);
+      const row = (i, k, order) => {
+        const gi = gits[i], s = sl[i], { last, nb, nt, head, rem } = F[i];
+        const grouped = st.by <= 0, first = !grouped || k === 0 || sl[order[k - 1]].org !== s.org;
+        const z = (v) => `<td class="r">${v === null ? '<span class="faint">–</span>' : num(v)}</td>`;
+        return `<tr class="app-item${grouped && first && k ? ' git-org-start' : ''}" data-org="${esc(s.org || '-')}"><td class="git-owner">${first ? `<a class="faint" href="${esc(gitPath('', '#org-' + encodeURIComponent(s.org || '-')))}" tabindex="-1">${esc(s.org || 'Other repos')}</a>` : ''}</td>
+<td><a class="git-row-name app-main" href="${esc(gitHref(gits, i))}">${GITIC}<span><b>${esc(s.name)}</b>${rem ? `<span class="faint git-repo-url">${esc(rem.replace(/^https?:\/\//, ''))}</span>` : ''}</span></a></td>
+${z(gi.commits || 0)}${z(nb)}${z(nt)}<td class="r">${bytes(gi.bytes || 0)}</td><td class="mono faint">${headOf(head)}</td><td class="r faint">${last ? esc(day(new Date(last * 1000))) : ''}</td>${REPOS ? `<td class="faint">${esc((gi.path || '').split('/')[0])}</td>` : ''}</tr>`;
+      };
+      let st;
+      const draw = () => {
+        const lv = appView('git');
+        el.querySelector('.app-view-at').innerHTML = appViewSeg(lv);
+        el._cols = COLS;
+        el.querySelector('.git-orgs').innerHTML = lv === 'list'
+          ? appTable(COLS, byOwner, row, st)
+          : orgs.map((o) => `<section class="git-org" id="org-${esc(o || '-')}"><div class="titled"><h2><a href="${esc(gitPath('', '#org-' + encodeURIComponent(o || '-')))}">${esc(o || 'Other repos')}</a></h2><span class="faint">${plural(groups.get(o).length, 'repo')}</span></div><div class="git-repos">${groups.get(o).sort((a, b) => sl[a].name.localeCompare(sl[b].name)).map(card).join('')}</div></section>`).join('');
+        mark();
+      };
       // #org-<owner> (from a path's owner) shows that owner's repos
-      const h = decodeURIComponent(location.hash.slice(1));
-      const at = h.startsWith('org-') && el.querySelector(`[id="${CSS.escape(h)}"]`);
-      el.querySelectorAll('.git-org.on').forEach((x) => x.classList.remove('on'));
-      if (at) { at.classList.add('on'); at.scrollIntoView({ block: 'start' }); }
+      const mark = (scroll) => {
+        const h = decodeURIComponent(location.hash.slice(1)), o = h.startsWith('org-') ? h.slice(4) : null;
+        el.querySelectorAll('.git-org.on, tr.on').forEach((x) => x.classList.remove('on'));
+        if (o === null) return;
+        const at = el.querySelector(`[id="${CSS.escape(h)}"]`);
+        const rows = Array.from(el.querySelectorAll('tr[data-org]')).filter((r) => r.dataset.org === o);
+        rows.forEach((r) => r.classList.add('on'));
+        const to = at || rows[0];
+        if (to && scroll) to.scrollIntoView({ block: 'start' });
+      };
+      st = appHome(el, 'git', draw);
+      draw();
+      mark(true);
+      status(plural(gits.length, 'git repo'));
     }
 
     // ---- One repo
