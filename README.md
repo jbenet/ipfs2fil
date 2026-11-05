@@ -140,8 +140,10 @@ shortcuts.
 
 | | |
 |---|---|
-| ![Overview: what takes the space, and each repo](site/media/explorer-overview.webp) | ![A PDF open in the preview](site/media/explorer-pdf.webp) |
+| ![Overview: what takes the space, and each repo](site/media/explorer-overview.webp) | ![A book open in the preview](site/media/explorer-pdf.webp) |
 | ![A video playing from the archive](site/media/explorer-video.webp) | ![Every piece and which providers store it](site/media/explorer-pieces.webp) |
+| ![The Bluesky viewer: an archived account's profile and posts](site/media/explorer-bsky.webp) | ![The Git viewer: a repo's files at HEAD, with its commits, branches and tags](site/media/explorer-git.webp) |
+| ![Archived web sites, open as sites](site/media/explorer-sites.webp) | ![Bluesky accounts as a sortable list](site/media/explorer-lists.webp) |
 
 Try it on the [demo archive on Filecoin](https://dweb.link/ipfs/bafybeih5s66bzgw3rlikif7cm5ipomzswgwemrwdsgscin3mo4kfrvg4le/explorer/): open-license books, papers,
 music, photos and HTML games, stored on mainnet with ipfs2fil and served by an
