@@ -22,6 +22,7 @@
     <nav aria-label="Sections">
       <a href="#how">How it works</a>
       <a href="#explorer">Explorer</a>
+      <a href="#viewers">Viewers</a>
       <a href="#start">Quickstart</a>
       <a href="#faq">FAQ</a>
       <a class="gh" href="https://github.com/jbenet/ipfs2fil">GitHub</a>
@@ -102,12 +103,16 @@
 <section id="explorer" class="section alt">
   <div class="wrap">
     <h2 class="title">An explorer inside every archive</h2>
-    <p class="sub">Run <code>ipfs2fil explore</code> to browse on your machine, or open <code>https://dweb.link/ipfs/&lt;root&gt;/explorer/</code> once the archive is stored. Photos, video, audio, PDFs and code open right in the page. Every list filters, sorts and moves with the keyboard.</p>
+    <p class="sub">Run <code>ipfs2fil explore</code> to browse on your machine, or open <code>https://dweb.link/ipfs/&lt;root&gt;/explorer/</code> once the archive is stored. Photos, video, audio, PDFs, books and code open right in the page; tar and zip files open like folders. Bluesky accounts read like Bluesky, git repos like a git host, and archived web sites open as sites. Every list filters, sorts and moves with the keyboard.</p>
 
     <div class="tabs" role="tablist" aria-label="Explorer screenshots">
       <button role="tab" aria-selected="true" data-shot="explorer-photos">Photos</button>
       <button role="tab" aria-selected="false" data-shot="explorer-pdf">Documents</button>
       <button role="tab" aria-selected="false" data-shot="explorer-video">Video</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-bsky">Bluesky</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-git">Git</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-sites">Web sites</button>
+      <button role="tab" aria-selected="false" data-shot="explorer-lists">Lists</button>
       <button role="tab" aria-selected="false" data-shot="explorer-overview">Overview</button>
       <button role="tab" aria-selected="false" data-shot="explorer-pieces">Pieces</button>
       <button role="tab" aria-selected="false" data-shot="explorer-search">Search</button>
@@ -121,12 +126,29 @@
     <p class="center demo-note">The Filecoin demo is a public archive of open-license books, papers, music, photos and HTML games, stored on mainnet and served by an IPFS gateway. The copy on this website holds that content and more: twelve repos of every kind ipfs2fil reads, kubo, js-ipfs, Helia, CAR files, a Bluesky account, a whole PDS, git repos, a pinning service and a list of web sites, made with simulated storage. It loads even when gateways are slow.</p>
 
     <div class="feature-video">
-      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>j / k through files, v to switch views</span></div><video src="media/explorer-tour.mp4" poster="media/explorer-tour.webp" autoplay muted loop playsinline aria-label="Screen recording: moving through files with the keyboard, switching views, opening a PDF and a video"></video></div>
+      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>j / k through files, v to switch views, then Bluesky, git and web sites</span></div><video src="media/explorer-tour.mp4" poster="media/explorer-tour.webp" autoplay muted loop playsinline aria-label="Screen recording: moving through photos with the keyboard, switching views, the Bluesky accounts as a list, an account's posts, the git repos and a repo's files and commits, then archived web sites"></video></div>
     </div>
   </div>
 </section>
 
-<section class="section">
+<section id="viewers" class="section">
+  <div class="wrap">
+    <h2 class="title">A viewer for each kind of repo</h2>
+    <p class="sub">An archive is more than files. The explorer knows what it is looking at and shows it the way its own app would, all from the archive, with nothing but a browser and an IPFS gateway.</p>
+    <div class="viewers">
+      <figure><div class="shot"><img src="media/viewer-bsky.webp" width="1228" height="768" alt="The Bluesky viewer: the @bsky.app profile with its banner, its posts, and a summary of the records the archive holds" loading="lazy"></div>
+        <figcaption><h3>Bluesky</h3><p>Accounts and whole PDSes: profiles, posts, replies, threads and media, as Bluesky shows them, and every record as JSON.</p></figcaption></figure>
+      <figure><div class="shot"><img src="media/viewer-git.webp" width="1228" height="768" alt="The Git viewer: the go-cid repo at HEAD with its files, commits, branches and tags" loading="lazy"></div>
+        <figcaption><h3>Git</h3><p>Repos with all their history, read from the stored packs: files at any commit, the log, branches and tags, at paths like a git host's.</p></figcaption></figure>
+      <figure><div class="shot"><img src="media/viewer-sites.webp" width="1228" height="768" alt="Archived web sites: docs.ipfs.tech open in the preview, beside a list of sites and folders that look like web sites" loading="lazy"></div>
+        <figcaption><h3>Web sites</h3><p>IPFS sites from a site list, and any folder with an index.html, open as sites whose links work inside the archive.</p></figcaption></figure>
+      <figure><div class="shot"><img src="media/viewer-lists.webp" width="1228" height="768" alt="The Bluesky accounts as a list: one row per account with posts, following, likes, media and records in columns" loading="lazy"></div>
+        <figcaption><h3>Grid or list</h3><p>Accounts and repos show as cards or as a sortable list, with their numbers in columns. Press <code>v</code> to switch.</p></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
   <div class="wrap">
     <h2 class="title">Built to outlast the machine it ran on</h2>
     <div class="grid">
@@ -143,7 +165,7 @@
   </div>
 </section>
 
-<section id="start" class="section alt">
+<section id="start" class="section">
   <div class="wrap narrow">
     <h2 class="title">Quickstart</h2>
     <p class="sub">You need an IPFS repo (kubo, go-ipfs, or anything that runs them, like IPFS Desktop; js-ipfs, Helia, a CAR file or a Bluesky account work too) and a Filecoin wallet with some FIL for gas and USDFC for storage. Add <code>--network calibration</code> to any command to try it free on the testnet first.</p>
@@ -180,7 +202,7 @@ ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></p
   </div>
 </section>
 
-<section class="section">
+<section class="section alt">
   <div class="wrap narrow">
     <h2 class="title">Commands</h2>
     <table class="cmds">
@@ -199,7 +221,7 @@ ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></p
   </div>
 </section>
 
-<section id="faq" class="section alt">
+<section id="faq" class="section">
   <div class="wrap narrow">
     <h2 class="title">Questions</h2>
     <div class="qa"><h3>Is what I archive public?</h3><p>Yes. Pieces are stored as they are, and providers announce the CIDs to the IPFS network, so anyone who has a CID can fetch that content. Only archive what you are happy to publish, or encrypt it before adding it to IPFS. (The catalog of your repos is the exception: it is encrypted with a key derived from your wallet key, and repo paths never leave your machine.)</p></div>
@@ -225,8 +247,12 @@ ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></p
 <script>
 const CAPS = {
   'explorer-photos': 'The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.',
-  'explorer-pdf': 'Documents open in place. The list shows which folder and piece each file lives in.',
+  'explorer-pdf': 'Documents open in place: PDFs, EPUB books with their covers, Office files, notebooks and more. The list shows which folder and piece each file lives in.',
   'explorer-video': 'Video and audio play straight from the archive, read from the pieces on your machine or from a gateway.',
+  'explorer-bsky': 'The Bluesky viewer shows an archived account as Bluesky does: profile, posts, replies, media and threads, plus a summary of every record the archive holds.',
+  'explorer-git': 'The Git viewer reads the stored git packs in the browser: the files at any commit, the log, branches, tags and snapshots, at paths like a git host has.',
+  'explorer-sites': 'Archived web sites open as sites, with links that work inside the archive. Folders that look like web sites, such as HTML games, are found and listed too.',
+  'explorer-lists': 'Bluesky accounts and git repos show as cards or as a list (press v), with their numbers in columns to sort by.',
   'explorer-overview': 'The overview: what takes the space, by part of the repo and by file type, and each repo with what it shares with the others.',
   'explorer-pieces': 'Every piece, what it holds, and which providers store it. Pieces from a new snapshot are marked.',
   'explorer-search': 'Search names and CIDs across every repo, scoped to a folder and below.',

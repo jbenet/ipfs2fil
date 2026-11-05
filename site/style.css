@@ -99,6 +99,11 @@ header nav .gh { color: var(--text); font-weight: 500; }
 .grid article { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
 .section.alt .grid article { background: var(--bg); }
 .grid h3 { font-size: 17px; margin-bottom: 8px; }
+.viewers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; margin-top: 40px; }
+.viewers figure { margin: 0; }
+.viewers figcaption { margin-top: 16px; }
+.viewers h3 { font-size: 18px; margin-bottom: 6px; }
+.viewers p { margin: 0; color: var(--muted); font-size: 15px; }
 .grid p { margin: 0; color: var(--muted); font-size: 15px; }
 
 /* Quickstart */
@@ -125,6 +130,7 @@ pre code { background: none; border: 0; padding: 0; color: inherit; font-size: i
 .foot-row span:first-child { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 960px) {
+  .viewers { grid-template-columns: minmax(0, 1fr); }
   .hero-grid, .step, .step:nth-child(odd of .step) { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .step:nth-child(odd of .step) .step-text { order: 0; }
   .hero-media { padding-bottom: 0; margin: 0; }
