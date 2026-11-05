@@ -56,7 +56,7 @@ var commands = map[string]*command{}
 func register(c *command) { commands[c.name] = c }
 
 // order is how the usage lists commands.
-var order = []string{"wallet", "scan", "pack", "push", "up", "status", "explore", "verify", "export", "version"}
+var order = []string{"wallet", "scan", "pack", "push", "up", "status", "explore", "explore-url", "verify", "export", "version"}
 
 func usage(w io.Writer) {
 	fmt.Fprint(w, `ipfs2fil archives an IPFS repo to Filecoin.
@@ -75,7 +75,7 @@ Commands:
 	sort.SliceStable(names, func(i, j int) bool { return index(order, names[i]) < index(order, names[j]) })
 	for _, n := range names {
 		if c := commands[n]; c != nil {
-			fmt.Fprintf(w, "  %-9s %s\n", c.name, c.summary)
+			fmt.Fprintf(w, "  %-11s %s\n", c.name, c.summary)
 		}
 	}
 	fmt.Fprint(w, `

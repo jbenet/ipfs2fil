@@ -23,13 +23,14 @@ made. Everything shows two made-up repos, never anyone's real data.
    `rec.py` types each command like a person and waits for the output;
    `render.js` plays the cast in xterm.js and writes `out.mp4`, `out.gif` and
    `last.png` (convert to webp for the site).
-4. **Explorer screenshots and tour.** From the live demo (step 5): serve
-   `site/` (`python3 -m http.server 8765`), then `node shots.js <dir>`
-   (every explorer-*.png at 1440x900, device scale 2; convert to webp; the
-   viewer-*.webp on the site are crops of the bsky, git, sites and lists
-   shots) and `node tour.js <dir>` (a webm; the ffmpeg line is in the file).
-   After changing the explorer's assets, copy explorer.js and explorer.css
-   into every `site/demo/*/explorer/` first.
+4. **Explorer gallery and tour.** From the live demo (step 5): serve `site/`
+   (`python3 -m http.server 8765`), then `node shots.js <dir>` (a 1440x1140
+   shot at device scale 2 for every sidebar row and gallery pill, and
+   rows.json, where the sidebar rows are), then `python3 gallery.py <dir>`
+   (site/media/gallery/*.webp and site/gallery-rows.js). site/gallery.js has
+   the pills and captions. `node tour.js <dir>` records the tour video (the
+   ffmpeg line is in the file). After changing the explorer's assets, copy
+   explorer.js and explorer.css into every `site/demo/*/explorer/` first.
 5. **Live demo** (site/demo/). One home with a repo of every kind:
    `demo/make.sh` builds two kubo repos (the public demo archive's content
    from step 6, plus photos, notes and PDFs), a js-ipfs repo 12 and a Helia

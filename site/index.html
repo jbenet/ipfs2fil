@@ -105,23 +105,14 @@
     <h2 class="title">An explorer inside every archive</h2>
     <p class="sub">Run <code>ipfs2fil explore</code> to browse on your machine, or open <code>https://dweb.link/ipfs/&lt;root&gt;/explorer/</code> once the archive is stored. Photos, video, audio, PDFs, books and code open right in the page; tar and zip files open like folders. Bluesky accounts read like Bluesky, git repos like a git host, and archived web sites open as sites. Every list filters, sorts and moves with the keyboard.</p>
 
-    <div class="tabs" role="tablist" aria-label="Explorer screenshots">
-      <button role="tab" aria-selected="true" data-shot="explorer-photos">Photos</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-pdf">Documents</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-video">Video</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-bsky">Bluesky</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-git">Git</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-sites">Web sites</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-lists">Lists</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-overview">Overview</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-pieces">Pieces</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-search">Search</button>
-      <button role="tab" aria-selected="false" data-shot="explorer-keys">Shortcuts</button>
+    <div class="gallery" id="gallery">
+      <div class="pills" aria-label="Explorer screenshots"></div>
+      <p class="gal-hint">Point at a row of the explorer's sidebar (anywhere level with it) to see that page.</p>
+      <figure>
+        <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span class="gal-url">127.0.0.1:8484/all/explorer/</span></div><div class="gal-stage"><img class="gal-img" src="media/gallery/photos.webp" width="1440" height="1140" alt="The explorer's Content page"><span class="gal-hl" hidden></span></div></div>
+        <figcaption class="gal-cap"></figcaption>
+      </figure>
     </div>
-    <figure class="gallery">
-      <div class="shot shot-browser"><div class="chrome"><i></i><i></i><i></i><span>127.0.0.1:8484/all/explorer/</span></div><img id="gallery-img" src="media/explorer-photos.webp" width="1440" height="900" alt="The explorer's Content page" loading="lazy"></div>
-      <figcaption id="gallery-cap">The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.</figcaption>
-    </figure>
     <p class="center"><a class="btn primary" href="https://dweb.link/ipfs/bafybeih5s66bzgw3rlikif7cm5ipomzswgwemrwdsgscin3mo4kfrvg4le/explorer/">Open the demo archive from Filecoin</a> <a class="btn" href="demo/all/explorer/">or a copy on this website</a></p>
     <p class="center demo-note">The Filecoin demo is a public archive of open-license books, papers, music, photos and HTML games, stored on mainnet and served by an IPFS gateway. The copy on this website holds that content and more: twelve repos of every kind ipfs2fil reads, kubo, js-ipfs, Helia, CAR files, a Bluesky account, a whole PDS, git repos, a pinning service and a list of web sites, made with simulated storage. It loads even when gateways are slow.</p>
 
@@ -184,21 +175,38 @@ ipfs2fil wallet        # FIL, USDFC and the Filecoin Pay deposit</code></pre>
       <li><h3>Check and browse</h3>
 <pre><code>ipfs2fil status        # providers, pieces, last proof, days funded
 ipfs2fil verify        # fetch every piece back, check every block
-ipfs2fil explore       # http://127.0.0.1:8484/</code></pre></li>
+ipfs2fil explore       # browse it here: http://127.0.0.1:8484/
+ipfs2fil explore-url   # the explorer stored on Filecoin, for any browser</code></pre>
+      <p>The explorer travels inside the archive, so once the pieces are stored anyone can open it from an IPFS gateway: <code>explore-url</code> prints <code>https://dweb.link/ipfs/&lt;root&gt;/explorer/</code>, one per repo with <code>--all</code>.</p></li>
     </ol>
-    <p>Not a kubo repo? <code>--repo</code> takes the other kinds too:</p>
-<pre><code>ipfs2fil up --repo ~/.jsipfs                # a js-ipfs repo
-ipfs2fil up --repo ./my-app/data            # a Helia store (blocks/, datastore/)
-ipfs2fil up --repo export.car               # a CAR file, or a folder of them
-ipfs2fil up --repo http://127.0.0.1:5001    # a running kubo node
-ipfs2fil up --repo at://you.bsky.social     # a Bluesky account
-ipfs2fil up --repo pds:https://pds.example.com  # every account on a PDS
-ipfs2fil up --repo ~/src/project            # a git repo, or a folder of them
-ipfs2fil up --repo https://github.com/ipfs/kubo  # a git repo by URL
-ipfs2fil up --repo psa:pinata               # your pins on a pinning service
-ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></pre>
-    <p>The <a href="demo/all/explorer/">demo</a> holds one of each beside two kubo repos: a js-ipfs repo and a Helia store made by their own code, a CAR of art and one of dev assets, the @bsky.app Bluesky account, a PDS of three made-up accounts, the multiformats specs and ipfs/go-cid as git repos, a pinning service and the ipfs.tech, specs.ipfs.tech and docs.ipfs.tech sites. The same images sit in the Bluesky account, the Helia store, the CAR and kubo, and are stored once; so are the papers and photos the pinning service holds, and the specs site it pins.</p>
-    <p>Several repos? <code>ipfs2fil repos add ~/.ipfs</code> for each, then <code>ipfs2fil up --all</code>. Every command explains itself: <code>ipfs2fil help &lt;command&gt;</code>.</p>
+    <h3 class="sub-title" id="kinds">Archive all the things</h3>
+    <p class="lead">Not just kubo. <code>--repo</code> takes every kind of IPFS and IPLD data ipfs2fil reads:</p>
+<pre><code>ipfs2fil up --repo ~/.jsipfs                      # a js-ipfs repo
+ipfs2fil up --repo ./my-app/data                  # a Helia store (blocks/, datastore/)
+ipfs2fil up --repo export.car                     # a CAR file, or a folder of them
+ipfs2fil up --repo http://127.0.0.1:5001          # a running kubo node
+ipfs2fil up --repo at://you.bsky.social           # a Bluesky account
+ipfs2fil up --repo pds:https://pds.example.com    # every account on a PDS
+ipfs2fil up --repo ~/src/project                  # a git repo, or a folder of them
+ipfs2fil up --repo https://github.com/ipfs/kubo   # a git repo by URL
+ipfs2fil up --repo psa:pinata                     # your pins on a pinning service
+ipfs2fil up --repo mine.ipfs-sites.toml           # a list of IPFS web sites</code></pre>
+    <p>The <a href="demo/all/explorer/">demo</a> holds one of each beside two kubo repos:</p>
+    <ul class="kinds">
+      <li>a js-ipfs repo and a Helia store, made by their own code</li>
+      <li>a CAR of art, and one of dev assets</li>
+      <li>the @bsky.app Bluesky account</li>
+      <li>a PDS of three made-up accounts</li>
+      <li>the multiformats specs and ipfs/go-cid, as git repos</li>
+      <li>a pinning service</li>
+      <li>the ipfs.tech, specs.ipfs.tech and docs.ipfs.tech sites</li>
+    </ul>
+    <p>The same images sit in the Bluesky account, the Helia store, the CAR and kubo, and are stored once; so are the papers and photos the pinning service holds, and the specs site it pins.</p>
+    <h3 class="sub-title">Several repos?</h3>
+<pre><code>ipfs2fil repos add ~/.ipfs     # for each
+ipfs2fil up --all</code></pre>
+    <h3 class="sub-title">Every command explains itself</h3>
+<pre><code>ipfs2fil help &lt;command&gt;</code></pre>
   </div>
 </section>
 
@@ -214,6 +222,7 @@ ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></p
         <tr><td><code>status</code></td><td>Copies, funding and proofs, read from chain</td></tr>
         <tr><td><code>verify</code></td><td>Fetch pieces back and check every block</td></tr>
         <tr><td><code>explore</code></td><td>Serve the HTML explorer, with the files themselves</td></tr>
+        <tr><td><code>explore-url</code></td><td>Print the URL of the explorer stored on Filecoin</td></tr>
         <tr><td><code>repos</code></td><td>Keep a list of repos to archive together (add, ls, rm)</td></tr>
         <tr><td><code>wallet</code></td><td>Make a wallet key to fund, or show its balances</td></tr>
       </tbody>
@@ -245,28 +254,11 @@ ipfs2fil up --repo mine.ipfs-sites.toml     # a list of IPFS web sites</code></p
 </footer>
 
 <script>
-const CAPS = {
-  'explorer-photos': 'The library sorts every file by kind across all your repos. Pick a photo and it fills the preview, with its CID, gateway links, the piece that holds it and how many copies exist.',
-  'explorer-pdf': 'Documents open in place: PDFs, EPUB books with their covers, Office files, notebooks and more. The list shows which folder and piece each file lives in.',
-  'explorer-video': 'Video and audio play straight from the archive, read from the pieces on your machine or from a gateway.',
-  'explorer-bsky': 'The Bluesky viewer shows an archived account as Bluesky does: profile, posts, replies, media and threads, plus a summary of every record the archive holds.',
-  'explorer-git': 'The Git viewer reads the stored git packs in the browser: the files at any commit, the log, branches, tags and snapshots, at paths like a git host has.',
-  'explorer-sites': 'Archived web sites open as sites, with links that work inside the archive. Folders that look like web sites, such as HTML games, are found and listed too.',
-  'explorer-lists': 'Bluesky accounts and git repos show as cards or as a list (press v), with their numbers in columns to sort by.',
-  'explorer-overview': 'The overview: what takes the space, by part of the repo and by file type, and each repo with what it shares with the others.',
-  'explorer-pieces': 'Every piece, what it holds, and which providers store it. Pieces from a new snapshot are marked.',
-  'explorer-search': 'Search names and CIDs across every repo, scoped to a folder and below.',
-  'explorer-keys': 'Everything works from the keyboard. Press ? on any page.'
-};
-const tabs = document.querySelectorAll('[role=tab]'), img = document.getElementById('gallery-img'), cap = document.getElementById('gallery-cap');
-tabs.forEach((t) => t.addEventListener('click', () => {
-  tabs.forEach((x) => x.setAttribute('aria-selected', x === t));
-  img.src = 'media/' + t.dataset.shot + '.webp';
-  cap.textContent = CAPS[t.dataset.shot];
-}));
 document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1500); } catch (e) { /* no clipboard */ }
 }));
 </script>
+<script src="gallery-rows.js"></script>
+<script src="gallery.js"></script>
 </body>
 </html>
