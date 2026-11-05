@@ -237,6 +237,7 @@ func upload(ctx context.Context, o *opts, s store.Store, m *manifest.Manifest, p
 		return fmt.Errorf("%w\nWhat landed is saved; run push again to retry the rest", err)
 	}
 	fmt.Fprintf(o.stdout, "archive  %s, %d copies\n", m.Root, o.copies)
+	fmt.Fprintf(o.stdout, "explorer %s   (once providers announce it; ipfs2fil explore-url)\n", explorerURL("https://dweb.link", m.Root))
 	if !o.all {
 		fmt.Fprintf(o.stdout, "next     ipfs2fil status --out %s   (proofs start within a day)\n", o.out)
 	}

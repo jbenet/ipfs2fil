@@ -120,13 +120,15 @@ USDFC to pay for storage. Add
        ipfs2fil verify            # fetch every piece back, check every block, and
                                   # check the CIDs are announced to IPFS
        ipfs2fil explore           # http://127.0.0.1:8484/
+       ipfs2fil explore-url       # the explorer stored on Filecoin, for any browser
        ipfs2fil export --to DIR   # write the repo back out from its pieces
                                   # (from Filecoin if the local CARs are gone)
 
    ![ipfs2fil status and verify](site/media/check.gif)
 
-   Once stored, the archive root printed by `up` opens from any gateway,
-   e.g. `https://dweb.link/ipfs/<root>/explorer/`.
+   Once stored, the explorer opens from any gateway: `ipfs2fil explore-url`
+   prints its URL, `https://dweb.link/ipfs/<root>/explorer/` (one per repo
+   with `up --all`).
 
 The steps of `up` also run on their own: `ipfs2fil pack`, then `ipfs2fil push`.
 Every command explains itself: `ipfs2fil help <command>`.
