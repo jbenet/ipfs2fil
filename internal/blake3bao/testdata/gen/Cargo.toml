@@ -1,0 +1,15 @@
+# Regenerates ../bao-tree-vectors.txt from n0's bao-tree crate (what iroh-blobs
+# uses): cargo run -q --release > ../bao-tree-vectors.txt
+[package]
+name = "baoref"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "baoref"
+path = "main.rs"
+
+[dependencies]
+bao-tree = "=0.17.0"
+blake3 = "=1.8.7"
+hex = "=0.4.3"
