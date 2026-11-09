@@ -128,7 +128,7 @@ func CheckCAR(r io.Reader) (int64, error) {
 	}
 }
 
-const maxSection = 8 << 20 // larger than any block kubo writes
+const maxSection = 64 << 20 // the same limit packing reads CARs with
 
 // section reads one varint-length-prefixed CAR section.
 func section(br *bufio.Reader) ([]byte, error) {

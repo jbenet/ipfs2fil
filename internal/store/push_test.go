@@ -243,6 +243,16 @@ func TestCheckCARTruncated(t *testing.T) {
 	}
 }
 
+func TestCheckCARLargeBlock(t *testing.T) {
+	// Packing accepts blocks up to the CAR reader's 64 MiB limit, so a
+	// 10 MiB block from an imported CAR must also verify.
+	big := strings.Repeat("z", 10<<20)
+	n, err := store.CheckCAR(bytes.NewReader(carOf("x", big)))
+	if err != nil || n != 2 {
+		t.Fatalf("n = %d, err = %v", n, err)
+	}
+}
+
 func TestPushReportsBytes(t *testing.T) {
 	// A small piece still reports its bytes, then that it is staged, before
 	// the final event.
