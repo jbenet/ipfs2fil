@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"maps"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -201,6 +202,61 @@ func TestPushNeedsSharedPieces(t *testing.T) {
 	// The first repo holds blocks the later one relies on.
 	if _, _, err := ipfs2fil(t, "repos", "rm", "v18", "--home", home); err == nil || !strings.Contains(err.Error(), "later") {
 		t.Errorf("rm of a repo others rely on: %v", err)
+	}
+}
+
+// TestPackAllTwice: packing again before or after the push changes
+// nothing, so no repo's changes go in a second bundle piece.
+func TestPackAllTwice(t *testing.T) {
+	useMemStore(t, 5)
+	home := t.TempDir()
+	for _, f := range []string{"v18", "v17", "v11"} {
+		if _, _, err := ipfs2fil(t, "repos", "add", fixture(t, f), "--name", f, "--home", home); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bundles := func() map[string]bool {
+		t.Helper()
+		c, err := collection.Open(home)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]bool{}
+		for _, r := range c.Repos {
+			m, err := c.Manifest(r)
+			if err != nil || m == nil {
+				t.Fatalf("%s: %v", r.Name, err)
+			}
+			for _, p := range m.Pieces {
+				if p.Part == manifest.PartBundle {
+					out[p.PieceCID] = true
+				}
+			}
+		}
+		return out
+	}
+	if _, _, err := ipfs2fil(t, "pack", "--all", "--home", home); err != nil {
+		t.Fatal(err)
+	}
+	first := bundles()
+	if len(first) != 1 {
+		t.Fatalf("%d bundle pieces", len(first))
+	}
+	for _, step := range [][]string{
+		{"pack", "--all", "--home", home},
+		{"push", "--all", "--home", home, "--yes"},
+		{"pack", "--all", "--home", home},
+	} {
+		out, _, err := ipfs2fil(t, step...)
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", step, err, out)
+		}
+		if step[0] == "pack" && strings.Count(out, "unchanged since the last pack") != 3 {
+			t.Errorf("%v repacked a repo:\n%s", step, out)
+		}
+		if got := bundles(); !maps.Equal(got, first) {
+			t.Fatalf("after %v the bundle pieces are %v, not %v", step, got, first)
+		}
 	}
 }
 
