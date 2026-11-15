@@ -195,9 +195,21 @@ func (l *layout) inputs(ctx context.Context, outDir string, prev *manifest.Manif
 	}
 
 	var own map[string]bool
+	// A bundle piece this archive is in holds its blocks whichever member
+	// handed them in. The first pack saw that piece with no PieceCID yet, so
+	// not as shared; seeing it as shared now would rebuild the archive and
+	// put its changes in a second bundle.
+	ours := map[string]bool{}
 	if opts.Shared != nil {
 		if own, err = ownBlocks(outDir, prev); err != nil {
 			return "", err
+		}
+		if prev != nil {
+			for _, p := range prev.Pieces {
+				if p.Part == manifest.PartBundle && p.PieceCID != "" {
+					ours[p.PieceCID] = true
+				}
+			}
 		}
 	}
 	sorted := slices.Clone(l.all)
@@ -210,7 +222,7 @@ func (l *layout) inputs(ctx context.Context, outDir string, prev *manifest.Manif
 			h.bytes(nil)
 			continue
 		}
-		if sb, ok := opts.Shared(b.h); ok {
+		if sb, ok := opts.Shared(b.h); ok && !ours[sb.PieceCID] {
 			h.str(sb.Archive + " " + sb.PieceCID)
 		} else {
 			h.bytes(nil)
